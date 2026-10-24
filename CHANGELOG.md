@@ -1,5 +1,16 @@
 # What changed
 
+## 2026.11.19-1 — 2026-10-24
+- Agent quotes can no longer move a job backwards or orphan its work orders
+- bad prices are rejected instead of imported as $0
+- imported customers default to Contractor/Prepay (government = Net 30, exempt)
+- one invoicing path: the accountant invoices from the order sync and the invoice number flows back into the CRM
+- 40% quote floor enforced in the price box
+- quantity breaks work
+- margin shows — with no cost
+- cost sheet loads itself from the agents' mirror of the NewCo workbook
+- new feed lanes: setting, inventory, invoice
+
 ## 2026.11.18-1 — 2026-10-24
 - Quotes from the sales agents now arrive WITH their lines: a feed row can carry `lines` (JSON or "10 x R1-1 | Stop | 30x30 | HIP @ 50.43"); the project opens as Quoted with a quote number and amount. Without lines it stays an Inquiry (no more empty "Quoted" projects). A later row with `updates` = the original row_id replaces the lines.
 - Website catalogue: Settings → "Pull the website catalogue now" (daily on your own site) loads every product on streetsignsupply.com with its picture, sizes, materials, prices and quantity tiers from the agents' sheet. "Browse the price list" on a quote has a Website tab with pictures; a line named like a website product prices itself and carries the picture onto quotes and work orders.
