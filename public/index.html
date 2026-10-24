@@ -2003,9 +2003,10 @@ function projCost(p){return p?jobsOf(p.id).reduce((t,j)=>t+jobCost(j),0)+(Number
   +orderedLines(p).filter(isCharge).reduce((t,l)=>t+(Number(l.qty)||1)*(Number(l.cost)||0),0):0}
 function valueFrom(p){return !p||!p.amountAuto?"typed in":orderedLines(p).some(l=>Number(l.price)>0)?"from the order lines"
   :orderedLines(p).some(l=>!isCharge(l))?"no prices on the lines yet":"from the work order lines"}
-function projMargin(p){const r=projValue(p);return r?((r-projCost(p))/r*100):0}
+function projMargin(p){const r=projValue(p);if(!r||projCost(p)===0)return null;return (r-projCost(p))/r*100}
+function marginTxt(p){const m=projMargin(p);return m==null?"—":m.toFixed(0)+"%"}
 function marginPill(m,rev){
-  if(!rev)return `<span class="sub">—</span>`;
+  if(!rev||m==null)return `<span class="sub">—</span>`;
   const c=m>=40?"g":m>=25?"y":m>0?"o":"r";
   return `<span class="pill ${c}">${m.toFixed(0)}%</span>`;
 }
@@ -3658,8 +3659,9 @@ function closeList(p){
       :billState(p)==="invoiced"?"Invoiced"+(p.billDate?" "+fmtDate(p.billDate):"")+" — not collected yet"
       :"Still showing "+billLabel(p),"bill");
   auto("c_margin","Margin looks right",
-    projValue(p)>0&&projMargin(p)>=0,
+    projValue(p)>0&&(projMargin(p)==null||projMargin(p)>=0),
     projValue(p)<=0?"No value on the project"
+      :projMargin(p)==null?"No cost recorded yet"
       :projMargin(p)<0?"Costing more than it sold for"
       :projMargin(p).toFixed(0)+"% — "+money(projValue(p)-projCost(p)),"proj",projValue(p)<=0);
 
@@ -3769,7 +3771,7 @@ async function doClose(pid,skipCheck){
   }
   askConfirm("Close P-"+p.num+" won?",
     `<p style="margin:0 0 8px"><b>${esc(p.name)}</b> for ${esc(accName(p.accountId))} —
-      ${money(projValue(p))}${projCost(p)?", margin "+projMargin(p).toFixed(0)+"%":""}.</p>
+      ${money(projValue(p))}${projMargin(p)!=null?", margin "+marginTxt(p):""}.</p>
      <p class="note">It moves to the Archive with ${jobsOf(p.id).length} work order${jobsOf(p.id).length===1?"":"s"}.
        Nothing is deleted — files, material and history all stay.</p>`,
     "Close won and archive",false,()=>setStage(pid,"closed"));
@@ -3841,7 +3843,7 @@ function billCard(p){
       const items=ol.filter(l=>!isCharge(l)).reduce((t,l)=>t+amt(l),0),chg=ol.filter(isCharge).reduce((t,l)=>t+amt(l),0);
       const v=projValue(p),dep=billWhen(p)==="deposit"&&Number(p.depositAmt)>0?Number(p.depositAmt):0;
       return `<div class="billval" data-nohelp="1"><div><div class="k">Project value</div><div class="big mono">${money2(v)}</div>
-          <div class="sub">${ol.length?`${money2(items)} items${chg?` + ${money2(chg)} charges`:""} · before sales tax${(S.brand||{}).qbInvoicing===false?"":" (QuickBooks adds it)"}`:"no quote lines yet"}</div></div>
+          <div class="sub">${ol.length?`${money2(items)} items${chg?` + ${money2(chg)} charges`:""} · before sales tax${(S.brand||{}).qbInvoicing===false?"":". Tax: QuickBooks calculates it; the amount here is an estimate at "+(Number((S.brand||{}).taxRate)||0)+"%"}`:"no quote lines yet"}</div></div>
         ${dep?`<div><div class="k">Deposit</div><div class="mono">${money2(dep)}</div><div class="sub">balance ${money2(Math.max(0,v-dep))}</div></div>`:""}
         ${billState(p)==="paid"?`<span class="pill g">Paid in full</span>`:""}</div>`})()}
     <div class="fgrid">
@@ -3891,10 +3893,13 @@ async function billWhenSave(pid){
   const nw=(BILLWHEN.find(x=>x.id===w)||{}).label||"";
   if(old!==nw)recordHistory("project",pid,[{f:"Billing",o:old,n:nw}]);
 }
-async function setBill(pid,st,noStage){
+async function setBill(pid,st,noStage,invNum){
   const p=proj(pid);if(!p)return;
+  // the accountant's "invoiced" event is useless without the number QuickBooks gave it — ask first
+  if(st==="invoiced"&&!noStage&&!String(p.invNum||"").trim()&&invNum==null){invNumAsk(pid);return}
   const was=billLabel(p);
   const patch={billStatus:st,updatedAt:Date.now()};
+  if(invNum!=null&&String(invNum).trim())patch.invNum=String(invNum).trim();
   const today2=new Date().toISOString().slice(0,10);
   if(st==="invoiced"&&!p.billDate)patch.billDate=today2;
   if(st==="deposit"&&!p.billDate)patch.billDate=today2;
@@ -3902,12 +3907,23 @@ async function setBill(pid,st,noStage){
   if(st==="none"){patch.billDate="";patch.paidDate=""}
   await push("projects/"+pid,patch);
   const now=(BILLSTATE.find(x=>x.id===st)||{}).label||st;
-  recordHistory("project",pid,[{f:"Billing",o:was,n:now,ev:1}]);
+  recordHistory("project",pid,[{f:"Billing",o:was,n:now+(patch.invNum?" — #"+patch.invNum:""),ev:1}]);
   if(!noStage&&st==="invoiced"&&p.stage==="shipped")await setStage(pid,"invoiced","billed");
   const p2=proj(pid);
   if(st==="paid"&&p2&&(p2.stage==="shipped"||p2.stage==="invoiced")&&!closeOpen(p2).length)
     toast("Paid — ready to close won");
   else toast(now);
+}
+function invNumAsk(pid){
+  const p=proj(pid);if(!p)return;
+  openModal(mshell("QuickBooks invoice number","money",
+    `<div style="padding:4px 0"><p class="note" style="margin:0 0 8px">Type the number QuickBooks gave the invoice for <b>P-${esc(String(p.num||""))}</b> — it goes to the accountant with the "invoiced" event.</p>
+     <div class="fgrid">${inp("inv-num","Invoice number","")}</div></div>`,
+    `<button class="btn" data-close="1">Cancel</button><button class="btn p" id="inv-ok">Mark invoiced</button>`));
+  const b=$("#inv-ok");
+  if(b)b.onclick=()=>{const v=String(($("#inv-num")||{}).value||"").trim();if(!v){toast("Type the invoice number from QuickBooks.");return}
+    closeModal();setBill(pid,"invoiced",false,v)};
+  focusFirst("inv-num");
 }
 /* ================= ORDERED vs SCHEDULED ================= */
 function normKey(code,size){
@@ -4497,6 +4513,8 @@ function trackingMail(j){
     .replace(/\{carrier\}/g,sh.carrier?" by "+sh.carrier:"").replace(/\{tracking\}/g,sh.tracking);
   return `<a class="btn sm" href="mailto:${encodeURIComponent((c&&c.email)||"")}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}">Email the tracking to ${esc(c?c.name:"the customer")}</a>`;
 }
+// the accountant agent invoices in QuickBooks from the order sync — unless this is switched off in Settings
+function acctInvoices(){return (S.brand||{}).accountantInvoices!==false}
 function nextStepFor(p){
   const id=p.id;const js=jobsOf(id);const ol=orderedLines(p).filter(l=>!isCharge(l));
   if(p.stage==="closed"||p.stage==="lost")return "";
@@ -4506,7 +4524,9 @@ function nextStepFor(p){
   if(p.stage==="quoted")return `<button class="btn p" data-stage="${esc(id)}:won">Next: mark it won</button>`;
   if(["won","production"].indexOf(p.stage)>=0&&!js.length)return `<button class="btn p" data-quickwo="${esc(id)}">Next: make the work orders</button>`;
   if(["won","production"].indexOf(p.stage)>=0)return `<button class="btn p" data-go="job/${js.find(j=>j.status!=="shipped")?js.find(j=>j.status!=="shipped").num:js[0].num}">Next: open the work order</button>`;
-  if(p.stage==="shipped"&&["invoiced","paid"].indexOf(billState(p))<0)return `<button class="btn p" data-qbinv="${esc(id)}">Next: invoice it in QuickBooks</button>`;
+  if(p.stage==="shipped"&&["invoiced","paid"].indexOf(billState(p))<0)return acctInvoices()
+    ?`<span class="sub" style="display:inline-block;padding:6px 0">Waiting on the accountant to invoice (QuickBooks)</span>`
+    :`<button class="btn p" data-qbinv="${esc(id)}">Next: invoice it in QuickBooks</button>`;
   if(p.stage!=="closed"&&p.stage!=="lost")return `<button class="btn p" data-closeout="${esc(id)}">Next: close it out</button>`;
   return "";
 }
@@ -4687,7 +4707,7 @@ function catRows(q,kind){
    Every product on the website with its picture, each size and material, the single price and the
    quantity tiers. It comes from the SSS Pipeline sheet (the agents keep the Price List and Catalog tabs
    current from the store API) and is kept in Firestore in a few chunks, so every copy of the CRM has it. */
-const WEBCAT_GIDS={prices:1288427450,pics:777001};
+const WEBCAT_GIDS={prices:1288427450,pics:777001,wb04:777004,wb11:777011};
 function webcatProducts(){return (S.webcat&&S.webcat.products)||[]}
 function webcatPic(name){const nm=String(name||"").trim().toUpperCase();if(!nm)return null;
   const idx=S.webcatIdx||(S.webcatIdx=(function(){const m={};webcatProducts().forEach(p=>{m[String(p.name||"").toUpperCase()]=p});return m})());
@@ -4696,10 +4716,16 @@ function webcatPic(name){const nm=String(name||"").trim().toUpperCase();if(!nm)r
 function webcatVar(line){
   if(!line)return null;const nm=String(line.desc||line.title||"").trim().toUpperCase();if(!nm)return null;
   const idx=S.webcatIdx||(webcatPic("x"),S.webcatIdx)||{};const p=idx[nm];if(!p)return null;
-  const sz=normSize(line.size)||"",gt=gradeTok(line.grade)||"";
-  let v=(p.vars||[]).find(x=>(!sz||x.size===sz)&&(!gt||x.grade===gt));
-  if(!v&&line.webVar!=null)v=(p.vars||[])[Number(line.webVar)];
-  return v?{price:Number(v.price)||0,name:p.name,mat:v.mat||"",tiers:v.t||[]}:null}
+  const vars=p.vars||[];const out=v=>v?{price:Number(v.price)||0,name:p.name,mat:v.mat||"",tiers:v.t||[]}:null;
+  if(line.webVar!=null&&vars[Number(line.webVar)])return out(vars[Number(line.webVar)]);
+  const sz=normSize(line.size)||"",gt=gradeTok(line.grade)||"",raw=String(line.grade||"").trim().toLowerCase();
+  const sizes=new Set(vars.map(x=>x.size).filter(Boolean));
+  if(sizes.size>1&&!sz)return null;                                    // several sizes and the line names none: no guess
+  const matOk=x=>gt?x.grade===gt:(!raw||(x.mat&&(String(x.mat).toLowerCase().indexOf(raw)>=0||raw.indexOf(String(x.mat).toLowerCase())>=0)));
+  const c=vars.filter(x=>(!sz||x.size===sz)&&matOk(x));
+  if(!c.length)return null;
+  if(c.length>1&&!gt&&!raw&&new Set(c.map(x=>x.mat||"")).size>1)return null;   // several materials, none asked for
+  return out(c[0])}
 function webcatUrl(which){
   const base=String((S.brand||{}).pipeUrl||"").trim();if(!/^https?:\/\//i.test(base))return "";
   if(/gid=\d+/.test(base))return base.replace(/gid=\d+/,"gid="+WEBCAT_GIDS[which]);
@@ -4754,6 +4780,35 @@ async function webcatSync(auto){
   if(!auto)toast("Website catalogue: "+meta.products+" products, "+meta.pics+" with pictures");
   const el=$("#webcat-stat");if(el)el.textContent=webcatStat();
   return meta.products}
+/* ===== the cost sheet (workbook tabs 04 SIGN COSTS and 11 VINYL) from the agents' sheet =====
+   The agents mirror the workbook tabs into the pipeline sheet every morning; on your own site the CRM
+   reads them as CSV and loads them exactly as if the .xlsx had been picked, keeping signs added in the CRM. */
+function csvGrid(text){
+  const t=String(text||"").replace(/^\uFEFF/,"");const rows=[];let row=[],cell="",q=false;
+  for(let i=0;i<t.length;i++){const c=t[i];
+    if(q){if(c==='"'){if(t[i+1]==='"'){cell+='"';i++}else q=false}else cell+=c}
+    else{if(c==='"')q=true;else if(c===","){row.push(cell);cell=""}else if(c==="\n"){row.push(cell);rows.push(row);row=[];cell=""}else if(c==="\r"){}else cell+=c}}
+  if(cell!==""||row.length){row.push(cell);rows.push(row)}
+  return rows.map(r=>r.map(v=>{const x=String(v).trim();if(x==="")return null;
+    const n=x.replace(/^\$/,"").replace(/,/g,"");return /^-?\d+(\.\d+)?%?$/.test(n)?(n.endsWith("%")?Number(n.slice(0,-1))/100:Number(n)):x}))}
+async function costsheetSync(auto){
+  if(!isHosted()){if(!auto)toast("On crm.streetsignsupply.com the cost sheet loads itself — here, pick the NewCo workbook .xlsx in Browse the price list.");return 0}
+  const u4=webcatUrl("wb04"),u11=webcatUrl("wb11");if(!u4){if(!auto)toast("Put the agents' sheet link in Settings → Sales pipeline feed first.");return 0}
+  let g4,g11=null;
+  try{const r=await fetch(u4,{cache:"no-store"});if(!r.ok)throw new Error("tab 04 answered "+r.status);g4=csvGrid(await r.text());
+    try{const r2=await fetch(u11,{cache:"no-store"});if(r2.ok)g11=csvGrid(await r2.text())}catch(e){}}
+  catch(e){if(!auto)toast("Couldn't read the cost sheet — "+(e&&e.message||"no answer"));return 0}
+  const parsed=wbSignRows(g4);
+  if(!parsed||!parsed.rows.length){if(!auto)toast("The WB 04 SIGN COSTS tab is empty or has no SIGN TYPE header yet — the agents fill it each morning.");return 0}
+  const vinyl=g11?wbVinyl(g11):null;
+  const cur=(S.sheet&&S.sheet.rows)||[];const wbKeys=new Set(parsed.rows.map(r=>r.key));
+  const kept=cur.filter(r=>!wbKeys.has(r.key));
+  const sheet={rows:parsed.rows.concat(kept),rates:Object.assign({},(S.sheet||{}).rates||{},parsed.rates),
+    vinyl:vinyl?Object.assign({},(S.sheet||{}).vinyl||{},vinyl):((S.sheet||{}).vinyl||{}),source:"NewCo workbook via the agents' sheet",importedAt:Date.now()};
+  try{await setDoc("settings/costsheet",sheet);S.sheet=sheet;S.sheetIdx=null}catch(e){if(!auto)toast("Couldn't save the cost sheet.");return 0}
+  try{await push("settings/brand",{costsheetLast:Date.now()})}catch(e){}
+  if(!auto){toast(parsed.rows.length+" signs on the price list from the workbook"+(vinyl?" (and the vinyl rates)":""));render()}
+  return parsed.rows.length}
 async function webcatLoad(){
   if(!db)return;
   try{const m=await db.doc("settings/webcat_meta").get();if(!(m&&m.exists&&m.data()))return;const meta=m.data();
@@ -4921,8 +4976,8 @@ function catalogModal(target,pid,num,kind){
      :`<div class="empty"><b>Nothing matched</b>Try fewer words, or close this and type your own line.</div>`}`,
     `<button class="btn" data-close="1">Cancel</button>`));
   const qi=$("#cat-q");
-  if(qi){qi.oninput=()=>{S.cat.q=qi.value;const keep=qi.selectionStart;closeModal();catalogModal(target,pid,num);
-    const q2=$("#cat-q");if(q2){q2.focus();try{q2.setSelectionRange(keep,keep)}catch(e){}}};qi.focus()}
+  if(qi){let tmr=null;qi.oninput=()=>{S.cat.q=qi.value;clearTimeout(tmr);tmr=setTimeout(()=>{const keep=qi.selectionStart;closeModal();catalogModal(target,pid,num,kind);
+    const q2=$("#cat-q");if(q2){q2.focus();try{q2.setSelectionRange(keep,keep)}catch(e){}}},150)};qi.focus()}
 }
 function catalogPick(key){
   const c=S.cat||{};const r=catRows("").find(x=>x.key===key);if(!r)return;
@@ -5320,7 +5375,7 @@ const WASTE_DEFAULT=10;
 // Sizes are inches unless you say feet: 24x36, 24" x 36", 3ft x 5ft, 3' x 5'.
 function parseSize(sz){
   const t=String(sz||"");
-  const m=t.match(/(\d+(?:\.\d+)?)\s*(ft|feet|'|")?\s*[xX×]\s*(\d+(?:\.\d+)?)\s*(ft|feet|'|")?/);
+  const m=t.match(/(\d+(?:\.\d+)?)\s*(ft|feet|'|"|inches|inch|in)?\s*[xX×]\s*(\d+(?:\.\d+)?)\s*(ft|feet|'|"|inches|inch|in)?/i);
   if(!m)return null;
   const ft=x=>/^(ft|feet|')$/i.test(x||"");
   const unit=(ft(m[2])||ft(m[4]))?"ft":"in";
@@ -5939,8 +5994,12 @@ function contractPrice(a,line){if(!a||!a.contractPrices)return null;const k=cont
   return c&&Number(c.price)>0&&!cpExpired(c)?Object.assign({key:k},c):null}
 // quantity breaks from Settings — "50 or more: 5% off". Decals already have the tab 11 tiers, so they're left alone.
 function qtyBreaks(){return ((S.brand||{}).qtyBreaks||[]).filter(b=>Number(b.min)>0&&Number(b.pct)>0).sort((a,b)=>a.min-b.min)}
-function qtyBreakFor(line){return null;if(!line||isDecalLine(line))return null;const q=Number(line.qty)||0;let hit=null;qtyBreaks().forEach(b=>{if(q>=Number(b.min))hit=b});return hit}
-function marginFloor(){const v=(S.brand||{}).minMargin;return v===""||v==null?20:Number(v)||0}
+function qtyBreakFor(line){if(!line||isDecalLine(line))return null;const q=Number(line.qty)||0;let hit=null;qtyBreaks().forEach(b=>{if(q>=Number(b.min))hit=b});return hit}
+function marginFloor(){const v=(S.brand||{}).minMargin;return v===""||v==null?40:Number(v)||0}
+function ceil2(n){return Math.ceil(Number(n)*100-1e-9)/100}
+// the quote floor: never under cost ÷ (1 − floor margin), whatever the website or the price list says
+function floorPrice(line){const f=marginFloor();if(!(f>0)||!line||isCharge(line))return null;
+  const c=quoteLineCost(line);return c&&c.cost>0?{price:ceil2(c.cost/(1-f/100)),cost:c.cost,div:((100-f)/100).toFixed(2)}:null}
 function belowFloor(price,cost){const f=marginFloor();return f>0&&price>0&&cost>0&&(price-cost)/price*100<f}
 function defaultPrice(line,aid){
   const a=aid?acct(aid):null;
@@ -5948,11 +6007,14 @@ function defaultPrice(line,aid){
     if(c)return {price:Number(c.price),why:a.name+"'s own price for this item"+(c.at?" (set "+fmtDate(new Date(c.at).toISOString().slice(0,10))+")":""),contract:true}}
   const base=listPrice(line);if(!base)return null;
   const d=acctDiscount(a),qb=qtyBreakFor(line);
-  if(!d.pct&&!qb)return base;
-  let pr=base.price;const bits=[];
-  if(d.pct){pr=pr*(1-d.pct/100);bits.push(d.label)}
-  if(qb){pr=pr*(1-Number(qb.pct)/100);bits.push(qb.pct+"% more for "+qb.min+"+ pieces")}
-  return {price:Math.round(pr*100)/100,list:base.price,why:base.why+" — "+money2(base.price)+" less "+bits.join(", then ")};
+  let out=base;
+  if(d.pct||qb){let pr=base.price;const bits=[];
+    if(d.pct){pr=pr*(1-d.pct/100);bits.push(d.label)}
+    if(qb){pr=pr*(1-Number(qb.pct)/100);bits.push(qb.pct+"% more for "+qb.min+"+ pieces")}
+    out={price:Math.round(pr*100)/100,list:base.price,why:base.why+" — "+money2(base.price)+" less "+bits.join(", then ")}}
+  const fl=floorPrice(line);
+  if(fl&&fl.price>out.price)return {price:fl.price,list:out.price,why:"the quote floor (cost ÷ "+fl.div+") — "+money2(fl.cost)+" cost; "+out.why+" would be "+money2(out.price),floor:true};
+  return out;
 }
 function listPrice(line){
   if(!line||isCharge(line))return null;
@@ -6196,7 +6258,7 @@ function priceLevelsModal(){
   $("#pl-save").onclick=async()=>{
     const levels=[...document.querySelectorAll(".plrow")].map(r=>({id:r.dataset.plid,name:r.querySelector(".pl-name").value.trim(),
       pct:Math.max(0,Math.min(90,Number(r.querySelector(".pl-pct").value)||0))})).filter(l=>l.name);
-    const breaks=[];
+    const breaks=(S.brand||{}).qtyBreaks||[];          // set by the agents' setting rows — kept
     const mf=$("#mf-pct")?Math.max(0,Math.min(90,Number($("#mf-pct").value)||0)):marginFloor();
     const b=Object.assign({},S.brand||{},{priceLevels:levels,qtyBreaks:breaks,minMargin:mf});
     try{await setDoc("settings/brand",b);S.brand=b;closeModal();toast(levels.length+" pricing level"+(levels.length===1?"":"s")+" saved")}catch(e){toast("That didn't save.")}};
@@ -8063,7 +8125,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.18-1";
+const APP_VERSION="2026.11.19-1";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -8952,6 +9014,7 @@ function activityCard(kind,id){
           <button class="btn sm cbtn c-cal" data-ics="${esc(id)}">${ic("calendar",14)}Add to calendar</button>`},
         {l:"Paperwork",html:`<button class="btn sm cbtn c-quote" data-doc="${esc(id)}:quote">${ic("file",14)}Quote</button>
           ${(S.brand||{}).qbInvoicing===false?`<button class="btn sm cbtn c-money" data-doc="${esc(id)}:invoice">${ic("money",14)}Invoice</button>`
+            :acctInvoices()?``
             :`<button class="btn sm cbtn c-money" data-qbinv="${esc(id)}" title="Invoices are made in QuickBooks — get the lines ready for it">${ic("money",14)}QuickBooks invoice</button>`}`},
         {l:"Proof",html:`${S.canUpload?`<button class="btn sm cbtn c-file" data-upload="project:${esc(id)}:Artwork proof">${ic("file",14)}Upload artwork</button>`:""}
           <button class="btn sm cbtn c-cal" data-proof="${esc(id)}">${ic("file",14)}Proof PDF</button>
@@ -9963,6 +10026,8 @@ function settingsView(){
     <div class="fld full"><div class="k">Invoicing</div>
       <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="b-qbinv" ${b.qbInvoicing===false?"":"checked"} style="width:17px;height:17px">
         Invoices are made in QuickBooks — the project's button gets the lines ready for it instead of printing an invoice here</label>
+      <label style="display:flex;gap:8px;align-items:center;margin-top:6px"><input type="checkbox" id="b-acctinv" ${b.accountantInvoices===false?"":"checked"} style="width:17px;height:17px">
+        The accountant agent invoices in QuickBooks from the order sync — shipped projects wait for its invoice row instead of the CSV button</label>
       <div style="margin-top:6px"><button class="btn sm" data-qbitems="1">QuickBooks item names</button></div></div>
     <div class="fld full"><div class="k">Quote terms</div><textarea id="b-qnote" style="min-height:54px">${esc(b.quoteNote||"")}</textarea></div>
         <div class="fld full"><div class="k">Payment instructions on invoices</div><textarea id="b-pnote" style="min-height:54px">${esc(b.payNote||"")}</textarea></div>
@@ -9993,8 +10058,10 @@ function settingsView(){
             Then <b>Browse the price list</b> on any quote shows every website sign with its picture, and a line named like a website product prices itself.</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
             <button class="btn p" data-webcat="1" type="button">Pull the website catalogue now</button>
+            <button class="btn" data-costsheet="1" type="button">Pull the cost sheet now</button>
             <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="b-webcatauto" ${b.webcatAuto===false?"":"checked"} style="width:17px;height:17px">Refresh it daily (on your own site)</label></div>
-          <div class="sub" id="webcat-stat" style="margin-top:6px">${esc(webcatStat())}</div></div>
+          <div class="sub" id="webcat-stat" style="margin-top:6px">${esc(webcatStat())}</div>
+          <div class="sub" style="margin-top:4px">Cost sheet: ${sheetRows().length?sheetRows().length+" signs loaded from "+esc((S.sheet&&S.sheet.source)||"the workbook")+((S.sheet&&S.sheet.importedAt)?", "+esc(fmtTs(S.sheet.importedAt)):""):"not loaded yet — on your own site it loads from the agents' mirror of the NewCo workbook (tabs 04 and 11), refreshed every morning"}.</div></div>
         <div class="fld full"><div class="k">Sales pipeline feed — Claude's sales agents</div>
           <div class="sub" style="margin-bottom:6px">Claude's agents keep every prospect, email, call and quote in a Google Sheet. Publish that sheet to the web as CSV
             (File → Share → Publish to web → CSV) and put the link here. On your own site the CRM pulls it in by itself every 15 minutes:
@@ -10006,7 +10073,11 @@ function settingsView(){
           <div class="sub" style="margin-top:6px">Columns the sheet needs, one row per thing that happened: <span class="mono">row_id, type, account, account_type, phone, website, street, city, state, zip, contact, title, email, contact_phone, activity, direction, subject, text, when, back_on, project, amount, stage, source</span>.
             <b>type</b> is account, activity or quote; <b>activity</b> is email, call, meeting or note; <b>direction</b> is in or out. A row is never brought in twice.
             A quote row can carry its lines in a <span class="mono">lines</span> column (JSON: qty, code, desc, size, grade, price — or one per line as <span class="mono">10 x R1-1 | Stop | 30x30 | HIP @ 50.43</span>);
-            with lines the project opens as Quoted with a quote number, without them it stays an Inquiry. A later row with <span class="mono">updates</span> = the first row's row_id replaces that project's lines.
+            with lines the project opens as Quoted with a quote number, without them it stays an Inquiry. A later row with <span class="mono">updates</span> = the first row's row_id revises that project's lines
+            (only while it is still an inquiry or quote — past that the lines land as a note to review; a stage never moves backwards).
+            Three more row types need no account: <b>invoice</b> (<span class="mono">project</span> = the quote row's row_id, P-number or quote number; <span class="mono">text</span> = JSON invoice_number, invoice_date, paid_date, amount, status) records the accountant's QuickBooks invoice;
+            <b>setting</b> (<span class="mono">subject</span> = the setting, <span class="mono">text</span> = its value) changes a Settings field such as taxRate, minMargin or qtyBreaks;
+            <b>inventory</b> (<span class="mono">text</span> = JSON sku, item, qty, unit, unit_cost, vendor, ref, received, freight) receives stock.
             ${b.pipeLast?"Last feed row: "+esc(String(b.pipeLast))+".":""}</div></div>
         <div class="fld full"><div class="k">Order sync — quotes and work orders out to Google Sheets</div>
           <div class="sub" style="margin-bottom:6px">Every time a quote or work order is saved — new, lines changed, won, proof approved, shipped, picked up, invoiced, paid —
@@ -10111,7 +10182,7 @@ function settingsView(){
 
     <section class="card flush"><header><h2>Costs from the workbook</h2>
       <span class="sp">${S.sheet?`<span class="pill g">${sheetRows().length} signs loaded</span>`:`<span class="pill r">not loaded</span>`}</span>
-      <span class="sub" style="flex:1 1 100%;order:9">${S.sheet?esc(S.sheet.source||""):"Upload the workbook in a chat to load it."}
+      <span class="sub" style="flex:1 1 100%;order:9">${S.sheet?esc(S.sheet.source||""):"On your own site it loads by itself from the agents' sheet (Settings → Pull the cost sheet now); inside Claude, pick the NewCo workbook .xlsx in Browse the price list."}
         ${S.sheet&&S.sheet.importedAt?" · imported "+esc(fmtTs(S.sheet.importedAt)):""}</span></header>
       ${S.sheet?`<div class="fgrid">
         <div class="fld"><div class="k">Mounting tape</div><div class="v mono">$${Number(sheetRates().tapeSqft).toFixed(4)} / sq ft</div></div>
@@ -11261,7 +11332,7 @@ async function backup(kind){
     const rows=[["Type","Number","Name/Description","Account","Stage/Status","Value","PO","Due","Tracking","Invoice","Extra"]];
     live(S.projects).forEach(p=>rows.push(["Project","P-"+p.num,p.name,accName(p.accountId),
       (SG[p.stage]||{}).label||"",projValue(p).toFixed(2),p.po||"",p.due||"","",p.invNum||"",
-      "cost "+projCost(p).toFixed(2)+" · margin "+projMargin(p).toFixed(0)+"%"]));
+      "cost "+projCost(p).toFixed(2)+" · margin "+marginTxt(p)]));
     live(S.jobs).forEach(j=>rows.push(["Work order",j.num,j.desc||"",accName(j.accountId),
       (JS[j.status]||{}).label||"",jobRevenue(j).toFixed(2),"",j.due||"",(j.ship||{}).tracking||"",
       projName(j.projectId),"cost "+jobCost(j).toFixed(2)]));
@@ -11309,6 +11380,8 @@ async function saveBrand(){
     address:$("#b-addr")?$("#b-addr").value.trim():"",phone:$("#b-phone")?$("#b-phone").value.trim():"",
     email:$("#b-email")?$("#b-email").value.trim():"",taxRate:Number($("#b-tax")&&$("#b-tax").value)||0,
     qbInvoicing:$("#b-qbinv")?!!$("#b-qbinv").checked:((S.brand||{}).qbInvoicing!==false),
+    accountantInvoices:$("#b-acctinv")?!!$("#b-acctinv").checked:((S.brand||{}).accountantInvoices!==false),
+    costsheetLast:(S.brand||{}).costsheetLast||0,
     quotePics:$("#b-qpics")?!!$("#b-qpics").checked:((S.brand||{}).quotePics!==false),
     labelSize:$("#b-lsize")?$("#b-lsize").value:((S.brand||{}).labelSize||"4x6"),
     extraPrep:(S.brand||{}).extraPrep,extraClose:(S.brand||{}).extraClose,routes:(S.brand||{}).routes,
@@ -11317,7 +11390,7 @@ async function saveBrand(){
     lists:(S.brand||{}).lists||{},autoStage:(S.brand||{}).autoStage,autoFollow:(S.brand||{}).autoFollow,followDays:(S.brand||{}).followDays,
     proofChase:(S.brand||{}).proofChase,proofDays:(S.brand||{}).proofDays,leadDays:(S.brand||{}).leadDays||{},
     qbItems:(S.brand||{}).qbItems||{},priceLevels:(S.brand||{}).priceLevels||[],qtyBreaks:(S.brand||{}).qtyBreaks||[],
-    minMargin:(S.brand||{}).minMargin==null?20:(S.brand||{}).minMargin,
+    minMargin:(S.brand||{}).minMargin==null?40:(S.brand||{}).minMargin,
     quoteDays:Math.max(1,Number($("#b-qdays")&&$("#b-qdays").value)||30),quoteNote:$("#b-qnote")?$("#b-qnote").value.trim():"",payNote:$("#b-pnote")?$("#b-pnote").value.trim():"",
     marginOverride:!!($("#b-mover")&&$("#b-mover").checked),
     legendPct:Number($("#b-legend")&&$("#b-legend").value)||25,
@@ -11850,24 +11923,25 @@ function pipeTotal(ol){return Math.round(ol.reduce((t,l)=>t+(Number(l.qty)||0)*(
 function pipeLines(r){
   const raw=String((r&&r.lines)||"").trim();if(!raw)return [];
   let arr=null;
-  if(raw[0]==="["){try{arr=JSON.parse(raw)}catch(e){arr=null}}
+  if(raw[0]==="["){try{arr=JSON.parse(raw)}catch(e){return null}}          // meant as JSON but broken: refuse the row, don't guess
   if(!arr){arr=raw.split(/\s*(?:\n|;;)\s*/).map(s=>{
-    const m=s.match(/^\s*(\d+(?:\.\d+)?)\s*[x×X]\s*(.*?)\s*@\s*\$?\s*(-?\d+(?:\.\d+)?)\s*$/);if(!m)return null;
+    const m=s.match(/^\s*([\d,]+(?:\.\d+)?)\s*[x×X]\s*(.*?)\s*@\s*\$?\s*(-?[\d,]+(?:\.\d+)?)\s*$/);if(!m)return null;
     const parts=m[2].split("|").map(x=>x.trim());
     if(parts.length>=2)return {qty:m[1],code:parts[0],desc:parts[1]||"",size:parts[2]||"",grade:parts[3]||"",price:m[3]};
     return {qty:m[1],desc:m[2],price:m[3]}}).filter(Boolean)}
-  if(!Array.isArray(arr))return [];
+  if(!Array.isArray(arr))return null;
   return arr.map(o=>{o=o||{};
     const desc=String(o.desc||o.description||o.item_name||"").trim(),code=String(o.code||o.item||o.mutcd||"").trim().toUpperCase();
-    const price=Number(o.price!=null?o.price:(o.unit_price!=null?o.unit_price:o.each))||0;
+    const pv=o.price!=null?o.price:(o.unit_price!=null?o.unit_price:o.each);
+    const price=Number(csvNum(pv))||0;                                       // "$1,050.43" and 1050.43 alike
     const isCh=!!o.charge||(!code&&!o.size&&/ship|freight|deliver|setup|design|\bfee\b/i.test(desc));
-    const line={id:uid("ol"),qty:String(Number(o.qty)||1),desc:desc||code,code,size:String(o.size||"").trim(),grade:String(o.grade||o.material||"").trim(),
+    const line={id:uid("ol"),qty:String(Number(csvNum(o.qty))||1),desc:desc||code,code,size:String(o.size||"").trim(),grade:String(o.grade||o.material||"").trim(),
       build:"",legend:String(o.legend||""),legends:[],price:String(price),cost:"",note:String(o.note||"")};
     if(isCh){line.charge=typeof o.charge==="string"&&o.charge?o.charge:(/ship|freight|deliver/i.test(desc)?"freight":"other");line.code="";line.size="";line.grade=""}
     return line}).filter(l=>l.desc||l.code);
 }
 function pipeSeen(id){
-  const d=S.pipeDone||{};if(d[id])return true;
+  const d=S.pipeDone||{};if(d[id]||PIPE.seen.has(id))return true;
   return live(S.activity).some(a=>a.feedId===id)||live(S.projects).some(p=>p.feedId===id)||live(S.accounts).some(a=>a.feedId===id);
 }
 function pipeMatch(r){
@@ -11878,54 +11952,150 @@ function pipeMatch(r){
   const a=nm?live(S.accounts).find(x=>String(x.name||"").trim().toLowerCase()===nm):null;
   return {acct:a||null,contact:null};
 }
+// one import at a time — in this tab (busy) and across tabs (a two-minute lock on settings/pipefeed)
+const PIPE={busy:false,id:Math.random().toString(36).slice(2,10),seen:new Set()};
+// rows the done map must remember; everything else is found again by the feedId on the record it made
+function pipeKeep(id,r){const t=String((r&&r.type)||"").toLowerCase();return /^INV-/i.test(String(id))||!!(r&&r.updates)||["invoice","setting","inventory"].indexOf(t)>=0}
+function pipeJSON(t){const x=String(t||"").trim();if(!x)return null;try{const o=JSON.parse(x);return o&&typeof o==="object"?o:null}catch(e){return null}}
+// a project by the quote row's row_id, its P-number ("P-2015" or 2015) or its quote number
+function pipeFind(ref){const x=String(ref||"").trim();if(!x)return null;const u=x.toUpperCase(),n=u.replace(/^P-?/,"");
+  return live(S.projects).find(p=>p.feedId===x)||(/^\d+$/.test(n)?live(S.projects).find(p=>String(p.num||"")===n):null)
+    ||live(S.projects).find(p=>p.quote&&String(p.quote).toUpperCase()===u)||null}
+// settings the agents may change: s string, n number, b yes/no, j JSON — never the feed, sync or shop links and keys
+const PIPE_SETTINGS={name:"s",address:"s",phone:"s",email:"s",taxRate:"n",margin:"n",minMargin:"n",quoteDays:"n",quoteNote:"s",payNote:"s",legendPct:"n",
+  qtyBreaks:"j",priceLevels:"j",qbItems:"j",labelSize:"s",accountantInvoices:"b",shopUrl:"s"};
+function pipeSettingValue(field,text){const k=PIPE_SETTINGS[field];if(!k)return undefined;const t=String(text==null?"":text).trim();
+  if(k==="n"){const n=Number(t.replace(/[%$,\s]/g,""));return t===""||isNaN(n)?undefined:n}
+  if(k==="b")return !/^(false|no|off|0)$/i.test(t);
+  if(k==="j"){const v=pipeJSON(t);if(!v)return undefined;
+    if(field==="qtyBreaks")return Array.isArray(v)?v.map(b=>({min:Number(b.min||b.qty||0),pct:Number(b.pct||b.off||0)})).filter(b=>b.min>0&&b.pct>0):undefined;
+    if(field==="priceLevels")return Array.isArray(v)?v.map(l=>({id:String(l.id||uid("pl")),name:String(l.name||""),pct:Math.max(0,Math.min(90,Number(l.pct)||0))})).filter(l=>l.name):undefined;
+    return Array.isArray(v)?undefined:v}
+  if(field==="labelSize")return t==="letter"?"letter":"4x6";
+  return t}
+function pipeLineTxt(l){return (l.qty||1)+" x "+(l.code||l.desc)+(l.code&&l.desc&&l.desc!==l.code?" | "+l.desc:"")+(l.size?" | "+l.size:"")+(l.grade?" | "+l.grade:"")+" @ "+money2(l.price)}
 async function pipeImportRows(rows){
-  const out={accounts:0,contacts:0,activity:0,quotes:0,skipped:0,bad:0};
-  try{const ex=await db.doc("settings/pipefeed").get();if(ex&&ex.exists&&ex.data())S.pipeDone=Object.assign({},S.pipeDone||{},(ex.data().done||{}))}catch(e){}
+  const out={accounts:0,contacts:0,activity:0,quotes:0,invoices:0,settings:0,inventory:0,skipped:0,bad:0};
+  let ex=null;
+  try{const d=await db.doc("settings/pipefeed").get();const ok=d&&(typeof d.exists==="function"?d.exists():d.exists);ex=ok&&d.data()?d.data():null}catch(e){}
+  if(ex){S.pipeDone=Object.assign({},S.pipeDone||{},ex.done||{});
+    if(Number(ex.lockUntil)>Date.now()&&ex.lockBy&&ex.lockBy!==PIPE.id){out.skipped+=rows.length;out.locked=true;return out}}
+  try{await setDoc("settings/pipefeed",{done:S.pipeDone||{},updatedAt:Date.now(),lockUntil:Date.now()+120000,lockBy:PIPE.id})}catch(e){}
   const done=Object.assign({},S.pipeDone||{});const newA={},newC={};let last=pipeCfg().last;
+  const mark=id=>{PIPE.seen.add(id);last=id};
+  const stLabel=st=>(SG[st]||{}).label||st;
+  try{
   for(const r of rows){
     const id=String(r.row_id);if(!id||pipeSeen(id)){out.skipped++;continue}
     const type=String(r.type||"activity").toLowerCase();
+    const now=Date.now();
+    // lines are read first: a row whose lines can't be read is left for the agents to fix, never marked done
+    const ol=(type==="quote"||r.updates)?pipeLines(r):[];
+    if(ol===null){out.bad++;continue}
+    // --- setting: subject = the field, text = the value ---
+    if(type==="setting"){const field=String(r.subject||"").trim();const val=pipeSettingValue(field,r.text);
+      if(val===undefined){out.bad++;continue}
+      const patch={[field]:val};if(field==="margin")patch.marginOverride=val>0;
+      await push("settings/brand",patch);S.brand=Object.assign({},S.brand||{},patch);
+      out.settings++;done[id]=1;mark(id);continue}
+    // --- inventory: text = JSON {sku,item,qty,unit,unit_cost,vendor,ref,received,freight} — a receipt, item made if new ---
+    if(type==="inventory"){const o=pipeJSON(r.text);if(!o){out.bad++;continue}
+      const sku=String(o.sku||"").trim(),nm=String(o.item||o.name||"").trim();const qty=Number(csvNum(o.qty))||0;
+      if(!sku&&!nm){out.bad++;continue}
+      const lc=v=>String(v||"").trim().toLowerCase();
+      let it=sku?live(S.items).find(x=>lc(x.sku)===lc(sku)):null;
+      if(!it&&nm)it=live(S.items).find(x=>{const a=lc(x.name),b=lc(nm);return a&&b&&(a.indexOf(b)>=0||b.indexOf(a)>=0)});
+      const uc=csvNum(o.unit_cost),fr=csvNum(o.freight);
+      const cost=uc===""?"":(Math.round((uc+(fr!==""&&qty>0?fr/qty:0))*100)/100).toFixed(2);
+      if(!it){const iid=uid("i");
+        it={id:iid,sku,name:nm||sku,cat:String(o.cat||o.category||"Other"),unit:String(o.unit||"each"),onHand:0,reorderPoint:"",reorderQty:"",cost:cost||"",
+          bin:"",vendor:String(o.vendor||""),notes:"",shipClass:"parcel",feedId:id,deleted:false,createdAt:now,updatedAt:now};
+        await setDoc("items/"+iid,it);logEvent("item",iid,"Item added from the agents' inventory feed");}
+      if(qty>0){const txid=uid("tx");const at=Date.parse(String(o.received||""))||now;
+        await setDoc("invtx/"+txid,{id:txid,itemId:it.id,type:"receive",qty,at,who:"AI",
+          note:["Received",o.vendor?"from "+o.vendor:"",o.ref?"— "+o.ref:""].filter(Boolean).join(" "),jobId:"",cost,
+          itemName:it.name||"",unit:it.unit||"",unitCost:it.cost||"",deleted:false,feedId:id});
+        const patch={onHand:onHand(it)+qty,updatedAt:now};if(cost)patch.cost=cost;if(o.vendor&&!it.vendor)patch.vendor=String(o.vendor);
+        await push("items/"+it.id,patch);
+        recordHistory("item",it.id,[{f:"Stock",o:String(onHand(it)),n:String(onHand(it)+qty)+" (received — agents' feed"+(o.ref?", "+o.ref:"")+")"}])}
+      out.inventory++;done[id]=1;mark(id);continue}
+    // --- invoice: the accountant's QuickBooks invoice for a project ---
+    if(type==="invoice"){const o=pipeJSON(r.text);const tgt=pipeFind(r.project||r.updates);
+      if(!o||!tgt){out.bad++;continue}
+      const inv=String(o.invoice_number||o.invoice||"").trim(),status=String(o.status||"").toLowerCase();
+      const paid=!!(o.paid_date||status==="paid"),voided=status==="void"||status==="voided";
+      const up={updatedAt:now};if(inv)up.invNum=inv;
+      if(voided)up.billStatus="none";
+      else{up.billStatus=paid?"paid":"invoiced";
+        if(o.invoice_date)up.billDate=String(o.invoice_date).slice(0,10);else if(!tgt.billDate)up.billDate=today();
+        if(paid)up.paidDate=String(o.paid_date||today()).slice(0,10)}
+      // the stage only moves forward, and only from shipped — a prepaid job in the shop stays where the floor can see it
+      if(!voided&&tgt.stage==="shipped"&&PATH.indexOf("invoiced")>PATH.indexOf(tgt.stage)){up.stage="invoiced";up.stageLog=(tgt.stageLog||[]).concat([{stage:"invoiced",at:now,who:"AI"}]).slice(-60)}
+      await push("projects/"+tgt.id,up);
+      const amt=o.amount!=null&&o.amount!==""?csvNum(o.amount):"";
+      const text=voided?"QuickBooks invoice "+(inv||"")+" was voided by the accountant.":"QuickBooks invoice "+(inv||"(no number)")+(paid?" paid "+(up.paidDate||""):" sent "+(up.billDate||""))+(amt!==""?" — "+money2(amt):"")+".";
+      const when=up.paidDate||up.billDate||today();const xid=uid("ac");
+      await setDoc("activity/"+xid,{id:xid,recType:"project",recId:tgt.id,kind:"note",type:"note",text,whoId:"",subject:"Invoice",contactId:"",direction:"",
+        when,due:"",backOn:"",noBack:true,who:"AI",at:now,done:true,deleted:false,feedId:id});
+      logEvent("project",tgt.id,text);
+      out.invoices++;done[id]=1;mark(id);continue}
+    // --- updates: revised lines for a project the agents opened ---
     if(r.updates){const tgt=live(S.projects).find(p=>p.feedId===String(r.updates).trim());
-      if(tgt){const ol=pipeLines(r);const up={updatedAt:Date.now()};
-        if(ol.length){up.orderLines=ol;up.amount=String(pipeTotal(ol));
+      if(tgt){const up={updatedAt:now};const cur=PATH.indexOf(tgt.stage||"inquiry");
+        if(ol.length&&cur>PATH.indexOf("quoted")){
+          // won or in the shop: the work orders point at these line ids, so the lines stay — the revision lands as a note to review
+          const xid=uid("ac");
+          await setDoc("activity/"+xid,{id:xid,recType:"project",recId:tgt.id,kind:"note",type:"note",
+            text:"The sales agents sent revised quote lines ("+money2(pipeTotal(ol))+"), but this project is already "+stLabel(tgt.stage)+" — the lines were left as they are. Review them:\n"+ol.map(pipeLineTxt).join("\n"),
+            whoId:"",subject:"Revised lines from the agents",contactId:"",direction:"",when:today(),due:"",backOn:today(),noBack:false,who:"AI",at:now,done:false,deleted:false,feedId:id});
+          logEvent("project",tgt.id,"Agents sent revised lines — left for review ("+stLabel(tgt.stage)+")");
+        }else if(ol.length){
+          // still a quote: keep the old line ids where the code and size match, so anything pointing at them stays valid
+          const old=tgt.orderLines||[];const used=new Set();
+          ol.forEach(l=>{const k=normKey(l.code,l.size);
+            const o=old.find(x=>x&&x.id&&!used.has(x.id)&&normKey(x.code,x.size)===k&&(l.code||String(x.desc||"").toLowerCase()===String(l.desc||"").toLowerCase()));
+            if(o){used.add(o.id);l.id=o.id}});
+          up.orderLines=ol;up.amount=String(pipeTotal(ol));
           const st=PATH.indexOf(String(r.stage||"").toLowerCase())>=0?String(r.stage).toLowerCase():"quoted";
-          if(st!=="inquiry"&&st!==tgt.stage){up.stage=st;up.stageLog=(tgt.stageLog||[]).concat([{stage:st,at:Date.now(),who:"AI"}])}
+          if(PATH.indexOf(st)>cur){up.stage=st;up.stageLog=(tgt.stageLog||[]).concat([{stage:st,at:now,who:"AI"}]).slice(-60)}   // forward only
           if(!tgt.quote){try{up.quote=await nextQuote();up.quoteDate=today()}catch(e){}}}
         if(r.project)up.name=r.project;if(r.text)up.scope=r.text;if(r.notes)up.notes=r.notes;
         await push("projects/"+tgt.id,up);
-        logEvent("project",tgt.id,"Updated by Claude's sales agents"+(ol.length?" — "+ol.length+" quote line"+(ol.length===1?"":"s")+", "+money2(pipeTotal(ol)):""));
-        out.quotes++;done[id]=1;last=id;continue}}
+        if(up.orderLines)logEvent("project",tgt.id,"Updated by Claude's sales agents — "+ol.length+" quote line"+(ol.length===1?"":"s")+", "+money2(pipeTotal(ol)));
+        else if(!ol.length)logEvent("project",tgt.id,"Updated by Claude's sales agents");
+        out.quotes++;done[id]=1;mark(id);continue}}
     if(!r.account&&!r.email){out.bad++;continue}
-    const now=Date.now();const m=pipeMatch(r);
+    const m=pipeMatch(r);
     let aid=m.acct?m.acct.id:(newA[String(r.account||"").toLowerCase()]||"");
     if(!aid){aid=uid("a");
-      const at=ACCT_TYPE.find(x=>x.toLowerCase()===String(r.account_type||"").toLowerCase())||"Government agency";
-      await setDoc("accounts/"+aid,{id:aid,name:r.account||r.email,type:at,terms:at==="Government agency"?"Net 30":"Prepay",
+      // a contractor unless the agents say otherwise — only a government agency is tax-exempt on Net 30
+      const at=ACCT_TYPE.find(x=>x.toLowerCase()===String(r.account_type||"").toLowerCase())||(/gov|agency|city|county|state|town|municipal|dot\b|school|district/i.test(String(r.account_type||""))?"Government agency":"Contractor");
+      const gov=at==="Government agency";
+      await setDoc("accounts/"+aid,{id:aid,name:r.account||r.email,type:at,terms:gov?"Net 30":"Prepay",
         phone:r.phone||"",website:r.website||"",street:r.street||"",city:r.city||"",state:r.state||"",zip:r.zip||"",
-        qb:r.account||"",exempt:at==="Government agency",exemptExp:"",drive:"",billingContactId:"",repId:"",
+        qb:r.account||"",exempt:gov,exemptExp:"",drive:"",billingContactId:"",repId:"",
         notes:r.notes||"",feedId:type==="account"?id:"",source:r.source||"Email",deleted:false,createdAt:now,updatedAt:now});
       logEvent("account",aid,"Account created by Claude's sales agents");newA[String(r.account||r.email).toLowerCase()]=aid;out.accounts++;}
     else if(m.acct&&!m.acct.phone&&r.phone){try{await push("accounts/"+aid,{phone:r.phone})}catch(e){}}
     let cid=m.contact?m.contact.id:"";
     const em=String(r.email||"").toLowerCase();
     if(!cid&&(r.contact||em)){
-      const ex=contactsOf(aid).find(c=>(em&&String(c.email||"").toLowerCase()===em)||(r.contact&&String(c.name||"").toLowerCase()===String(r.contact).toLowerCase()));
-      if(ex)cid=ex.id;else if(newC[em||r.contact])cid=newC[em||r.contact];else{cid=uid("ct");
+      const ex2=contactsOf(aid).find(c=>(em&&String(c.email||"").toLowerCase()===em)||(r.contact&&String(c.name||"").toLowerCase()===String(r.contact).toLowerCase()));
+      if(ex2)cid=ex2.id;else if(newC[em||r.contact])cid=newC[em||r.contact];else{cid=uid("ct");
         const role=ROLES.find(x=>x.toLowerCase()===String(r.title||"").toLowerCase())||"Buyer / purchasing";
         await setDoc("contacts/"+cid,{id:cid,name:r.contact||em,accountId:aid,role,title:r.title||"",email:em,
           phone:r.contact_phone||"",mobile:"",primary:!contactsOf(aid).length,notes:"",deleted:false,createdAt:now,updatedAt:now});
         logEvent("contact",cid,"Contact added by Claude's sales agents");newC[em||r.contact]=cid;out.contacts++;}}
     if(type==="quote"){
-      const ol=pipeLines(r);
       let stage=PATH.indexOf(String(r.stage||"").toLowerCase())>=0?String(r.stage).toLowerCase():"inquiry";
-      if(!ol.length&&stage==="quoted")stage="inquiry";          // nothing to quote with yet
+      if(!ol.length)stage="inquiry";                              // nothing to quote with yet — whatever the row says
       if(ol.length&&stage==="inquiry")stage="quoted";
       let qno="";if(ol.length){try{qno=await nextQuote()}catch(e){}}
       const pid=uid("p");const pnum=await nextNum("nextProject",2001);
       await setDoc("projects/"+pid,{id:pid,num:pnum,name:r.project||r.subject||("Quote request — "+(r.account||em)),scope:r.text||"",accountId:aid,stage,
         amount:ol.length?String(pipeTotal(ol)):(r.amount?String(Number(String(r.amount).replace(/[^0-9.\-]/g,""))||""):""),start:(r.when||today()).slice(0,10),due:"",po:"",quote:qno,quoteDate:qno?today():"",
         source:SRC.indexOf(r.source)>=0?r.source:"Email",invNum:"",shipTo:"",drive:"",notes:r.notes||"",
-        stageLog:[{stage,at:now,who:"AI"}],reorderOf:"",contacts:cid?[cid]:[],repId:"",amountAuto:false,billWhen:"after",billStatus:"none",billDate:"",paidDate:"",depositAmt:"",
+        stageLog:[{stage,at:now,who:"AI"}],reorderOf:"",contacts:cid?[cid]:[],repId:"",amountAuto:true,billWhen:"after",billStatus:"none",billDate:"",paidDate:"",depositAmt:"",
         orderLines:ol,billingContactId:cid||"",feedId:id,deleted:false,createdAt:now,updatedAt:now});
       logEvent("project",pid,"Opened by Claude's sales agents"+(ol.length?" — "+ol.length+" quote line"+(ol.length===1?"":"s")+", "+money2(pipeTotal(ol)):(r.amount?" — "+money2(r.amount):"")));out.quotes++;
       if(r.text){const xid=uid("ac");await setDoc("activity/"+xid,{id:xid,recType:"project",recId:pid,kind:"note",type:"note",text:r.text,whoId:"",subject:r.subject||"",contactId:cid||"",direction:"",when:(r.when||today()).slice(0,10),due:"",backOn:r.back_on||"",noBack:!r.back_on,who:"AI",at:now,done:false,deleted:false,feedId:id+":note"})}
@@ -11937,36 +12107,51 @@ async function pipeImportRows(rows){
         backOn:r.back_on||"",noBack:!r.back_on,who:"AI",at:now,done:false,deleted:false,feedId:id});
       out.activity++;
     }
-    done[id]=1;last=id;
+    if(pipeKeep(id,r))done[id]=1;mark(id);
   }
-  S.pipeDone=done;
-  try{await setDoc("settings/pipefeed",{done,updatedAt:Date.now()})}catch(e){}
-  if(last)try{await push("settings/brand",{pipeLast:last})}catch(e){}
+  }finally{
+    // the done map keeps only what no record points back to — a row that made a record is found by that record's feedId
+    const fid=new Set();[S.activity,S.projects,S.accounts].forEach(mp=>live(mp).forEach(x=>{if(x.feedId)fid.add(String(x.feedId))}));
+    Object.keys(done).forEach(k=>{if(!/^INV-/i.test(k)&&fid.has(k))delete done[k]});
+    S.pipeDone=done;
+    try{await setDoc("settings/pipefeed",{done,updatedAt:Date.now(),lockUntil:0,lockBy:""})}catch(e){}
+    if(last)try{await push("settings/brand",{pipeLast:last})}catch(e){}
+  }
   return out;
 }
-function pipeSummary(o){const parts=[];if(o.accounts)parts.push(o.accounts+" new account"+(o.accounts===1?"":"s"));if(o.contacts)parts.push(o.contacts+" contact"+(o.contacts===1?"":"s"));
-  if(o.activity)parts.push(o.activity+" email"+(o.activity===1?"":"s")+"/call"+(o.activity===1?"":"s")+" logged");if(o.quotes)parts.push(o.quotes+" quote"+(o.quotes===1?"":"s")+" opened");
+function pipeSummary(o){const parts=[];if(o.locked)return "another copy of the CRM is bringing the feed in right now — try again in a couple of minutes";
+  if(o.accounts)parts.push(o.accounts+" new account"+(o.accounts===1?"":"s"));if(o.contacts)parts.push(o.contacts+" contact"+(o.contacts===1?"":"s"));
+  if(o.activity)parts.push(o.activity+" email"+(o.activity===1?"":"s")+"/call"+(o.activity===1?"":"s")+" logged");if(o.quotes)parts.push(o.quotes+" quote"+(o.quotes===1?"":"s")+" opened or revised");
+  if(o.invoices)parts.push(o.invoices+" invoice"+(o.invoices===1?"":"s")+" recorded");if(o.inventory)parts.push(o.inventory+" stock receipt"+(o.inventory===1?"":"s"));
+  if(o.settings)parts.push(o.settings+" setting"+(o.settings===1?"":"s")+" changed");
+  if(o.bad)parts.push(o.bad+" row"+(o.bad===1?"":"s")+" couldn't be read (left for the agents to fix)");
   return parts.length?parts.join(", "):"nothing new"+(o.skipped?" ("+o.skipped+" already in)":"")}
+function pipeAny(o){return !!(o.accounts||o.contacts||o.activity||o.quotes||o.invoices||o.inventory||o.settings||o.bad)}
 async function pipeFetch(auto){
   const cfg=pipeCfg();if(!cfg.url)return auto?0:toast("Put the published sheet link in Settings → Sales pipeline feed first.");
   if(auto&&!cfg.auto)return 0;
-  const r=await fetch(cfg.url,{cache:"no-store"});if(!r.ok)throw new Error("the sheet answered "+r.status);
-  const rows=pipeRows(await r.text());if(rows===null)throw new Error("that link isn't the agents' sheet — it has no row_id or type column");
-  const fresh=rows.filter(x=>!pipeSeen(String(x.row_id)));
-  if(auto){if(!fresh.length){S.pipeNew=0;return 0}
-    await new Promise(r=>setTimeout(r,Math.random()*15000));
-    const o=await pipeImportRows(fresh);S.pipeNew=0;
-    if(o.accounts||o.contacts||o.activity||o.quotes)toast("Sales agents: "+pipeSummary(o));return 0}
-  const o=await pipeImportRows(fresh);const box=$("#pf-out");
-  if(box)box.innerHTML=`<p class="note" style="margin:14px 15px"><b>Brought in:</b> ${esc(pipeSummary(o))}.</p>`;
-  toast("Pipeline feed: "+pipeSummary(o));
+  if(PIPE.busy)return auto?0:toast("The feed is already being brought in — give it a moment.");
+  PIPE.busy=true;
+  try{
+    const r=await fetch(cfg.url,{cache:"no-store"});if(!r.ok)throw new Error("the sheet answered "+r.status);
+    const rows=pipeRows(await r.text());if(rows===null)throw new Error("that link isn't the agents' sheet — it has no row_id or type column");
+    const fresh=rows.filter(x=>!pipeSeen(String(x.row_id)));
+    if(auto){if(!fresh.length){S.pipeNew=0;return 0}
+      await new Promise(r=>setTimeout(r,Math.random()*15000));
+      const o=await pipeImportRows(fresh);S.pipeNew=0;
+      if(pipeAny(o))toast("Sales agents: "+pipeSummary(o));return 0}
+    const o=await pipeImportRows(fresh);const box=$("#pf-out");
+    if(box)box.innerHTML=`<p class="note" style="margin:14px 15px"><b>Brought in:</b> ${esc(pipeSummary(o))}.</p>`;
+    toast("Pipeline feed: "+pipeSummary(o));
+  }finally{PIPE.busy=false}
 }
 async function pipeLoad(text){
   const rows=pipeRows(text);const box=$("#pf-out");
   if(rows===null){if(box)box.innerHTML=`<div class="warn" style="margin:12px 15px"><b>That isn't the agents' sheet</b> — it needs a row_id or type column.</div>`;return}
   const fresh=rows.filter(x=>!pipeSeen(String(x.row_id)));
+  if(PIPE.busy)return toast("The feed is already being brought in — give it a moment.");
   if(box)box.innerHTML=`<p class="note" style="margin:14px 15px">Bringing in ${fresh.length} of ${rows.length} rows…</p>`;
-  const o=await pipeImportRows(fresh);
+  PIPE.busy=true;let o;try{o=await pipeImportRows(fresh)}finally{PIPE.busy=false}
   if(box)box.innerHTML=`<p class="note" style="margin:14px 15px"><b>Brought in:</b> ${esc(pipeSummary(o))}.</p>`;
   const fi=$("#pf-file");if(fi)fi.value="";const ta=$("#pf-paste");if(ta)ta.value="";
   toast("Pipeline feed: "+pipeSummary(o));
@@ -12013,7 +12198,23 @@ function pipeModal(){
 /* ========== order sync — quotes and work orders out to a Google Apps Script web app ========== */
 // Never in the way of a save: a write only notes the record; 3 s after the last change to it the record is
 // built from what's on screen and posted. Anything that can't be sent waits in a small queue on this computer.
-const SYNC={pend:new Map(),tmr:new Map(),warned:false,busy:false};
+const SYNC={pend:new Map(),tmr:new Map(),warned:false,busy:false,sent:null,sentTmr:null};
+// what was last sent for each record lives in settings/syncsent, so every computer agrees on which events
+// the accountant has already seen; this browser's copy is only the fallback when there is no database
+const syncKeyEnc=k=>String(k).replace(/\//g,"~"),syncKeyDec=k=>String(k).replace(/~/g,"/");
+function syncSent(){return SYNC.sent||syncLS("sscSyncSent")||{}}
+async function syncSentLoad(){
+  if(!db)return;
+  try{const d=await db.doc("settings/syncsent").get();const ok=d&&(typeof d.exists==="function"?d.exists():d.exists);
+    const data=ok&&d.data()?d.data():null;
+    if(data&&data.sent){const m={};Object.keys(data.sent).forEach(k=>{m[syncKeyDec(k)]=data.sent[k]});SYNC.sent=m}
+    else{SYNC.sent=syncLS("sscSyncSent")||{};if(Object.keys(SYNC.sent).length)syncSentSave(SYNC.sent)}   // first computer on the new store seeds it
+  }catch(e){}
+}
+function syncSentSave(sent){SYNC.sent=sent;syncLS("sscSyncSent",sent);
+  if(!db)return;clearTimeout(SYNC.sentTmr);
+  SYNC.sentTmr=setTimeout(()=>{try{const enc={};Object.keys(SYNC.sent||{}).forEach(k=>{enc[syncKeyEnc(k)]=SYNC.sent[k]});
+    setDoc("settings/syncsent",{sent:enc,updatedAt:Date.now()}).catch(()=>{})}catch(e){}},800)}
 function syncCfg(){const b=S.brand||{};return {url:String(b.syncUrl||"").trim(),auto:b.syncAuto!==false}}
 function syncLS(k,v){try{if(v===undefined){const r=localStorage.getItem(k);return r?JSON.parse(r):null}
   localStorage.setItem(k,JSON.stringify(v))}catch(e){return null}}
@@ -12059,16 +12260,23 @@ function syncBuild(key,rec){
     const shipping=syncN(lines.filter(l=>l.charge==="freight").reduce((t,l)=>t+l.line_total,0));
     const subtotal=syncN(lines.filter(l=>l.charge!=="freight").reduce((t,l)=>t+l.line_total,0));
     const tax=syncTax(a,subtotal+shipping);const rep2=repFor(p);
+    const rate=Number((S.brand||{}).taxRate)||0;
+    const taxNote=a.exempt?"Tax exempt — no sales tax on the invoice":rate>0?"Estimate at "+rate+"% — QuickBooks calculates the actual sales tax":"No tax rate set in the CRM — QuickBooks calculates the sales tax";
+    // shipped when the project's log says so, else when its newest work order shipped
+    const lastShipP=(p.stageLog||[]).filter(x=>x&&x.stage==="shipped").slice(-1)[0];
+    const shipJ=jobsOf(p.id).map(j=>(((j.statusLog||[]).filter(x=>x&&x.status==="shipped").slice(-1)[0])||{}).at||0).filter(Boolean).sort((x,y)=>x-y).slice(-1)[0]||0;
+    const shipAt=(lastShipP&&lastShipP.at)||shipJ||0;
     return {type:quoteish?"quote":"order",id:String(p.id),number:quoteish?(p.quote||("P-"+(p.num||""))):("P-"+(p.num||"")),
       status:p.stage||"inquiry",bill_status:p.billStatus||"none",
       created:syncISO(p.createdAt),updated:syncISO(p.updatedAt),
       quote_number:p.quote||"",quote_date:p.quoteDate||"",project_number:p.num?"P-"+p.num:"",invoice_number:p.invNum||"",
       invoice_date:p.billDate||"",paid_date:p.paidDate||"",
       customer:a.name||"",account_id:p.accountId||"",contact:cc.name,email:cc.email,phone:cc.phone||a.phone||"",
+      customer_type:a.type||"",tax_exempt:!!a.exempt,billing_email:(bc&&bc.email)||(pc&&pc.email)||cc.email||"",
       billing_address:[a.street,a.city,a.state,a.zip].filter(Boolean).join(", "),ship_to:p.shipTo||"",
       po_number:p.po||"",project:p.name||"",rep:rep2?(rep2.name||rep2.initials||""):"",source:p.source||"",
-      lines,subtotal,shipping,tax,total:syncN(subtotal+shipping+tax),deposit:syncN(p.depositAmt),
-      terms:a.terms||"",due_date:p.due||"",ship_date:"",
+      lines,subtotal,shipping,tax,tax_note:taxNote,total:syncN(subtotal+shipping+tax),deposit:syncN(p.depositAmt),
+      terms:a.terms||"",due_date:p.due||"",ship_date:shipAt?syncISO(shipAt).slice(0,10):"",
       notes:[p.scope,p.notes].filter(x=>x&&String(x).trim()).join("\n"),
       work_orders:jobsOf(p.id).map(j=>({number:String(j.num),status:j.status||"new",due:j.due||""})),
       deleted:!!p.deleted};
@@ -12120,7 +12328,7 @@ function syncFire(key){
     const rec=syncRec(key);if(!rec)return;
     const [coll]=key.split("/");
     // a project is sent once it is a real quote: a number, lines, or past inquiry — or it's been sent before
-    const sent=syncLS("sscSyncSent")||{};const prev=sent[key]||null;
+    const sent=syncSent();const prev=sent[key]||null;
     if(coll==="projects"&&!prev&&!rec.quote&&!(rec.orderLines||[]).length&&(rec.stage||"inquiry")==="inquiry")return;
     const r=syncBuild(key,rec);const h=syncHash(r);
     if(prev&&prev.h===h)return;                    // nothing the sheet would show has changed
@@ -12129,10 +12337,10 @@ function syncFire(key){
     if(coll==="projects"&&prev&&prev.lh!==syncLinesHash(r))jobsOf(rec.id).forEach(j=>{const k2="jobs/"+j.num;if(!SYNC.tmr.has(k2))setTimeout(()=>syncFire(k2),500)});
   }catch(e){syncStat({lastFail:Date.now(),why:"couldn't build the record ("+(e&&e.message||"error")+")"})}
 }
-function syncMark(key,r){const sent=syncLS("sscSyncSent")||{};
+function syncMark(key,r){const sent=Object.assign({},syncSent());
   sent[key]={h:syncHash(r),lh:syncLinesHash(r),st:r.status,bs:r.bill_status||"",ty:r.type,pa:!!r.proof_approved,at:Date.now()};
   const ks=Object.keys(sent);if(ks.length>3000)ks.sort((x,y)=>(sent[x].at||0)-(sent[y].at||0)).slice(0,ks.length-3000).forEach(k=>delete sent[k]);
-  syncLS("sscSyncSent",sent)}
+  syncSentSave(sent)}
 function syncStat(o){const st=Object.assign({},syncLS("sscSyncStat")||{},o);st.queued=(syncLS("sscSyncQ")||[]).length;syncLS("sscSyncStat",st);
   const el=document.getElementById("sync-stat");if(el)el.innerHTML=syncStatHTML()}
 function syncStatHTML(){const st=syncLS("sscSyncStat")||{};const q=(syncLS("sscSyncQ")||[]).length;const out=[];
@@ -12141,6 +12349,8 @@ function syncStatHTML(){const st=syncLS("sscSyncStat")||{};const q=(syncLS("sscS
   if(q)out.push(q+" waiting to go — tried again every 5 minutes.");
   return out.join(" · ")}
 function syncDo(url,payload){
+  // mode "no-cors": the browser hides the Apps Script's status, so a fetch that resolves counts as sent and only a
+  // thrown fetch (no network, bad link) is a failure. The script side accepts the plain-text POST as is.
   if(typeof fetch!=="function")return Promise.reject(new Error("this browser can't send"));
   return fetch(url,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)});
 }
@@ -12582,6 +12792,7 @@ function bind(){
     const ck=t.closest("[data-catkind]");if(ck){const k=ck.dataset.catkind;const c=S.cat||{};closeModal();catalogModal(c.target,c.pid,c.num,k);return}
     const cp=t.closest("[data-catpick]");if(cp){catalogPick(cp.dataset.catpick);return}
     const wc=t.closest("[data-webcat]");if(wc){webcatSync(false);return}
+    const csb=t.closest("[data-costsheet]");if(csb){costsheetSync(false);return}
     const bd=t.closest("[data-backdone]");
     if(bd){push("activity/"+bd.dataset.backdone,{backDone:true,backDoneAt:Date.now()}).then(()=>toast("Marked as chased"));return}
     const bs=t.closest("[data-backsnooze]");
@@ -12997,6 +13208,7 @@ async function boot(){
   sub("jobs","jobs",true);sub("files","files");sub("activity","activity");sub("history","history");
   sub("events","events");sub("team","team");
   sub("vendors","vendors");sub("items","items");sub("invtx","invtx");sub("notifications","notifications");
+  syncSentLoad();
   db.doc("settings/prodtypes").onSnapshot(s=>{if(s&&s.exists&&s.data())S.prodtypes=s.data();if(!typing()&&!S.modal)render()},()=>{});
   db.doc("settings/pricelist").onSnapshot(s=>{if(s&&s.exists&&s.data())S.pricelist=s.data();if(!typing()&&!S.modal)render()},()=>{});
   db.doc("settings/signlib").onSnapshot(s=>{if(s&&s.exists&&s.data())S.signlib=s.data();if(!typing()&&!S.modal)render()},()=>{});
@@ -13017,7 +13229,8 @@ async function boot(){
     const pk=async()=>{try{await pipeFetch(true)}catch(e){}};
     setTimeout(pk,9000);setInterval(pk,15*60000);
     const wcAuto=async()=>{try{const b=S.brand||{};if(b.webcatAuto===false)return;
-      const last=Number(b.webcatLast)||Number((S.webcatMeta||{}).updatedAt)||0;if(Date.now()-last>20*3600000)await webcatSync(true)}catch(e){}};
+      const last=Number(b.webcatLast)||Number((S.webcatMeta||{}).updatedAt)||0;if(Date.now()-last>20*3600000)await webcatSync(true);
+      const lastC=Number(b.costsheetLast)||0;if(!sheetRows().length||Date.now()-lastC>20*3600000)await costsheetSync(true)}catch(e){}};
     setTimeout(wcAuto,14000);setInterval(wcAuto,60*60000)}
   setTimeout(()=>{webcatLoad()},1500);
   try{setTimeout(()=>syncRetry(),6000);setInterval(()=>syncRetry(),5*60000)}catch(e){}
