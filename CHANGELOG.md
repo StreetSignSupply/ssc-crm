@@ -1,5 +1,11 @@
 # What changed
 
+## 2026.11.23-1 — 2026-10-24
+- Email from the CRM, logged for every user with no API keys: a contact's email opens Gmail (or your mail app) with the copy address crm@streetsignsupply.com on it, the CRM logs the email at once and the Email Logger agent fills in subject and replies
+- the CRM now sends its accounts and contacts to the agents so every address is known
+- Customer declined the clear overlaminate: a checkbox on printed lines that removes the laminate from cost, price, the work order route, the material plan, and prints the note on the quote and traveller
+- feed lines accept overlaminate: false
+
 ## 2026.11.22-1 — 2026-10-24
 - Accuracy audit: 640 checks against independent calculations, all pass. Won this month and win rate count projects that skipped the Won step
 - every date is local (no more off-by-one after 6 PM)
