@@ -4646,7 +4646,7 @@ function decorateProjectTabs(){
   const tabOf=c=>{if(c.querySelector(":scope > header .oi-acct"))return PTAB_OF["@acct"];
     const h=((c.querySelector("header h2")||{}).textContent||"").replace(/\s+/g," ").trim().toLowerCase();
     const k=Object.keys(PTAB_OF).find(x=>x!=="@acct"&&h.indexOf(x)===0);return k?PTAB_OF[k]:"details"};
-  const tabs=[["all","All"],["lines","Lines"],["wos","Work orders"],["billing","Billing"],["files","Files"],["activity","Activity"],["close","Close-out"],["details","Details"]];
+  const tabs=[["all","All"],["lines","Quote"],["wos","Work orders"],["billing","Billing"],["files","Files"],["activity","Activity"],["close","Close-out"],["details","Details"]];
   let cur=S.ptab||"all";
   const strip=document.createElement("div");strip.className="ptabs";strip.setAttribute("role","tablist");
   strip.innerHTML=tabs.map(([k,l])=>`<button type="button" role="tab" aria-selected="${cur===k}" data-ptab="${k}" class="${cur===k?"on":""}">${l}</button>`).join("");
@@ -8341,7 +8341,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.21-1";
+const APP_VERSION="2026.11.21-2";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
