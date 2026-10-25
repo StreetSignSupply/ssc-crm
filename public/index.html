@@ -8518,7 +8518,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-3";
+const APP_VERSION="2026.11.25-4";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -12430,7 +12430,7 @@ function pipeMatch(r){
 // one import at a time — in this tab (busy) and across tabs (a two-minute lock on settings/pipefeed)
 const PIPE={busy:false,id:Math.random().toString(36).slice(2,10),seen:new Set()};
 // rows the done map must remember; everything else is found again by the feedId on the record it made
-function pipeKeep(id,r){const t=String((r&&r.type)||"").toLowerCase();return /^INV-/i.test(String(id))||!!(r&&r.updates)||["invoice","setting","inventory","draft","stage","workorder","work_order","file","job"].indexOf(t)>=0}
+function pipeKeep(id,r){const t=String((r&&r.type)||"").toLowerCase();return /^INV-/i.test(String(id))||!!(r&&r.updates)||["invoice","setting","inventory","draft","stage","workorder","work_order","file","job","archive"].indexOf(t)>=0}
 function pipeJSON(t){const x=String(t||"").trim();if(!x)return null;try{const o=JSON.parse(x);return o&&typeof o==="object"?o:null}catch(e){return null}}
 // a project by the quote row's row_id, its P-number ("P-2015" or 2015) or its quote number
 function pipeFind(ref){const x=String(ref||"").trim();if(!x)return null;const u=x.toUpperCase(),n=u.replace(/^P-?/,"");
@@ -12624,10 +12624,30 @@ async function pipeImportRows(rows){
       logEvent("project",tgt.id,text);
       out.invoices++;done[id]=1;mark(id);continue}
     // --- agents run the project: stage, workorder, file, job — each logs a note as AI and is marked done ---
-    if(["stage","workorder","work_order","file","job"].indexOf(type)>=0){
+    if(["stage","workorder","work_order","file","job","archive"].indexOf(type)>=0){
       let nn=0;const note=(rt,ri,t,sub)=>pipeNote(rt,ri,t,nn++?id+":"+nn:id,sub);
       const on=agentOn();const more=r.text&&type!=="file"&&type!=="job"?"\n"+r.text:"";
       const sugg=async(rt,ri,what)=>{await note(rt,ri,"Agents suggested: "+what+". Agent control is off in Settings → Connections, so nothing was changed.","Agents suggested");out.suggested++};
+      // archive: a duplicate or test project (or an account with nothing left on it) goes to the recycle bin.
+      // Never one with a live work order or an invoice — those are real work.
+      if(type==="archive"){const ref=String(r.project||r.updates||"").trim();
+        if(ref){const p=pipeFind(ref);if(!p){out.bad++;continue}
+          const wos=jobsOf(p.id).filter(j=>!j.deleted);
+          const why=wos.length?"it has "+wos.length+" work order"+(wos.length===1?"":"s"):(p.invNum||(p.billStatus&&p.billStatus!=="none"))?"it has been invoiced":"";
+          if(!on){await sugg("project",p.id,"move this to the recycle bin"+(r.text?" — "+r.text:""));done[id]=1;mark(id);continue}
+          if(why){await note("project",p.id,"Agents tried to move this to the recycle bin: blocked because "+why+"."+more,"Agents — blocked");out.blocked++;done[id]=1;mark(id);continue}
+          await push("projects/"+p.id,{deleted:true,deletedAt:now,deletedBy:"AI",deletedWith:""});
+          await asAI(()=>recordHistory("project",p.id,[{f:"Deleted",o:"",n:"Moved to recycle bin by the agents"+(r.text?" — "+r.text:""),ev:1}]));
+          out.stages++;done[id]=1;mark(id);continue}
+        const a=r.account?live(S.accounts).find(x=>String(x.name||"").trim().toLowerCase()===String(r.account).trim().toLowerCase()):null;
+        if(!a){out.bad++;continue}
+        const busy=live(S.projects).filter(p=>p.accountId===a.id).length;
+        if(!on){await sugg("account",a.id,"move this account to the recycle bin"+(r.text?" — "+r.text:""));done[id]=1;mark(id);continue}
+        if(busy){await note("account",a.id,"Agents tried to move this account to the recycle bin: blocked because it still has "+busy+" project"+(busy===1?"":"s")+"."+more,"Agents — blocked");out.blocked++;done[id]=1;mark(id);continue}
+        await push("accounts/"+a.id,{deleted:true,deletedAt:now,deletedBy:"AI",deletedWith:""});
+        for(const c of contactsOf(a.id))await push("contacts/"+c.id,{deleted:true,deletedAt:now,deletedBy:"AI",deletedWith:"account:"+a.id});
+        await asAI(()=>recordHistory("account",a.id,[{f:"Deleted",o:"",n:"Moved to recycle bin by the agents"+(r.text?" — "+r.text:""),ev:1}]));
+        out.stages++;done[id]=1;mark(id);continue}
       if(type==="stage"){const p=pipeFind(r.project||r.updates);const st=String(r.stage||"").trim().toLowerCase();
         if(!p||(PATH.indexOf(st)<0&&st!=="lost")){out.bad++;continue}
         const lbl=stLabel(st),po=String(r.po||"").trim();
