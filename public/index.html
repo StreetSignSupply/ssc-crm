@@ -4974,6 +4974,8 @@ function catRows(q,kind){
    quantity tiers. It comes from the SSS Pipeline sheet (the agents keep the Price List and Catalog tabs
    current from the store API) and is kept in Firestore in a few chunks, so every copy of the CRM has it. */
 const WEBCAT_GIDS={prices:1288427450,pics:777001,wb04:777004,wb11:777011};
+// the stencil price list Matt approved (25 Oct 2026): one product per stencil, one price per grade
+const STENCIL_SRC="https://raw.githubusercontent.com/StreetSignSupply/ssc-crm/main/public/stencils.json";
 function webcatProducts(){return (S.webcat&&S.webcat.products)||[]}
 function webcatPic(name){const nm=String(name||"").trim().toUpperCase();if(!nm)return null;
   const idx=S.webcatIdx||(S.webcatIdx=(function(){const m={};webcatProducts().forEach(p=>{m[String(p.name||"").toUpperCase()]=p});return m})());
@@ -4997,7 +4999,7 @@ function webcatUrl(which){
   if(/gid=\d+/.test(base))return base.replace(/gid=\d+/,"gid="+WEBCAT_GIDS[which]);
   return base+(base.indexOf("?")>=0?"&":"?")+"gid="+WEBCAT_GIDS[which]+"&single=true&output=csv"}
 function webcatStat(){const m=S.webcatMeta||{};if(!m.products)return "Nothing pulled yet.";
-  return m.products+" products, "+(m.vars||0)+" sizes and materials, "+(m.pics||0)+" with pictures"+(m.codes?", "+m.codes+" MUTCD codes pictured":"")+" — pulled "+fmtTs(m.updatedAt||0)}
+  return m.products+" products"+(m.stencils?" (incl. "+m.stencils+" stencils)":"")+", "+(m.vars||0)+" sizes and materials, "+(m.pics||0)+" with pictures"+(m.codes?", "+m.codes+" MUTCD codes pictured":"")+" — pulled "+fmtTs(m.updatedAt||0)}
 function webcatParseAttrs(attrs,variation){
   const o={size:"",mat:""};const parts=String(attrs||"").split(/,\s*(?=[A-Za-z ]+:)/);
   const rest=[];
@@ -5029,8 +5031,16 @@ async function webcatSync(auto){
     const a=webcatParseAttrs(r.attributes,r.variation);const price=csvNum(r.price);if(price==="")return;
     const t=[];for(let i=1;i<=5;i++){const q=r["tier_"+i+"_qty"],tp=csvNum(r["tier_"+i+"_price"]);if(q&&tp!=="")t.push([String(q),tp])}
     p.vars.push({size:a.size,mat:a.mat,grade:gradeTok(a.mat),price,t,v:String(r.variation||"")})});
+  let nSten=0;
+  try{const rs=await fetch(STENCIL_SRC+"?v="+Math.floor(Date.now()/3600000),{cache:"no-store"});
+    if(rs.ok){const sj=await rs.json();const G=sj.grades||[];
+      (sj.items||[]).forEach(it=>{const nm=String(it.n||"").trim();if(!nm)return;const id="stencil:"+it.c;
+        if(prods.has(id))return;
+        const vars=[];(it.p||[]).forEach((pr,i)=>{if(pr==null||!(pr>0))return;vars.push({size:"",mat:G[i]||"",grade:"",price:Number(pr),t:[],v:G[i]||"",code:it.c+"-"+(String(G[i]||"").replace(/[^A-Z0-9]/gi,"").slice(0,1)+String(G[i]||"").replace(/[^0-9]/g,"").slice(0,3))})});
+        if(!vars.length)return;prods.set(id,{id,name:nm,cat:"Stencils",url:"",img:"",thumb:"",codes:[],code:it.c,size:it.z||"",vars});nSten++})}}
+  catch(e){}
   const list=[...prods.values()].sort((x,y)=>x.name.localeCompare(y.name));
-  const meta={products:list.length,vars:list.reduce((n,p)=>n+p.vars.length,0),pics:list.filter(p=>p.img).length,updatedAt:Date.now()};
+  const meta={stencils:nSten,products:list.length,vars:list.reduce((n,p)=>n+p.vars.length,0),pics:list.filter(p=>p.img).length,updatedAt:Date.now()};
   const chunks=[];let cur=[],size=0;
   list.forEach(p=>{const j=JSON.stringify(p).length;if(size+j>700000&&cur.length){chunks.push(cur);cur=[];size=0}cur.push(p);size+=j});
   if(cur.length)chunks.push(cur);
@@ -8490,7 +8500,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-1";
+const APP_VERSION="2026.11.25-2";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}

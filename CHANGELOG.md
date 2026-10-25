@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-2 — 2026-10-25
+- Stencil price list in the CRM: 1,761 stencils in 5 grades (LDPE .125, LDPE .063, HDPE .030, HDPE .250, ALUM .080) load with the website catalogue
+- grade sanity fixes (4in number kit HDPE .250 was 5744, now 723.50)
+
 ## 2026.11.25-1 — 2026-10-25
 - Agents can run projects: feed rows to move a project's stage (with the same checks as the buttons), create work orders from the quote, attach signed quotes, POs, artwork and proofs as links (a signed quote or PO moves the job to Won
 - an approved proof is filed and ticked), and update work orders with status, carrier and tracking
