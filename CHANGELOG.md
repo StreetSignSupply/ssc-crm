@@ -1,5 +1,10 @@
 # What changed
 
+## 2026.11.25-9 — 2026-10-25
+- Agents can put a real picture on any quote line: an img link on feed quote lines, or a new picture row that adds pictures without touching prices
+- work orders show the quote line's picture
+- the order sync reports each line's picture as photo, drawing or none so the agents fill every gap
+
 ## 2026.11.25-8 — 2026-10-25
 - Emails from the CRM copy the agents' address as a hidden Bcc, so customers no longer see crm@streetsignsupply.com
 - quote and work-order lines with no picture on file now find the website sign by its MUTCD name (R6-1 One Way), and generic bid items (regulatory, warning diamond, stop, yield, guide) show a plain sign-shape picture instead of a blank
