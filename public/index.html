@@ -1344,6 +1344,8 @@ function ic(name,size){
 }
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+// the local calendar day of a timestamp — never the UTC day, which is already tomorrow after 6 pm in Utah
+const isoDay=ms=>{const d=new Date(ms);if(isNaN(d))return "";return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
 function daysOut(iso){if(!iso)return null;const b=new Date(iso+"T00:00:00");if(isNaN(b))return null;
   return Math.round((b-new Date(today()+"T00:00:00"))/86400000)}
 function dueTxt(iso){const d=daysOut(iso);if(d===null)return "—";
@@ -1465,6 +1467,23 @@ const filesOf=(k,id)=>live(S.files).filter(f=>{
 const filesUnder=pid=>live(S.files).filter(f=>f.projectId===String(pid)).length;
 const actOf=(k,id)=>live(S.activity).filter(a=>a.recType===k&&a.recId===String(id)).sort((a,b)=>(b.at||0)-(a.at||0));
 const isClosed=p=>p.stage==="closed"||p.stage==="lost";
+// sample records stay out of every total, badge and report — they still show in the lists with their pill
+const real=list=>list.filter(x=>!x.sample);
+// a project's due date is for the shipment — once it has shipped (or been invoiced) it can't be late any more
+const stillDue=p=>!isClosed(p)&&p.stage!=="shipped"&&p.stage!=="invoiced";
+const realJob=j=>!j.sample&&!((S.projects.get(j.projectId)||{}).sample);
+// payment terms: Net 30/45/60 are due that many days after the invoice; "Due on receipt" is due the invoice date
+// and counts as past terms after a 3-day grace
+function termDays(a){return ({"Net 30":30,"Net 45":45,"Net 60":60})[(a&&a.terms)||""]||0}
+function termsGrace(a){return termDays(a)||3}
+function payDueDate(p){const a=acct(p&&p.accountId);const b=p&&p.billDate;if(!b)return "";
+  return isoDay(new Date(b+"T12:00:00").getTime()+termDays(a)*86400000)}
+function isPastTerms(p){const a=acct(p&&p.accountId);const b=billedAt(p);return !!(b&&(Date.now()-b)/86400000>termsGrace(a))}
+// "$52.10" or "1,050.43" typed into a price box is still a price
+function tidyLine(l){if(!l||typeof l!=="object")return l;const t=v=>{if(typeof v!=="string"||!/[$,\s]/.test(v))return v;const n=csvNum(v);return n===""?v:String(n)};
+  const o=Object.assign({},l);o.price=t(o.price);if(o.cost!==undefined)o.cost=t(o.cost);if(typeof o.qty==="string")o.qty=t(o.qty);return o}
+// what has actually been billed so far: the deposit until it's invoiced, then the whole project
+function billedValue(p){return billState(p)==="deposit"?Math.min(Number(p.depositAmt)||0,projValue(p)||Infinity):projValue(p)}
 const openProjects=()=>live(S.projects).filter(p=>!isClosed(p));
 const archivedProjects=()=>live(S.projects).filter(isClosed)
   .sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
@@ -1661,7 +1680,7 @@ const itemsOf=vid=>itemList().filter(i=>i.vendorId===vid);
 const txOf=iid=>live(S.invtx).filter(t=>t.itemId===iid).sort((a,b)=>(b.at||0)-(a.at||0));
 const txOfJob=jid=>live(S.invtx).filter(t=>t.jobId===String(jid)&&!t.undone).sort((a,b)=>(b.at||0)-(a.at||0));
 const onHand=i=>Number(i.onHand||0);
-const lowStock=()=>itemList().filter(i=>i.reorderPoint!==""&&i.reorderPoint!=null
+const lowStock=()=>itemList().filter(i=>!i.sample).filter(i=>i.reorderPoint!==""&&i.reorderPoint!=null
   &&onHand(i)<=Number(i.reorderPoint||0));
 const stockCls=i=>{const rp=Number(i.reorderPoint||0);
   if(!i.reorderPoint&&i.reorderPoint!==0)return "";
@@ -2600,8 +2619,8 @@ function docHTML(p,kind){
   const total=sub+tax-dep;
   const no=kind==="quote"?(p.quote||""):(p.invNum||"");
   // a quote keeps the date it was first issued — reprinting doesn't move it or its "valid until"
-  const when=(kind==="quote"&&p.quoteDate)?new Date(p.quoteDate+"T12:00:00"):new Date();
-  const dueDays=({"Net 30":30,"Net 45":45,"Net 60":60})[a.terms]||0;
+  const when=(kind==="quote"&&p.quoteDate)?new Date(p.quoteDate+"T12:00:00"):(kind==="invoice"&&p.billDate)?new Date(p.billDate+"T12:00:00"):new Date();
+  const dueDays=termDays(a);
   const due=new Date(when.getTime()+dueDays*86400000);
   const f=d=>d.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"});
   const unpriced=lines.filter(l=>!l.unit).length;
@@ -2617,7 +2636,7 @@ function docHTML(p,kind){
         <tr><td>${kind==="quote"?esc(b.quoteWord||"Quote"):"Invoice"} #</td><td>${esc(no||"(no number yet)")}</td></tr>
         <tr><td>Date</td><td>${f(when)}</td></tr>
         ${kind==="quote"?`<tr><td>Expiration date</td><td>${f(new Date(when.getTime()+qDays*86400000))}</td></tr>`
-          :`<tr><td>Terms</td><td>${esc(a.terms||"Due on receipt")}</td></tr>${dueDays?`<tr><td>Due date</td><td>${f(due)}</td></tr>`:""}`}
+          :`<tr><td>Terms</td><td>${esc(a.terms||"Due on receipt")}</td></tr><tr><td>Due date</td><td>${f(due)}</td></tr>`}
       </tbody></table></div>
   </div>
   <div class="rule"></div>
@@ -2644,8 +2663,9 @@ function docHTML(p,kind){
         const lp=listPrice(l.src);return t+(lp&&lp.price>l.unit?(lp.price-l.unit)*l.qty:0)},0);
       return save>0.009?`<div style="color:#0A7A3E"><span>You save</span><span>${money2(save)}</span></div>`:""})()}
     <div><span>Subtotal</span><span>${money2(sub)}</span></div>
-    <div><span>${exempt?"Sales tax — exempt"+(a.exemptExp?" (cert. to "+f(new Date(a.exemptExp+"T00:00:00"))+")":""):rate?"Sales tax "+rate+"%":"Sales tax"}</span>
+    <div><span>${exempt?"Sales tax — exempt"+(a.exemptExp?" (cert. to "+f(new Date(a.exemptExp+"T00:00:00"))+")":""):rate?"Sales tax "+rate+"% (estimate)":"Sales tax (estimate)"}</span>
       <span>${exempt?"$0.00":rate?money2(tax):kind==="quote"?"on the invoice":"—"}</span></div>
+    ${!exempt?`<div class="notes" style="padding:2px 0 0;font-size:10px">Sales tax is an estimate; QuickBooks calculates the final tax on the invoice.</div>`:""}
     ${dep?`<div><span>Less deposit received</span><span>−${money2(dep)}</span></div>`:""}
     <div class="g"><span>${kind==="quote"?"Total":"Amount due"}</span><span>${money2(total)}</span></div>
   </div></div>
@@ -2678,7 +2698,7 @@ function docHTML(p,kind){
 }
 async function makeDoc(pid,kind){
   if(kind==="quote")await ensureQuote(pid);
-  {const p1=proj(pid);if(kind==="quote"&&p1&&!p1.quoteDate){await push("projects/"+pid,{quoteDate:new Date().toISOString().slice(0,10),updatedAt:Date.now()});p1.quoteDate=new Date().toISOString().slice(0,10)}}
+  {const p1=proj(pid);if(kind==="quote"&&p1&&!p1.quoteDate){await push("projects/"+pid,{quoteDate:today(),updatedAt:Date.now()});p1.quoteDate=today()}}
   const p=proj(pid);if(!p)return;
   const lines=docLines(p);
   if(kind==="invoice"&&!(p.invNum||"").trim()){
@@ -3143,7 +3163,7 @@ function csvDate(v){
   if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;
   const m=s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/);
   if(m){const y=m[3].length===2?"20"+m[3]:m[3];return y+"-"+m[1].padStart(2,"0")+"-"+m[2].padStart(2,"0")}
-  const d=new Date(s);return isNaN(d)?"":d.toISOString().slice(0,10);
+  const d=new Date(s);return isNaN(d)?"":isoDay(d);
 }
 function csvPick(v,list){const s=String(v||"").trim().toLowerCase();if(!s)return "";
   return list.find(x=>x.toLowerCase()===s)||list.find(x=>x.toLowerCase().indexOf(s)===0)||list.find(x=>s.indexOf(x.toLowerCase())>=0)||""}
@@ -3738,9 +3758,9 @@ function nextStep(kind,rec){
       b=closeOpen(rec).length?"Close it won — "+closeOpen(rec).length+" close-out item(s) to settle first.":"Close it won. It moves to the archive.";
       a=`data-closego="${esc(rec.id)}"`}
     else if(rec.stage==="invoiced"){const d=rec.billDate?Math.floor((Date.now()-new Date(rec.billDate+"T00:00:00").getTime())/86400000):null;
-      const a2=acct(rec.accountId)||{};const terms=({"Net 30":30,"Net 45":45,"Net 60":60})[a2.terms]||0;
-      t="Waiting on payment"+(d!==null?" — invoiced "+d+" day"+(d===1?"":"s")+" ago":"");
-      b=(terms&&d!==null&&d>terms)?"Past their "+a2.terms+" terms. Chase it.":"Mark it paid when the money lands.";
+      const a2=acct(rec.accountId)||{};const dd=payDueDate(rec);
+      t="Waiting on payment"+(d!==null?" — invoiced "+d+" day"+(d===1?"":"s")+" ago":"")+(dd?", due "+fmtDate(dd):"");
+      b=isPastTerms(rec)?"Past their "+(a2.terms||"due on receipt")+" terms. Chase it.":"Mark it paid when the money lands.";
       a=`data-bill="${esc(rec.id)}:paid"`}
     else if(js.length&&!js.some(j=>woItems(j).length)){t="Work order has no lines";b="Add what's being made — quantity, code, size, grade.";a=`data-go="job/${js[0].num}"`}
   }
@@ -3835,7 +3855,7 @@ function closeCard(p){
   const near=p.stage==="shipped"||p.stage==="invoiced"||billState(p)==="invoiced"||billState(p)==="paid";
   return `<section class="card flush" ${ready?`style="border-color:var(--green)"`:""}>
     <header><h2>Close-out</h2>
-      <span class="n">${L.length-open.length} of ${L.length}</span>
+      <span class="n">${L.filter(r=>closeState(p,r)==="ok"||closeState(p,r)==="na").length} of ${L.length}</span>
       ${waiting===L.length?`<span class="pill">nothing to close out yet</span>`:ready?`<span class="pill g">Ready to close</span>`:`<span class="pill o">${open.length} open</span>`}
       <span class="sub">What has to be true before it's closed won. Closing it files the project and its work orders in the archive.</span>
       <span class="sp">
@@ -3991,7 +4011,7 @@ function billCard(p){
       const items=ol.filter(l=>!isCharge(l)).reduce((t,l)=>t+amt(l),0),chg=ol.filter(isCharge).reduce((t,l)=>t+amt(l),0);
       const v=projValue(p),dep=billWhen(p)==="deposit"&&Number(p.depositAmt)>0?Number(p.depositAmt):0;
       return `<div class="billval" data-nohelp="1"><div><div class="k">Project value</div><div class="big mono">${money2(v)}</div>
-          <div class="sub">${ol.length?`${money2(items)} items${chg?` + ${money2(chg)} charges`:""} · before sales tax${(S.brand||{}).qbInvoicing===false?"":". Tax: QuickBooks calculates it; the amount here is an estimate at "+(Number((S.brand||{}).taxRate)||0)+"%"}`:"no quote lines yet"}</div></div>
+          <div class="sub">${ol.length?`${money2(items)} items${chg?` + ${money2(chg)} charges`:""} · before sales tax${(S.brand||{}).qbInvoicing===false?"":". Tax: estimate at "+(Number((S.brand||{}).taxRate)||0)+"%; QuickBooks calculates the final tax"}`:"no quote lines yet"}</div></div>
         ${dep?`<div><div class="k">Deposit</div><div class="mono">${money2(dep)}</div><div class="sub">balance ${money2(Math.max(0,v-dep))}</div></div>`:""}
         ${billState(p)==="paid"?`<span class="pill g">Paid in full</span>`:""}</div>`})()}
     <div class="fgrid">
@@ -4001,7 +4021,7 @@ function billCard(p){
       <div class="fld"><div class="k">Invoiced on</div><div class="v">${p.billDate?fmtDate(p.billDate):"—"}</div></div>
       <div class="fld"><div class="k">Paid on</div><div class="v">${p.paidDate?fmtDate(p.paidDate):"—"}</div></div>
       ${billWhen(p)==="deposit"?`<div class="fld"><div class="k">Deposit</div>
-        <div class="v mono">${p.depositAmt?money(p.depositAmt):"—"}</div></div>`:""}
+        <div class="v mono">${p.depositAmt?money(p.depositAmt):"—"}${p.depositAt?`<div class="sub">received ${esc(fmtDate(p.depositAt))}</div>`:""}</div></div>`:""}
     </div>
     ${!owed?`<div class="warn">${billWhen(p)==="before"
       ?"This one is prepaid. Nothing goes to the floor until the invoice is out."
@@ -4050,11 +4070,12 @@ async function setBill(pid,st,noStage,invNum){
   const was=billLabel(p);
   const patch={billStatus:st,updatedAt:Date.now()};
   if(invNum!=null&&String(invNum).trim())patch.invNum=String(invNum).trim();
-  const today2=new Date().toISOString().slice(0,10);
-  if(st==="invoiced"&&!p.billDate)patch.billDate=today2;
-  if(st==="deposit"&&!p.billDate)patch.billDate=today2;
-  if(st==="paid"){patch.paidDate=today2;if(!p.billDate)patch.billDate=today2}
-  if(st==="none"){patch.billDate="";patch.paidDate=""}
+  const today2=today();
+  // the deposit day is its own date; the invoice date is the day it's marked invoiced
+  if(st==="invoiced"&&(!p.billDate||billState(p)==="deposit"))patch.billDate=today2;
+  if(st==="deposit"){patch.depositAt=p.depositAt||today2;patch.billDate=""}
+  if(st==="paid"){patch.paidDate=today2;if(!p.billDate||billState(p)==="deposit")patch.billDate=today2}
+  if(st==="none"){patch.billDate="";patch.paidDate="";patch.depositAt=""}
   await push("projects/"+pid,patch);
   const now=(BILLSTATE.find(x=>x.id===st)||{}).label||st;
   recordHistory("project",pid,[{f:"Billing",o:was,n:now+(patch.invNum?" — #"+patch.invNum:""),ev:1}]);
@@ -4173,7 +4194,7 @@ function reconCard(p){
           <button class="btn sm" data-ordedit="${esc(p.id)}:${ix}">Edit</button>`}</td>
       </tr>`}).join("")}
       ${(function(){const tot=rows.reduce((t,r)=>t+(Number(r.price)||0)*(Number(r.extra?r.sched:r.ordered)||0),0);
-        const pcs=rows.reduce((t,r)=>t+(Number(r.extra?r.sched:r.ordered)||0),0);
+        const pcs=rows.filter(r=>!r.charge).reduce((t,r)=>t+(Number(r.extra?r.sched:r.ordered)||0),0);
         const cost=rows.reduce((t,r)=>t+(quoteLineCost(r).cost||0)*(Number(r.extra?r.sched:r.ordered)||0),0);
         const mg=(tot&&cost)?((tot-cost)/tot*100):null;
         return `<tr style="background:var(--card2)"><td colspan="3"><b>Total</b></td><td class="mono" style="text-align:right"><b>${pcs}</b></td>
@@ -4591,7 +4612,7 @@ function autoPass(){
   const since=Number(b.autoSince)||0;
   const touched=p=>Math.max(Number(p.updatedAt)||0,...jobsOf(p.id).map(j=>Number(j.updatedAt)||0))>=since;
   const done=S.autoDone||(S.autoDone=new Map());
-  const today=new Date().toISOString().slice(0,10);
+  const todayS=today();
   // stage moves forward by itself — never back, never out of closed or lost
   if(b.autoStage!==false)live(S.projects).forEach(p=>{
     const at=STAGE_ORDER.indexOf(p.stage);if(at<0||p.stage==="closed"||p.stage==="lost")return;
@@ -4614,7 +4635,7 @@ function autoPass(){
   live(S.jobs).forEach(j=>{if(j.due||j.status==="shipped")return;const d=Number(lead[prodOf(j)]);if(!(d>0))return;
     if((Number(j.createdAt)||0)<(Number(b.leadSince)||since))return;
     const k="due:"+j.num;if(done.has(k))return;done.set(k,1);
-    const from=j.createdAt?new Date(j.createdAt):new Date();const due=addBizDays(from,d).toISOString().slice(0,10);
+    const from=j.createdAt?new Date(j.createdAt):new Date();const due=isoDay(addBizDays(from,d));
     push("jobs/"+j.num,{due,updatedAt:Date.now()});
     recordHistory("job",String(j.num),[{f:"Due",o:"",n:due+" — "+d+" business days' lead time for "+kindLabel(prodOf(j)).toLowerCase(),ev:1}]);
   });
@@ -4622,7 +4643,7 @@ function autoPass(){
   if(b.autoFollow!==false){
     const mk=(p,key,text,dueIn)=>{const id="auto-"+key+"-"+p.id;if(done.has(id)||S.activity.get(id))return;done.set(id,1);
       const rep=repFor(p);const now=Date.now();
-      setDoc("activity/"+id,{id,recType:"project",recId:p.id,kind:"task",type:"task",text,due:today,
+      setDoc("activity/"+id,{id,recType:"project",recId:p.id,kind:"task",type:"task",text,due:todayS,
         assigneeId:rep?rep.id:"",assigneeName:rep?rep.name:"",assignedById:"",assignedByName:"the CRM",assignedAt:now,
         whoId:"",who:"auto",at:now,done:false,doneAt:0,doneById:"",doneByName:"",deleted:false,auto:true});};
     const fu=b.followDays||[3,10];
@@ -4677,6 +4698,8 @@ function nextStepFor(p){
   if(p.stage==="shipped"&&["invoiced","paid"].indexOf(billState(p))<0)return acctInvoices()
     ?`<span class="sub" style="display:inline-block;padding:6px 0">Waiting on the accountant to invoice (QuickBooks)</span>`
     :`<button class="btn p" data-qbinv="${esc(id)}">Next: invoice it in QuickBooks</button>`;
+  if(p.stage==="invoiced"&&billState(p)!=="paid"){const d=payDueDate(p);
+    return `<span class="sub" style="display:inline-block;padding:6px 0">Waiting on payment${d?" (due "+esc(fmtDate(d))+")":""}</span>`}
   if(p.stage!=="closed"&&p.stage!=="lost")return `<button class="btn p" data-closeout="${esc(id)}">Next: close it out</button>`;
   return "";
 }
@@ -5210,6 +5233,7 @@ async function chargeSave(pid,ixRaw){
     charge:kind||"other",qty:g("ch-qty")||"1",
     desc:g("ch-desc")||((CHARGES.find(x=>x.id===kind)||{}).label||"Charge"),
     price:g("ch-price"),cost:g("ch-cost"),note:g("ch-note"),code:"",size:"",grade:"",legend:"",build:""};
+  Object.assign(rec,tidyLine(rec));
   if(!rec.price)return toast("Put a price on it — that's the point of the line.");
   const lines=orderedLines(p).slice();
   if(ixRaw==="new")lines.push(rec);else lines[Number(ixRaw)]=rec;
@@ -5307,6 +5331,7 @@ async function ordSave(pid,ixRaw){
     grade:$("#o-grade").value.trim(),note:$("#o-note").value.trim(),artId:$("#o-art")?$("#o-art").value:((old0&&old0.artId)||"")};
   const keep=old0||S.ordPre||null;
   if(keep){["sheetKey","title","webImg","webId","webVar"].forEach(k=>{if(keep[k]&&rec[k]==null)rec[k]=keep[k]})}
+  Object.assign(rec,tidyLine(rec));
   if(!rec.qty&&!rec.code&&!rec.desc)return toast("Give it a quantity, a code or a name.");
   if(!String(rec.price||"").trim()){const dp=defaultPrice(Object.assign({},rec,{sheetKey:rec.sheetKey||(S.ordPre&&S.ordPre.sheetKey)||""}),p.accountId);if(dp)rec.price=dp.price.toFixed(2)}
   if($("#o-contract")&&$("#o-contract").checked&&Number(rec.price)>0&&acct(p.accountId)){
@@ -6150,7 +6175,7 @@ function contractKey(line){
   const g=(gradeTok(line.grade)||String(line.grade||"")).toUpperCase().replace(/\s+/g,"");
   return [String(line.code||"").toUpperCase().replace(/\s+/g,"")||artKey(line.desc),normSize(line.size)||String(line.size||"").toUpperCase(),g].join("|");
 }
-function cpExpired(c){return !!(c&&c.until&&c.until<new Date().toISOString().slice(0,10))}
+function cpExpired(c){return !!(c&&c.until&&c.until<today())}
 function contractPrice(a,line){if(!a||!a.contractPrices)return null;const k=contractKey(line);const c=a.contractPrices[k];
   return c&&Number(c.price)>0&&!cpExpired(c)?Object.assign({key:k},c):null}
 // quantity breaks from Settings — "50 or more: 5% off". Decals already have the tab 11 tiers, so they're left alone.
@@ -6165,7 +6190,7 @@ function belowFloor(price,cost){const f=marginFloor();return f>0&&price>0&&cost>
 function defaultPrice(line,aid){
   const a=aid?acct(aid):null;
   if(a&&line&&!isCharge(line)){const c=contractPrice(a,line);
-    if(c)return {price:Number(c.price),why:a.name+"'s own price for this item"+(c.at?" (set "+fmtDate(new Date(c.at).toISOString().slice(0,10))+")":""),contract:true}}
+    if(c)return {price:Number(c.price),why:a.name+"'s own price for this item"+(c.at?" (set "+fmtDate(isoDay(c.at))+")":""),contract:true}}
   const base=listPrice(line);if(!base)return null;
   const d=acctDiscount(a),qb=qtyBreakFor(line);
   let out=base;
@@ -6207,16 +6232,17 @@ function qbItemName(l){const m=(S.brand||{}).qbItems||{};
   const k=lineProd(l);return m[k]||({sign:"Signs",decal:"Decals",letter:"Decals",stencil:"Stencils",banner:"Banners",posts:"Posts and hardware"})[k]||"Sales"}
 function qbRows(p){
   const a=acct(p.accountId)||{};const cust=(a.qb||a.name||"").trim();
-  const today=new Date().toISOString().slice(0,10);
-  const dueDays=({"Net 30":30,"Net 45":45,"Net 60":60})[a.terms]||0;
-  const due=new Date(Date.now()+dueDays*86400000).toISOString().slice(0,10);
+  // the invoice date is the day it was invoiced, when that's recorded; the due date counts from there
+  const invDate=String(p.billDate||"").trim()||today();
+  const dueDays=termDays(a);
+  const due=isoDay(new Date(invDate+"T12:00:00").getTime()+dueDays*86400000);
   // QuickBooks' import wants an invoice number: yours if it's recorded, otherwise the project number
   const inv=(p.invNum||"").trim()||("P-"+p.num);
   return orderedLines(p).filter(l=>Number(l.qty)>0||isCharge(l)).map(l=>{const q=Number(l.qty)||1,r=Number(l.price)||0;
-    return {InvoiceNo:inv,Customer:cust,InvoiceDate:today,DueDate:due,Terms:a.terms||"",
+    return {InvoiceNo:inv,Customer:cust,InvoiceDate:invDate,DueDate:due,Terms:a.terms||"",
       Memo:[p.name,"P-"+p.num,p.po?"PO "+p.po:""].filter(Boolean).join(" · "),
       Item:qbItemName(l),Description:[l.desc||signName(l)||l.code,l.code&&l.desc?l.code:"",l.size?sizeLabel(l.size):"",custMaterial(l.grade)].filter(Boolean).join(" · "),
-      Qty:q,Rate:r.toFixed(2),Amount:(q*r).toFixed(2),Taxable:a.exempt?"N":"Y"}});
+      Qty:q,Rate:r.toFixed(2),Amount:(q*r).toFixed(2),Taxable:(a.exempt||(isCharge(l)&&l.charge==="freight"))?"N":"Y"}});
 }
 function qbInvModal(pid){
   const p=proj(pid);if(!p)return;const a=acct(p.accountId)||{};const rows=qbRows(p);
@@ -6225,7 +6251,7 @@ function qbInvModal(pid){
     <p class="note" style="margin:0 0 10px">QuickBooks makes the invoice. Bring the lines across one of these ways, then put the QuickBooks invoice number here.</p>
     <div class="fgrid">
       ${fld("QuickBooks customer",(a.qb||a.name||"—")+(a.qb?"":" (set the QuickBooks name on the account if it's different)"))}
-      ${fld("Lines",rows.length+" · "+money2(tot)+(unpriced?" — "+unpriced+" with no price":""))}</div>
+      ${fld("Lines",rows.length+" · "+money2(tot)+(unpriced?" — "+unpriced+" with no price":"")+" · before tax (estimate "+(Number((S.brand||{}).taxRate)||0)+"%; QuickBooks calculates the final tax)")}</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0">
       <button class="btn p" data-qbcsv="${esc(pid)}">Download for QuickBooks import (.csv)</button>
       <button class="btn" data-qbcopy="${esc(pid)}">Copy the lines to paste</button></div>
@@ -7098,17 +7124,17 @@ function trackUrl(t,carrier){
 }
 function overdueItems(){
   const out=[];
-  openProjects().forEach(p=>{const d=daysOut(p.due);
+  real(openProjects()).filter(stillDue).forEach(p=>{const d=daysOut(p.due);
     if(d!==null&&d<0)out.push({k:"project",id:p.id,label:"P-"+p.num+" "+p.name,who:accName(p.accountId),d,date:p.due})});
-  openJobs().forEach(j=>{const d=daysOut(j.due);
+  openJobs().filter(realJob).forEach(j=>{const d=daysOut(j.due);
     if(d!==null&&d<0)out.push({k:"job",id:String(j.num),label:"Work order "+j.num+" "+(j.desc||""),who:accName(j.accountId),d,date:j.due})});
   return out.sort((a,b)=>a.d-b.d);
 }
 function dueSoonItems(days){
   const out=[];
-  openProjects().forEach(p=>{const d=daysOut(p.due);
+  real(openProjects()).filter(stillDue).forEach(p=>{const d=daysOut(p.due);
     if(d!==null&&d>=0&&d<=days)out.push({k:"project",id:p.id,label:"P-"+p.num+" "+p.name,who:accName(p.accountId),d,date:p.due})});
-  openJobs().forEach(j=>{const d=daysOut(j.due);
+  openJobs().filter(realJob).forEach(j=>{const d=daysOut(j.due);
     if(d!==null&&d>=0&&d<=days)out.push({k:"job",id:String(j.num),label:"Work order "+j.num+" "+(j.desc||""),who:accName(j.accountId),d,date:j.due})});
   return out.sort((a,b)=>a.d-b.d);
 }
@@ -7174,6 +7200,15 @@ function reminderMail(){
   location.href="mailto:?subject="+encodeURIComponent(subj)+"&body="+encodeURIComponent(L.join("\n"));
 }
 const byDue=(a,b)=>((b.rush?1:0)-(a.rush?1:0))||((a.due||"9999").localeCompare(b.due||"9999"));
+// the due pill: the date while it's being made; once it's out the door, where the money is
+function projDuePill(p){
+  const bs=billState(p);
+  if(p.stage==="lost")return `<span class="pill">Lost</span>`;
+  if(p.stage==="closed")return `<span class="pill g">${bs==="paid"?"Paid":"Closed"}</span>`;
+  if(p.stage==="invoiced")return bs==="paid"?`<span class="pill g">Paid</span>`:`<span class="pill y">Invoiced</span>`;
+  if(p.stage==="shipped")return bs==="paid"?`<span class="pill g">Paid</span>`:bs==="invoiced"?`<span class="pill y">Invoiced</span>`:`<span class="pill">Shipped</span>`;
+  return `<span class="pill ${dueCls(p.due,false)}">${dueTxt(p.due)}</span>`;
+}
 const stageCls=s=>({slate:"s",blue:"b",green:"g",orange:"o",red:"r",yellow:"y"}[(SG[s]||{}).color]||"s");
 const jobCls=s=>({slate:"s",blue:"b",green:"g",orange:"o",red:"r",yellow:"y"}[(JS[s]||{}).color]||"s");
 
@@ -7185,7 +7220,7 @@ async function nextQuote(){
 async function ensureQuote(pid){
   const p=proj(pid);if(!p||p.quote)return p&&p.quote;
   const q=await nextQuote();
-  await push("projects/"+pid,{quote:q,quoteDate:new Date().toISOString().slice(0,10),updatedAt:Date.now()});
+  await push("projects/"+pid,{quote:q,quoteDate:today(),updatedAt:Date.now()});
   recordHistory("project",pid,[{f:"Quote number",o:"",n:q}]);
   return q;
 }
@@ -7715,10 +7750,12 @@ function dashToggle(route){
 function decorateAccess(){
   const A=ACCESS[myAccess()];document.body.classList.toggle("no-cost",!A.cost);document.body.classList.toggle("no-price",!A.price);
   if(A.cost&&A.price)return;
-  const costRx=/^(costs? us|cost|margin|cost \/ sign|what it costs you|material cost|value)$/i,priceRx=/^(price ea|price each|line|value|total|we sell for|amount)$/i;
+  const costRx=/^(costs? us|cost|margin|cost \/ sign|what it costs you|material cost|value)$/i,priceRx=/^(price ea|price each|line|line \$|value|total|we sell for|amount)$/i;
+  // the cell under column i, counting colspans; a cell that spans several columns is left alone (it carries labels too)
+  const cellAt=(tr,i)=>{let at=0;for(const c of tr.children){const sp=Math.max(1,Number(c.getAttribute("colspan"))||1);if(i>=at&&i<at+sp)return sp>1?null:c;at+=sp}return null};
   document.querySelectorAll(".main table").forEach(tb=>{const hs=[...tb.querySelectorAll("thead th")];
     hs.forEach((h,i)=>{const t=h.textContent.trim();if((!A.cost&&costRx.test(t))||(!A.price&&priceRx.test(t))){
-      tb.querySelectorAll("tr").forEach(tr=>{const c=tr.children[i];if(c)c.style.display="none"})}})});
+      tb.querySelectorAll("tr").forEach(tr=>{const c=cellAt(tr,i);if(c)c.style.display="none"})}})});
   document.querySelectorAll(".main .hl-facts > div, .main .fld").forEach(el=>{const k=(el.querySelector(".k")||{}).textContent||"";
     if((!A.cost&&/\b(cost|margin)\b/i.test(k))||(!A.price&&/\b(value|price)\b/i.test(k)))el.style.visibility="hidden"});
   if(!A.del)document.querySelectorAll(".main [data-del]").forEach(b=>b.style.display="none");
@@ -7791,7 +7828,7 @@ function tracker(){
   if(S.scope)ps=ps.filter(x=>inScope(x));
   else if(S.mineOnly)ps=ps.filter(x=>{const t=repFor(x);return t&&(t.initials||"").toUpperCase()===myInitials()});
   ps.sort(byDue);
-  const late=openJobs().filter(j=>daysOut(j.due)!==null&&daysOut(j.due)<0).length;
+  const late=openJobs().filter(realJob).filter(j=>daysOut(j.due)!==null&&daysOut(j.due)<0).length;
   return `<div class="pad">
     <section class="card flush">
       <header><h2>Live status tracker</h2>
@@ -7841,7 +7878,7 @@ function trackerRow(p){
       <span class="sub trk-who">${esc(accName(p.accountId))} · P-${p.num}</span>
       <span class="trk-meta">
         ${(function(){const t=repFor(p);return t?`<span class="sub" style="font-weight:700">${esc(t.name)}</span>`:""})()}
-        ${p.amount?`<span class="pill">${money(projValue(p))}</span>`:""}
+        ${projValue(p)?`<span class="pill">${money(projValue(p))}</span>`:""}
         ${(function(){const r=shipRollup(p.id);return r.total?`<span class="pill ${r.shipped===r.total?"g":""}">${r.shipped}/${r.total} shipped</span>`:""})()}
         ${inStage!==null?`<span class="pill">${inStage}d in ${esc((SG[p.stage]||{}).label||"")}</span>`:""}
         <span class="pill ${allOut?"g":dc}">${allOut?"all shipped":dueTxt(p.due)}</span></span>
@@ -7875,30 +7912,30 @@ function shopStrip(){
 
 /* ========== home ========== */
 function home(){
-  const all=live(S.projects), open=openProjects(), oj=openJobs();
+  const all=real(live(S.projects)), open=real(openProjects()), oj=openJobs().filter(realJob);
   const ym=thisYM(), yr=new Date().getFullYear();
   const invM=invIn(all,ym), wonM=wonIn(all,ym);
   const invYTD=all.filter(p2=>{const a=billedAt(p2);return a&&new Date(a).getFullYear()===yr});
-  const revYTD=invYTD.reduce((t,p2)=>t+projValue(p2),0);
-  const costYTD=invYTD.reduce((t,p2)=>t+projCost(p2),0);
+  const revYTD=invYTD.reduce((t,p2)=>t+billedValue(p2),0);
+  // margin is read off fully invoiced work only — a deposit has no cost against it yet
+  const fullYTD=invYTD.filter(p2=>billState(p2)!=="deposit");
+  const revFull=fullYTD.reduce((t,p2)=>t+projValue(p2),0), costYTD=fullYTD.reduce((t,p2)=>t+projCost(p2),0);
   const pipe=open.reduce((t,p2)=>t+projValue(p2),0);
   const late=oj.filter(j=>daysOut(j.due)!==null&&daysOut(j.due)<0);
   const dt=oj.filter(j=>daysOut(j.due)===0);
   const toInv=all.filter(p2=>p2.stage==="shipped"&&billState(p2)!=="invoiced"&&billState(p2)!=="paid");
   const billedNotClosed=all.filter(p2=>!isClosed(p2)&&billedEarly(p2));
   const awaiting=all.filter(p2=>p2.stage==="invoiced"&&billState(p2)!=="paid");
-  const awaitVal=awaiting.reduce((t,p2)=>t+projValue(p2),0);
-  const pastTerms=awaiting.filter(p2=>{const a2=acct(p2.accountId)||{};
-    const terms=({"Net 30":30,"Net 45":45,"Net 60":60})[a2.terms]||0;const b=billedAt(p2);
-    return terms&&b&&(Date.now()-b)/86400000>terms});
+  const awaitVal=awaiting.reduce((t,p2)=>t+billedValue(p2),0);
+  const pastTerms=awaiting.filter(isPastTerms);
   const readyClose=all.filter(p2=>(p2.stage==="shipped"||p2.stage==="invoiced")&&billState(p2)==="paid");
   const wr=winRate(all,180);
   const stageRows=PATH.map(st=>{const l=open.filter(p2=>p2.stage===st);
     return {k:(SG[st]||{}).label||st,v:l.reduce((x,p2)=>x+projValue(p2),0),n:l.length}}).filter(r=>r.n);
-  const monRows=lastMonths(6).map(m2=>({k:ymLabel(m2),v:invIn(all,m2).reduce((x,p2)=>x+projValue(p2),0),
+  const monRows=lastMonths(6).map(m2=>({k:ymLabel(m2),v:invIn(all,m2).reduce((x,p2)=>x+billedValue(p2),0),
     n:invIn(all,m2).length}));
   const reps=repList().map(t=>{
-    const mine=projsFor(t);
+    const mine=real(projsFor(t));
     return {k:t.name,v:mine.filter(p2=>!isClosed(p2)).reduce((x,p2)=>x+projValue(p2),0),
       n:mine.filter(p2=>!isClosed(p2)).length,link:""}}).filter(r=>r.n||r.v);
   const shopRows=["released","production","qc","packed"].map(st=>{
@@ -7906,15 +7943,15 @@ function home(){
     return {k:(JS[st]||{}).label||st,v:l.length,n:null,
       c:st==="packed"?"var(--green)":st==="qc"||st==="production"?"var(--orange)":"var(--blue)"}}).filter(r=>r.v);
   const low=lowStock();
-  const noExempt=live(S.accounts).filter(a=>a.type==="Government agency"&&!a.exempt);
-  const unsignedWO=liveJobs().filter(j=>j.status==="shipped"
+  const noExempt=real(live(S.accounts)).filter(a=>a.type==="Government agency"&&!a.exempt);
+  const unsignedWO=liveJobs().filter(realJob).filter(j=>j.status==="shipped"
     &&!filesOf("job",String(j.num)).some(f=>f.cat==="Signed work order"));
-  const tasks=live(S.activity).filter(a=>a.kind==="task"&&!a.done&&!a.deleted)
+  const tasks=real(live(S.activity)).filter(a=>a.kind==="task"&&!a.done&&!a.deleted)
     .sort((a,b)=>(a.due||"9999").localeCompare(b.due||"9999")).slice(0,8);
   const attn=[];
   if(late.length)attn.push({t:late.length+" work order"+(late.length===1?"":"s")+" past due",h:"jobs",c:"r"});
   if(toInv.length)attn.push({t:toInv.length+" project"+(toInv.length===1?"":"s")+" shipped and not invoiced",h:"projects",c:"o"});
-  if(pastTerms.length)attn.push({t:pastTerms.length+" invoice"+(pastTerms.length===1?"":"s")+" past terms — "+money(pastTerms.reduce((t,p2)=>t+projValue(p2),0))+" to chase",h:"projects",c:"r"});
+  if(pastTerms.length)attn.push({t:pastTerms.length+" invoice"+(pastTerms.length===1?"":"s")+" past terms — "+money(pastTerms.reduce((t,p2)=>t+billedValue(p2),0))+" to chase",h:"projects",c:"r"});
   if(readyClose.length)attn.push({t:readyClose.length+" paid and shipped — ready to close won",h:"projects",c:"g"});
   if(low.length)attn.push({t:low.length+" item"+(low.length===1?"":"s")+" at or below reorder",h:"inventory",c:"o"});
   (function(){const unpaid=all.filter(p2=>!isClosed(p2)&&billWhen(p2)!=="after"&&!billOwed(p2));
@@ -7935,9 +7972,9 @@ function home(){
       <div class="today-acts"><button class="btn sm q" data-remind="1">Email the due list</button><button class="btn sm q" data-ics="all">Export dates</button></div>
     </section>
     ${kpiRow([
-      kpi("Invoiced this month",money(invM.reduce((t,p2)=>t+projValue(p2),0)),invM.length+" project"+(invM.length===1?"":"s")),
+      kpi("Invoiced this month",money(invM.reduce((t,p2)=>t+billedValue(p2),0)),invM.length+" project"+(invM.length===1?"":"s")),
       kpi("Invoiced YTD",money(revYTD),yr+" to date"),
-      kpi("Margin YTD",revYTD?Math.round((revYTD-costYTD)/revYTD*100)+"%":"—",costYTD?money(revYTD-costYTD):"no cost booked"),
+      kpi("Margin YTD",revFull&&costYTD?Math.round((revFull-costYTD)/revFull*100)+"%":"—",costYTD?money(revFull-costYTD):"no cost booked"),
       kpi("Waiting on payment",money(awaitVal),awaiting.length+" invoiced"+(pastTerms.length?" · "+pastTerms.length+" past terms":""),pastTerms.length?"r":""),
       kpi("Open pipeline",money(pipe),open.length+" open project"+(open.length===1?"":"s")),
       kpi("Won this month",money(wonM.reduce((t,p2)=>t+projValue(p2),0)),wonM.length+" won"),
@@ -8024,8 +8061,8 @@ function exemptPill(a){
 function accountRec(id){
   const a=acct(id);if(!a)return notFound("Account");
   const ps=projectsOf(id),cs=contactsOf(id),js=jobsOfAcct(id).filter(j=>j.status!=="shipped");
-  const openVal=ps.filter(p=>!isClosed(p)).reduce((t,p)=>t+projValue(p),0);
-  const lifetime=ps.filter(p=>p.stage==="invoiced"||p.stage==="closed").reduce((t,p)=>t+projValue(p),0);
+  const openVal=real(ps).filter(p=>!isClosed(p)).reduce((t,p)=>t+projValue(p),0);
+  const lifetime=real(ps).filter(p=>billState(p)==="invoiced"||billState(p)==="paid").reduce((t,p)=>t+projValue(p),0);
   return `<div class="pad">
     ${crumbBar(crumbsForAccount(a))}
     ${nextStep("account",a)}
@@ -8064,7 +8101,7 @@ function accountRec(id){
           <div class="fgrid">${fld("Discount",d.pct?d.label:"None — list prices")}
             ${fld("On quotes",a.showSavings?"Shows list price and their savings":"Shows their price only")}</div>
           ${cps.length?`<div class="tw"><table><thead><tr><th>Their own prices</th><th style="text-align:right">Price each</th><th style="width:90px"></th></tr></thead><tbody>
-            ${cps.map(([k,c])=>`<tr><td>${esc(c.label||k)}<div class="sub">set ${esc(c.at?fmtDate(new Date(c.at).toISOString().slice(0,10)):"")}${c.until?(cpExpired(c)?` · <b style="color:#C00">ended ${esc(fmtDate(c.until))} — no longer used</b>`:" · good until "+esc(fmtDate(c.until))):""}</div></td>
+            ${cps.map(([k,c])=>`<tr><td>${esc(c.label||k)}<div class="sub">set ${esc(c.at?fmtDate(isoDay(c.at)):"")}${c.until?(cpExpired(c)?` · <b style="color:#C00">ended ${esc(fmtDate(c.until))} — no longer used</b>`:" · good until "+esc(fmtDate(c.until))):""}</div></td>
               <td class="mono" style="text-align:right">${money2(c.price)}</td>
               <td style="text-align:right;white-space:nowrap"><button class="btn sm" data-negedit="${esc(id)}|${esc(k)}">Change</button>
                 <button class="btn sm" data-cpdel="${esc(id)}|${esc(k)}">Remove</button></td></tr>`).join("")}</tbody></table></div>`
@@ -8162,7 +8199,7 @@ function projRows(ps){
       <div class="sub mono">P-${p.num}${p.po?" · PO "+esc(p.po):""}${p.reorderOf?" · reorder":""}</div></td>
       <td><span class="pill ${stageCls(p.stage)}">${esc((SG[p.stage]||{}).label||"")}</span></td>
       <td class="mono">${money(projValue(p))}</td>
-      <td><span class="pill ${dueCls(p.due,isClosed(p))}">${dueTxt(p.due)}</span></td>
+      <td>${projDuePill(p)}</td>
       <td>${billState(p)==="none"
         ?(billWhen(p)!=="after"?`<span class="pill r">${billWhen(p)==="before"?"prepay due":"deposit due"}</span>`:`<span class="sub">—</span>`)
         :billPill(p)}</td>
@@ -8292,14 +8329,14 @@ function projectList(){
     return `<div class="pad"><section class="card flush">${head}
       <div class="kb">${STAGES.filter(x=>x.id!=="closed"&&x.id!=="lost").map(s=>{
         const l=list.filter(p=>p.stage===s.id).sort(byDue);
-        const v=l.reduce((t,p)=>t+projValue(p),0);
+        const v=real(l).reduce((t,p)=>t+projValue(p),0);
         return `<div class="kcol kw-${s.color}"><h3>${esc(s.label)}<span class="n">${l.length}</span></h3>
           <div class="kbody">${v?`<div class="sub mono" style="padding:0 2px 2px">${money(v)}</div>`:""}
-          ${l.map(p=>{const dc=dueCls(p.due,isClosed(p));
+          ${l.map(p=>{const dc=stillDue(p)?dueCls(p.due,false):"";
             return `<button class="kc ${dc==="r"?"late":dc==="o"?"soon":""}" data-go="project/${esc(p.id)}">
               <div class="r1"><span class="nm">${esc(p.name)}</span></div>
               <div class="r2">${esc(accName(p.accountId))}</div>
-              <div class="r3"><span class="pill">${money(projValue(p))}</span><span class="pill ${dc}">${dueTxt(p.due)}</span>
+              <div class="r3"><span class="pill">${money(projValue(p))}</span>${projDuePill(p)}
                 ${jobsOf(p.id).length?`<span class="pill">${jobsOf(p.id).length} job${jobsOf(p.id).length>1?"s":""}</span>`:""}</div></button>`
           }).join("")||`<div class="sub" style="padding:4px 2px">—</div>`}</div></div>`;
       }).join("")}</div></section></div>`;
@@ -8313,7 +8350,7 @@ function projectList(){
         <td>${(function(){const t=repFor(p);return t?esc(t.name):`<span class="sub">unassigned</span>`})()}</td>
         <td><span class="pill ${stageCls(p.stage)}">${esc((SG[p.stage]||{}).label||"")}</span></td>
         <td class="mono">${money(projValue(p))}</td>
-        <td><span class="pill ${dueCls(p.due,isClosed(p))}">${dueTxt(p.due)}</span></td>
+        <td>${projDuePill(p)}</td>
         <td class="mono">${jobsOf(p.id).length||"—"}</td></tr>`).join("")}</tbody></table>`
     :`<div class="empty"><b>${S.scope?"No projects on "+esc((scopeTeam()||{}).name||"their")+"'s book":"No projects yet"}</b>${
       S.scope?"Clear the filter above to see them all.":"A project is one quote, bid, or job package for an account."}</div>`}
@@ -8341,7 +8378,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.21-2";
+const APP_VERSION="2026.11.22-1";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -8543,7 +8580,7 @@ function projectRec(id){
   const openTasks=tasks.filter(x=>!x.done);
   const ship=shipRollup(id);
   const od=daysOut(p.due),closed=isClosed(p);
-  const isLate=od!==null&&od<0&&!closed;
+  const isLate=od!==null&&od<0&&stillDue(p);
   return `<div class="pad">
     ${crumbBar(crumbsForProject(p))}
     ${nextStep("project",p)}
@@ -8579,9 +8616,9 @@ function projectRec(id){
           </div></details></div></div>
       <div class="path" data-nohelp="1">
         ${p.stage==="lost"
-          ?`<div class="step lost"><b>Closed lost</b><small>${stageAt(p,"lost")?fmtDate(new Date(stageAt(p,"lost")).toISOString().slice(0,10)):"—"}</small></div>`
+          ?`<div class="step lost"><b>Closed lost</b><small>${stageAt(p,"lost")?fmtDate(isoDay(stageAt(p,"lost"))):"—"}</small></div>`
           :PATH.map((s2,i2)=>{const hit=sl.filter(x=>x.stage===s2).pop();const isCur=p.stage===s2;
-            const when=hit&&cur>=i2?fmtDate(new Date(hit.at).toISOString().slice(0,10)).replace(/, \d{4}$/,""):"";
+            const when=hit&&cur>=i2?fmtDate(isoDay(hit.at)).replace(/, \d{4}$/,""):"";
             const ds=daysSince(lastAt);
             return `<div class="step ${isCur?"cur":(cur>i2?"done":"")}" title="${esc(SG[s2].help)}"><b>${esc(SG[s2].label)}</b>
               <small>${isCur?(ds!==null?(when?when+" · ":"")+ds+(ds===1?" day":" days")+" here":when||"now"):when||"—"}</small></div>`}).join("")}
@@ -8609,9 +8646,9 @@ function projectRec(id){
           ${billedEarly(p)&&p.stage!=="invoiced"&&p.stage!=="closed"?`<div class="sub">billed before production</div>`:""}</div></div>
         <div><div class="k">PO</div><div class="v">${esc(p.po||"—")}</div></div>
         <div><div class="k">Start</div><div class="v">${fmtDate(p.start)}</div></div>
-        <div><div class="k">Due</div><div class="v"><span class="pill ${dueCls(p.due,closed)}">${dueTxt(p.due)}</span></div></div>
+        <div><div class="k">Due</div><div class="v">${stillDue(p)?`<span class="pill ${dueCls(p.due,false)}">${dueTxt(p.due)}</span>`:`${fmtDate(p.due)} ${projDuePill(p)}`}</div></div>
         <div><div class="k">Quote lines</div><div class="v">${(function(){const st=reconStatus(p);
-          const ol=orderedLines(p);const pcs=ol.reduce((t,l)=>t+(Number(l.qty)||0),0);
+          const ol=orderedLines(p);const pcs=ol.filter(l=>!isCharge(l)).reduce((t,l)=>t+(Number(l.qty)||0),0);
           const q=quoteState(p);
           if(!q.ok&&q.lines)return `${pcs} pcs <span class="pill o">${q.noPrice.length?q.noPrice.length+" unpriced":q.noQty.length+" no qty"}</span>`;
           return st.state==="none"?`<span class="pill r">none yet</span>`
@@ -8636,7 +8673,7 @@ function projectRec(id){
           // what's being made, from the ordered lines — or the work orders if nothing's been recorded
           const ol=orderedLines(p);
           const sched=Object.values(scheduledFor(p));
-          const lines=ol.length?ol.map(l=>({qty:l.qty,code:l.code,size:l.size,grade:l.grade,desc:l.desc})):sched.map(b=>({qty:b.qty,code:b.code,size:b.size,desc:b.desc}));
+          const lines=ol.length?ol.filter(l=>!isCharge(l)).map(l=>({qty:l.qty,code:l.code,size:l.size,grade:l.grade,desc:l.desc})):sched.map(b=>({qty:b.qty,code:b.code,size:b.size,desc:b.desc}));
           return `          <div style="padding:12px 15px;border-bottom:1px solid var(--line2)">
             <div class="k" style="margin-bottom:6px;font-size:12px;font-weight:700;color:var(--ink2)">What's being made</div>
             ${lines.length?`${(function(){
@@ -8772,7 +8809,7 @@ function projectRec(id){
             return `${esc(sh.method||"")}${sh.carrier?" · "+esc(sh.carrier):""}
               ${sh.tracking?`<div>${url?`<a href="${esc(url)}" target="_blank" rel="noopener" class="mono">${esc(sh.tracking)}</a>`:`<span class="mono">${esc(sh.tracking)}</span>`}</div>`
                 :(j.status==="shipped"&&sh.method!=="Will call"?`<div><span class="pill r">no tracking</span></div>`:"")}
-              ${sa?`<div class="sub">shipped ${esc(fmtDate(new Date(sa).toISOString().slice(0,10)))}</div>`:""}`})()}</td>
+              ${sa?`<div class="sub">shipped ${esc(fmtDate(isoDay(sa)))}</div>`:""}`})()}</td>
           <td>${filesOf("job",String(j.num)).some(f=>f.cat==="Signed work order")
             ?`<span class="pill g">Signed</span>`
             :(j.status==="shipped"?`<span class="pill r">Missing</span>`:`<span class="sub">—</span>`)}</td>
@@ -8928,7 +8965,7 @@ function shippedCard(j){
       <span class="r2" style="display:block;font-size:12.5px;margin:2px 0 5px;color:var(--ink2);
         overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(j.desc||"—")}</span></button>
     <div class="r3">
-      <span class="pill g">${sa?fmtDate(new Date(sa).toISOString().slice(0,10)):"shipped"}</span>
+      <span class="pill g">${sa?fmtDate(isoDay(sa)):"shipped"}</span>
       ${tr?(url?`<a class="pill b" href="${esc(url)}" target="_blank" rel="noopener"
         style="text-decoration:none">track</a>`:`<span class="pill">${esc(tr.slice(-6))}</span>`)
         :`<span class="pill r">no tracking</span>`}
@@ -9006,7 +9043,7 @@ function jobRec(num){
         const prior=(sl.filter(x=>JFLOW.indexOf(x.status)>=0).pop()||{}).status;
         const ref=at>=0?at:JFLOW.indexOf(prior);
         return `<button class="${j.status===s2?"cur":(ref>k?"done":"")}" data-adv="${j.num}:${s2}">
-          ${esc(JS[s2].label)}<small>${hit?fmtDate(new Date(hit.at).toISOString().slice(0,10)).replace(/, \d{4}$/,""):"—"}</small></button>`}).join("")}</div>
+          ${esc(JS[s2].label)}<small>${hit?fmtDate(isoDay(hit.at)).replace(/, \d{4}$/,""):"—"}</small></button>`}).join("")}</div>
       ${(function(){const pq=j.projectId?proj(j.projectId):null;if(!pq)return "";const q=quoteState(pq);if(q.ok)return "";
         return `<div class="qstate"><span class="qdot"></span><div><b>The quote for this work order isn't finished</b> — ${esc(q.why)} on P-${pq.num}. The shop can carry on; price the quote so the job's value and margin are right.</div>
           <span class="sp"><button class="btn sm" data-ptabgo="${esc(pq.id)}">Go to the quote</button></span></div>`})()}
@@ -9138,7 +9175,7 @@ function jobRec(num){
         ${gateRow(j,"qc","QC passed","Grade, legend, spacing, holes, count")}</section>
       ${(function(){
         const steps=routeFor(j),note=routeNote(j),pd=prodOf(j);
-        const done=steps.filter(r=>j.route&&j.route[r.id]).length;
+        const done=steps.filter(r=>routeTick(j,r.id).on).length;
         return `<section class="card flush"><header><h2>Production route</h2>
           <span class="n">${done} of ${steps.length}</span>
           <span class="sp"><button class="btn sm" data-edit="job:${j.num}">Change route</button></span></header>
@@ -9311,7 +9348,7 @@ function calendarView(){
   live(S.projects).forEach(p=>{
     const closed=isClosed(p);
     if(p.start)add(p.start,{c:"start",t:"Start · "+p.name,h:"project/"+p.id});
-    if(p.due)add(p.due,{c:closed?"ship":(daysOut(p.due)<0?"late":"due"),t:"Due · "+p.name,h:"project/"+p.id});
+    if(p.due)add(p.due,{c:!stillDue(p)?"ship":(daysOut(p.due)<0?"late":"due"),t:"Due · "+p.name,h:"project/"+p.id});
   });
   live(S.events).forEach(e=>{
     const p2=e.projectId?S.projects.get(e.projectId):null;
@@ -9322,7 +9359,7 @@ function calendarView(){
   });
   liveJobs().forEach(j=>{
     if(j.status==="shipped"){const sa=shippedAt(j);
-      if(sa)add(new Date(sa).toISOString().slice(0,10),{c:"ship",t:"Shipped · Work order "+j.num,h:"job/"+j.num});
+      if(sa)add(isoDay(sa),{c:"ship",t:"Shipped · Work order "+j.num,h:"job/"+j.num});
       return}
     if(j.due)add(j.due,{c:daysOut(j.due)<0?"late":"due",t:"Work order "+j.num+" · "+(j.desc||""),h:"job/"+j.num});
   });
@@ -9582,7 +9619,10 @@ function itemRec(id){
 
 
 /* ================= MY BOOK ================= */
-function stageAt(p,st){const e=(p.stageLog||[]).filter(x=>x.stage===st).pop();return e?e.at:null}
+function stageAt(p,st){const e=(p.stageLog||[]).filter(x=>x.stage===st).pop();if(e)return e.at;
+  // jumped straight past it (quoted to production, production to invoiced): it was won or shipped when it first landed further on
+  const i=PATH.indexOf(st);if(i<0||st==="closed")return null;
+  const f=(p.stageLog||[]).find(x=>PATH.indexOf(x.stage)>i);return f?f.at:null}
 function shipAt(j){const e=(j.statusLog||[]).filter(x=>x.status==="shipped").pop();return e?e.at:null}
 function ymOf(ms2){if(!ms2)return "";const d=new Date(ms2);
   return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")}
@@ -9596,6 +9636,8 @@ function thisYM(){const d=new Date();return d.getFullYear()+"-"+String(d.getMont
 function projsFor(t){return t?live(S.projects).filter(p2=>{const r=repFor(p2);return r&&r.id===t.id})
   :live(S.projects)}
 function billedAt(p2){
+  // a deposit counts from the day it landed (older records kept that day in billDate)
+  if(billState(p2)==="deposit"){const d=p2.depositAt||p2.billDate;return d?new Date(d+"T00:00:00").getTime():0}
   if(p2.billDate)return new Date(p2.billDate+"T00:00:00").getTime();
   return stageAt(p2,"invoiced")||stageAt(p2,"closed")||0;
 }
@@ -9636,7 +9678,7 @@ function barCard(title,rows,fmt,note){
     :`<div class="empty">Nothing to show yet.</div>`}</section>`;
 }
 function stalledAccounts(t){
-  const accs=live(S.accounts).filter(a=>!t||a.repId===t.id);
+  const accs=real(live(S.accounts)).filter(a=>!t||a.repId===t.id);
   return accs.map(a=>{
     const acts=live(S.activity).filter(x=>{
       if(x.recType==="account"&&x.recId===a.id)return true;
@@ -9650,23 +9692,23 @@ function myBook(){
   const t=S.viewerTeam;
   if(!t)return canCompanyDash()?home():`<div class="pad"><div class="empty"><b>Nobody's signed in on this device</b>
     Press "Sign in as…" up top and pick your name, or add yourself under Settings → Our team.</div></div>`;
-  const accs=live(S.accounts).filter(a=>a.repId===t.id).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
-  const mine=projsFor(t);
+  const accs=real(live(S.accounts)).filter(a=>a.repId===t.id).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
+  const mine=real(projsFor(t));
   const open=mine.filter(p2=>!isClosed(p2)).sort(byDue);
   const ym=thisYM();
   const wonM=wonIn(mine,ym), invM=invIn(mine,ym);
   const invYTD=mine.filter(p2=>{const a=billedAt(p2);return a&&new Date(a).getFullYear()===new Date().getFullYear()});
-  const wos=liveJobs().filter(j=>{const p2=S.projects.get(j.projectId);const r=p2?repFor(p2):null;
+  const wos=liveJobs().filter(realJob).filter(j=>{const p2=S.projects.get(j.projectId);const r=p2?repFor(p2):null;
     return r&&r.id===t.id&&j.status!=="shipped"}).sort(byDue);
-  const tasks=live(S.activity).filter(a=>a.kind==="task"&&!a.done&&taskIsMine(a,t))
+  const tasks=real(live(S.activity)).filter(a=>a.kind==="task"&&!a.done&&taskIsMine(a,t))
     .sort((a,b)=>(a.due||"9999").localeCompare(b.due||"9999"));
   const pipe=open.reduce((x,p2)=>x+projValue(p2),0);
-  const late=open.filter(p2=>daysOut(p2.due)!==null&&daysOut(p2.due)<0);
+  const late=open.filter(p2=>stillDue(p2)&&daysOut(p2.due)!==null&&daysOut(p2.due)<0);
   const wr=winRate(mine,180);
   const stalled=stalledAccounts(t);
   const stageRows=PATH.map(st=>{const l=open.filter(p2=>p2.stage===st);
     return {k:(SG[st]||{}).label||st,v:l.reduce((x,p2)=>x+projValue(p2),0),n:l.length}}).filter(r=>r.n);
-  const monRows=lastMonths(6).map(m2=>({k:ymLabel(m2),v:invIn(mine,m2).reduce((x,p2)=>x+projValue(p2),0),
+  const monRows=lastMonths(6).map(m2=>({k:ymLabel(m2),v:invIn(mine,m2).reduce((x,p2)=>x+billedValue(p2),0),
     n:invIn(mine,m2).length}));
   return `<div class="pad">
     <div class="hl"><div class="hl-top"><span class="oi lg oi-cont">${esc(t.initials||inits(t.name))}</span>
@@ -9682,8 +9724,8 @@ function myBook(){
     ${kpiRow([
       kpi("Open pipeline",money(pipe),open.length+" project"+(open.length===1?"":"s")),
       kpi("Won this month",money(wonM.reduce((x,p2)=>x+projValue(p2),0)),wonM.length+" won"),
-      kpi("Invoiced this month",money(invM.reduce((x,p2)=>x+projValue(p2),0)),invM.length+" invoiced"),
-      kpi("Invoiced YTD",money(invYTD.reduce((x,p2)=>x+projValue(p2),0)),invYTD.length+" projects"),
+      kpi("Invoiced this month",money(invM.reduce((x,p2)=>x+billedValue(p2),0)),invM.length+" invoiced"),
+      kpi("Invoiced YTD",money(invYTD.reduce((x,p2)=>x+billedValue(p2),0)),invYTD.length+" projects"),
       kpi("Win rate",wr===null?"—":wr+"%","last 6 months",wr===null?"":wr>=50?"g":wr>=30?"":"o"),
       kpi("Past due",late.length||"—",late.length?"needs a call today":"all on time",late.length?"r":"g"),
       kpi("My accounts",accs.length,"")])}
@@ -9794,8 +9836,8 @@ function rptGroupKey(rec,g,isWo){
 }
 function runReport(cfg){
   const isWo=cfg.src==="wo";
-  let rows=(isWo?live(S.jobs):live(S.projects)).map(r=>Object.assign({},r));
-  // reports deliberately include closed-out work — that is the point of a report
+  let rows=(isWo?live(S.jobs).filter(realJob):real(live(S.projects))).map(r=>Object.assign({},r));
+  // reports deliberately include closed-out work — that is the point of a report (sample records are left out)
   rows.forEach(r=>{r._d=rptDate(r,cfg.basis,isWo)});
   rows=rows.filter(r=>r._d>0);
   if(cfg.from){const f=new Date(cfg.from+"T00:00:00").getTime();rows=rows.filter(r=>r._d>=f)}
@@ -9811,7 +9853,7 @@ function runReport(cfg){
     b.n++;
     if(isWo){b.value+=jobRevenue(r);b.cost+=jobCost(r);
       b.pieces+=(r.items||[]).reduce((t2,x)=>t2+(Number(x.qty)||0),0)}
-    else{b.value+=projValue(r);b.cost+=projCost(r)}
+    else{b.value+=(cfg.basis==="billed"?billedValue(r):projValue(r));b.cost+=projCost(r)}
   });
   let out=Object.values(g);
   if(cfg.group==="month"||cfg.group==="quarter")out.sort((a,b)=>a.k.localeCompare(b.k));
@@ -9912,16 +9954,16 @@ function reportsView(){
             <td class="mono" style="text-align:right">${b.n}</td>
             <td class="mono" style="text-align:right">${b.value?money(b.value):"—"}</td>
             <td class="mono" style="text-align:right">${b.cost?money(b.cost):"—"}</td>
-            <td style="text-align:right">${marginPill(b.value?((b.value-b.cost)/b.value*100):0,b.value)}</td>
+            <td style="text-align:right">${marginPill(b.value&&b.cost?((b.value-b.cost)/b.value*100):null,b.value)}</td>
             <td><div style="display:flex;align-items:center;gap:8px">
               <div style="height:16px;width:${w}%;background:${v<0?"var(--red)":"var(--brand)"};border-radius:1px"></div>
-              <span class="mono" style="font-weight:700;white-space:nowrap">${esc(metricTxt(v,cfg.metric))}</span>
+              <span class="mono" style="font-weight:700;white-space:nowrap">${esc((cfg.metric==="margin"&&!b.cost)?"—":metricTxt(v,cfg.metric))}</span>
             </div></td></tr>`}).join("")}
         <tr style="background:var(--card2)"><td style="font-weight:800">Total</td>
           <td class="mono" style="text-align:right;font-weight:800">${totN}</td>
           <td class="mono" style="text-align:right;font-weight:800">${totV?money(totV):"—"}</td>
           <td class="mono" style="text-align:right;font-weight:800">${totC?money(totC):"—"}</td>
-          <td style="text-align:right">${marginPill(totV?((totV-totC)/totV*100):0,totV)}</td>
+          <td style="text-align:right">${marginPill(totV&&totC?((totV-totC)/totV*100):null,totV)}</td>
           <td></td></tr></tbody></table>`
       :`<div class="empty"><b>Nothing matches</b>Widen the dates, or check that the records have the date you're counting by.</div>`}
     </section></div>`;
@@ -12130,7 +12172,7 @@ function pipeRows(text){
   return parsed.rows.map(r=>{const o={};parsed.headers.forEach(h=>o[key(h)]=String(r[h]==null?"":r[h]).trim());
     if(!o.row_id)o.row_id=[o.type,o.account,o.email,o.when,o.subject].join("|");return o});
 }
-function pipeTotal(ol){return Math.round(ol.reduce((t,l)=>t+(Number(l.qty)||0)*(Number(l.price)||0),0)*100)/100}
+function pipeTotal(ol){return Math.round(ol.map(tidyLine).reduce((t,l)=>t+(Number(l.qty)||0)*(Number(l.price)||0),0)*100)/100}
 // quote lines carried on a feed row: JSON, or "10 x R1-1 | Stop | 30x30 | HIP @ 50.43" one per line (or ;; between)
 function pipeLines(r){
   const raw=String((r&&r.lines)||"").trim();if(!raw)return [];
@@ -12147,7 +12189,7 @@ function pipeLines(r){
     const pv=o.price!=null?o.price:(o.unit_price!=null?o.unit_price:o.each);
     const price=Number(csvNum(pv))||0;                                       // "$1,050.43" and 1050.43 alike
     const isCh=!!o.charge||(!code&&!o.size&&/ship|freight|deliver|setup|design|\bfee\b/i.test(desc));
-    const line={id:uid("ol"),qty:String(Number(csvNum(o.qty))||1),desc:desc||code,code,size:String(o.size||"").trim(),grade:String(o.grade||o.material||"").trim(),
+    const line={id:uid("ol"),qty:String(o.qty==null||String(o.qty).trim()===""?1:(Number(csvNum(o.qty))||0)),desc:desc||code,code,size:String(o.size||"").trim(),grade:String(o.grade||o.material||"").trim(),
       build:"",legend:String(o.legend||""),legends:[],price:String(price),cost:"",note:String(o.note||"")};
     if(isCh){line.charge=typeof o.charge==="string"&&o.charge?o.charge:(/ship|freight|deliver/i.test(desc)?"freight":"other");line.code="";line.size="";line.grade=""}
     return line}).filter(l=>l.desc||l.code);
@@ -12473,7 +12515,7 @@ function syncBuild(key,rec){
     const subtotal=syncN(lines.filter(l=>l.charge!=="freight").reduce((t,l)=>t+l.line_total,0));
     const tax=syncTax(a,subtotal+shipping);const rep2=repFor(p);
     const rate=Number((S.brand||{}).taxRate)||0;
-    const taxNote=a.exempt?"Tax exempt — no sales tax on the invoice":rate>0?"Estimate at "+rate+"% — QuickBooks calculates the actual sales tax":"No tax rate set in the CRM — QuickBooks calculates the sales tax";
+    const taxNote=a.exempt?"Tax exempt — no sales tax on the invoice":rate>0?"Estimate at "+rate+"% — QuickBooks calculates the final sales tax":"No tax rate set in the CRM — QuickBooks calculates the final sales tax";
     // shipped when the project's log says so, else when its newest work order shipped
     const lastShipP=(p.stageLog||[]).filter(x=>x&&x.stage==="shipped").slice(-1)[0];
     const shipJ=jobsOf(p.id).map(j=>(((j.statusLog||[]).filter(x=>x&&x.status==="shipped").slice(-1)[0])||{}).at||0).filter(Boolean).sort((x,y)=>x-y).slice(-1)[0]||0;
@@ -12488,7 +12530,7 @@ function syncBuild(key,rec){
       billing_address:[a.street,a.city,a.state,a.zip].filter(Boolean).join(", "),ship_to:p.shipTo||"",
       po_number:p.po||"",project:p.name||"",rep:rep2?(rep2.name||rep2.initials||""):"",source:p.source||"",
       lines,subtotal,shipping,tax,tax_note:taxNote,total:syncN(subtotal+shipping+tax),deposit:syncN(p.depositAmt),
-      terms:a.terms||"",due_date:p.due||"",ship_date:shipAt?syncISO(shipAt).slice(0,10):"",
+      terms:a.terms||"",due_date:p.due||"",ship_date:shipAt?isoDay(shipAt):"",
       notes:[p.scope,p.notes].filter(x=>x&&String(x).trim()).join("\n"),
       work_orders:jobsOf(p.id).map(j=>({number:String(j.num),status:j.status||"new",due:j.due||""})),
       deleted:!!p.deleted};
@@ -12508,7 +12550,7 @@ function syncBuild(key,rec){
     proof_approved:!!(j.gates&&j.gates.proof),
     ship_method:sh.method||"",carrier:sh.carrier||"",tracking:sh.tracking||"",
     lines,subtotal,shipping:"",tax:"",total:subtotal,
-    terms:a.terms||"",due_date:j.due||"",ship_date:lastShip&&lastShip.at?syncISO(lastShip.at).slice(0,10):"",
+    terms:a.terms||"",due_date:j.due||"",ship_date:lastShip&&lastShip.at?isoDay(lastShip.at):"",
     notes:j.notes||"",deleted:!!j.deleted};
 }
 function syncHash(o){const x=Object.assign({},o);delete x.updated;delete x.work_orders;
@@ -13398,6 +13440,7 @@ function sub(coll,map,numeric){
   db.collection(coll).onSnapshot(snap=>{
     const m=new Map();
     const each=d=>{const data=d.data()||{};
+      if(map==="projects"&&Array.isArray(data.orderLines))data.orderLines=data.orderLines.map(tidyLine);
       m.set(String(d.id),numeric?Object.assign({num:Number(d.id)},data):Object.assign({id:String(d.id)},data))};
     snap.forEach?snap.forEach(each):(snap.docs||[]).forEach(each);
     S[map]=m;if(map==="team")syncViewer();if(!typing()&&!S.modal&&!S.viewerFile)render();

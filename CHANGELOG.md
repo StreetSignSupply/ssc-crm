@@ -1,5 +1,21 @@
 # What changed
 
+## 2026.11.22-1 — 2026-10-24
+- Accuracy audit: 640 checks against independent calculations, all pass. Won this month and win rate count projects that skipped the Won step
+- every date is local (no more off-by-one after 6 PM)
+- invoice PDF shows the real invoice and due dates
+- margin shows a dash when no cost is booked
+- piece counts exclude charges
+- past-due counts exclude shipped and invoiced work
+- access levels hide prices and costs completely
+- due on receipt is past terms after 3 days
+- deposits count only as the deposit
+- shipped and invoiced jobs show Shipped and Invoiced instead of late
+- next step on invoiced work is Waiting on payment with the due date
+- sales tax labelled as an estimate with QuickBooks deciding, freight not taxable in QuickBooks rows
+- a price typed with a dollar sign or comma is a price
+- sample records are out of every KPI and badge
+
 ## 2026.11.21-2 — 2026-10-24
 - Project tab strip: the lines tab is called Quote
 
