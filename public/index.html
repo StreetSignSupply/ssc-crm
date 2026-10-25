@@ -7126,7 +7126,13 @@ function artMatches(p){
 function lineArt(p,line){if(!p||!line)return null;if(line.artId==="none")return null;
   const m=artMatches(p);const ol=line.lineId?orderedLines(p).find(o=>o.id===line.lineId):null;
   return m[(ol&&ol.id)||line.id||olKey(line)]||null}
-function linePic(p,line){const a=lineArt(p,line);return (a&&a.url)||signPic(line)}
+function linePic(p,line){const a=lineArt(p,line);if(a&&a.url)return a.url;
+  if(p&&line&&!line.webImg&&line.lineId){const ol=orderedLines(p).find(o=>o.id===line.lineId);if(ol&&ol.webImg)return ol.webImg}
+  return signPic(line)}
+// what the agents see on the order sync: "photo" (a real picture), "drawing" (only the plain shape) or "none"
+function picStatus(p,line){try{const a=p?lineArt(p,line):null;if(a&&a.url)return "photo";
+  if(p&&line&&line.lineId){const ol=orderedLines(p).find(o=>o.id===line.lineId);if(ol&&ol.webImg)return "photo"}
+  const e=picEntry(line);return !e?"none":e.generic?"drawing":"photo"}catch(e){return ""}}
 function bulkPicModal(){
   openModal(mshell("Add pictures for lots of items","",
     `<p class="note" style="margin:10px 15px">Pick as many pictures as you like. Each one is matched to an item by its
@@ -8600,7 +8606,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-8";
+const APP_VERSION="2026.11.25-9";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -10613,7 +10619,7 @@ function settingsView(){
       ${b.pipeLast?`<div class="sub" style="margin-top:6px">Last feed row: ${esc(String(b.pipeLast))}</div>`:""}
       <details style="margin-top:10px"><summary class="sub" style="cursor:pointer">Columns the sheet needs</summary>
         <div class="sub" style="margin-top:6px;line-height:1.6">One row per thing that happened: <span class="mono">row_id, type, account, account_type, phone, website, street, city, state, zip, contact, title, email, contact_phone, activity, direction, subject, text, when, back_on, project, amount, stage, source</span>.
-          <b>type</b> is account, activity, quote, invoice, setting, inventory, draft, stage, workorder, file or job; <b>activity</b> is email, call, meeting or note; <b>direction</b> is in or out. A row is never brought in twice.
+          <b>type</b> is account, activity, quote, invoice, setting, inventory, draft, stage, workorder, file, job, archive or picture; <b>activity</b> is email, call, meeting or note; <b>direction</b> is in or out. A row is never brought in twice.
           A quote row can carry its lines in a <span class="mono">lines</span> column (JSON: qty, code, desc, size, grade, price — or one per line as <span class="mono">10 x R1-1 | Stop | 30x30 | HIP @ 50.43</span>);
           with lines the project opens as Quoted, without them it stays an Inquiry. A later row with <span class="mono">updates</span> = the first row's row_id revises that project's lines while it's still a quote — a stage never moves backwards.
           <b>invoice</b> rows (<span class="mono">project</span> = row_id, P-number or quote number; <span class="mono">text</span> = JSON invoice_number, invoice_date, paid_date, amount, status) record the accountant's QuickBooks invoice;
@@ -10621,7 +10627,8 @@ function settingsView(){
           <b>inventory</b> rows (<span class="mono">text</span> = JSON sku, item, qty, unit, unit_cost, vendor, ref, received, freight) receive stock;
           with <span class="mono">qty</span> 0 and <span class="mono">on_order</span> N (plus <span class="mono">ref</span>, <span class="mono">expected</span>) they record a purchase order — on order, not on hand — and a later receipt with the same ref (or vendor) brings it down.
           An outgoing <b>email</b> activity row completes the entry the CRM made when that email was opened here — same contact (by <span class="mono">email</span>), within three hours of <span class="mono">when</span>, or the same day when <span class="mono">when</span> is only a date; an optional <span class="mono">at</span> ISO time narrows it. No new columns.
-          A quote line may say <span class="mono">"overlaminate": false</span> when the customer declined the clear overlaminate on a printed sign.
+          A quote line may say <span class="mono">"overlaminate": false</span> when the customer declined the clear overlaminate on a printed sign, and <span class="mono">"img": "https://…"</span> for the picture of what the customer wants.
+          <b>picture</b> rows (<span class="mono">project</span>; <span class="mono">text</span> = JSON <span class="mono">[{"line":1,"img":"https://…"}]</span>, line by position, or by <span class="mono">code</span>/<span class="mono">desc</span>) put a picture on quote lines without touching prices.
           <b>draft</b> rows carry an email the writer drafted: <span class="mono">project</span> = the project's feed row_id, P-number or quote number; <span class="mono">stage</span> = which one —
           <span class="mono">1</span>, <span class="mono">2</span> or <span class="mono">3</span> (or followup1/2/3) for a planned follow-up, else <span class="mono">proof</span>, <span class="mono">shipping</span>, <span class="mono">invoice</span>, <span class="mono">quote</span> or <span class="mono">thanks</span> for a requested draft;
           <span class="mono">subject</span> and <span class="mono">text</span> are the email. <span class="mono">source</span> = <span class="mono">sent</span> with a <span class="mono">when</span> means the agents sent it themselves (only when the follow-up record said auto) — the CRM marks it sent and logs the email as AI.
@@ -12483,6 +12490,7 @@ function pipeLines(r){
     // "overlaminate": false (or "no_overlaminate": true) — the customer declined the clear overlaminate on a printed line
     const noYes=v=>v===true||/^(true|yes|y|1)$/i.test(String(v==null?"":v).trim()),noNo=v=>v===false||/^(false|no|n|0|none)$/i.test(String(v==null?"":v).trim());
     if(noNo(o.overlaminate)||noYes(o.no_overlaminate)||noYes(o.nolam))line.noLam=true;
+    {const im=String(o.img||o.image||o.picture||o.pic||"").trim();if(/^https:\/\/\S+$/i.test(im)||/^data:image\//i.test(im))line.webImg=im}
     if(isCh){line.charge=typeof o.charge==="string"&&o.charge?o.charge:(/ship|freight|deliver/i.test(desc)?"freight":"other");line.code="";line.size="";line.grade=""}
     return line}).filter(l=>l.desc||l.code);
 }
@@ -12515,7 +12523,7 @@ function pipeMatch(r){
 // one import at a time — in this tab (busy) and across tabs (a two-minute lock on settings/pipefeed)
 const PIPE={busy:false,id:Math.random().toString(36).slice(2,10),seen:new Set()};
 // rows the done map must remember; everything else is found again by the feedId on the record it made
-function pipeKeep(id,r){const t=String((r&&r.type)||"").toLowerCase();return /^INV-/i.test(String(id))||!!(r&&r.updates)||["invoice","setting","inventory","draft","stage","workorder","work_order","file","job","archive"].indexOf(t)>=0}
+function pipeKeep(id,r){const t=String((r&&r.type)||"").toLowerCase();return /^INV-/i.test(String(id))||!!(r&&r.updates)||["invoice","setting","inventory","draft","stage","workorder","work_order","file","job","archive","picture"].indexOf(t)>=0}
 function pipeJSON(t){const x=String(t||"").trim();if(!x)return null;try{const o=JSON.parse(x);return o&&typeof o==="object"?o:null}catch(e){return null}}
 // a project by the quote row's row_id, its P-number ("P-2015" or 2015) or its quote number
 function pipeFind(ref){const x=String(ref||"").trim();if(!x)return null;const u=x.toUpperCase(),n=u.replace(/^P-?/,"");
@@ -12710,12 +12718,26 @@ async function pipeImportRows(rows){
       logEvent("project",tgt.id,text);
       out.invoices++;done[id]=1;mark(id);continue}
     // --- agents run the project: stage, workorder, file, job — each logs a note as AI and is marked done ---
-    if(["stage","workorder","work_order","file","job","archive"].indexOf(type)>=0){
+    if(["stage","workorder","work_order","file","job","archive","picture"].indexOf(type)>=0){
       let nn=0;const note=(rt,ri,t,sub)=>pipeNote(rt,ri,t,nn++?id+":"+nn:id,sub);
       const on=agentOn();const more=r.text&&type!=="file"&&type!=="job"?"\n"+r.text:"";
       const sugg=async(rt,ri,what)=>{await note(rt,ri,"Agents suggested: "+what+". Agent control is off in Settings → Connections, so nothing was changed.","Agents suggested");out.suggested++};
       // archive: a duplicate or test project (or an account with nothing left on it) goes to the recycle bin.
       // Never one with a live work order or an invoice — those are real work.
+      // picture: the agents found what the customer is after — text = JSON [{line:1, img:"https://..."}] (line = 1-based
+      // position on the quote, or "code" / "desc" to find it). Only the picture changes; prices and quantities are left alone.
+      if(type==="picture"){const p=pipeFind(r.project||r.updates);let arr=pipeJSON(r.text);if(arr&&!Array.isArray(arr))arr=[arr];
+        if(!p||!arr||!arr.length){out.bad++;continue}
+        const L=orderedLines(p).map(o=>Object.assign({},o));const real=L.filter(o=>!isCharge(o));let n=0;
+        arr.forEach(x=>{if(!x)return;const im=String(x.img||x.image||x.picture||"").trim();if(!/^https:\/\/\S+$/i.test(im)&&!/^data:image\//i.test(im))return;
+          let t=null;const k=Number(x.line);
+          if(k>=1&&k<=real.length)t=real[k-1];
+          else if(x.code)t=real.find(o=>String(o.code||"").toUpperCase()===String(x.code).trim().toUpperCase()&&(!x.size||String(o.size||"").replace(/\s+/g,"")===String(x.size).replace(/\s+/g,"")));
+          else if(x.desc)t=real.find(o=>String(o.desc||"").trim().toLowerCase()===String(x.desc).trim().toLowerCase());
+          if(t&&t.webImg!==im){t.webImg=im;n++}});
+        if(n){await push("projects/"+p.id,{orderLines:L,updatedAt:now});await note("project",p.id,"Agents added "+n+" line picture"+(n===1?"":"s")+" for the quote."+more,"Agents — pictures")}
+        else await note("project",p.id,"Agents sent pictures but none matched a quote line (or the links weren't https)."+more,"Agents — pictures");
+        done[id]=1;mark(id);continue}
       if(type==="archive"){const ref=String(r.project||r.updates||"").trim();
         if(ref){const p=pipeFind(ref);if(!p){out.bad++;continue}
           const wos=jobsOf(p.id).filter(j=>!j.deleted);
@@ -13035,12 +13057,13 @@ function syncISO(ms){const n=Number(ms);return n?new Date(n).toISOString():""}
 function syncTxt(f){try{return String(f()||"")}catch(e){return ""}}
 function syncN(v){const n=Number(v);return isFinite(n)?Math.round(n*100)/100:0}
 function syncContact(c){return c&&!c.deleted?{name:c.name||"",email:c.email||"",phone:c.phone||c.mobile||""}:{name:"",email:"",phone:""}}
-function syncLine(l,price){
+function syncLine(l,price,p){
   const qty=Number(l.qty)||0,up=syncN(price);
   const out={qty,item:String(l.code||""),description:String(l.desc||syncTxt(()=>signName(l))||""),
     size:l.size?syncTxt(()=>sizeLabel(l.size)):"",material:syncTxt(()=>custMaterial(l.grade)),
     unit_price:up,line_total:syncN(qty*up),charge:l.charge||""};
   if(!l.charge&&(l.noLam||syncTxt(()=>linePrinted(l)?"y":"")))out.overlaminate=!l.noLam;   // printed lines say whether the clear overlaminate goes on
+  if(!l.charge){out.picture=picStatus(p,l);if(l.webImg)out.img=l.webImg}   // the agents fill every "none" and "drawing" with a real picture
   return out;
 }
 function syncTax(a,amt){const rate=Number((S.brand||{}).taxRate)||0;return (!isExempt(a)&&rate>0)?syncN(amt*rate/100):0}
@@ -13065,8 +13088,8 @@ function syncBuild(key,rec){
     const quoteish=["inquiry","quoted","lost"].indexOf(p.stage||"inquiry")>=0;
     const pc=(p.contacts||[]).map(x=>S.contacts.get(x)).filter(c=>c&&!c.deleted)[0]||null;
     const bc=billingFor(p);const cc=syncContact((quoteish?pc||bc:bc||pc)||null);
-    let lines=(p.orderLines||[]).filter(l=>l&&(Number(l.qty)>0||l.desc||l.code)).map(l=>syncLine(l,l.price));
-    if(!lines.length)jobsOf(p.id).forEach(j=>woItems(j).forEach(it=>{if(Number(it.qty)>0)lines.push(syncLine(it,priceOfLine(j,it)))}));
+    let lines=(p.orderLines||[]).filter(l=>l&&(Number(l.qty)>0||l.desc||l.code)).map(l=>syncLine(l,l.price,p));
+    if(!lines.length)jobsOf(p.id).forEach(j=>woItems(j).forEach(it=>{if(Number(it.qty)>0)lines.push(syncLine(it,priceOfLine(j,it),p))}));
     const shipping=syncN(lines.filter(l=>l.charge==="freight").reduce((t,l)=>t+l.line_total,0));
     const subtotal=syncN(lines.filter(l=>l.charge!=="freight").reduce((t,l)=>t+l.line_total,0));
     const tax=syncTax(a,subtotal+shipping);const rep2=repFor(p);
@@ -13094,7 +13117,7 @@ function syncBuild(key,rec){
   const j=rec,p=j.projectId?(proj(j.projectId)||S.projects.get(j.projectId)):null;
   const a=acct(j.accountId||(p&&p.accountId))||S.accounts.get(j.accountId)||{};
   const cc=syncContact(p?((p.contacts||[]).map(x=>S.contacts.get(x)).filter(c=>c&&!c.deleted)[0]||billingFor(p)):null);
-  const lines=woItems(j).filter(it=>Number(it.qty)>0||it.desc||it.code).map(it=>syncLine(it,priceOfLine(j,it)));
+  const lines=woItems(j).filter(it=>Number(it.qty)>0||it.desc||it.code).map(it=>syncLine(it,priceOfLine(j,it),j.projectId?proj(j.projectId):null));
   const subtotal=syncN(lines.reduce((t,l)=>t+l.line_total,0));const sh=j.ship||{};
   const lastShip=(j.statusLog||[]).filter(x=>x&&x.status==="shipped").slice(-1)[0];
   return {type:"work_order",id:String(j.num),number:String(j.num),status:j.status||"new",
