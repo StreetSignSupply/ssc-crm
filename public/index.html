@@ -109,6 +109,8 @@ a{color:var(--blue);text-underline-offset:2px}
 .subbar{display:flex;gap:2px;padding:0 0 0 12px;margin-left:8px;border-left:1px solid var(--line);flex:0 0 auto}
 .subbar a{padding:5px 11px;margin:6px 0;border-radius:999px;text-decoration:none;color:var(--ink2);font-weight:600;font-size:12.5px;white-space:nowrap;line-height:1.3}
 .subbar a.on{color:var(--card);background:var(--ink)}
+.dashtog{display:inline-flex;margin-left:6px;border:1px solid var(--line);border-radius:999px;overflow:hidden;vertical-align:middle;font-size:12px}
+.dashtog a{padding:3px 10px;color:var(--ink2);text-decoration:none;border-radius:0}.dashtog a.on{background:var(--ink);color:#fff}.dashtog a+a{border-left:1px solid var(--line)}
 .subbar a:hover:not(.on){color:var(--ink);background:var(--card2)}
 .ptabs{display:flex;gap:3px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0}
 .ptabs::-webkit-scrollbar{display:none}
@@ -1924,6 +1926,7 @@ function teamModal(t){
       ${inp("t-init","Initials",t.initials||"")}${inp("t-role","Role",t.role||"")}
       ${inp("t-email","Email",t.email||"","email")}${inp("t-phone","Phone",t.phone||"","tel")}
       ${chk("t-rep","Sales rep — can be assigned to accounts",t.isRep)}
+      ${can("settings")?chk("t-cdash","Can open the Company dashboard (the owner always can)",!!t.companyDash):""}
       ${sel("t-access","Access",t.access||"owner",Object.keys(ACCESS).map(k=>({v:k,l:ACCESS[k].label+" — "+({owner:"everything",office:"everything but Settings",sales:"no costs or margins, can't delete",shop:"no prices, costs or margins, can't delete"})[k]})))}
       <div class="fld full sub">${t.claudeId?(t.claudeId===viewerId()?"This is you — claimed on your sign-in."
         :"Claimed by a signed-in account. They're recognised automatically."):"Not claimed yet. Whoever picks this record on their own device gets signed in as them."}
@@ -1935,7 +1938,7 @@ function teamModal(t){
     const id=t.id||uid("tm");
     const rec={id,name,initials:($("#t-init").value||inits(name)).toUpperCase().slice(0,4),
       role:$("#t-role").value.trim(),email:$("#t-email").value.trim(),phone:fmtPhone($("#t-phone").value.trim()),
-      isRep:$("#t-rep").checked,claudeId:t.claudeId||"",
+      isRep:$("#t-rep").checked,claudeId:t.claudeId||"",companyDash:$("#t-cdash")?!!$("#t-cdash").checked:!!t.companyDash,
       access:(can("settings")&&$("#t-access"))?$("#t-access").value:(t.access||"owner"),
       deleted:false,createdAt:t.createdAt||Date.now(),updatedAt:Date.now()};
     closeModal();
@@ -3641,7 +3644,7 @@ async function wizFinish(){
         gates:{specs:false,payment:false,proof:false,material:false,qc:false},route:{},items:[],
         ship:{method:"",carrier:"",tracking:"",cartons:"",weight:""},
         statusLog:[{status:"new",at:now,who:me()}],deleted:false,createdAt:now,updatedAt:now});
-      logEvent("job",String(num),"Work order created in New order");
+      logEvent("job",String(num),"Work order created in New quote");
       dest="job/"+num;
     }
     S.wiz=null;
@@ -4626,7 +4629,7 @@ function paletteItems(q){
   const t=String(q||"").trim().toLowerCase();const out=[];const has=x=>!t||String(x||"").toLowerCase().indexOf(t)>=0;
   const acts=[["New project",()=>{closeModal();projectModal(null)}],["New work order",()=>{closeModal();jobModal(null)}],["New account",()=>{closeModal();accountModal(null)}],
     ["Import website orders",()=>{closeModal();go("projects");setTimeout(webOrderModal,50)}],["Settings",()=>{closeModal();go("settings")}],
-    ["Dashboard",()=>{closeModal();go("home")}],["Projects",()=>{closeModal();go("projects")}],["Work orders",()=>{closeModal();go("jobs")}],
+    ["Company dashboard",()=>{closeModal();go("home")}],["My dashboard",()=>{closeModal();go("mybook")}],["Projects",()=>{closeModal();go("projects")}],["Work orders",()=>{closeModal();go("jobs")}],
     ["Inventory",()=>{closeModal();go("inventory")}],["Accounts",()=>{closeModal();go("accounts")}],["Calendar",()=>{closeModal();go("calendar")}],["Reports",()=>{closeModal();go("reports")}]];
   acts.forEach(([l,f])=>{if(has(l))out.push({k:"Go / do",l,f})});
   live(S.projects).forEach(p=>{if(has("p-"+p.num)||has(p.name)||has(accName(p.accountId))||has(p.po)||has(p.quote))out.push({k:"Project",l:"P-"+p.num+" "+p.name+" · "+accName(p.accountId),f:()=>{closeModal();go("project/"+p.id)}})});
@@ -7180,7 +7183,9 @@ function applyBrand(){
 }
 function parseHash(){const h=(location.hash||"#/home").replace(/^#\/?/,"");
   const p=h.split("/").filter(Boolean);
-  return p.length?{v:p[0],id:p[1]?decodeURIComponent(p[1]):null}:{v:"home"}}
+  if(!p.length)return {v:(S.viewerTeam||!canCompanyDash())?"mybook":"home"};
+  if(p[0]==="home"&&!canCompanyDash())return {v:"mybook"};
+  return {v:p[0],id:p[1]?decodeURIComponent(p[1]):null}}
 function go(h){
   const target="#/"+h;
   if(location.hash===target){render();toTop();return}
@@ -7577,7 +7582,7 @@ function moreNav(){
     `<button class="btn" data-close="1">Close</button>`));
 }
 const NAVG=[
-  {id:"sales",label:"Sales",icon:"project",pages:[["home","home","Dashboard"],["mybook","contact","My dashboard"],["projects","project","Projects"],["accounts","account","Accounts"],["contacts","contact","Contacts"]]},
+  {id:"sales",label:"Sales",icon:"project",pages:[["mybook","contact","Dashboard"],["projects","project","Projects"],["accounts","account","Accounts"],["contacts","contact","Contacts"]]},
   {id:"shop",label:"Production",icon:"job",pages:[["jobs","job","Work orders"],["tracker","chart","Tracker"],["calendar","calendar","Calendar"],["files","file","Files"]]},
   {id:"stock",label:"Inventory",icon:"inventory",pages:[["inventory","inventory","Inventory"],["vendors","vendor","Vendors"]]},
   {id:"money",label:"Reports",icon:"chart",pages:[["reports","chart","Reports"]]},
@@ -7591,6 +7596,14 @@ const ACCESS={owner:{label:"Owner",settings:1,del:1,cost:1,price:1},office:{labe
 function myAccess(){const t=S.viewerTeam||(S.team&&live(S.team).find(x=>String(x.initials||"").toUpperCase()===String(S.me||"").toUpperCase()));
   const lv=t&&t.access&&ACCESS[t.access]?t.access:"owner";return lv}
 function can(what){return !!(ACCESS[myAccess()]||ACCESS.owner)[what]}
+function canCompanyDash(){const t=S.viewerTeam;if(!t)return true;return myAccess()==="owner"||!!t.companyDash}
+function dashFirst(){const t=S.viewerTeam;const nm=t?String(t.name||"").trim().split(/\s+/)[0]:"";return nm||"My"}
+function dashLabel(route){return route==="home"?"Company dashboard":(dashFirst()==="My"?"My dashboard":dashFirst()+"'s dashboard")}
+function dashToggle(route){
+  if(!canCompanyDash())return "";
+  const mine=route!=="home";
+  return `<span class="dashtog" role="group" aria-label="Which dashboard">
+    <a href="#/mybook" class="${mine?"on":""}">${esc(dashFirst()==="My"?"Mine":dashFirst()+"'s")}</a><a href="#/home" class="${mine?"":"on"}">Company</a></span>`}
 // hide costs, margins and prices for people who shouldn't see them
 function decorateAccess(){
   const A=ACCESS[myAccess()];document.body.classList.toggle("no-cost",!A.cost);document.body.classList.toggle("no-price",!A.price);
@@ -7611,9 +7624,13 @@ function tabbar(){
   const badge=r=>r==="calendar"&&overdueItems().length?` <span class="pill r" style="margin-left:4px">${overdueItems().length}</span>`
     :r==="inventory"&&lowStock().length?` <span class="pill r">${lowStock().length}</span>`:"";
   const gBadge=g=>{const t=g.pages.reduce((x,[r])=>x+(r==="calendar"?overdueItems().length:r==="inventory"?lowStock().length:0),0);return t?` <span class="pill r" style="margin-left:4px">${t}</span>`:""};
-  const pages=grp.pages.filter(([r])=>r!=="mybook"||S.viewerTeam).filter(([r])=>r!=="settings"||can("settings"));
+  const pages=grp.pages.filter(([r])=>r!=="settings"||can("settings"));
+  const onDash=cur==="home"||cur==="mybook";
   return `<div class="navrow"><nav class="tabbar" aria-label="Sections">${NAVG.filter(g=>g.id!=="admin"||can("settings")||true).map(g=>`<a href="#/${g.pages[0][0]}" class="${g===grp?"on":""}" ${g===grp?'aria-current="true"':""}>${ic(g.icon,14)}${g.label}${g===grp?"":gBadge(g)}</a>`).join("")}</nav>
-  <nav class="subbar" aria-label="Pages">${pages.map(([r,i,l])=>`<a href="#/${r}" class="${cur===r?"on":""}" ${cur===r?'aria-current="page"':""}>${l}${r==="mybook"&&S.scope?` <span class="pill b">${esc((scopeTeam()||{}).initials||"")}</span>`:""}${badge(r)}</a>`).join("")}</nav></div>`;
+  <nav class="subbar" aria-label="Pages">${pages.map(([r,i,l])=>{
+    if(r==="mybook"){const target=S.viewerTeam||!canCompanyDash()?"mybook":"home";const lbl=onDash?dashLabel(cur):dashLabel(S.viewerTeam?"mybook":"home");
+      return `<a href="#/${target}" class="${onDash?"on":""}" ${onDash?'aria-current="page"':""}>${esc(lbl)}</a>${onDash?dashToggle(cur):""}`}
+    return `<a href="#/${r}" class="${cur===r?"on":""}" ${cur===r?'aria-current="page"':""}>${l}${badge(r)}</a>`}).join("")}</nav></div>`;
 }
 function body(){
   if(!S.ready)return `<div class="boot">Connecting…</div>`;
@@ -7787,8 +7804,8 @@ function home(){
   if(unsignedWO.length)attn.push({t:unsignedWO.length+" shipped work order"+(unsignedWO.length===1?"":"s")+" with no signed copy scanned",h:"jobs",c:"y"});
   const todayD=new Date();
   return `<div class="pad">
-    <div class="pagehead"><h1>Dashboard</h1><span class="livebar"><span class="dot"></span>live</span>
-      <span class="sp"><button class="btn p" data-wizstart="1">${ic("task",14)}New order</button></span></div>
+    <div class="pagehead"><h1>Company dashboard</h1><span class="livebar"><span class="dot"></span>live</span>
+      <span class="sp"><button class="btn p" data-wizstart="1">${ic("task",14)}New quote</button></span></div>
     <section class="today" data-nohelp="1">
       <div class="today-d"><b>${esc(todayD.toLocaleDateString(undefined,{weekday:"long"}))}</b><span>${esc(todayD.toLocaleDateString(undefined,{month:"long",day:"numeric"}))}</span></div>
       <div class="today-items">
@@ -8205,7 +8222,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.20-2";
+const APP_VERSION="2026.11.20-3";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -9512,7 +9529,7 @@ function stalledAccounts(t){
 }
 function myBook(){
   const t=S.viewerTeam;
-  if(!t)return `<div class="pad"><div class="empty"><b>Nobody's signed in on this device</b>
+  if(!t)return canCompanyDash()?home():`<div class="pad"><div class="empty"><b>Nobody's signed in on this device</b>
     Press "Sign in as…" up top and pick your name, or add yourself under Settings → Our team.</div></div>`;
   const accs=live(S.accounts).filter(a=>a.repId===t.id).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
   const mine=projsFor(t);
@@ -9534,7 +9551,7 @@ function myBook(){
     n:invIn(mine,m2).length}));
   return `<div class="pad">
     <div class="hl"><div class="hl-top"><span class="oi lg oi-cont">${esc(t.initials||inits(t.name))}</span>
-      <div class="tt"><div class="kicker">My dashboard</div><h1>${esc(t.name)}</h1>
+      <div class="tt"><div class="kicker">${esc(dashLabel("mybook"))}</div><h1>${esc(t.name)}</h1>
         <div class="sub">${esc(t.role||"")}${viewerName()?" · signed in as "+esc(viewerName()):""}</div></div>
       <div class="acts">
         <button class="btn" data-scope="${esc(t.id)}:reports">My reports</button>
@@ -10013,7 +10030,7 @@ function archiveView(){
   const accs=live(S.accounts).filter(a=>archivedProjects().some(p2=>p2.accountId===a.id))
     .sort((a,b)=>(a.name||"").localeCompare(b.name||""));
   return `<div class="pad">
-    ${crumbBar([{l:"Dashboard",h:"home"},{l:"Archive"}])}
+    ${crumbBar([{l:"Company dashboard",h:"home"},{l:"Archive"}])}
     <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:14px;flex-wrap:wrap">
       <h1 style="margin:0;font-size:22px;font-weight:800;letter-spacing:-.02em">Archive</h1>
       <span class="sub">closed won or closed lost. Invoiced projects stay in the working views until they're paid and closed.</span>
@@ -10071,7 +10088,7 @@ const SET_GROUPS=[["company","Company"],["pricing","Pricing"],["connections","Co
   ["codes","Codes & pictures"],["team","Team & access"],["data","Data"],["about","How it works"]];
 function settingsView(){
   const b=S.brand||DEF_BRAND;
-  const crumbs=crumbBar([{l:"Dashboard",h:"home"},{l:"Settings"}]);
+  const crumbs=crumbBar([{l:"Company dashboard",h:"home"},{l:"Settings"}]);
   const counts=[["Accounts",live(S.accounts).length],["Contacts",live(S.contacts).length],
     ["Projects",live(S.projects).length],["Work orders",liveJobs().length+" live · "+archivedJobs().length+" archived"],["Files",live(S.files).length],
     ["History entries",[...S.history.values()].reduce((t,h)=>t+((h.entries||[]).length),0)]];
@@ -10372,7 +10389,7 @@ function binView(){
   const d=all.filter(({x})=>!x.deletedWith).sort((a,b)=>(b.x.deletedAt||0)-(a.x.deletedAt||0));
   const kidsOf=tag=>all.filter(({x})=>x.deletedWith===tag).length;
   return `<div class="pad">
-    ${crumbBar([{l:"Dashboard",h:"home"},{l:"Settings",h:"settings"},{l:"Recycle bin"}])}
+    ${crumbBar([{l:"Company dashboard",h:"home"},{l:"Settings",h:"settings"},{l:"Recycle bin"}])}
     <section class="card flush">
     <header><h2>Recycle bin</h2><span class="n">${d.length}</span>
       <span class="sub">nothing here is gone — restore any time</span>
@@ -12645,7 +12662,7 @@ function bind(){
       openModal(mshell("What are you making?","",
         `<div style="padding:14px 15px;border-bottom:1px solid var(--line);background:var(--card2)">
           <button class="btn p" data-wizstart="1" style="width:100%;padding:14px;font-size:14.5px;display:flex;
-            align-items:center;justify-content:center;gap:8px">${ic("task",16)}New order — start to finish</button>
+            align-items:center;justify-content:center;gap:8px">${ic("task",16)}New quote — start to finish</button>
           <div class="sub" style="text-align:center;margin-top:8px">Customer → contact → project → work order, one step at a time</div>
         </div>
         <div style="padding:10px 15px 2px" class="sub">Or just one thing:</div>

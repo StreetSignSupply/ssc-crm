@@ -1,5 +1,10 @@
 # What changed
 
+## 2026.11.20-3 — 2026-10-24
+- One Dashboard entry in the nav: each signed-in person lands on their own dashboard (Matt's dashboard)
+- the owner, or a team member the owner ticks in Team & access, can flip to the Company dashboard with the toggle beside it
+- New quote wording in the wizard buttons
+
 ## 2026.11.20-2 — 2026-10-24
 - Wording: a project's lines are Quote lines everywhere (card, editor, history, checks)
 - what the shop builds is a Work order
