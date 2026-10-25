@@ -1,5 +1,13 @@
 # What changed
 
+## 2026.11.24-1 — 2026-10-24
+- Follow-up autopilot: every quote gets day 3, 7 and 14 touches written by the agents in your voice, shown on the project with Send, Skip and Edit, or switched to automatic per project
+- stops itself when the customer replies or the job is won or lost
+- Reminders per user: proof not approved, PO with no work order, shipped with no tracking, invoice past terms, reorder due, follow-up due
+- each person gets their own by email (text when the number exists), instant or daily digest
+- bell menu with snooze and done
+- Drafts menu on the project: proof approval, shipping notice, invoice reminder, follow-up, thank-you, each written by the agents and sent from your mail with one click
+
 ## 2026.11.23-1 — 2026-10-24
 - Email from the CRM, logged for every user with no API keys: a contact's email opens Gmail (or your mail app) with the copy address crm@streetsignsupply.com on it, the CRM logs the email at once and the Email Logger agent fills in subject and replies
 - the CRM now sends its accounts and contacts to the agents so every address is known
