@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-8 — 2026-10-25
+- Emails from the CRM copy the agents' address as a hidden Bcc, so customers no longer see crm@streetsignsupply.com
+- quote and work-order lines with no picture on file now find the website sign by its MUTCD name (R6-1 One Way), and generic bid items (regulatory, warning diamond, stop, yield, guide) show a plain sign-shape picture instead of a blank
+
 ## 2026.11.25-7 — 2026-10-25
 - Staff only see what their access level allows: shop users see no prices, sales users see no costs, and only the owner opens Settings or the Company dashboard
 - New team members start as Sales and two people can't share initials
