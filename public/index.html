@@ -901,6 +901,27 @@ details.dd[open] > summary{border-color:var(--ink3)}
 .dd-m .ic{color:var(--ink3)}
 .dd-sep{height:1px;background:var(--line2);margin:5px 4px}
 .dd-h{font-size:11.5px;color:var(--ink3);padding:6px 10px 2px;font-weight:600}
+/* follow-ups, drafts and the reminder bell: every item is one row — a status, a line of text, a button or two */
+.rrow{display:flex;gap:10px;align-items:flex-start;padding:10px 15px;border-bottom:1px solid var(--line2);flex-wrap:wrap}
+.rrow:last-child{border-bottom:0}
+.rrow .rr-n{font-family:"Overpass Mono",monospace;font-weight:700;color:var(--ink3);font-size:12px;min-width:22px;padding-top:3px}
+.rrow .rr-c{flex:1 1 260px;min-width:0}
+.rrow .rr-t{font-weight:700;font-size:13.5px;display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.rrow .rr-p{font-size:13px;color:var(--ink2);white-space:pre-wrap;margin-top:4px;max-height:110px;overflow:hidden;line-height:1.45}
+.rrow .rr-b{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-left:auto}
+.rrow textarea,.rrow input[type=text]{width:100%;font:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--ink);margin-top:6px}
+.rrow textarea{min-height:110px;resize:vertical}
+.rrow.off{opacity:.6}
+.belldd .dd-m{min-width:340px;max-width:440px;padding:0;max-height:70vh;overflow:auto}
+.bell-g{padding:9px 12px 3px;font-size:11px;color:var(--ink3);font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+.bell-r{display:flex;gap:8px;align-items:center;padding:7px 12px;border-bottom:1px solid var(--line2)}
+.bell-r .lnk{flex:1;text-align:left;white-space:normal;font-size:13px;font-weight:600;line-height:1.35}
+.bell-r .btn.sm{padding:2px 7px;font-size:11px;white-space:nowrap}
+.bell-f{padding:8px 12px;display:flex;gap:6px;align-items:center;justify-content:space-between}
+.bell-e{padding:16px 14px;font-size:13px;color:var(--ink2)}.bell-e b{display:block;color:var(--ink);margin-bottom:2px}
+.bellsum{position:relative}
+.bellbadge{position:absolute;top:-6px;right:-6px;background:var(--brand);color:#fff;border-radius:9px;min-width:18px;height:18px;font-size:10.5px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 5px}
+.remtab td,.remtab th{vertical-align:middle}.remtab select{min-width:120px}
 .dd-m kbd{margin-left:auto}
 @media (max-width:700px){.dd-m{left:0;right:auto;max-width:calc(100vw - 32px)}}
 
@@ -1306,7 +1327,7 @@ let db=null,assets=null,downloads=null,userCap=null,sampleCap=null;
 const S={route:{v:"tracker"},me:"",ready:false,canUpload:false,
   accounts:new Map(),contacts:new Map(),projects:new Map(),jobs:new Map(),
   files:new Map(),activity:new Map(),history:new Map(),events:new Map(),team:new Map(),
-  vendors:new Map(),items:new Map(),invtx:new Map(),viewer:null,viewerTeam:null,
+  vendors:new Map(),items:new Map(),invtx:new Map(),remarks:new Map(),viewer:null,viewerTeam:null,projFollow:false,fuEdit:"",drEdit:"",
   brand:Object.assign({},DEF_BRAND),
   q:"",gsearch:"",jobMode:"board",projMode:"pipeline",modal:null,viewerFile:null,wiz:null,qwo:null,csv:null,stageYes:null,notifications:new Map(),lastView:"",archAcct:"",closeOpen:null,sheet:null,sheetIdx:null,sortJ:"due",sortP:"due",discardArmed:false,noRep:false,woArchive:false,ai:false,aiState:"",aiParsed:null,prepOpen:null,showClosed:false,actFilter:"",fileFilter:"",calMonth:"",alertOff:false,showArchive:false,mineOnly:false,scope:"",
   rpt:{preset:"rev",src:"proj",basis:"billed",group:"month",metric:"value",from:"",to:"",rep:"",acct:"",stage:"",prod:""}};
@@ -2048,6 +2069,8 @@ function teamModal(t){
      <div class="fgrid">${inp("t-name","Name",t.name,"text",1)}
       ${inp("t-init","Initials",t.initials||"")}${inp("t-role","Role",t.role||"")}
       ${inp("t-email","Email",t.email||"","email")}${inp("t-phone","Phone",t.phone||"","tel")}
+      ${inp("t-remail","Reminders to (email)",t.remEmail||t.email||"","email")}
+      ${can("settings")?sel("t-rscope","Reminders for",remScopeOf(t),[{v:"own",l:"Their own accounts only"},{v:"all",l:"Everything"}]):""}
       ${chk("t-rep","Sales rep — can be assigned to accounts",t.isRep)}
       ${can("settings")?chk("t-cdash","Can open the Company dashboard (the owner always can)",!!t.companyDash):""}
       ${sel("t-access","Access",t.access||"owner",Object.keys(ACCESS).map(k=>({v:k,l:ACCESS[k].label+" — "+({owner:"everything",office:"everything but Settings",sales:"no costs or margins, can't delete",shop:"no prices, costs or margins, can't delete"})[k]})))}
@@ -2062,6 +2085,7 @@ function teamModal(t){
     const rec={id,name,initials:($("#t-init").value||inits(name)).toUpperCase().slice(0,4),
       role:$("#t-role").value.trim(),email:$("#t-email").value.trim(),phone:fmtPhone($("#t-phone").value.trim()),
       isRep:$("#t-rep").checked,claudeId:t.claudeId||"",companyDash:$("#t-cdash")?!!$("#t-cdash").checked:!!t.companyDash,
+      remEmail:$("#t-remail")?$("#t-remail").value.trim():(t.remEmail||""),remScope:$("#t-rscope")?$("#t-rscope").value:(t.remScope||""),
       access:(can("settings")&&$("#t-access"))?$("#t-access").value:(t.access||"owner"),
       deleted:false,createdAt:t.createdAt||Date.now(),updatedAt:Date.now()};
     closeModal();
@@ -4677,6 +4701,15 @@ function autoPass(){
     push("jobs/"+j.num,{due,updatedAt:Date.now()});
     recordHistory("job",String(j.num),[{f:"Due",o:"",n:due+" — "+d+" business days' lead time for "+kindLabel(prodOf(j)).toLowerCase(),ev:1}]);
   });
+  // the follow-up autopilot: a quoted project (from now on) with a number and no plan gets its three touches;
+  // one that moved on with touches still open has them stopped
+  live(S.projects).forEach(p=>{
+    if(p.followStop)return;
+    const fus=p.followups||[];
+    if(!fus.length){if(p.stage==="quoted"&&p.quote&&p.quoteDate&&p.quoteDate>=isoDay(since)&&!done.has("fup:"+p.id)){done.set("fup:"+p.id,1);followPlan(p.id,p.quoteDate)}return}
+    if(fus.some(f=>f.status==="planned"||f.status==="drafted")&&(p.stage==="lost"||PATH.indexOf(p.stage)>PATH.indexOf("quoted"))&&!done.has("fus:"+p.id)){
+      done.set("fus:"+p.id,1);followStopNow(p.id,p.stage==="lost"?"closed lost":"marked "+((SG[p.stage]||{}).label||p.stage).toLowerCase())}
+  });
   // follow-up tasks: a quote with no answer, a proof not signed
   if(b.autoFollow!==false){
     const mk=(p,key,text,dueIn)=>{const id="auto-"+key+"-"+p.id;if(done.has(id)||S.activity.get(id))return;done.set(id,1);
@@ -4686,7 +4719,7 @@ function autoPass(){
         whoId:"",who:"auto",at:now,done:false,doneAt:0,doneById:"",doneByName:"",deleted:false,auto:true});};
     const fu=b.followDays||[3,10];
     live(S.projects).forEach(p=>{
-      if(p.stage==="quoted"&&p.quoteDate&&new Date(p.quoteDate+"T12:00:00").getTime()>=since-86400000){const age=Math.floor((Date.now()-new Date(p.quoteDate+"T12:00:00"))/86400000);
+      if(p.stage==="quoted"&&p.quoteDate&&!(p.followups||[]).length&&new Date(p.quoteDate+"T12:00:00").getTime()>=since-86400000){const age=Math.floor((Date.now()-new Date(p.quoteDate+"T12:00:00"))/86400000);
         fu.forEach(dn=>{if(age>=dn)mk(p,"fu"+dn,"Follow up on quote "+(p.quote||"")+" — sent "+dn+" days ago, no answer yet",0)})}
       if(p.proofAt&&p.proofAt>=since&&!filesOf("project",p.id).some(f=>f.cat==="Signed proof")&&["won","production","quoted"].indexOf(p.stage)>=0){
         const age=Math.floor((Date.now()-p.proofAt)/86400000);if(age>=(Number(b.proofChase)||2))mk(p,"proof"+(p.proofRev||1),"Chase the signed proof for P-"+p.num+" — sent "+age+" days ago",0)}
@@ -4698,6 +4731,7 @@ function autoPass(){
 function helpOn(){try{return localStorage.getItem("sscHelp")==="1"}catch(e){return false}}
 const PTAB_OF={"quote lines":"lines","quote lines":"lines","work orders":"wos","billing":"billing","all files on this project":"files",
   "activity":"activity","field history":"activity","close-out":"close","schedule":"close","notes":"details","project details":"details",
+  "follow-ups":"lines","drafts":"activity",
   "contacts on this project":"details","@acct":"details"};
 function decorateProjectTabs(){
   if(S.route.v!=="project")return;const main=document.querySelector(".main");if(!main)return;
@@ -7281,11 +7315,13 @@ async function nextQuote(){
   const hi=live(S.projects).reduce((m,x)=>{const k=String(x.quote||"").match(/(\d{3,})/);return k?Math.max(m,Number(k[1])):m},1000);
   return "Q-"+(await nextNum("nextQuote",hi+1));
 }
-async function ensureQuote(pid){
+async function ensureQuote(pid,opts){
   const p=proj(pid);if(!p||p.quote)return p&&p.quote;
   const q=await nextQuote();
   await push("projects/"+pid,{quote:q,quoteDate:today(),updatedAt:Date.now()});
   recordHistory("project",pid,[{f:"Quote number",o:"",n:q}]);
+  // a quote number is what starts the follow-ups — unless the caller is about to move it past quoting
+  if(!(opts&&opts.noPlan))try{await followPlan(pid,today())}catch(e){}
   return q;
 }
 async function nextNum(key,start){
@@ -7368,7 +7404,8 @@ function go(h){
   location.hash=target;
 }
 window.addEventListener("hashchange",()=>{S.route=parseHash();S.ptab="all";S.gsearch="";S.q="";
-  S.actFilter="";S.fileFilter="";S.showClosed=false;S.showArchive=false;S.noRep=false;
+  S.actFilter="";S.fileFilter="";S.showClosed=false;S.showArchive=false;S.noRep=false;S.fuEdit="";S.drEdit="";
+  if(S.route.v!=="projects")S.projFollow=false;
   if(S.route.v!=="archive")S.archAcct="";
   render();toTop()});
 function toTop(){
@@ -7446,15 +7483,15 @@ const PAGE_ORDER={
   job:{steps:["details","items to make","material / inventory","pre-production checklist","production route","quality check",
     "paperwork","shipping","money on this work order"],
     after:["field history"]},
-  project:{steps:["quote lines","quote lines","work orders","project details","@acct","contacts on this project","billing",
+  project:{steps:["quote lines","quote lines","follow-ups","work orders","project details","@acct","contacts on this project","billing",
     "close-out","schedule"],
     after:["activity","notes","all files on this project","field history"],
     left:["project details","@acct","contacts on this project","billing"],right:["activity"],
     // one fixed arrangement for every project, whatever it contains
-    fixed:{tri:[["notes","project details","@acct","contacts on this project","field history"],["activity"],
+    fixed:{tri:[["notes","project details","@acct","contacts on this project","field history"],["drafts","activity"],
                 ["billing","close-out","schedule","all files on this project"]],
            two:[["notes","project details","@acct","contacts on this project","field history","schedule","all files on this project"],
-                ["activity","billing","close-out"]]},
+                ["drafts","activity","billing","close-out"]]},
     center:"activity",nonum:true},
   account:{steps:[],center:"activity",
     after:["details","billing","contacts","projects","open work orders","files","activity","field history"],
@@ -7473,7 +7510,7 @@ function orderPage(){
     :title(x).indexOf(m)===0));if(c)used.add(c);return c};
   // Tables need the full width on a laptop; on a wide screen half the page is room enough,
   // so everything flows into the two columns.
-  const WIDE=innerWidth>=1700&&!(spec.center&&innerWidth>=950)?["work orders","open work orders","items to make"]:["work orders","quote lines","quote lines","items to make","open work orders","projects"];
+  const WIDE=innerWidth>=1700&&!(spec.center&&innerWidth>=950)?["work orders","open work orders","items to make","follow-ups"]:["work orders","quote lines","quote lines","follow-ups","items to make","open work orders","projects"];
   const isWide=c=>WIDE.some(w=>title(c).indexOf(w)===0);
   // 1. the order
   const seq=[];let step=0;
@@ -7729,12 +7766,13 @@ function assistMenu(){
   if(S.ai){
     ai.push(`<button data-ai="brief:0">${ic("chart",14)}Brief me — what matters today</button>`);
     if(r.v==="project"&&id)ai.push(`<button data-ai="catch:${esc(id)}">${ic("project",14)}Catch me up on this project</button>
-      <button data-ai="follow:${esc(id)}">${ic("email",14)}Draft a follow-up email</button>
       <button data-ai="paste:${esc(id)}">${ic("file",14)}Read a PO into a work order</button>`);
     if(r.v==="account"&&id)ai.push(`<button data-ai="acct:${esc(id)}">${ic("account",14)}Catch me up on this account</button>`);
   }
+  // drafting is the writer's job on every copy of the CRM: the same request as the project's Drafts menu
+  if(r.v==="project"&&id)ai.push(`<button data-draftreq="${esc(id)}:quote">${ic("email",14)}Draft a follow-up email</button>`);
   return `<details class="dd gdd"><summary class="gset">${S.ai?"Assistant":"Help"}</summary><div class="dd-m">
-    ${ai.length?`<div class="dd-h">Claude reads only the record that's open</div>${ai.join("")}<div class="dd-sep"></div>`:""}
+    ${ai.length?`<div class="dd-h">${S.ai?"Claude reads only the record that's open":"Drafts are written by the agents and land on the project"}</div>${ai.join("")}<div class="dd-sep"></div>`:""}
     <button data-helptoggle="1">${ic("note",14)}${helpOn()?"Hide the long explanations":"Show the long explanations"}</button>
     <button data-palette="1">${ic("search",14)}Find or start anything<kbd>Ctrl K</kbd></button>
     <button data-wizstart="1">${ic("task",14)}Walk me through a new order</button>
@@ -8031,6 +8069,7 @@ function home(){
       <div class="today-items">
         <button class="tchip ${dt.length?"o":"g"}" data-go="jobs">${dt.length?dt.length+" work order"+(dt.length===1?"":"s")+" due today":"Nothing due today"}</button>
         ${attn.map(a=>`<button class="tchip ${a.c}" data-go="${esc(a.h)}">${esc(a.t)}</button>`).join("")}
+        ${(function(){const n=followDueCount(all.filter(p2=>inScope(p2)));return n?`<button class="tchip o" data-followdue="1">${n} follow-up${n===1?"":"s"} due</button>`:""})()}
         ${tasks.length?`<span class="tchip b" style="cursor:default">${tasks.length} open task${tasks.length===1?"":"s"}</span>`:""}
       </div>
       <div class="today-acts"><button class="btn sm q" data-remind="1">Email the due list</button><button class="btn sm q" data-ics="all">Export dates</button></div>
@@ -8373,10 +8412,12 @@ function contactRec(id){
 function projectList(){
   const q=S.q.trim().toLowerCase();
   let list=openProjects().filter(x=>inScope(x));
+  if(S.projFollow&&!S.showArchive)list=list.filter(p=>followDueOf(p).length);
   if(q)list=list.filter(p=>(p.name||"").toLowerCase().includes(q)||String(p.num).includes(q)
     ||accName(p.accountId).toLowerCase().includes(q)||(p.po||"").toLowerCase().includes(q));
   const head=`<header><span class="oi oi-proj">${ic("project",14)}</span>
-    <h2>${S.showArchive?"Archive":"Active projects"}</h2><span class="n">${list.length}</span>
+    <h2>${S.showArchive?"Archive":S.projFollow?"Follow-ups due":"Active projects"}</h2><span class="n">${list.length}</span>
+    ${S.projFollow&&!S.showArchive?`<button class="pill o" data-followclear="1" style="cursor:pointer;border:0" title="Show every active project">follow-ups due ✕</button>`:""}
     <span class="sp"><input class="btn" id="lq" placeholder="Filter" value="${esc(S.q)}" style="font-weight:400;width:150px">
       <button class="btn sm ${!S.showArchive&&S.projMode==="pipeline"?"p":""}" data-mode="proj:pipeline">Pipeline</button>
       <button class="btn sm ${!S.showArchive&&S.projMode==="list"?"p":""}" data-mode="proj:list">List</button>
@@ -8442,7 +8483,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.23-1";
+const APP_VERSION="2026.11.24-1";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -8493,14 +8534,7 @@ function myNotes(){
   const t=S.viewerTeam;if(!t)return [];
   return live(S.notifications).filter(x=>x.toId===t.id).sort((a,b)=>(b.at||0)-(a.at||0));
 }
-function bellBtn(){
-  if(!S.viewerTeam)return "";
-  const un=myNotes().filter(x=>!x.read).length;
-  return `<button class="gset" data-bell="1" title="Notifications" style="position:relative">
-    ${ic("bell",17)}${un?`<span style="position:absolute;top:-6px;right:-6px;background:var(--brand);color:#fff;
-      border-radius:9px;min-width:18px;height:18px;font-size:10.5px;font-weight:800;display:flex;align-items:center;
-      justify-content:center;padding:0 5px">${un}</span>`:""}</button>`;
-}
+// bellBtn — the bell with its reminder menu — lives with the reminders, further down
 function bellModal(){
   const list=myNotes().slice(0,40);
   openModal(mshell("Notifications","",
@@ -8674,6 +8708,7 @@ function projectRec(id){
             <button data-upload="project:${esc(id)}:Signed proof">${ic("task",14)}Upload signed proof</button>
             <button data-upload="project:${esc(id)}">${ic("file",14)}Upload any file</button>`:""}
           </div></details>
+          ${draftsMenu(id)}
           <details class="dd"><summary class="btn">More</summary><div class="dd-m">
             <button data-reorder="${esc(id)}">${ic("archive",14)}Reorder — copy this project</button>
             <div class="dd-sep"></div>
@@ -8850,6 +8885,8 @@ function projectRec(id){
 
     ${reconCard(p)}
 
+    ${followCard(p)}
+
     <section class="card flush wide"><header><span class="oi sm oi-job">${ic("job",14)}</span><h2>Work orders</h2><span class="n">${js.length}</span>
       <span class="sp">${woBtn(p,"sm p")}</span></header>
       ${js.length?`<table><thead><tr><th style="width:64px">WO</th><th>Description</th><th>Status</th>
@@ -8892,6 +8929,8 @@ function projectRec(id){
       :`<div class="${S.canUpload?"drop":"empty"}" data-drop="project:${esc(id)}">
         ${S.canUpload?"Drop proofs, POs, invoices, artwork, or photos here.":"No files. Uploading needs edit access."}</div>`}
     </section>
+
+    ${draftsCard(p)}
 
     ${activityCard("project",id)}
 
@@ -9788,6 +9827,10 @@ function myBook(){
         <button class="btn" data-scope="${esc(t.id)}:jobs">My work orders</button>
         <button class="btn p" data-new="project">New project</button></div></div></div>
 
+    ${(function(){const n=followDueCount(mine);const rems=remFor(t);
+      if(!n&&!rems.length)return "";
+      return `<div class="today-items" style="margin:-4px 0 14px">${n?`<button class="tchip o" data-followdue="1">${n} follow-up${n===1?"":"s"} due</button>`:""}
+        ${rems.length?`<span class="tchip ${rems.some(r=>r.type==="terms"||r.type==="tracking")?"r":"y"}" style="cursor:default">${rems.length} reminder${rems.length===1?"":"s"} in the bell</span>`:""}</div>`})()}
     ${kpiRow([
       kpi("Open pipeline",money(pipe),open.length+" project"+(open.length===1?"":"s")),
       kpi("Won this month",money(wonM.reduce((x,p2)=>x+projValue(p2),0)),wonM.length+" won"),
@@ -10443,7 +10486,11 @@ function settingsView(){
           <b>setting</b> rows (<span class="mono">subject</span> = the setting, <span class="mono">text</span> = its value) change a Settings field such as taxRate, minMargin or qtyBreaks;
           <b>inventory</b> rows (<span class="mono">text</span> = JSON sku, item, qty, unit, unit_cost, vendor, ref, received, freight) receive stock.
           An outgoing <b>email</b> activity row completes the entry the CRM made when that email was opened here — same contact (by <span class="mono">email</span>), within three hours of <span class="mono">when</span>, or the same day when <span class="mono">when</span> is only a date; an optional <span class="mono">at</span> ISO time narrows it. No new columns.
-          A quote line may say <span class="mono">"overlaminate": false</span> when the customer declined the clear overlaminate on a printed sign.</div></details>
+          A quote line may say <span class="mono">"overlaminate": false</span> when the customer declined the clear overlaminate on a printed sign.
+          <b>draft</b> rows carry an email the writer drafted: <span class="mono">project</span> = the project's feed row_id, P-number or quote number; <span class="mono">stage</span> = which one —
+          <span class="mono">1</span>, <span class="mono">2</span> or <span class="mono">3</span> (or followup1/2/3) for a planned follow-up, else <span class="mono">proof</span>, <span class="mono">shipping</span>, <span class="mono">invoice</span>, <span class="mono">quote</span> or <span class="mono">thanks</span> for a requested draft;
+          <span class="mono">subject</span> and <span class="mono">text</span> are the email. <span class="mono">source</span> = <span class="mono">sent</span> with a <span class="mono">when</span> means the agents sent it themselves (only when the follow-up record said auto) — the CRM marks it sent and logs the email as AI.
+          The requests go the other way on the order sync as types <span class="mono">followup</span>, <span class="mono">draft_request</span> and <span class="mono">reminder</span>.</div></details>
     </div></section>
     <section class="card"><header><h2>Order sync</h2><span class="sub">Every saved quote, work order, account and contact goes to a Google Apps Script web app that keeps the CRM Orders tab current for the agents. Saving never waits on it.</span></header><div class="body">
       <input id="b-syncurl" value="${esc(b.syncUrl||"")}" placeholder="https://script.google.com/macros/s/…/exec" style="width:100%">
@@ -10476,6 +10523,7 @@ function settingsView(){
       <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span>Box labels print on</span>
         <select id="b-lsize"><option value="4x6" ${(b.labelSize||"4x6")==="4x6"?"selected":""}>4×6 label printer</option><option value="letter" ${b.labelSize==="letter"?"selected":""}>Letter paper</option></select></div>
     </div></section>
+    ${remSettingsCard(b)}
     ${prodTypesCard()}`)}
 
     ${panel("codes","Codes & pictures","The sign code library and the pictures that show on quotes, work orders and lines.",`
@@ -10611,6 +10659,9 @@ function settingsView(){
         <div class="fld"><div class="k">Reorder</div><div class="v">Open the old project and press Reorder in More. You get a fresh project with the same account and ship-to, linked back to the original.</div></div>
         <div class="fld"><div class="k">Vendor and inventory</div><div class="v">Who you buy from, and what you keep on the shelf. Receiving adds, issuing to a work order subtracts, counting reconciles.</div></div>
         <div class="fld full"><div class="k">Files</div><div class="v">Every file belongs to exactly one record. A proof on a project stays on that project; account files are for things that don't change — the W-9, the exemption certificate, a signed terms sheet.</div></div>
+        <div class="fld full"><div class="k">Follow-ups</div><div class="v">A quote number plans three follow-ups: day 3, 7 and 14, weekends rolled to Monday. The agents write each one; it lands on the project's Follow-ups card for you to read and Send — or switch on "Agents send these automatically". They stop by themselves when the customer replies, or the project is won or lost.</div></div>
+        <div class="fld full"><div class="k">Reminders</div><div class="v">The CRM works out what's waiting — a proof not approved in 48 hours, a PO with no work order, a shipment with no tracking, an invoice past terms, a customer past their reorder cycle, a follow-up due — and shows yours in the bell. The agent emails or texts them, instant or in the 7:30 digest, by what Settings → Production → Reminders says. Snooze or Done is yours alone.</div></div>
+        <div class="fld full"><div class="k">Drafts</div><div class="v">Drafts on the project header asks the writer for a proof approval request, a shipping notice, an invoice reminder, a quote follow-up or a thank-you. It comes back as a row under Drafts with Send, Edit and Discard. No API keys live in the CRM — the agents work outside it, through the order sync and the pipeline feed.</div></div>
       </div>
       <div style="margin-top:12px"><button class="btn p" data-wizstart="1">${ic("task",14)}Start a new quote</button></div>
       </div></section>`)}
@@ -11472,13 +11523,18 @@ async function advance(num,to,force){
 }
 async function setStage(id,stage,why){
   if(["quoted","won","production","shipped","invoiced","closed"].indexOf(stage)>=0){
-    const p0=proj(id);if(p0&&!p0.quote)await ensureQuote(id);
+    const p0=proj(id);if(p0&&!p0.quote)await ensureQuote(id,{noPlan:stage!=="quoted"});
   }
   const p=proj(id);if(!p||p.stage===stage)return;
   const sl=(p.stageLog||[]).concat([{stage,at:Date.now(),who:me(),auto:/^moved itself/.test(why||"")}]).slice(-60);
   await push("projects/"+id,{stage,stageLog:sl,updatedAt:Date.now()});
   recordHistory("project",id,[{f:"Stage",o:(SG[p.stage]||{}).label||p.stage,
     n:((SG[stage]||{}).label||stage)+(why?" ("+why+")":"")}]);
+  // follow-ups start when it's quoted and stop the moment it's won, lost or further along
+  try{const cur=S.projects.get(id);if(cur)cur.stage=stage;
+    if(stage==="quoted")await followPlan(id,(p.quoteDate||today()));
+    else if(stage==="lost"||PATH.indexOf(stage)>PATH.indexOf("quoted"))await followStopNow(id,stage==="lost"?"closed lost":"marked "+((SG[stage]||{}).label||stage).toLowerCase());
+  }catch(e){}
 }
 async function toggleGate(num,k,on){
   if(!needMe(()=>toggleGate(num,k,on)))return;
@@ -11739,6 +11795,10 @@ async function saveBrand(){
     mailMode:$("#b-mailmode")?$("#b-mailmode").value:((S.brand||{}).mailMode||"gmail"),
     crmCc:$("#b-crmcc")?$("#b-crmcc").value.trim():((S.brand||{}).crmCc==null?"crm@streetsignsupply.com":(S.brand||{}).crmCc),
     crmCcOn:$("#b-crmccon")?!!$("#b-crmccon").checked:((S.brand||{}).crmCcOn!==false),
+    reminders:(function(){const cur=(S.brand||{}).reminders||{};if(!$("#rm-on-followup"))return cur;const o={};
+      REM_TYPES.forEach(([k])=>{const on=$("#rm-on-"+k),ch=$("#rm-ch-"+k),md=$("#rm-md-"+k);
+        o[k]={on:on?!!on.checked:((cur[k]||{}).on!==false),channel:ch?ch.value:((cur[k]||{}).channel||"email"),mode:md?md.value:((cur[k]||{}).mode||"digest")}});return o})(),
+    gvNumber:$("#b-gvnum")?fmtPhone($("#b-gvnum").value.trim()):((S.brand||{}).gvNumber||""),
     name:$("#b-name").value.trim()||DEF_BRAND.name,
     brand:$("#b-brandx").value.trim()||DEF_BRAND.brand,
     brand2:$("#b-brand2x").value.trim()||DEF_BRAND.brand2,
@@ -12308,7 +12368,7 @@ function pipeMatch(r){
 // one import at a time — in this tab (busy) and across tabs (a two-minute lock on settings/pipefeed)
 const PIPE={busy:false,id:Math.random().toString(36).slice(2,10),seen:new Set()};
 // rows the done map must remember; everything else is found again by the feedId on the record it made
-function pipeKeep(id,r){const t=String((r&&r.type)||"").toLowerCase();return /^INV-/i.test(String(id))||!!(r&&r.updates)||["invoice","setting","inventory"].indexOf(t)>=0}
+function pipeKeep(id,r){const t=String((r&&r.type)||"").toLowerCase();return /^INV-/i.test(String(id))||!!(r&&r.updates)||["invoice","setting","inventory","draft"].indexOf(t)>=0}
 function pipeJSON(t){const x=String(t||"").trim();if(!x)return null;try{const o=JSON.parse(x);return o&&typeof o==="object"?o:null}catch(e){return null}}
 // a project by the quote row's row_id, its P-number ("P-2015" or 2015) or its quote number
 function pipeFind(ref){const x=String(ref||"").trim();if(!x)return null;const u=x.toUpperCase(),n=u.replace(/^P-?/,"");
@@ -12328,7 +12388,7 @@ function pipeSettingValue(field,text){const k=PIPE_SETTINGS[field];if(!k)return 
   return t}
 function pipeLineTxt(l){return (l.qty||1)+" x "+(l.code||l.desc)+(l.code&&l.desc&&l.desc!==l.code?" | "+l.desc:"")+(l.size?" | "+l.size:"")+(l.grade?" | "+l.grade:"")+" @ "+money2(l.price)}
 async function pipeImportRows(rows){
-  const out={accounts:0,contacts:0,activity:0,quotes:0,invoices:0,settings:0,inventory:0,skipped:0,bad:0};
+  const out={accounts:0,contacts:0,activity:0,quotes:0,invoices:0,settings:0,inventory:0,drafts:0,skipped:0,bad:0};
   let ex=null;
   try{const d=await db.doc("settings/pipefeed").get();const ok=d&&(typeof d.exists==="function"?d.exists():d.exists);ex=ok&&d.data()?d.data():null}catch(e){}
   if(ex){S.pipeDone=Object.assign({},S.pipeDone||{},ex.done||{});
@@ -12417,6 +12477,24 @@ async function pipeImportRows(rows){
         if(up.orderLines)logEvent("project",tgt.id,"Updated by Claude's sales agents — "+ol.length+" quote line"+(ol.length===1?"":"s")+", "+money2(pipeTotal(ol)));
         else if(!ol.length)logEvent("project",tgt.id,"Updated by Claude's sales agents");
         out.quotes++;done[id]=1;mark(id);continue}}
+    // --- draft: the writer's email for a planned follow-up (stage 1/2/3) or a requested draft (stage = its kind) ---
+    if(type==="draft"){const tgt=pipeFind(r.project);if(!tgt){out.bad++;continue}
+      const kind=String(r.stage||r.kind||"").trim().toLowerCase();const fn=/^(?:followup|follow-up|fu)?\s*([123])$/.exec(kind);
+      const sentNow=String(r.source||"").trim().toLowerCase()==="sent";const when=(r.when||today()).slice(0,10);
+      if(fn){const fus=(tgt.followups||[]).map(f=>Object.assign({},f));const f=fus.find(x=>Number(x.n)===Number(fn[1]));if(!f){out.bad++;continue}
+        if(f.status==="planned"||f.status==="drafted"){f.subject=r.subject||f.subject||"";f.body=r.text||f.body||"";f.draftedAt=now;f.status="drafted";
+          if(sentNow){f.status="sent";f.sentAt=now;f.by="AI"}}
+        await push("projects/"+tgt.id,{followups:fus,updatedAt:now});tgt.followups=fus;
+        logEvent("project",tgt.id,"Follow-up "+f.n+(sentNow?" sent by the agents":" drafted by the writer"));
+      }else{if(!DRAFT_KINDS[kind]){out.bad++;continue}
+        const ds=(tgt.drafts||[]).map(d=>Object.assign({},d));
+        let d=ds.filter(x=>x.kind===kind&&x.status==="requested").sort((a,b)=>(b.requestedAt||0)-(a.requestedAt||0))[0];
+        if(!d){d={id:uid("dr"),kind,status:"requested",requestedAt:now,by:"AI",subject:"",body:"",draftedAt:0,sentAt:0};ds.push(d)}
+        d.subject=r.subject||"";d.body=r.text||"";d.draftedAt=now;d.status=sentNow?"sent":"drafted";if(sentNow){d.sentAt=now;d.by="AI"}
+        await push("projects/"+tgt.id,{drafts:ds,updatedAt:now});tgt.drafts=ds;
+        logEvent("project",tgt.id,DRAFT_KINDS[kind]+(sentNow?" sent by the agents":" drafted by the writer"));}
+      if(sentNow)await draftLogSent(tgt,r.subject,r.text,id,when);
+      out.drafts++;done[id]=1;mark(id);continue}
     if(!r.account&&!r.email){out.bad++;continue}
     const m=pipeMatch(r);
     let aid=m.acct?m.acct.id:(newA[String(r.account||"").toLowerCase()]||"");
@@ -12449,12 +12527,14 @@ async function pipeImportRows(rows){
         amount:ol.length?String(pipeTotal(ol)):(r.amount?String(Number(String(r.amount).replace(/[^0-9.\-]/g,""))||""):""),start:(r.when||today()).slice(0,10),due:"",po:"",quote:qno,quoteDate:qno?today():"",
         source:SRC.indexOf(r.source)>=0?r.source:"Email",invNum:"",shipTo:"",drive:"",notes:r.notes||"",
         stageLog:[{stage,at:now,who:"AI"}],reorderOf:"",contacts:cid?[cid]:[],repId:"",amountAuto:true,billWhen:"after",billStatus:"none",billDate:"",paidDate:"",depositAmt:"",
-        orderLines:ol,billingContactId:cid||"",feedId:id,deleted:false,createdAt:now,updatedAt:now});
+        orderLines:ol,billingContactId:cid||"",feedId:id,deleted:false,createdAt:now,updatedAt:now,
+        followups:qno&&stage==="quoted"?followPlanList(today()):[],followAuto:false});
       logEvent("project",pid,"Opened by Claude's sales agents"+(ol.length?" — "+ol.length+" quote line"+(ol.length===1?"":"s")+", "+money2(pipeTotal(ol)):(r.amount?" — "+money2(r.amount):"")));out.quotes++;
       if(r.text){const xid=uid("ac");await setDoc("activity/"+xid,{id:xid,recType:"project",recId:pid,kind:"note",type:"note",text:r.text,whoId:"",subject:r.subject||"",contactId:cid||"",direction:"",when:(r.when||today()).slice(0,10),due:"",backOn:r.back_on||"",noBack:!r.back_on,who:"AI",at:now,done:false,deleted:false,feedId:id+":note"})}
     }else if(type!=="account"){
       const at=["email","call","meeting","note"].indexOf(String(r.activity||"").toLowerCase())>=0?String(r.activity).toLowerCase():"note";
       const dirn=String(r.direction||"out").toLowerCase()==="in"?"in":"out";
+      if(at==="email"&&dirn==="in")try{followStopAccount(aid,"the customer replied")}catch(e){}   // they answered: stop chasing their quotes
       // an email the CRM already noted when it was opened here: fill that entry in instead of adding a second one
       const pre=(at==="email"&&dirn==="out")?pipePreFor(aid,cid,em,r):null;
       if(pre){
@@ -12486,9 +12566,10 @@ function pipeSummary(o){const parts=[];if(o.locked)return "another copy of the C
   if(o.activity)parts.push(o.activity+" email"+(o.activity===1?"":"s")+"/call"+(o.activity===1?"":"s")+" logged");if(o.quotes)parts.push(o.quotes+" quote"+(o.quotes===1?"":"s")+" opened or revised");
   if(o.invoices)parts.push(o.invoices+" invoice"+(o.invoices===1?"":"s")+" recorded");if(o.inventory)parts.push(o.inventory+" stock receipt"+(o.inventory===1?"":"s"));
   if(o.settings)parts.push(o.settings+" setting"+(o.settings===1?"":"s")+" changed");
+  if(o.drafts)parts.push(o.drafts+" draft"+(o.drafts===1?"":"s")+" from the writer");
   if(o.bad)parts.push(o.bad+" row"+(o.bad===1?"":"s")+" couldn't be read (left for the agents to fix)");
   return parts.length?parts.join(", "):"nothing new"+(o.skipped?" ("+o.skipped+" already in)":"")}
-function pipeAny(o){return !!(o.accounts||o.contacts||o.activity||o.quotes||o.invoices||o.inventory||o.settings||o.bad)}
+function pipeAny(o){return !!(o.accounts||o.contacts||o.activity||o.quotes||o.invoices||o.inventory||o.settings||o.drafts||o.bad)}
 async function pipeFetch(auto){
   const cfg=pipeCfg();if(!cfg.url)return auto?0:toast("Put the published sheet link in Settings → Sales pipeline feed first.");
   if(auto&&!cfg.auto)return 0;
@@ -12709,6 +12790,7 @@ function syncFire(key){
     // a project is sent once it is a real quote: a number, lines, or past inquiry — or it's been sent before
     const sent=syncSent();const prev=sent[key]||null;
     if(coll==="projects"&&!prev&&!rec.quote&&!(rec.orderLines||[]).length&&(rec.stage||"inquiry")==="inquiry")return;
+    if(coll==="projects"&&(rec.followups||[]).length)syncFollowups(rec.id);   // the touches ride along, each its own row
     const r=syncBuild(key,rec);const h=syncHash(r);
     if(prev&&prev.h===h)return;                    // nothing the sheet would show has changed
     syncPost(key,{event:syncEvent(r,prev),sent_at:new Date().toISOString(),crm_version:APP_VERSION,record:r});
@@ -12780,7 +12862,310 @@ async function syncAll(){
     }catch(e){bad++}
     await new Promise(r=>setTimeout(r,350));
   }
-  toast("Order sync: "+ok+" sent"+(bad?", "+bad+" waiting to retry":""));
+  // the open follow-ups and today's reminders, so the writer and the reminder agent start from the same place
+  let extra=0;
+  try{for(const p of live(S.projects).filter(followOpen)){for(const f of p.followups){
+      if(await syncPost("followup/"+p.id+":"+f.n,{event:"backfill",sent_at:new Date().toISOString(),crm_version:APP_VERSION,record:followSyncRec(p,f)},url))extra++;
+      await new Promise(r=>setTimeout(r,250))}}
+    extra+=remDeliver(url,true);
+    for(const p of live(S.projects)){for(const d of (p.drafts||[]).filter(x=>x.status==="requested")){
+      if(await syncPost("draft_request/"+d.id,{event:"backfill",sent_at:new Date().toISOString(),crm_version:APP_VERSION,record:draftReqRec(p,d)},url))extra++;
+      await new Promise(r=>setTimeout(r,250))}}
+  }catch(e){}
+  toast("Order sync: "+ok+" sent"+(extra?" + "+extra+" follow-ups, drafts and reminders":"")+(bad?", "+bad+" waiting to retry":""));
+}
+
+/* ========== follow-up autopilot, reminders per user, one-click drafts ==========
+   The CRM never writes an email itself. It decides what needs saying and when, sends that out through the order sync
+   (record types followup / reminder / draft_request), and the agents answer through the pipeline feed (type draft).
+   Every item on screen is a row with a status and a button or two — no chat boxes. */
+const FOLLOW_DAYS=[3,7,14];
+const DRAFT_KINDS={proof:"Proof approval request",shipping:"Shipping notice with tracking",invoice:"Invoice reminder",quote:"Quote follow-up now",thanks:"Thank-you / reorder check-in",
+  followup1:"Follow-up 1",followup2:"Follow-up 2",followup3:"Follow-up 3"};
+const REM_TYPES=[["followup","Quote follow-up due"],["proof","Proof not approved in 48 hours"],["po","PO received, no work order in 24 hours"],
+  ["tracking","Shipped, no tracking sent"],["terms","Invoice past terms"],["reorder","Customer past their usual reorder cycle"]];
+// a weekend date rolls to the Monday
+function bizDay(iso){const d=new Date(String(iso)+"T12:00:00").getDay();return d===6?addDays(iso,2):d===0?addDays(iso,1):iso}
+function followPlanList(fromIso){const from=fromIso||today();
+  return FOLLOW_DAYS.map((n,i)=>({id:uid("fu"),n:i+1,due:bizDay(addDays(from,n)),status:"planned",subject:"",body:"",draftedAt:0,sentAt:0,by:""}))}
+// still quoting, not stopped, and there is a plan
+function followOpen(p){return !!(p&&!p.deleted&&!p.followStop&&(p.stage==="quoted"||p.stage==="inquiry")&&(p.followups||[]).length)}
+// touches that want attention now: planned or drafted, due today or before
+function followDueOf(p){if(!followOpen(p))return [];const t=today();return (p.followups||[]).filter(f=>(f.status==="planned"||f.status==="drafted")&&f.due&&f.due<=t)}
+// who the follow-up goes to: the first project contact with an email, else the account's main contact
+function followContact(p){if(!p)return null;
+  const on=(p.contacts||[]).map(x=>S.contacts.get(x)).filter(c=>c&&!c.deleted);
+  return on.find(c=>c.email)||on[0]||contactsOf(p.accountId).find(c=>c.email&&c.primary)||contactsOf(p.accountId).find(c=>c.email)||null}
+function linesSummary(p){return orderedLines(p).filter(l=>l&&!isCharge(l)&&(Number(l.qty)>0||l.desc||l.code))
+  .map(l=>(l.qty||1)+" × "+(l.desc||syncTxt(()=>signName(l))||l.code||"item")+(l.code&&l.desc?" ("+l.code+")":"")+(l.size?" "+syncTxt(()=>sizeLabel(l.size)):"")+(l.grade?" "+l.grade:"")).join("; ")}
+// plan the three touches the first time a project has a quote number — not if it's past quoting or was stopped
+async function followPlan(pid,fromIso){
+  const p=proj(pid);if(!p||(p.followups||[]).length||p.followStop||(p.stage!=="quoted"&&p.stage!=="inquiry"))return null;
+  const fus=followPlanList(fromIso||p.quoteDate||today());
+  const patch={followups:fus,followAuto:p.followAuto===true,updatedAt:Date.now()};
+  Object.assign(p,patch);await push("projects/"+pid,patch);
+  logEvent("project",pid,"Three follow-ups planned — "+fus.map(f=>fmtDate(f.due)).join(", "));
+  return fus;
+}
+// the customer answered, or the project moved on: what's left is marked stopped and the agents are told
+async function followStopNow(pid,why){
+  const p=proj(pid);if(!p||!(p.followups||[]).length||p.followStop)return;
+  const fus=p.followups.map(f=>(f.status==="planned"||f.status==="drafted")?Object.assign({},f,{status:"stopped"}):f);
+  const patch={followups:fus,followStop:why||"stopped",updatedAt:Date.now()};
+  Object.assign(p,patch);await push("projects/"+pid,patch);
+  logEvent("project",pid,"Follow-ups stopped — "+(why||"stopped"));
+}
+// an email came in from this account: every quoted project of theirs stops chasing
+function followStopAccount(aid,why){live(S.projects).filter(p=>p.accountId===aid&&followOpen(p)).forEach(p=>{followStopNow(p.id,why||"the customer replied")})}
+async function followSet(pid,fid,patch){
+  const p=proj(pid);if(!p)return;const fus=(p.followups||[]).map(f=>f.id===fid?Object.assign({},f,patch):f);
+  p.followups=fus;await push("projects/"+pid,{followups:fus,updatedAt:Date.now()});
+}
+async function followAutoSet(pid,on){const p=proj(pid);if(!p)return;p.followAuto=!!on;await push("projects/"+pid,{followAuto:!!on,updatedAt:Date.now()});
+  logEvent("project",pid,on?"Follow-ups: the agents send them automatically":"Follow-ups: each one is sent by hand");toast(on?"The agents will send the follow-ups.":"You send each follow-up yourself.")}
+// an email opened from a row: noted straight away with its subject and text; the copy at the CRM address completes it
+function preLogMail(pid,c,subject,body,note){
+  try{const p=proj(pid);if(!p||!c)return "";const who=me(),now=Date.now(),xid=uid("ac");
+    setDoc("activity/"+xid,{id:xid,recType:"project",recId:String(pid),kind:"note",type:"email",direction:"out",subject:String(subject||""),
+      text:String(body||"")||("Email opened to "+(c.name||"")+" by "+who),contactId:c.id,whoId:meId(),who,when:today(),due:"",backOn:"",noBack:true,
+      at:now,pre:!!mailCfg().cc,done:false,deleted:false,note:note||""});return xid}catch(e){return ""}}
+async function followSend(pid,fid){
+  const p=proj(pid);const f=p&&(p.followups||[]).find(x=>x.id===fid);if(!f)return;
+  const c=followContact(p);if(!c||!c.email)return toast("No contact with an email on this project — assign one first.");
+  const subj=f.subject||("Following up on quote "+(p.quote||"P-"+p.num)+" — "+p.name),body=f.body||"";
+  mailOpen(c.email,subj,body);preLogMail(pid,c,subj,body,"follow-up "+f.n);
+  await followSet(pid,fid,{status:"sent",sentAt:Date.now(),by:me(),subject:subj,body});
+  logEvent("project",pid,"Follow-up "+f.n+" sent by "+me());
+}
+async function followSkip(pid,fid){await followSet(pid,fid,{status:"skipped",by:me()});logEvent("project",pid,"A follow-up was skipped by "+me())}
+async function followSave(pid,fid){
+  const sj=$("#fu-subj-"+fid),bd=$("#fu-body-"+fid);
+  await followSet(pid,fid,{subject:sj?sj.value.trim():"",body:bd?bd.value:"",status:"drafted",draftedAt:Date.now(),by:me()});
+  S.fuEdit="";render();
+}
+function followCard(p){
+  const fus=p.followups||[];const id=p.id;
+  if(!fus.length&&!(p.quote&&(p.stage==="quoted"||p.stage==="inquiry")))return "";
+  const c=followContact(p);const open=followOpen(p);const t=today();
+  const stPill=f=>{const late=f.due&&f.due<t&&(f.status==="planned"||f.status==="drafted");
+    return f.status==="sent"?`<span class="pill g">sent ${esc(fmtTs(f.sentAt))}${f.by?" · "+esc(f.by):""}</span>`
+      :f.status==="skipped"?`<span class="pill">skipped</span>`:f.status==="stopped"?`<span class="pill">stopped</span>`
+      :f.status==="drafted"?`<span class="pill ${late?"r":"b"}">drafted${late?" — due "+esc(dueTxt(f.due)):""}</span>`
+      :`<span class="pill ${late?"r":"y"}">${late?"due "+esc(dueTxt(f.due)):"planned"}</span>`};
+  return `<section class="card flush"><header><h2>Follow-ups</h2><span class="n">${fus.filter(f=>f.status==="sent").length}/${fus.length||3}</span>
+      <span class="sub">${open?"Three touches after the quote. The agents write each one; you read it and press Send — or let them send."
+        :p.followStop?"Stopped — "+esc(p.followStop)+".":fus.length?"Finished.":"Not planned yet."}</span>
+      <span class="sp">${open?`<button class="btn sm" data-fustop="${esc(id)}">Stop follow-ups</button>`
+        :(!fus.length||p.followStop)&&(p.stage==="quoted"||p.stage==="inquiry")&&p.quote?`<button class="btn sm p" data-fuplan="${esc(id)}">Plan follow-ups</button>`:""}</span></header>
+    ${fus.length?`<div style="padding:9px 15px;border-bottom:1px solid var(--line2);display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <label style="display:flex;gap:8px;align-items:center;font-weight:600;font-size:13px;cursor:pointer">
+        <input type="checkbox" data-followauto="${esc(id)}" ${p.followAuto?"checked":""} ${open?"":"disabled"} style="width:17px;height:17px;accent-color:var(--brand)">Agents send these automatically</label>
+      <span class="sub">${p.followAuto?"They go out on their due date without waiting for you.":"I send each one — a Send button appears once it's drafted."}</span>
+      <span class="sub" style="margin-left:auto">To: ${c?esc(c.name)+(c.email?" · "+esc(c.email):" · no email"):"<b>no contact</b>"}</span></div>`:""}
+    ${fus.map(f=>{const canAct=open&&(f.status==="planned"||f.status==="drafted");const editing=S.fuEdit===f.id;
+      return `<div class="rrow ${f.status==="skipped"||f.status==="stopped"?"off":""}"><span class="rr-n">#${f.n}</span>
+        <div class="rr-c"><div class="rr-t"><span>Day ${FOLLOW_DAYS[f.n-1]||""} · ${esc(fmtDate(f.due))}</span>${stPill(f)}</div>
+          ${editing?`<input type="text" id="fu-subj-${esc(f.id)}" value="${esc(f.subject||"")}" placeholder="Subject">
+            <textarea id="fu-body-${esc(f.id)}" placeholder="What to say">${esc(f.body||"")}</textarea>`
+          :(f.subject||f.body)?`<div class="rr-p">${f.subject?`<b>${esc(f.subject)}</b>\n`:""}${esc(f.body||"")}</div>`
+          :f.status==="planned"?`<div class="sub" style="margin-top:3px">${f.due<=t?"Waiting for the writer — the draft lands here.":"The writer drafts it the day it's due."}</div>`:""}</div>
+        <div class="rr-b">${editing?`<button class="btn sm p" data-fusave="${esc(id)}:${esc(f.id)}">Save</button><button class="btn sm" data-fucancel="1">Cancel</button>`
+          :canAct?`${(f.body||f.subject)?`<button class="btn sm p" data-fusend="${esc(id)}:${esc(f.id)}">Send</button>`:""}
+            <button class="btn sm" data-fuedit="${esc(f.id)}">${(f.body||f.subject)?"Edit":"Write it"}</button><button class="btn sm" data-fuskip="${esc(id)}:${esc(f.id)}">Skip</button>`:""}</div></div>`}).join("")}
+    ${!fus.length?`<div class="empty"><b>No follow-ups planned</b>Press Plan follow-ups: day 3, 7 and 14 after the quote, weekends rolled to Monday.</div>`:""}
+  </section>`;
+}
+// the record the agents read: one row per touch, upserted by type + id
+function followSyncRec(p,f){
+  const a=acct(p.accountId)||S.accounts.get(p.accountId)||{};const c=followContact(p);const rep2=repFor(p);
+  return {type:"followup",id:String(p.id)+":"+f.n,number:(p.quote||("P-"+(p.num||"")))+" #"+f.n,status:f.status||"planned",
+    created:syncISO(p.createdAt),updated:syncISO(Date.now()),project_id:String(p.id),project_number:p.num?"P-"+p.num:"",
+    quote_number:p.quote||"",quote_date:p.quoteDate||"",customer:a.name||"",account_id:p.accountId||"",
+    contact:c?(c.name||""):"",email:c?(c.email||""):"",phone:c?(c.phone||c.mobile||""):(a.phone||""),
+    due:f.due||"",n:f.n,auto:!!p.followAuto,stop:p.followStop||"",lines:linesSummary(p),value:syncN(projValue(p)),
+    rep:rep2?(rep2.initials||""):"",rep_name:rep2?(rep2.name||""):"",rep_email:rep2?(rep2.email||""):"",
+    project:p.name||"",subject:f.subject||"",text:f.body||"",sent_at:syncISO(f.sentAt),deleted:!!p.deleted}}
+// one record out, if the sheet hasn't seen this version of it (hash kept in settings/syncsent like every other record)
+function syncSend(key,r,event,url){
+  try{const u=String(url||syncCfg().url||"").trim();if(!/^https:\/\//i.test(u))return false;
+    const prev=syncSent()[key];const h=syncHash(r);if(prev&&prev.h===h)return false;
+    syncPost(key,{event:event||"updated",sent_at:new Date().toISOString(),crm_version:APP_VERSION,record:r},u);return true}catch(e){return false}}
+function syncFollowups(pid,url){const p=proj(pid)||S.projects.get(pid);if(!p||!(p.followups||[]).length)return 0;let n=0;
+  p.followups.forEach(f=>{if(syncSend("followup/"+p.id+":"+f.n,followSyncRec(p,f),f.status||"planned",url))n++});return n}
+function followDueCount(list){return list.reduce((t,p)=>t+followDueOf(p).length,0)}
+
+/* ---------- reminders: computed here, read by one person in the bell, delivered by the agent ---------- */
+function remLabel(k){const x=REM_TYPES.find(y=>y[0]===k);return x?x[1]:k}
+function remCfg(){const r=(S.brand||{}).reminders||{};const out={};
+  REM_TYPES.forEach(([k])=>{const x=r[k]||{};out[k]={on:x.on!==false,channel:["email","text","both"].indexOf(x.channel)>=0?x.channel:"email",mode:x.mode==="instant"?"instant":"digest"}});return out}
+function remScopeOf(t){return t&&t.remScope?t.remScope:((t&&t.access)==="sales"?"own":"all")}
+function remEmailOf(t){return (t&&(t.remEmail||t.email))||""}
+// every reminder the data supports right now, with the record it points at and who it belongs to
+function remAll(){
+  const out=[];const now=Date.now(),t=today();const H=3600000;
+  const ps=real(live(S.projects));
+  const repOf=p=>{const r=repFor(p);return r?r.id:""};
+  // quote follow-up due (feature 1)
+  ps.forEach(p=>followDueOf(p).forEach(f=>out.push({id:"followup:"+p.id+":"+f.n,type:"followup",due:f.due,route:"project/"+p.id,rep:repOf(p),acct:p.accountId,
+    text:"Follow-up "+f.n+" on "+(p.quote||"P-"+p.num)+" — "+accName(p.accountId)+(f.status==="drafted"?" (drafted, ready to send)":" (waiting for the draft)")})));
+  // proof sent, not approved in 48 hours
+  ps.forEach(p=>{if(isClosed(p)||!p.proofAt||now-p.proofAt<48*H)return;
+    if(filesOf("project",p.id).some(f=>f.cat==="Signed proof")||jobsOf(p.id).some(j=>j.gates&&j.gates.proof))return;
+    out.push({id:"proof:"+p.id+":"+(p.proofRev||1),type:"proof",due:isoDay(p.proofAt+48*H),route:"project/"+p.id,rep:repOf(p),acct:p.accountId,
+      text:"Proof on P-"+p.num+" "+accName(p.accountId)+" not approved — sent "+daysSince(p.proofAt)+" day"+(daysSince(p.proofAt)===1?"":"s")+" ago"})});
+  // PO in, no work order after a day
+  ps.forEach(p=>{if(isClosed(p)||!String(p.po||"").trim()||jobsOf(p.id).length)return;
+    const since=stageAt(p,"won")||Number(p.updatedAt)||Number(p.createdAt)||0;if(!since||now-since<24*H)return;
+    out.push({id:"po:"+p.id,type:"po",due:isoDay(since+24*H),route:"project/"+p.id,rep:repOf(p),acct:p.accountId,text:"PO "+p.po+" on P-"+p.num+" "+accName(p.accountId)+" — no work order yet"})});
+  // shipped with nothing to track
+  live(S.jobs).filter(realJob).forEach(j=>{if(j.status!=="shipped")return;const p=S.projects.get(j.projectId);if(!p||p.deleted||isClosed(p))return;
+    const sh=j.ship||{};if(/will call|pick/i.test(sh.method||"")||String(sh.tracking||"").trim())return;
+    out.push({id:"tracking:"+j.num,type:"tracking",due:isoDay(shipAt(j)||now),route:"job/"+j.num,rep:repOf(p),acct:j.accountId||p.accountId,
+      text:"Work order "+j.num+" shipped with no tracking — "+accName(j.accountId||p.accountId)})});
+  // invoice past terms
+  ps.forEach(p=>{if(isClosed(p)||billState(p)!=="invoiced"||!isPastTerms(p))return;
+    out.push({id:"terms:"+p.id,type:"terms",due:payDueDate(p)||t,route:"project/"+p.id,rep:repOf(p),acct:p.accountId,
+      text:"Invoice "+(p.invNum||"on P-"+p.num)+" past terms — "+money(billedValue(p))+", "+accName(p.accountId)})});
+  // a customer past their usual reorder gap (three wins or more; 1.3 × their average gap)
+  real(live(S.accounts)).forEach(a=>{const wins=ps.filter(p=>p.accountId===a.id&&PATH.indexOf(p.stage)>=PATH.indexOf("won")).map(p=>stageAt(p,"won")||Number(p.createdAt)||0).filter(Boolean).sort((x,y)=>x-y);
+    if(wins.length<3)return;let gap=0;for(let i=1;i<wins.length;i++)gap+=wins[i]-wins[i-1];gap=gap/(wins.length-1);if(gap<7*86400000)return;
+    const last=wins[wins.length-1];if(now-last<gap*1.3)return;if(ps.some(p=>p.accountId===a.id&&!isClosed(p)))return;
+    const r=repOfAccount(a);out.push({id:"reorder:"+a.id,type:"reorder",due:isoDay(last+gap*1.3),route:"account/"+a.id,rep:r?r.id:"",acct:a.id,
+      text:a.name+" is past their usual reorder — last order "+Math.round((now-last)/86400000)+" days ago, usually every "+Math.round(gap/86400000)})});
+  return out.sort((x,y)=>String(x.due).localeCompare(String(y.due)));
+}
+function remMarks(tid){const d=S.remarks&&S.remarks.get?S.remarks.get(tid):null;return (d&&d.marks)||{}}
+// one person's reminders: their scope, the types switched on, minus what they snoozed or finished
+function remFor(t,all){
+  if(!t)return [];const cfg=remCfg();const marks=remMarks(t.id);const own=remScopeOf(t)==="own";const td=today();
+  return (all||remAll()).filter(r=>{if(!cfg[r.type]||!cfg[r.type].on)return false;
+    if(own&&r.rep!==t.id)return false;
+    const m=marks[r.id];if(m&&(m.done||(m.snoozedUntil&&m.snoozedUntil>td)))return false;return true})}
+function remMine(){return S.viewerTeam?remFor(S.viewerTeam):[]}
+async function remMark(rid,patch){
+  const tid=meId();if(!tid)return toast("Sign in first so the reminder is yours to snooze.");
+  const cur=(S.remarks&&S.remarks.get(tid))||{id:tid,marks:{}};const marks=Object.assign({},cur.marks||{});
+  marks[rid]=Object.assign({},marks[rid]||{},patch,{at:Date.now(),by:me()});
+  const ks=Object.keys(marks);if(ks.length>400)ks.sort((a,b)=>(marks[a].at||0)-(marks[b].at||0)).slice(0,ks.length-400).forEach(k=>delete marks[k]);
+  const doc={id:tid,teamId:tid,marks,updatedAt:Date.now()};S.remarks.set(tid,doc);
+  try{await setDoc("reminders/"+tid,doc)}catch(e){}
+  render();
+}
+// what goes to the agent that emails or texts: one row per person per reminder, once a day
+function remSyncRec(t,r){
+  const cfg=remCfg()[r.type]||{};const m=remMarks(t.id)[r.id]||{};
+  const pid=/^project\//.test(r.route)?r.route.slice(8):"";const p=pid?S.projects.get(pid):null;
+  return {type:"reminder",id:String(t.id)+":"+r.id,number:r.id,status:"due",created:new Date().toISOString(),updated:new Date().toISOString(),
+    to_email:remEmailOf(t),to_phone:t.phone||"",team:t.initials||"",team_name:t.name||"",kind:r.type,kind_label:remLabel(r.type),text:r.text,
+    record:r.route,url:(location.origin||"")+(location.pathname||"")+"#/"+r.route,due:r.due||"",channel:cfg.channel||"email",mode:cfg.mode||"digest",
+    snoozed_until:m.snoozedUntil||"",customer:accName(r.acct),project_number:p&&p.num?"P-"+p.num:"",deleted:false}}
+function remDeliver(url,force){
+  const u=String(url||syncCfg().url||"").trim();if(!/^https:\/\//i.test(u))return 0;
+  const all=remAll();const sent=syncSent();const td=today();let n=0;
+  live(S.team).forEach(t=>{if(!remEmailOf(t)&&!t.phone)return;
+    remFor(t,all).forEach(r=>{const key="reminder/"+t.id+":"+r.id;const prev=sent[key];
+      if(!force&&prev&&isoDay(prev.at)===td)return;                       // once a day per person per reminder
+      const rec=remSyncRec(t,r);
+      if(force){syncPost(key,{event:"backfill",sent_at:new Date().toISOString(),crm_version:APP_VERSION,record:rec},u);n++}
+      else{syncPost(key,{event:"due",sent_at:new Date().toISOString(),crm_version:APP_VERSION,record:rec},u);n++}})});
+  return n;
+}
+// on load and every 15 minutes: deliver what's due, and redraw the bell when the count moved
+function remTick(){try{if(!db||!S.ready||!S.brandLoaded)return;remDeliver();
+    const n=remMine().length;if(S._remN!==n){S._remN=n;if(!typing()&&!S.modal)render()}}catch(e){}}
+function bellBtn(){
+  if(!S.viewerTeam)return "";
+  const un=myNotes().filter(x=>!x.read).length;const rems=remMine();S._remN=rems.length;const n=un+rems.length;
+  return `<details class="dd belldd"><summary class="gset bellsum" title="Reminders and notifications" aria-label="Reminders and notifications">
+    ${ic("bell",17)}${n?`<span class="bellbadge">${n}</span>`:""}</summary><div class="dd-m">${bellMenu(rems,un)}</div></details>`;
+}
+function bellMenu(rems,un){
+  const groups={};rems.forEach(r=>{(groups[r.type]=groups[r.type]||[]).push(r)});
+  const order=REM_TYPES.map(([k])=>k).filter(k=>groups[k]);
+  return `${order.length?order.map(k=>`<div class="bell-g">${esc(remLabel(k))} · ${groups[k].length}</div>${groups[k].map(r=>`<div class="bell-r">
+      <button class="lnk" data-go="${esc(r.route)}">${esc(r.text)}</button>
+      <button class="btn sm" data-remsnooze="${esc(r.id)}" title="Comes back in three days">Snooze 3 days</button><button class="btn sm" data-remdone="${esc(r.id)}">Done</button></div>`).join("")}`).join("")
+    :`<div class="bell-e"><b>Nothing to chase</b>Reminders land here when something is waiting on you — a proof, a PO, a follow-up.</div>`}
+    <div class="bell-f"><span class="sub">${un?un+" unread notification"+(un===1?"":"s"):"Notifications and tasks"}</span><button class="btn sm" data-bell="1">Open</button></div>`;
+}
+function remSettingsCard(b){
+  const cfg=remCfg();const gv=String(b.gvNumber||"").trim();
+  return `<section class="card flush"><header><h2>Reminders</h2><span class="sub">Who hears about what, and how. The CRM works out what's due; the agent emails or texts it — each person gets their own, by their accounts or everything.</span></header>
+    <table class="remtab"><thead><tr><th>Remind about</th><th>Send by</th><th>When</th></tr></thead><tbody>
+      ${REM_TYPES.map(([k,l])=>`<tr><td><label style="display:flex;gap:8px;align-items:center;font-weight:600;cursor:pointer">
+          <input type="checkbox" id="rm-on-${k}" ${cfg[k].on?"checked":""} style="width:17px;height:17px;accent-color:var(--brand)">${esc(l)}</label></td>
+        <td><select id="rm-ch-${k}"><option value="email" ${cfg[k].channel==="email"?"selected":""}>Email</option>
+          <option value="text" ${cfg[k].channel==="text"?"selected":""} ${gv?"":"disabled"}>Text</option><option value="both" ${cfg[k].channel==="both"?"selected":""} ${gv?"":"disabled"}>Both</option></select></td>
+        <td><select id="rm-md-${k}"><option value="instant" ${cfg[k].mode==="instant"?"selected":""}>Instant</option><option value="digest" ${cfg[k].mode==="digest"?"selected":""}>Daily digest at 7:30</option></select></td></tr>`).join("")}
+    </tbody></table>
+    <div class="fgrid"><div class="fld"><div class="k">Google Voice number for texts</div><input id="b-gvnum" value="${esc(fmtPhone(gv))}" placeholder="(435) 555-0100" data-phone="1" inputmode="tel">
+      <div class="sub" style="margin-top:4px">${gv?"Texts go out from this number.":"Text arrives when the Google Voice number is set."}</div></div>
+      <div class="fld"><div class="k">Where they go</div><div class="v" style="font-size:13px">Each team member's record says which email gets their reminders, and whether they hear about their own accounts only or everything — Team &amp; access → Edit.</div></div></div>
+  </section>`;
+}
+
+/* ---------- one-click drafts on the project ---------- */
+function draftReqRec(p,d){
+  const a=acct(p.accountId)||S.accounts.get(p.accountId)||{};const c=followContact(p);const rep2=repFor(p);
+  const js=jobsOf(p.id);const tr=js.map(j=>(j.ship||{}).tracking).filter(Boolean).join(", ");const car=js.map(j=>(j.ship||{}).carrier).filter(Boolean)[0]||"";
+  return {type:"draft_request",id:String(d.id),number:(DRAFT_KINDS[d.kind]||d.kind),status:d.status||"requested",
+    created:syncISO(d.requestedAt),updated:syncISO(Date.now()),project_id:String(p.id),project_number:p.num?"P-"+p.num:"",project:p.name||"",
+    kind:d.kind,customer:a.name||"",account_id:p.accountId||"",contact:c?(c.name||""):"",email:c?(c.email||""):"",phone:c?(c.phone||c.mobile||""):(a.phone||""),
+    context:linesSummary(p),tracking:tr,carrier:car,invoice_number:p.invNum||"",invoice_date:p.billDate||"",due_date:p.due||"",quote_number:p.quote||"",po_number:p.po||"",
+    value:syncN(projValue(p)),terms:a.terms||"",rep:rep2?(rep2.initials||""):"",rep_name:rep2?(rep2.name||""):"",rep_email:rep2?(rep2.email||""):"",
+    requested_by:d.by||"",subject:d.subject||"",text:d.body||"",deleted:false}}
+async function draftRequest(pid,kind){
+  const p=proj(pid);if(!p||!DRAFT_KINDS[kind])return;
+  const d={id:uid("dr"),kind,status:"requested",requestedAt:Date.now(),by:me(),subject:"",body:"",draftedAt:0,sentAt:0};
+  const ds=(p.drafts||[]).concat([d]);p.drafts=ds;
+  await push("projects/"+pid,{drafts:ds,updatedAt:Date.now()});
+  const went=syncSend("draft_request/"+d.id,draftReqRec(p,d),"requested");
+  logEvent("project",pid,DRAFT_KINDS[kind]+" asked for by "+me());
+  S.ptab="activity";render();
+  toast(went?"Asked the writer — the draft lands under Drafts in a few minutes.":"Noted under Drafts. Put the order sync link in Settings so the writer hears about it.");
+}
+async function draftSet(pid,did,patch){const p=proj(pid);if(!p)return;const ds=(p.drafts||[]).map(d=>d.id===did?Object.assign({},d,patch):d);
+  p.drafts=ds;await push("projects/"+pid,{drafts:ds,updatedAt:Date.now()})}
+async function draftSend(pid,did){
+  const p=proj(pid);const d=p&&(p.drafts||[]).find(x=>x.id===did);if(!d)return;
+  const c=followContact(p);if(!c||!c.email)return toast("No contact with an email on this project — assign one first.");
+  const subj=d.subject||(DRAFT_KINDS[d.kind]+" — "+p.name),body=d.body||"";
+  mailOpen(c.email,subj,body);preLogMail(pid,c,subj,body,d.kind);
+  await draftSet(pid,did,{status:"sent",sentAt:Date.now(),by:me(),subject:subj,body});
+  logEvent("project",pid,DRAFT_KINDS[d.kind]+" sent by "+me());
+}
+async function draftSave(pid,did){const sj=$("#dr-subj-"+did),bd=$("#dr-body-"+did);
+  await draftSet(pid,did,{subject:sj?sj.value.trim():"",body:bd?bd.value:"",status:"drafted",draftedAt:Date.now()});S.drEdit="";render()}
+// the agents said it went out (feed: source = sent): one email entry on the project, marked AI
+async function draftLogSent(p,subject,body,feedId,when){
+  const c=followContact(p);const xid=uid("ac");
+  await setDoc("activity/"+xid,{id:xid,recType:"project",recId:String(p.id),kind:"note",type:"email",direction:"out",subject:String(subject||""),
+    text:String(body||subject||"(no text)"),contactId:c?c.id:"",whoId:"",who:"AI",when:(when||today()).slice(0,10),due:"",backOn:"",noBack:true,at:Date.now(),done:true,deleted:false,feedId:feedId||""});
+}
+function draftsMenu(id){
+  return `<details class="dd"><summary class="btn">${ic("email",14)}Drafts</summary><div class="dd-m">
+    <div class="dd-h">Ask the writer for</div>
+    ${["proof","shipping","invoice","quote","thanks"].map(k=>`<button data-draftreq="${esc(id)}:${k}">${ic("email",14)}${esc(DRAFT_KINDS[k])}</button>`).join("")}
+  </div></details>`;
+}
+function draftsCard(p){
+  const ds=(p.drafts||[]).filter(d=>d.status!=="discarded").sort((a,b)=>(b.requestedAt||0)-(a.requestedAt||0));
+  if(!ds.length)return "";const id=p.id;const c=followContact(p);
+  const tm=ms=>ms?new Date(ms).toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"}):"";
+  const dayTm=ms=>!ms?"":(isoDay(ms)===today()?tm(ms):fmtTs(ms));
+  return `<section class="card flush"><header><h2>Drafts</h2><span class="n">${ds.length}</span>
+      <span class="sub">Emails the writer drafted for this project. Read it, press Send, done.</span>
+      <span class="sp">${draftsMenu(id)}</span></header>
+    ${ds.map(d=>{const editing=S.drEdit===d.id;const has=!!(d.subject||d.body);
+      const st=d.status==="sent"?`<span class="pill g">sent ${esc(dayTm(d.sentAt))}${d.by?" · "+esc(d.by):""}</span>`
+        :d.status==="drafted"?`<span class="pill b">drafted ${esc(dayTm(d.draftedAt))}</span>`:`<span class="pill y">waiting for the writer</span>`;
+      return `<div class="rrow"><div class="rr-c"><div class="rr-t"><span>${esc(DRAFT_KINDS[d.kind]||d.kind)}</span><span class="sub" style="font-weight:500">— requested ${esc(dayTm(d.requestedAt))}${d.by?" by "+esc(d.by):""}</span>${st}</div>
+        ${editing?`<input type="text" id="dr-subj-${esc(d.id)}" value="${esc(d.subject||"")}" placeholder="Subject"><textarea id="dr-body-${esc(d.id)}" placeholder="What to say">${esc(d.body||"")}</textarea>`
+          :has?`<div class="rr-p">${d.subject?`<b>${esc(d.subject)}</b>\n`:""}${esc(d.body||"")}</div>`:""}</div>
+        <div class="rr-b">${editing?`<button class="btn sm p" data-drsave="${esc(id)}:${esc(d.id)}">Save</button><button class="btn sm" data-drcancel="1">Cancel</button>`
+          :d.status==="sent"?"":`${has?`<button class="btn sm p" data-drsend="${esc(id)}:${esc(d.id)}" ${c&&c.email?"":'disabled title="No contact with an email"'}>Send</button>`:""}
+            <button class="btn sm" data-dredit="${esc(d.id)}">${has?"Edit":"Write it"}</button><button class="btn sm" data-drdiscard="${esc(id)}:${esc(d.id)}">Discard</button>`}</div></div>`}).join("")}
+  </section>`;
 }
 
 /* ========== binding ========== */
@@ -12979,7 +13364,7 @@ function bind(){
     const rc=t.closest("[data-rptcsv]");if(rc){reportCSV();return}
     const aiB=t.closest("[data-ai]");
     if(aiB){const pz=aiB.dataset.ai.split(":");
-      if(pz[0]==="follow")aiFollowup(pz[1]);
+      if(pz[0]==="follow")draftRequest(pz[1],"quote");
       if(pz[0]==="catch")aiCatchup(pz[1]);
       if(pz[0]==="acct")aiAccount(pz[1]);
       if(pz[0]==="brief")aiBrief();
@@ -13453,6 +13838,25 @@ function bind(){
     if(ta2){const[pid,cid]=ta2.dataset.toggleassign.split(":");toggleAssign(pid,cid);return}
     const em=t.closest("[data-email]");
     if(em){const[pid,cid]=em.dataset.email.split(":");emailContact(pid,cid);return}
+    // follow-ups, drafts, reminders: every button is one row's action
+    {const x=t.closest("[data-fusend]");if(x){const[pid,fid]=x.dataset.fusend.split(":");followSend(pid,fid);return}}
+    {const x=t.closest("[data-fuskip]");if(x){const[pid,fid]=x.dataset.fuskip.split(":");followSkip(pid,fid);return}}
+    {const x=t.closest("[data-fusave]");if(x){const[pid,fid]=x.dataset.fusave.split(":");followSave(pid,fid);return}}
+    {const x=t.closest("[data-fuedit]");if(x){S.fuEdit=x.dataset.fuedit;render();return}}
+    if(t.closest("[data-fucancel]")){S.fuEdit="";render();return}
+    {const x=t.closest("[data-fustop]");if(x){followStopNow(x.dataset.fustop,"stopped by "+me());return}}
+    {const x=t.closest("[data-fuplan]");if(x){const p4=proj(x.dataset.fuplan);if(p4){p4.followStop="";push("projects/"+p4.id,{followStop:"",followups:[],updatedAt:Date.now()});p4.followups=[];followPlan(p4.id,p4.quoteDate||today())}return}}
+    {const x=t.closest("[data-followauto]");if(x){followAutoSet(x.dataset.followauto,!!x.checked);return}}
+    {const x=t.closest("[data-followdue]");if(x){S.projFollow=true;S.projMode="list";S.showArchive=false;if((S.route||{}).v==="projects")render();else go("projects");return}}
+    if(t.closest("[data-followclear]")){S.projFollow=false;render();return}
+    {const x=t.closest("[data-draftreq]");if(x){const[pid,kind]=x.dataset.draftreq.split(":");draftRequest(pid,kind);return}}
+    {const x=t.closest("[data-drsend]");if(x){const[pid,did]=x.dataset.drsend.split(":");draftSend(pid,did);return}}
+    {const x=t.closest("[data-drsave]");if(x){const[pid,did]=x.dataset.drsave.split(":");draftSave(pid,did);return}}
+    {const x=t.closest("[data-dredit]");if(x){S.drEdit=x.dataset.dredit;render();return}}
+    if(t.closest("[data-drcancel]")){S.drEdit="";render();return}
+    {const x=t.closest("[data-drdiscard]");if(x){const[pid,did]=x.dataset.drdiscard.split(":");draftSet(pid,did,{status:"discarded"}).then(()=>render());return}}
+    {const x=t.closest("[data-remsnooze]");if(x){remMark(x.dataset.remsnooze,{snoozedUntil:addDays(today(),3),done:false});return}}
+    {const x=t.closest("[data-remdone]");if(x){remMark(x.dataset.remdone,{done:true});return}}
     const ro=t.closest("[data-reorder]");if(ro){reorderProject(ro.dataset.reorder);return}
     const dj=t.closest("[data-dupjob]");if(dj){duplicateJob(dj.dataset.dupjob);return}
 
@@ -13593,7 +13997,7 @@ async function boot(){
   sub("accounts","accounts");sub("contacts","contacts");sub("projects","projects");
   sub("jobs","jobs",true);sub("files","files");sub("activity","activity");sub("history","history");
   sub("events","events");sub("team","team");
-  sub("vendors","vendors");sub("items","items");sub("invtx","invtx");sub("notifications","notifications");
+  sub("vendors","vendors");sub("items","items");sub("invtx","invtx");sub("notifications","notifications");sub("reminders","remarks");
   syncSentLoad();
   db.doc("settings/prodtypes").onSnapshot(s=>{if(s&&s.exists&&s.data())S.prodtypes=s.data();if(!typing()&&!S.modal)render()},()=>{});
   db.doc("settings/pricelist").onSnapshot(s=>{if(s&&s.exists&&s.data())S.pricelist=s.data();if(!typing()&&!S.modal)render()},()=>{});
@@ -13620,6 +14024,8 @@ async function boot(){
     setTimeout(wcAuto,14000);setInterval(wcAuto,60*60000)}
   setTimeout(()=>{webcatLoad()},1500);
   try{setTimeout(()=>syncRetry(),6000);setInterval(()=>syncRetry(),5*60000)}catch(e){}
+  // reminders: worked out now and every 15 minutes; due ones go to the agent once a day each
+  try{setTimeout(remTick,12000);setInterval(remTick,15*60000)}catch(e){}
 }
 // presentation only: settings groups, drop-down menus that close when you click away,
 // and the invoice-number button on the Billing card (it opens the same prompt "Mark invoiced" uses)
