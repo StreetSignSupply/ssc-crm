@@ -1419,8 +1419,8 @@ function mailLink(to,subject,body,ctx){
   const c=mailCfg();const cc=(ctx&&ctx.cc===false)?"":c.cc;const enc=encodeURIComponent;
   to=String(to||"");subject=String(subject||"");body=String(body||"");
   if(c.mode==="gmail"){let u="https://mail.google.com/mail/?view=cm&fs=1&to="+enc(to);
-    if(cc)u+="&cc="+enc(cc);if(subject)u+="&su="+enc(subject);if(body)u+="&body="+enc(body);return u}
-  const q=[];if(cc)q.push("cc="+enc(cc));if(subject)q.push("subject="+enc(subject));if(body)q.push("body="+enc(body));
+    if(cc)u+="&bcc="+enc(cc);if(subject)u+="&su="+enc(subject);if(body)u+="&body="+enc(body);return u}
+  const q=[];if(cc)q.push("bcc="+enc(cc));if(subject)q.push("subject="+enc(subject));if(body)q.push("body="+enc(body));
   return "mailto:"+enc(to).replace(/%40/g,"@").replace(/%2C/g,",")+(q.length?"?"+q.join("&"):"")}
 // attributes for an <a> that opens an email: Gmail goes to a new tab
 function mailTarget(){return mailCfg().mode==="gmail"?' target="_blank" rel="noopener"':""}
@@ -7056,8 +7056,38 @@ function picEntry(line){
     [nm,sz].filter(Boolean).join("|"),
     cd];                                                    // one picture for the whole code
   for(const k of tries){if(k&&lib[k])return lib[k]}
-  return webcatPic(line&&line.desc)||webcatPic(line&&line.title)||null;
+  return webcatPic(line&&line.desc)||webcatPic(line&&line.title)||webcatByWords(cd&&typeof SIGN_NAMES!=="undefined"?SIGN_NAMES[cd]:"")||genericSignPic(line);
 }
+// the website sign whose name carries every word of the MUTCD name ("One way" -> "One Way Sign")
+function webcatByWords(nm){nm=String(nm||"").toUpperCase().replace(/\(.*?\)/g,"").trim();if(nm.length<3)return null;
+  const w=nm.split(/[^A-Z0-9]+/).filter(x=>x.length>=2);if(!w.length)return null;
+  const hits=webcatProducts().filter(p=>p.img&&w.every(x=>(" "+String(p.name||"").toUpperCase().replace(/[^A-Z0-9]+/g," ")+" ").indexOf(" "+x+" ")>=0));
+  if(!hits.length)return null;hits.sort((a,b)=>((a.name.indexOf("(")>=0?100:0)+a.name.length)-((b.name.indexOf("(")>=0?100:0)+b.name.length));
+  return {img:hits[0].img,name:hits[0].name,web:true}}
+// a plain drawing of the sign's shape for a line with no picture of its own (bid items like "Warning sign 30x30")
+const GENPIC={};
+function genericSignPic(line){if(!line||typeof line!=="object")return null;
+  const cd=String(line.code||"").trim().toUpperCase();const t=(String(line.desc||"")+" "+String(line.title||"")).toUpperCase();
+  let kind="";
+  if(cd==="R1-1"||/\bSTOP SIGN\b|^STOP\b/.test(t))kind="stop";
+  else if(cd==="R1-2"||/\bYIELD\b/.test(t))kind="yield";
+  else if(/^W\d/.test(cd)||/\bWARNING\b|\bDIAMOND\b/.test(t))kind="warn";
+  else if(/^R\d/.test(cd)||/\bREGULATORY\b/.test(t))kind="reg";
+  else if(/^D\d|^I\d/.test(cd)||/\bGUIDE\b|\bSTREET NAME\b/.test(t))kind="guide";
+  else return null;
+  const m=String(line.size||t).match(/(\d+(?:\.\d+)?)\s*["”]?\s*[X×]\s*(\d+(?:\.\d+)?)/i);
+  let w=m?+m[1]:24,h=m?+m[2]:30;
+  const label=(cd&&typeof SIGN_NAMES!=="undefined"&&SIGN_NAMES[cd])||({stop:"STOP",yield:"YIELD",warn:"",reg:"",guide:""})[kind]||"";
+  const key=kind+"|"+w+"x"+h+"|"+label;if(GENPIC[key])return GENPIC[key];
+  const E=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);
+  let svg;
+  if(kind==="stop")svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><polygon points="29,2 71,2 98,29 98,71 71,98 29,98 2,71 2,29" fill="#c8102e" stroke="#fff" stroke-width="4"/><text x="50" y="61" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="28" fill="#fff" text-anchor="middle">STOP</text></svg>';
+  else if(kind==="yield")svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 90"><polygon points="2,4 98,4 50,88" fill="#c8102e"/><polygon points="20,14 80,14 50,66" fill="#fff"/><text x="50" y="34" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="13" fill="#c8102e" text-anchor="middle">YIELD</text></svg>';
+  else if(kind==="warn")svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><polygon points="50,2 98,50 50,98 2,50" fill="#ffcc00" stroke="#111" stroke-width="3"/><polygon points="50,9 91,50 50,91 9,50" fill="none" stroke="#111" stroke-width="2"/>'+(label?'<text x="50" y="54" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="11" fill="#111" text-anchor="middle">'+E(label.toUpperCase().slice(0,14))+'</text>':'<text x="50" y="66" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="40" fill="#111" text-anchor="middle">!</text>')+'</svg>';
+  else{const W=100,H=Math.max(30,Math.min(300,Math.round(100*h/w)));const bg=kind==="guide"?"#00843d":"#fff",fg=kind==="guide"?"#fff":"#111";
+    const fs=Math.max(8,Math.min(16,Math.round(Math.min(W,H)/5)));
+    svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' '+H+'"><rect x="2" y="2" width="'+(W-4)+'" height="'+(H-4)+'" rx="6" fill="'+bg+'" stroke="'+fg+'" stroke-width="3"/><rect x="7" y="7" width="'+(W-14)+'" height="'+(H-14)+'" rx="4" fill="none" stroke="'+fg+'" stroke-width="2"/>'+(label?'<text x="50" y="'+(H/2+fs/3)+'" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="'+fs+'" fill="'+fg+'" text-anchor="middle">'+E(label.toUpperCase().slice(0,12))+'</text>':'')+'</svg>'}
+  return GENPIC[key]={img:"data:image/svg+xml;base64,"+btoa(unescape(encodeURIComponent(svg))),name:label||kind,generic:true}}
 function signPic(line){const e=picEntry(line);return e&&e.img||""}
 /* ===== the proof artwork uploaded to a project finds its own line =====
    A line can be pointed at a picture (Edit the line → Picture). Otherwise the file whose name matches
@@ -10616,7 +10646,7 @@ function settingsView(){
       <div class="fgrid">
         <div class="fld"><div class="k">Open emails in</div>
           <select id="b-mailmode"><option value="gmail" ${(b.mailMode||"gmail")==="gmail"?"selected":""}>Gmail in the browser (new tab)</option><option value="mailto" ${b.mailMode==="mailto"?"selected":""}>The computer's mail app</option></select></div>
-        ${inp("b-crmcc","Copy address the agents watch",b.crmCc==null?"crm@streetsignsupply.com":b.crmCc)}
+        ${inp("b-crmcc","Hidden copy (Bcc) the agents watch",b.crmCc==null?"crm@streetsignsupply.com":b.crmCc)}
       </div>
       <div style="margin-top:8px">${ck("b-crmccon",b.crmCcOn!==false,"Add the copy address to every customer email opened here","Off, emails have to be logged by hand again")}</div>
     </div></section>
