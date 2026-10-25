@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-4 — 2026-10-25
+- Agents can move duplicate and test projects (and empty test accounts) to the recycle bin — never one with a work order or an invoice
+
 ## 2026.11.25-3 — 2026-10-25
 - Sign pictures now print on work orders, quotes and proofs (website pictures are copied into the PDF instead of being left out)
 - agents' revised quote lines find their project by number or name, never making a second one
