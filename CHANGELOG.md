@@ -1,5 +1,11 @@
 # What changed
 
+## 2026.11.21-1 — 2026-10-24
+- New navigation: left sidebar with grouped pages (Dashboard with the Matt's | Company switch, Sales, Production, Inventory, Reports, Admin), slim top bar with page title, search, New, Find, Assistant and bell
+- collapses to icons on smaller windows, phone keeps the bottom bar
+- content capped at 1440 px
+- Website pictures now reach every sign by MUTCD code (about 200 codes from the site), so a line typed as R1-1 shows its picture on quotes and work orders
+
 ## 2026.11.20-3 — 2026-10-24
 - One Dashboard entry in the nav: each signed-in person lands on their own dashboard (Matt's dashboard)
 - the owner, or a team member the owner ticks in Team & access, can flip to the Company dashboard with the toggle beside it

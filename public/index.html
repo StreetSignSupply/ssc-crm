@@ -58,11 +58,84 @@ a{color:var(--blue);text-underline-offset:2px}
 .sub{font-size:12.5px;color:var(--ink2)}
 
 /* ========= shell ========= */
-.app{display:flex;flex-direction:column;height:100%;min-height:0}
-.gbar{background:var(--card);color:var(--ink);
-  border-top:3px solid var(--brand);border-bottom:1px solid var(--line);
-  padding:calc(7px + env(safe-area-inset-top,0px)) 16px 7px;
-  display:flex;align-items:center;gap:8px;flex-wrap:wrap;position:relative;z-index:31}
+.app{display:flex;flex-direction:row;height:100%;min-height:0}
+.apage{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;min-height:0}
+/* ---- left rail: the one place you go to get anywhere ---- */
+.rail{flex:0 0 240px;width:240px;background:var(--card);border-right:1px solid var(--line);display:flex;flex-direction:column;
+  min-height:0;position:relative;z-index:32;transition:width .16s ease,flex-basis .16s ease}
+.rail-logo{height:56px;flex:0 0 56px;display:flex;align-items:center;padding:0 16px;border-bottom:1px solid var(--line2);
+  background:none;border-top:0;border-left:0;border-right:0;color:var(--ink);font-weight:800;font-size:15px;gap:10px;white-space:nowrap;
+  text-align:left;overflow:hidden;width:100%}
+.rail-logo img{height:34px;width:auto;max-width:190px;display:block}
+.rail-logo .rl-mini{display:none}
+.rail-nav{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;padding:8px 0;scrollbar-width:thin}
+.rail-g{padding:12px 20px 4px;font-size:11.5px;font-weight:600;color:var(--ink3);white-space:nowrap;overflow:hidden}
+.rail-i{position:relative;display:flex;align-items:center;gap:10px;height:36px;margin:1px 8px;padding:0 12px;border-radius:6px;
+  color:var(--ink2);font-weight:600;font-size:13.5px;text-decoration:none;white-space:nowrap;background:none;border:0;width:calc(100% - 16px);
+  text-align:left;cursor:pointer;line-height:1}
+.rail-i .ic{width:18px;height:18px;flex:0 0 18px;opacity:.75;stroke-width:1.8}
+.rail-i > span{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.rail-i:hover{background:var(--card2);color:var(--ink)}
+.rail-i:hover .ic{opacity:1}
+.rail-i.on{background:color-mix(in srgb,var(--brand) 9%,var(--card));color:var(--ink)}
+.rail-i.on .ic{opacity:1;color:var(--brand)}
+.rail-i.on::before{content:"";position:absolute;left:-8px;top:7px;bottom:7px;width:3px;border-radius:0 2px 2px 0;background:var(--brand)}
+.rail-i .pill{margin-left:auto;flex:0 0 auto}
+.rail-tog{display:flex;margin:2px 8px 6px 40px;border:1px solid var(--line);border-radius:6px;overflow:hidden;font-size:11.5px;font-weight:600}
+.rail-tog a{flex:1 1 0;text-align:center;padding:4px 6px;color:var(--ink2);text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rail-tog a+a{border-left:1px solid var(--line)}
+.rail-tog a.on{background:var(--ink);color:var(--card)}
+.rail-tog a:hover:not(.on){background:var(--card2);color:var(--ink)}
+.rail-tog .abbr{display:none}
+.rail-foot{flex:0 0 auto;border-top:1px solid var(--line2);padding:4px 0 calc(4px + env(safe-area-inset-bottom,0px))}
+.rail-foot .rail-i{font-size:12.5px;color:var(--ink3)}
+.rail-foot .rl-x{display:none}
+/* icon-only rail: between 900 and 1100 wide, or when you collapse it */
+.app.rail-min .rail{flex-basis:64px;width:64px}
+.app.rail-min .rail-logo{padding:0;justify-content:center}
+.app.rail-min .rail-logo .rl-full{display:none}
+.app.rail-min .rail-logo .rl-mini{display:flex}
+.app.rail-min .rail-g{height:1px;padding:0;margin:9px 18px;background:var(--line2);font-size:0;color:transparent}
+.app.rail-min .rail-nav > .rail-g:first-child{display:none}
+.app.rail-min .rail-i{justify-content:center;padding:0;margin:2px 12px;width:40px;gap:0}
+.app.rail-min .rail-i > span:not(.pill){display:none}
+.app.rail-min .rail-i.on::before{left:-12px}
+.app.rail-min .rail-i .pill{position:absolute;top:1px;right:-4px;margin:0;padding:1px 4px 0;min-width:16px;height:16px;font-size:9.5px;justify-content:center}
+.app.rail-min .rail-tog{flex-direction:column;margin:0 12px 6px}
+.app.rail-min .rail-tog a{flex:0 0 auto;padding:3px 2px}
+.app.rail-min .rail-tog a+a{border-left:0;border-top:1px solid var(--line)}
+.app.rail-min .rail-tog .full{display:none}
+.app.rail-min .rail-tog .abbr{display:inline}
+.app.rail-min .rail-foot .rl-c{display:none}
+.app.rail-min .rail-foot .rl-x{display:inline}
+.app.rail-min .rail-foot .ic{transform:scaleX(-1)}
+@media (max-width:1099px){.rail-foot{display:none}}
+@media (max-width:899px){.rail{display:none}}
+/* ---- top bar: where you are, search, and the few things you do from anywhere ---- */
+.gbar{background:var(--card);color:var(--ink);border-bottom:1px solid var(--line);
+  padding:env(safe-area-inset-top,0px) 20px 0;height:calc(56px + env(safe-area-inset-top,0px));flex:0 0 auto;
+  display:flex;align-items:center;gap:10px;flex-wrap:nowrap;position:relative;z-index:31}
+.gtitle{flex:1 1 auto;min-width:140px;display:flex;align-items:center;overflow:hidden}
+.gpage{font-size:15px;font-weight:800;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gbar .crumbs{margin:0;flex-wrap:nowrap;min-height:0;min-width:0;flex:1 1 auto}
+.gbar .crumbs a,.gbar .crumbs button.c{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px;flex:0 1 auto}
+.gbar .crumbs .here{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:0 1 auto;font-size:13.5px}
+.gbar .crumbs .czbar{margin-left:8px;flex:0 0 auto;gap:4px}
+.gbar .crumbs .czbar .btn{padding:0;width:28px;height:28px;justify-content:center;min-height:0;color:var(--ink2)}
+.gbar .crumbs .czbar .btn:hover{color:var(--ink)}
+.gbar .crumbs .czbar .btn .ic{margin:0}
+.gbar .crumbs .czbar .czt{display:none}
+.czbar .btn .ic{margin-right:4px}
+.guser{padding:3px 11px 3px 4px;gap:7px}
+.gava{width:26px;height:26px;border-radius:50%;background:var(--plate);color:#fff;font-size:10.5px;font-weight:800;display:inline-flex;
+  align-items:center;justify-content:center;letter-spacing:.02em;font-family:"Overpass Mono",monospace}
+.gbar .glogo{display:none}
+@media (max-width:1399px){.gbar .gset kbd{display:none}}
+@media (max-width:899px){
+  .gbar{height:auto;padding:calc(7px + env(safe-area-inset-top,0px)) 16px 7px;flex-wrap:wrap;gap:8px}
+  .gbar .glogo{display:flex}
+  .gtitle{display:none}
+}
 .gback{border:1px solid var(--line);border-radius:var(--r);
   width:34px;height:34px;flex:0 0 auto;line-height:1;color:var(--ink2);padding:0;
   display:flex;align-items:center;justify-content:center;background:var(--card)}
@@ -72,7 +145,8 @@ a{color:var(--blue);text-underline-offset:2px}
 .glogo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:15px;white-space:nowrap;
   background:none;border:0;color:var(--ink);padding:0 6px 0 0;margin-right:4px}
 .glogo img{height:38px;width:auto;max-width:200px;display:block}
-.gsearch{flex:1 1 200px;max-width:420px;position:relative}
+.gsearch{flex:0 4 300px;min-width:170px;position:relative}
+@media (max-width:899px){.gsearch{flex:1 1 200px;max-width:420px}}
 .gsearch input{width:100%;padding:8px 12px 8px 34px;border-radius:999px;border:1px solid var(--line);
   background:var(--card2);color:var(--ink);font-size:13.5px}
 .gsearch input:focus{background:var(--card);border-color:var(--ink3);outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 14%,transparent)}
@@ -96,22 +170,9 @@ a{color:var(--blue);text-underline-offset:2px}
 .gset.p{background:var(--brand);border-color:var(--brand);color:#fff}
 .gset.p:hover{background:var(--brand2);border-color:var(--brand2)}
 .gset kbd,.dd-m kbd{font:600 10.5px/1 "Overpass Mono",monospace;color:var(--ink3);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:2px 5px 1px;margin-left:4px;background:var(--card2)}
-.gbar .gright{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.gbar .gright{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:nowrap;flex:0 0 auto}
+@media (max-width:899px){.gbar .gright{flex-wrap:wrap}}
 
-.navrow{background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:4px;
-  padding:0 12px;position:sticky;top:0;z-index:30;overflow-x:auto;scrollbar-width:none}
-.navrow::-webkit-scrollbar{display:none}
-.tabbar{display:flex;gap:2px;flex:0 0 auto}
-.tabbar a{padding:11px 12px 9px;text-decoration:none;color:var(--ink2);font-weight:700;font-size:13.5px;
-  white-space:nowrap;border-bottom:2px solid transparent;display:flex;align-items:center;gap:6px}
-.tabbar a.on{color:var(--ink);border-bottom-color:var(--brand)}
-.tabbar a:hover{color:var(--ink)}
-.subbar{display:flex;gap:2px;padding:0 0 0 12px;margin-left:8px;border-left:1px solid var(--line);flex:0 0 auto}
-.subbar a{padding:5px 11px;margin:6px 0;border-radius:999px;text-decoration:none;color:var(--ink2);font-weight:600;font-size:12.5px;white-space:nowrap;line-height:1.3}
-.subbar a.on{color:var(--card);background:var(--ink)}
-.dashtog{display:inline-flex;margin-left:6px;border:1px solid var(--line);border-radius:999px;overflow:hidden;vertical-align:middle;font-size:12px}
-.dashtog a{padding:3px 10px;color:var(--ink2);text-decoration:none;border-radius:0}.dashtog a.on{background:var(--ink);color:#fff}.dashtog a+a{border-left:1px solid var(--line)}
-.subbar a:hover:not(.on){color:var(--ink);background:var(--card2)}
 .ptabs{display:flex;gap:3px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0}
 .ptabs::-webkit-scrollbar{display:none}
 .hl .acts .backproj{max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:#fff;color:var(--ink);font-weight:800}
@@ -120,8 +181,7 @@ a{color:var(--blue);text-underline-offset:2px}
 .ptabs button.on{background:var(--ink);color:var(--card);border-color:var(--ink)}
 .nextstep{display:inline-flex;align-items:center;gap:6px}
 .main{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch}
-.pad{padding:16px 20px 32px;max-width:1520px;margin:0 auto}
-@media (min-width:1700px){.pad{max-width:1680px}}
+.pad{padding:20px 24px 40px;max-width:1440px;margin:0 auto}
 
 /* hazard stripe, used sparingly */
 .stripe{height:6px;background:repeating-linear-gradient(135deg,
@@ -143,8 +203,6 @@ a{color:var(--blue);text-underline-offset:2px}
 /* ========= object marks ========= */
 .ic{flex:0 0 auto;vertical-align:-2px}
 .btn .ic{margin-right:5px;vertical-align:-3px}
-.tabbar .ic{margin-right:5px;vertical-align:-3px;opacity:.7}
-.tabbar a.on .ic{opacity:1}
 .actico{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;
   flex:0 0 auto;color:#fff;margin-top:1px;position:relative;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.30),inset 0 -2px 0 rgba(0,0,0,.18),
@@ -497,8 +555,7 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
   .main table.stackplain td:only-child,.main table.stackplain td[colspan]{grid-column:1 / -1}
   .card.wide{overflow-x:visible}
 }
-@media (max-width:700px){
-  .tabbar,.subbar,.navrow{display:none}
+@media (max-width:899px){
   .mnav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--plate);
     box-shadow:0 -2px 0 var(--brand),0 -6px 18px rgba(0,0,0,.25);
     padding:4px 4px calc(4px + env(safe-area-inset-bottom,0px))}
@@ -508,6 +565,8 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
   .mnav a.on{color:#fff;background:rgba(255,255,255,.08);box-shadow:inset 0 -3px 0 var(--brand)}
   .mnav .ic{opacity:.9}
   .main{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+}
+@media (max-width:700px){
   .gbar .gset[data-go="settings"],.gbar .gset[data-palette],.gbar .gdd{display:none}
   .gbar .gright{margin-left:0}
   .ptabs{overflow-x:auto;flex-wrap:nowrap;padding-bottom:4px}.ptabs button{white-space:nowrap}
@@ -702,6 +761,11 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
 .alert .btn:hover{border-color:var(--ink3)}
 .alert .sp{margin-left:auto;display:flex;gap:7px;flex:0 0 auto;flex-wrap:wrap}
 .alert > span:first-child{flex:1 1 260px;min-width:0}
+.alert.strip{border-radius:0;border-width:0 0 1px;border-left:0;padding:6px 24px;font-size:12.5px;gap:8px;flex-wrap:nowrap;flex:0 0 auto}
+.alert.strip .sp{flex-wrap:nowrap}
+.alert.strip .btn{padding:4px 9px;font-size:12px;min-height:0}
+.alert.strip > span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:700px){.alert.strip{flex-wrap:wrap;padding:8px 14px}.alert.strip > span:first-child{white-space:normal}}
 
 /* ========= files ========= */
 .fgal{display:grid;grid-template-columns:repeat(auto-fill,minmax(152px,1fr));gap:12px;padding:15px}
@@ -797,7 +861,7 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
 .gate .h{font-size:11.5px;color:var(--ink2)}
 .warn{background:#3A3016;color:#F5E3A6;padding:10px 15px;font-size:13px;font-weight:600;border-radius:var(--r);border:1px solid #5C4A12;border-left:4px solid #C08A10}
 :root:not([data-theme="dark"]) .warn{background:#FFF6D6;color:#5E4600;border:1px solid #F0D98C;border-left:4px solid #E0A800;font-weight:600}
-.tabbar .pill,.subbar .pill{--pb:#D50101!important;--pf:#fff!important;--pe:#D50101!important;padding:2px 6px 1px;font-size:10.5px}
+.rail .pill{--pb:#D50101!important;--pf:#fff!important;--pe:#D50101!important;padding:2px 6px 1px;font-size:10.5px}
 .note{background:var(--card2);border-left:3px solid var(--brand);padding:10px 13px;font-size:13px;margin:0}
 .items{width:100%;border-collapse:collapse;font-size:13px}
 .items th{padding:7px 9px;font-size:11px}
@@ -1264,6 +1328,10 @@ const ICO={
   search:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 4.5 4.5"/>',
   alert:'<path d="M12 3.5 21 19.5H3z"/><path d="M12 9.5v4.5M12 17h.01"/>',
   bell:'<path d="M6 9a6 6 0 0 1 12 0c0 5 2 6.5 2 6.5H4S6 14 6 9z"/><path d="M10 19a2 2 0 0 0 4 0"/>',
+  settings:'<path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2" fill="var(--card)"/><circle cx="15" cy="12" r="2" fill="var(--card)"/><circle cx="8" cy="18" r="2" fill="var(--card)"/>',
+  collapse:'<path d="m11 7-5 5 5 5M18 7l-5 5 5 5"/>',
+  openall:'<path d="m7 10 5-5 5 5M7 14l5 5 5-5"/>',
+  closeall:'<path d="m7 4 5 5 5-5M7 20l5-5 5 5"/>',
   ship:'<path d="M3 17.5c1.5 1 3 1 4.5 0s3-1 4.5 0 3 1 4.5 0 3-1 4.5 0"/><path d="M5.5 14 6.5 8h11l1 6"/><path d="M12 8V4.5M8.5 4.5h7"/>',
   money:'<circle cx="12" cy="12" r="9"/><path d="M12 6.5v11M14.8 9.2a3 3 0 0 0-2.8-1.4c-1.7 0-2.6.9-2.6 2s.9 1.8 2.6 2.1 2.9.9 2.9 2.2-1.1 2-2.9 2a3.2 3.2 0 0 1-3-1.6"/>'
 };
@@ -4815,7 +4883,7 @@ function webcatUrl(which){
   if(/gid=\d+/.test(base))return base.replace(/gid=\d+/,"gid="+WEBCAT_GIDS[which]);
   return base+(base.indexOf("?")>=0?"&":"?")+"gid="+WEBCAT_GIDS[which]+"&single=true&output=csv"}
 function webcatStat(){const m=S.webcatMeta||{};if(!m.products)return "Nothing pulled yet.";
-  return m.products+" products, "+(m.vars||0)+" sizes and materials, "+(m.pics||0)+" with pictures — pulled "+fmtTs(m.updatedAt||0)}
+  return m.products+" products, "+(m.vars||0)+" sizes and materials, "+(m.pics||0)+" with pictures"+(m.codes?", "+m.codes+" MUTCD codes pictured":"")+" — pulled "+fmtTs(m.updatedAt||0)}
 function webcatParseAttrs(attrs,variation){
   const o={size:"",mat:""};const parts=String(attrs||"").split(/,\s*(?=[A-Za-z ]+:)/);
   const rest=[];
@@ -4842,7 +4910,8 @@ async function webcatSync(auto){
   rowsP.forEach(r=>{const name=String(r.product||"").trim();if(!name)return;
     const id=String(r.product_id||("n:"+name));
     let p=prods.get(id);const pc=picBy[String(r.product_id||"")]||picBy["n:"+name.toUpperCase()]||{};
-    if(!p){p={id,name,cat:String(r.category||pc.category||""),url:String(r.url||pc.url||""),img:String(pc.image||""),thumb:String(pc.thumb||""),vars:[]};prods.set(id,p)}
+    if(!p){const codes=String(pc.short_description||"").toUpperCase().replace(/MUTCD/g," ").split(/[\s,\/;]+/).map(x=>x.replace(/[^A-Z0-9\-]/g,"")).filter(x=>/^[A-Z]{1,3}\d{1,3}[A-Z]?(-\d{1,3}[A-Z]*)?$/.test(x));
+      p={id,name,cat:String(r.category||pc.category||""),url:String(r.url||pc.url||""),img:String(pc.image||""),thumb:String(pc.thumb||""),codes,vars:[]};prods.set(id,p)}
     const a=webcatParseAttrs(r.attributes,r.variation);const price=csvNum(r.price);if(price==="")return;
     const t=[];for(let i=1;i<=5;i++){const q=r["tier_"+i+"_qty"],tp=csvNum(r["tier_"+i+"_price"]);if(q&&tp!=="")t.push([String(q),tp])}
     p.vars.push({size:a.size,mat:a.mat,grade:gradeTok(a.mat),price,t,v:String(r.variation||"")})});
@@ -4859,6 +4928,14 @@ async function webcatSync(auto){
     list.forEach(p=>p.vars.forEach(v=>{const k=[norm(p.name),v.size,v.grade||v.mat].join("|");const ex=byKey[k];
       if(ex&&!ex.web)return;byKey[k]={price:v.price,name:p.name,code:"",size:v.size,grade:v.grade||v.mat,web:1};n++}));
     await setDoc("settings/pricelist",{byKey,updatedAt:Date.now()});S.pricelist={byKey}}catch(e){}
+  // every website sign that names its MUTCD code gives that code a picture (yours, uploaded by hand, are never replaced)
+  try{const byCode=Object.assign({},(S.signlib||{}).byCode||{});let n=0;const pick={};
+    list.forEach(p=>{if(!p.img)return;(p.codes||[]).forEach(c=>{const cur=pick[c];
+      // prefer the plainest product name for a code (no brackets, shortest)
+      const score=(p.name.indexOf("(")>=0?100:0)+p.name.length;if(!cur||score<cur.score)pick[c]={p,score}})});
+    Object.keys(pick).forEach(c=>{const ex=byCode[c];if(ex&&ex.img&&!ex.web)return;byCode[c]=Object.assign({},ex||{},{name:(ex&&ex.name)||pick[c].p.name.replace(/\s+Sign$/i,""),img:pick[c].p.img,web:1});n++});
+    if(n){await setDoc("settings/signlib",{byCode});S.signlib={byCode}}
+    meta.codes=n}catch(e){}
   S.webcat={products:list};S.webcatMeta=Object.assign({},meta,{chunks:chunks.length});S.webcatIdx=null;
   try{await push("settings/brand",{webcatLast:Date.now()})}catch(e){}
   if(!auto)toast("Website catalogue: "+meta.products+" products, "+meta.pics+" with pictures");
@@ -7468,7 +7545,8 @@ function render(){
   document.querySelectorAll("#viewer,.scrim,.modal").forEach(el=>el.remove());
   const prev=$(".main"),st=prev?prev.scrollTop:0,wy=window.scrollY||0;
   const rkey=(S.route&&S.route.v||"")+"/"+(S.route&&S.route.id||"");
-  $("#root").innerHTML=`<div class="app">${gbar()}${tabbar()}${signinBar()}${scopeBar()}${S.ready&&db?alertBar():""}<main class="main">${body()}</main>${mobileNav()}</div>`;
+  $("#root").innerHTML=`<div class="app${railMin()?" rail-min":""}">${rail()}<div class="apage">${gbar()}${signinBar()}${scopeBar()}${S.ready&&db?alertBar():""}<main class="main">${body()}</main></div>${mobileNav()}</div>`;
+  placeCrumbs();applyRail();
   orderPage();
   setTimeout(()=>{try{linkBackfill()}catch(e){}try{autoPass()}catch(e){}},0);
   document.querySelectorAll(".main .cols.flow").forEach(w=>w.classList.add("placed"));
@@ -7490,32 +7568,61 @@ function render(){
   if(rkey===S.lastKey){if(m&&st)m.scrollTop=st;if(wy)window.scrollTo(0,wy)}
   S.lastView=S.route.v;S.lastKey=rkey;
 }
+const RECORD_VIEWS={project:1,account:1,contact:1,job:1,vendor:1,item:1};
 function gbar(){
-  const b=S.brand||DEF_BRAND;
+  const b=S.brand||DEF_BRAND,v=S.route&&S.route.v||"home";
+  const t=S.viewerTeam;const first=t?String(t.name||"").trim().split(/\s+/)[0]:"";
   return `<header class="gbar">
-    <button class="gback" data-back="1" title="Back" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button>
+    ${RECORD_VIEWS[v]?`<button class="gback" data-back="1" title="Back" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button>`:""}
     <button class="glogo" data-go="home" aria-label="Home" title="Home">
       ${b.logo?`<img src="${esc(b.logo)}" alt="${esc(b.name||"Logo")}">`:mark()}
       ${b.logo?"":`<span>${esc(b.name||"Street Sign Supply")}</span>`}</button>
+    <div class="gtitle" id="gtitle" data-page="${esc(pageName())}"><span class="gpage">${esc(pageName())}</span></div>
     <div class="gsearch"><input id="gq" placeholder="Search accounts, projects, jobs, contacts"
       value="${esc(S.gsearch)}" autocomplete="off">${S.gsearch.trim()?searchRes():""}</div>
-    ${S.viewerTeam?`<button class="gset" data-go="mybook" title="Your accounts, projects and work orders">
-      
-        <span style="margin-left:6px">${esc(S.viewerTeam.name)}</span></button>`
-      :(S.viewer&&viewerId())?`<button class="gset" id="claimbtn"
-        style="border-color:var(--brand);color:var(--brand)">Sign in as…</button>`
-      :`<div class="gme" ${(S.me||"").trim()?"":`style="border-color:var(--brand);box-shadow:0 0 0 2px rgba(213,1,1,.18)"`}>
-        <label for="me">${(S.me||"").trim()?"Initials":"Your initials"}</label>
-        <input id="me" maxlength="4" value="${esc(S.me)}" placeholder="??"></div>`}
     <div class="gright">
     <button class="gset p" data-quick="1" title="Create something">+ New</button>
     <button class="gset" data-palette="1" title="Find anything or start anything — Ctrl+K">Find <kbd>Ctrl K</kbd></button>
     ${assistMenu()}
     ${bellBtn()}
-    <button class="gset" data-go="settings" title="Settings">Settings</button>
+    ${t?`<button class="gset guser" data-go="mybook" title="Your accounts, projects and work orders">
+        <span class="gava" aria-hidden="true">${esc(String(t.initials||first.slice(0,2)).toUpperCase())}</span><span>${esc(first||t.name||"")}</span></button>`
+      :(S.viewer&&viewerId())?`<button class="gset" id="claimbtn"
+        style="border-color:var(--brand);color:var(--brand)">Sign in as…</button>`
+      :`<div class="gme" ${(S.me||"").trim()?"":`style="border-color:var(--brand);box-shadow:0 0 0 2px rgba(213,1,1,.18)"`}>
+        <label for="me">${(S.me||"").trim()?"Initials":"Your initials"}</label>
+        <input id="me" maxlength="4" value="${esc(S.me)}" placeholder="??"></div>`}
     ${typeof window.sscSignOut==="function"?`<button class="gset" data-signout="1" title="Sign out of the CRM">Sign out</button>`:""}
   </header>`;
 }
+// the top bar names the page; a record page's breadcrumb trail moves up into it (see placeCrumbs)
+function navCur(){const v=S.route&&S.route.v||"home";
+  return ({account:"accounts",contact:"contacts",project:"projects",job:"jobs",vendor:"vendors",item:"inventory",bin:"archive",pricing:"settings"}[v]||v)}
+function pageName(){
+  const cur=navCur();
+  if(cur==="home"||cur==="mybook")return dashLabel(cur);
+  for(const g of NAVG){const p=g.pages.find(x=>x[0]===cur);if(p)return p[2]}
+  return cur.charAt(0).toUpperCase()+cur.slice(1);
+}
+function placeCrumbs(){
+  const slot=$("#gtitle");if(!slot)return;
+  const phone=isPhone();
+  const inBar=slot.querySelector(".crumbs"),inPage=$(".main .crumbs"),home=$(".main .crumb-home");
+  if(!phone&&inPage){const ph=document.createElement("span");ph.className="crumb-home";ph.hidden=true;inPage.parentNode.insertBefore(ph,inPage);
+    slot.innerHTML="";slot.appendChild(inPage)}
+  else if(phone&&inBar&&home){home.parentNode.insertBefore(inBar,home);home.remove();slot.innerHTML=`<span class="gpage">${esc(slot.dataset.page||"")}</span>`}
+}
+// the rail folds to icons when you ask it to (remembered on this device) and whenever the window is narrower than 1100
+function railPref(){try{return localStorage.getItem("sscRail")==="1"}catch(e){return false}}
+function railMin(){let narrow=false;try{narrow=window.matchMedia("(max-width:1099px)").matches}catch(e){}return narrow||railPref()}
+function applyRail(){
+  const app=$(".app");if(!app)return;
+  const min=railMin();app.classList.toggle("rail-min",min);
+  const b=app.querySelector("[data-railtog]");if(b){b.title=railPref()?"Expand the menu":"Collapse the menu";b.setAttribute("aria-expanded",railPref()?"false":"true")}
+}
+function toggleRail(){try{localStorage.setItem("sscRail",railPref()?"0":"1")}catch(e){}applyRail()}
+try{window.matchMedia("(max-width:1099px)").addEventListener("change",applyRail)}catch(e){}
+try{window.matchMedia("(max-width:700px)").addEventListener("change",placeCrumbs)}catch(e){}
 // one quiet menu for the assistant and the help toggles — it knows which record is open
 function assistMenu(){
   const r=S.route||{};const id=r.id||"";
@@ -7617,20 +7724,32 @@ function decorateAccess(){
   if(!A.del)document.querySelectorAll(".main [data-del]").forEach(b=>b.style.display="none");
   if(!A.settings)document.querySelectorAll("[data-go=settings]").forEach(b=>b.style.display="none");
 }
-function tabbar(){
-  const v=S.route.v;
-  const cur=({account:"accounts",contact:"contacts",project:"projects",job:"jobs",vendor:"vendors",item:"inventory",bin:"archive",pricing:"settings"}[v]||v);
-  const grp=NAVG.find(g=>g.pages.some(x=>x[0]===cur))||NAVG[0];
-  const badge=r=>r==="calendar"&&overdueItems().length?` <span class="pill r" style="margin-left:4px">${overdueItems().length}</span>`
-    :r==="inventory"&&lowStock().length?` <span class="pill r">${lowStock().length}</span>`:"";
-  const gBadge=g=>{const t=g.pages.reduce((x,[r])=>x+(r==="calendar"?overdueItems().length:r==="inventory"?lowStock().length:0),0);return t?` <span class="pill r" style="margin-left:4px">${t}</span>`:""};
-  const pages=grp.pages.filter(([r])=>r!=="settings"||can("settings"));
+function rail(){
+  const cur=navCur(),b=S.brand||DEF_BRAND;
+  const badge=r=>r==="calendar"&&overdueItems().length?`<span class="pill r">${overdueItems().length}</span>`
+    :r==="jobs"&&overdueItems().filter(x=>x.k==="job").length?`<span class="pill r">${overdueItems().filter(x=>x.k==="job").length}</span>`
+    :r==="inventory"&&lowStock().length?`<span class="pill r">${lowStock().length}</span>`:"";
   const onDash=cur==="home"||cur==="mybook";
-  return `<div class="navrow"><nav class="tabbar" aria-label="Sections">${NAVG.filter(g=>g.id!=="admin"||can("settings")||true).map(g=>`<a href="#/${g.pages[0][0]}" class="${g===grp?"on":""}" ${g===grp?'aria-current="true"':""}>${ic(g.icon,14)}${g.label}${g===grp?"":gBadge(g)}</a>`).join("")}</nav>
-  <nav class="subbar" aria-label="Pages">${pages.map(([r,i,l])=>{
-    if(r==="mybook"){const target=S.viewerTeam||!canCompanyDash()?"mybook":"home";const lbl=onDash?dashLabel(cur):dashLabel(S.viewerTeam?"mybook":"home");
-      return `<a href="#/${target}" class="${onDash?"on":""}" ${onDash?'aria-current="page"':""}>${esc(lbl)}</a>${onDash?dashToggle(cur):""}`}
-    return `<a href="#/${r}" class="${cur===r?"on":""}" ${cur===r?'aria-current="page"':""}>${l}${badge(r)}</a>`}).join("")}</nav></div>`;
+  const item=(r,i,l,title)=>`<a href="#/${r}" class="rail-i ${cur===r?"on":""}" ${cur===r?'aria-current="page"':""} title="${esc(title||l)}">${ic(i,18)}<span>${esc(l)}</span>${badge(r)}</a>`;
+  // the dashboard row: your own by default; the owner (or anyone the owner allows) can flip to the company's
+  const target=S.viewerTeam||!canCompanyDash()?"mybook":"home";
+  const lbl=onDash?dashLabel(cur):dashLabel(S.viewerTeam?"mybook":"home");
+  const mineAbbr=dashFirst()==="My"?"Me":dashFirst().charAt(0);
+  const tog=onDash&&canCompanyDash()?`<nav class="rail-tog" aria-label="Which dashboard">
+      <a href="#/mybook" class="${cur!=="home"?"on":""}" title="${esc(dashLabel("mybook"))}"><span class="full">${esc(dashFirst()==="My"?"Mine":dashFirst()+"'s")}</span><span class="abbr">${esc(mineAbbr)}</span></a><a href="#/home" class="${cur==="home"?"on":""}" title="Company dashboard"><span class="full">Company</span><span class="abbr">Co</span></a></nav>`:"";
+  const groups=NAVG.map(g=>{
+    const pages=g.pages.filter(([r])=>r!=="mybook").filter(([r])=>r!=="settings"||can("settings"));
+    return `<div class="rail-g">${esc(g.label)}</div>${pages.map(([r,i,l])=>item(r,r==="settings"?"settings":i,l)).join("")}`}).join("");
+  return `<aside class="rail" aria-label="Main menu">
+    <button class="rail-logo" data-go="home" aria-label="Home" title="Home">
+      <span class="rl-full">${b.logo?`<img src="${esc(b.logo)}" alt="${esc(b.name||"Logo")}">`:mark()+`<span style="margin-left:10px">${esc(b.name||"Street Sign Supply")}</span>`}</span>
+      <span class="rl-mini">${mark()}</span></button>
+    <nav class="rail-nav" aria-label="Pages">
+      <a href="#/${target}" class="rail-i ${onDash?"on":""}" ${onDash?'aria-current="page"':""} title="${esc(lbl)}">${ic("home",18)}<span>${esc(lbl)}</span></a>${tog}
+      ${groups}
+    </nav>
+    <div class="rail-foot"><button class="rail-i" data-railtog="1" title="Collapse the menu">${ic("collapse",18)}<span class="rl-c">Collapse</span><span class="rl-x">Expand</span></button></div>
+  </aside>`;
 }
 function body(){
   if(!S.ready)return `<div class="boot">Connecting…</div>`;
@@ -7974,8 +8093,8 @@ function crumbBar(parts){
       <span class="sep">\u203a</span>`).join("")}
     <span class="here">${esc(last.l)}</span>
     <span class="czbar">
-      <button class="btn sm" data-czall="open" title="Open every section">Open all</button>
-      <button class="btn sm" data-czall="shut" title="Collapse every section">Close all</button>
+      <button class="btn sm" data-czall="open" title="Open every section" aria-label="Open every section">${ic("openall",13)}<span class="czt">Open all</span></button>
+      <button class="btn sm" data-czall="shut" title="Collapse every section" aria-label="Collapse every section">${ic("closeall",13)}<span class="czt">Close all</span></button>
     </span>
   </nav>`;
 }
@@ -8222,7 +8341,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.20-3";
+const APP_VERSION="2026.11.21-1";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -9275,7 +9394,7 @@ function alertBar(){
   const od=overdueItems();
   if(!od.length||S.alertOff)return "";
   const top=od.slice(0,2).map(x=>x.label+" ("+Math.abs(x.d)+"d)").join(", ");
-  return `<div class="alert"><span>${od.length} past due — ${esc(top)}${od.length>2?" and "+(od.length-2)+" more":""}</span>
+  return `<div class="alert strip"><span>${od.length} past due — ${esc(top)}${od.length>2?" and "+(od.length-2)+" more":""}</span>
     <span class="sp"><button class="btn sm" data-go="calendar">See all</button>
       <button class="btn sm" data-remind="1">Email the list</button>
       <button class="btn sm" data-alertoff="1">Dismiss</button></span></div>`;
@@ -13343,6 +13462,7 @@ document.addEventListener("click",e=>{
     const m=$(".main");if(m)m.scrollTop=0;return}
   const iv=t.closest&&t.closest("[data-invnum]");
   if(iv){invNumAsk(iv.dataset.invnum);return}
+  if(t.closest&&t.closest("[data-railtog]")){toggleRail();return}
   document.querySelectorAll("details.dd[open]").forEach(d=>{if(!d.contains(t)||t.closest(".dd-m"))d.removeAttribute("open")});
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape")document.querySelectorAll("details.dd[open]").forEach(d=>d.removeAttribute("open"))});
