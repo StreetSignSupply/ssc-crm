@@ -2801,6 +2801,23 @@ function loadScriptOnce(src){return new Promise((ok,no)=>{
 async function pdfLibs(){if(/jsdom/i.test(navigator.userAgent||""))throw new Error("the PDF tools didn't load");
   for(const u of PDF_LIBS)await loadScriptOnce(u);
   if(!window.html2canvas||!window.jspdf||!window.jspdf.jsPDF)throw new Error("PDF tools missing");return {h2c:window.html2canvas,jsPDF:window.jspdf.jsPDF}}
+// Pictures from the website (or any other site) don't send the "you may copy me" header, so the PDF
+// drawing step leaves them out. Each one is copied into the page first: straight from the site when it
+// allows it, otherwise through a public image relay that does. Copies are kept for the session.
+const IMG_RELAYS=[u=>"https://wsrv.nl/?url="+encodeURIComponent(u)+"&w=640&output=png",
+  u=>"https://images.weserv.nl/?url="+encodeURIComponent(u)+"&w=640&output=png"];
+async function imgAsData(u){S._imgData=S._imgData||{};if(S._imgData[u])return S._imgData[u];
+  const grab=async url=>{try{const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),8000);
+    const r=await fetch(url,{mode:"cors",cache:"force-cache",signal:ctl.signal});clearTimeout(t);if(!r.ok)return "";
+    const b=await r.blob();if(!/^image\//.test(b.type||"")||b.size<60)return "";
+    return await new Promise(ok=>{const fr=new FileReader();fr.onload=()=>ok(String(fr.result||""));fr.onerror=()=>ok("");fr.readAsDataURL(b)})}catch(e){return ""}};
+  let d=await grab(u);for(const f of IMG_RELAYS){if(d)break;d=await grab(f(u))}
+  if(d)S._imgData[u]=d;return d}
+async function inlineImages(doc){
+  const imgs=[...doc.images].filter(im=>{const v=im.getAttribute("src")||"";if(!/^https?:/i.test(v))return false;
+    try{return new URL(v,location.href).origin!==location.origin}catch(e){return true}});
+  await Promise.all(imgs.map(async im=>{const d=await imgAsData(im.getAttribute("src"));if(!d)return;
+    await new Promise(r=>{im.onload=im.onerror=r;im.src=d;setTimeout(r,3000)})}))}
 // opt: {w,h} page inches; pages: selector for one element per page (labels); footer: text before "Page x of y"
 async function htmlToPdf(html,opt){
   const L=await pdfLibs();const DPI=96,SC=2;
@@ -2816,6 +2833,7 @@ async function htmlToPdf(html,opt){
     await new Promise(r=>setTimeout(r,60));
     try{if(d.fonts&&d.fonts.ready)await d.fonts.ready}catch(e){}
     await Promise.all([...d.images].map(im=>im.complete?0:new Promise(r=>{im.onload=im.onerror=r;setTimeout(r,4000)})));
+    try{await inlineImages(d)}catch(e){}
     fr.style.height=Math.max(ph,d.documentElement.scrollHeight)+"px";
     const pdf=new L.jsPDF({unit:"in",format:[opt.w,opt.h],orientation:opt.w>opt.h?"landscape":"portrait",compress:true});
     const shots=[];
@@ -8500,7 +8518,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-2";
+const APP_VERSION="2026.11.25-3";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -12674,7 +12692,8 @@ async function pipeImportRows(rows){
         done[id]=1;mark(id);continue}
     }
     // --- updates: revised lines for a project the agents opened ---
-    if(r.updates){const tgt=live(S.projects).find(p=>p.feedId===String(r.updates).trim());
+    if(r.updates){const nm=String(r.project||"").trim().toLowerCase();
+      const tgt=pipeFind(String(r.updates).trim())||(nm?live(S.projects).find(p=>String(p.name||"").trim().toLowerCase()===nm):null);
       if(tgt){const up={updatedAt:now};const cur=PATH.indexOf(tgt.stage||"inquiry");
         if(ol.length&&cur>PATH.indexOf("quoted")){
           // won or in the shop: the work orders point at these line ids, so the lines stay — the revision lands as a note to review
