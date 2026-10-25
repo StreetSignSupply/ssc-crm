@@ -11,35 +11,35 @@
 :root{
   color-scheme:light dark;
   --brand:#D50101; --brand2:#8E0000; --accent:#FFFFFF; --accent-ink:#1A1500;
-  --bg:#E9EAEC; --card:#FFFFFF; --card2:#F4F5F7; --hd:#FAFAFB;
-  --plate:#141414; --plate2:#242424;
-  --ink:#141414; --ink2:#5A5E63; --ink3:#6A7077; --danger-ink:#C4150F; --brand-ink:#C40101;
-  --line:#D3D7DC; --line2:#E6E9ED;
-  --acct:#D50101; --cont:#5A5E63; --proj:#141414; --job:#8E0000; --file:#3A3D40;
-  --green:#1C7A3E; --yellow:#E0B400; --yellow-ink:#1A1500;
-  --orange:#C25508; --red:#D50101; --blue:#1B4E82; --slate:#5A5E63;
-  --sh:0 1px 1px rgba(20,20,20,.07),0 2px 5px rgba(20,20,20,.05);
-  --sh2:0 12px 34px rgba(20,20,20,.20);
-  --r:3px;
-  --grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='.035'/%3E%3C/svg%3E");
+  --bg:#EEECE7; --card:#FFFFFF; --card2:#F6F5F1; --hd:#FBFAF8;
+  --plate:#1F1E1B; --plate2:#2E2D29;
+  --ink:#1D1C19; --ink2:#5E5B55; --ink3:#86827A; --danger-ink:#B9120E; --brand-ink:#B9120E;
+  --line:#DBD7CF; --line2:#ECE9E3;
+  --acct:#D50101; --cont:#5E5B55; --proj:#1D1C19; --job:#8E0000; --file:#3A3D40;
+  --green:#1E7A3F; --yellow:#E0B400; --yellow-ink:#1A1500;
+  --orange:#BF5A0A; --red:#C4150F; --blue:#2458A3; --slate:#5E5B55;
+  --sh:0 1px 1px rgba(30,28,24,.05),0 1px 3px rgba(30,28,24,.06);
+  --sh2:0 16px 40px rgba(30,28,24,.22);
+  --r:6px; --r2:10px;
+  --grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='.03'/%3E%3C/svg%3E");
   box-sizing:border-box;
   padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#0E0F10; --card:#17191B; --card2:#1E2124; --hd:#1E2124;
-  --plate:#000000; --plate2:#151515;
-  --ink:#E9EAEB; --ink2:#A3A8AE; --ink3:#8F959C; --danger-ink:#FF6B6B; --brand-ink:#FF6B6B;
-  --line:#2E3236; --line2:#24282B;
+  --bg:#141412; --card:#1C1B19; --card2:#23221F; --hd:#201F1C;
+  --plate:#0C0C0B; --plate2:#1A1917;
+  --ink:#ECEAE4; --ink2:#A8A49C; --ink3:#89857D; --danger-ink:#FF7A72; --brand-ink:#FF7A72;
+  --line:#34322E; --line2:#2A2925;
   --acct:#E8272A; --cont:#8B9198; --proj:#D9DBDD; --job:#B03030; --file:#9AA0A6;
-  --green:#2C9A55; --yellow:#D9AE00; --orange:#DE6F14; --red:#E8272A; --blue:#72A7DB; --slate:#8B9198;
-  --sh:0 1px 2px rgba(0,0,0,.6); --sh2:0 14px 40px rgba(0,0,0,.6);
+  --green:#3DA868; --yellow:#D9AE00; --orange:#E6792A; --red:#F0433D; --blue:#7FB0E6; --slate:#8B9198;
+  --sh:0 1px 2px rgba(0,0,0,.5); --sh2:0 16px 44px rgba(0,0,0,.65);
 }}
 :root[data-theme="dark"]{
-  --bg:#0E0F10;--card:#17191B;--card2:#1E2124;--hd:#1E2124;--plate:#000;--plate2:#151515;
-  --ink:#E9EAEB;--ink2:#A3A8AE;--ink3:#8F959C;--danger-ink:#FF6B6B;--brand-ink:#FF6B6B;--line:#2E3236;--line2:#24282B;
+  --bg:#141412;--card:#1C1B19;--card2:#23221F;--hd:#201F1C;--plate:#0C0C0B;--plate2:#1A1917;
+  --ink:#ECEAE4;--ink2:#A8A49C;--ink3:#89857D;--danger-ink:#FF7A72;--brand-ink:#FF7A72;--line:#34322E;--line2:#2A2925;
   --acct:#E8272A;--cont:#8B9198;--proj:#D9DBDD;--job:#B03030;--file:#9AA0A6;
-  --green:#2C9A55;--yellow:#D9AE00;--orange:#DE6F14;--red:#E8272A;--blue:#72A7DB;--slate:#8B9198;
-  --sh:0 1px 2px rgba(0,0,0,.6);--sh2:0 14px 40px rgba(0,0,0,.6);
+  --green:#3DA868;--yellow:#D9AE00;--orange:#E6792A;--red:#F0433D;--blue:#7FB0E6;--slate:#8B9198;
+  --sh:0 1px 2px rgba(0,0,0,.5);--sh2:0 16px 44px rgba(0,0,0,.65);
 }
 *,*::before,*::after{box-sizing:inherit}
 html{height:100%;overflow:hidden}
@@ -50,69 +50,75 @@ body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 a{color:var(--blue);text-underline-offset:2px}
-:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:4px}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 .mono{font-family:"Overpass Mono",monospace;font-variant-numeric:tabular-nums}
-.hl-facts .v.mono,.kpiv,.trk-ph-facts b,td.mono,.tot span{font-family:Overpass,"Helvetica Neue",Arial,sans-serif;
+.hl-facts .v.mono,.kpiv,.trk-ph-facts b,td.mono,.tot span,.billval .big,.pstick-fact{font-family:Overpass,"Helvetica Neue",Arial,sans-serif;
   font-variant-numeric:tabular-nums lining-nums;font-feature-settings:"tnum" 1,"lnum" 1;letter-spacing:0}
-.sub{font-size:12px;color:var(--ink2)}
+.sub{font-size:12.5px;color:var(--ink2)}
 
 /* ========= shell ========= */
 .app{display:flex;flex-direction:column;height:100%;min-height:0}
 .gbar{background:var(--card);color:var(--ink);
-  border-bottom:1px solid var(--line);
-  box-shadow:inset 0 -4px 0 var(--brand);
-  padding:calc(9px + env(safe-area-inset-top,0px)) 16px 12px;
-  display:flex;align-items:center;gap:14px;flex-wrap:wrap;position:relative;z-index:31}
-.gback{border:1px solid var(--line);border-radius:10px;
-  width:36px;height:36px;flex:0 0 auto;line-height:1;color:var(--ink);padding:0;
-  display:flex;align-items:center;justify-content:center;
-  background:var(--card2);background:linear-gradient(180deg,color-mix(in srgb,var(--card2) 86%,#fff),var(--card2));
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 1px 2px rgba(0,0,0,.25)}
-.gback svg{width:18px;height:18px;stroke-width:2.4}
-.gback:hover{border-color:var(--brand);color:var(--brand);background:var(--card)}
+  border-top:3px solid var(--brand);border-bottom:1px solid var(--line);
+  padding:calc(7px + env(safe-area-inset-top,0px)) 16px 7px;
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;position:relative;z-index:31}
+.gback{border:1px solid var(--line);border-radius:var(--r);
+  width:34px;height:34px;flex:0 0 auto;line-height:1;color:var(--ink2);padding:0;
+  display:flex;align-items:center;justify-content:center;background:var(--card)}
+.gback svg{width:18px;height:18px;stroke-width:2.2}
+.gback:hover{border-color:var(--ink3);color:var(--ink);background:var(--card2)}
 .gback:active{transform:translateY(1px)}
 .glogo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:15px;white-space:nowrap;
-  background:none;border:0;color:var(--ink);padding:0}
-.glogo img{height:44px;width:auto;max-width:220px;display:block}
-.gsearch{flex:1 1 220px;max-width:430px;position:relative}
-.gsearch input{width:100%;padding:8px 12px;border-radius:var(--r);border:1px solid var(--line);
-  background:var(--card2);color:var(--ink)}
+  background:none;border:0;color:var(--ink);padding:0 6px 0 0;margin-right:4px}
+.glogo img{height:38px;width:auto;max-width:200px;display:block}
+.gsearch{flex:1 1 200px;max-width:420px;position:relative}
+.gsearch input{width:100%;padding:8px 12px 8px 34px;border-radius:999px;border:1px solid var(--line);
+  background:var(--card2);color:var(--ink);font-size:13.5px}
+.gsearch input:focus{background:var(--card);border-color:var(--ink3);outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 14%,transparent)}
+.gsearch::before{content:"";position:absolute;left:12px;top:50%;width:14px;height:14px;transform:translateY(-50%);pointer-events:none;opacity:.55;
+  background:no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23555' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E")}
 .gsearch input::placeholder{color:var(--ink3)}
 .sres{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--card);
-  border:1px solid var(--line);border-top:3px solid var(--brand);
-  border-radius:0 0 var(--r) var(--r);box-shadow:var(--sh2);z-index:80;max-height:380px;overflow:auto}
+  border:1px solid var(--line);border-radius:var(--r2);box-shadow:var(--sh2);z-index:80;max-height:380px;overflow:auto;padding:4px}
 .sres button{display:flex;gap:10px;align-items:center;width:100%;text-align:left;background:none;border:0;
-  padding:9px 12px;border-bottom:1px solid var(--line2)}
+  padding:9px 10px;border-radius:6px}
 .sres button:hover{background:var(--card2)}
-.sres .t{font-size:10.5px;color:var(--ink3);margin-left:auto;letter-spacing:.06em;font-weight:700}
+.sres .t{font-size:11px;color:var(--ink3);margin-left:auto;font-weight:600}
 .gme{display:flex;align-items:center;gap:6px;background:var(--card2);
   border:1px solid var(--line);border-radius:var(--r);padding:3px 5px 3px 10px}
-.gme label{font-size:10.5px;color:var(--ink2);font-weight:700;letter-spacing:.04em}
+.gme label{font-size:11px;color:var(--ink2);font-weight:600}
 .gme input{width:46px;background:none;border:0;color:var(--ink);font-family:"Overpass Mono",monospace;
   font-weight:700;text-transform:uppercase;padding:4px 3px}
-.gset{background:var(--card2);border:1px solid var(--line);color:var(--ink);
-  border-radius:var(--r);padding:6px 11px;font-size:13px;font-weight:600}
-.gset:hover{border-color:var(--ink3)}
+.gset{background:var(--card);border:1px solid var(--line);color:var(--ink);
+  border-radius:var(--r);padding:7px 11px;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px;line-height:1.2}
+.gset:hover{border-color:var(--ink3);background:var(--card2)}
+.gset.p{background:var(--brand);border-color:var(--brand);color:#fff}
+.gset.p:hover{background:var(--brand2);border-color:var(--brand2)}
+.gset kbd,.dd-m kbd{font:600 10.5px/1 "Overpass Mono",monospace;color:var(--ink3);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:2px 5px 1px;margin-left:4px;background:var(--card2)}
+.gbar .gright{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 
-.tabbar{background:var(--plate);display:flex;overflow-x:auto;position:sticky;top:0;z-index:30;
-  box-shadow:inset 0 -1px 0 rgba(255,255,255,.08)}
-.tabbar a{padding:11px 16px;text-decoration:none;color:#9BA1A7;font-weight:700;font-size:12.5px;
-  letter-spacing:.05em;text-transform:uppercase;white-space:nowrap;
-  border-bottom:3px solid transparent;display:flex;align-items:center;gap:6px}
-.tabbar a.on{color:#fff;border-bottom-color:var(--brand);background:rgba(255,255,255,.05)}
-.tabbar a:hover{color:#fff}
-.subbar{background:var(--card);border-bottom:1px solid var(--line);display:flex;gap:2px;overflow-x:auto;padding:0 10px}
-.subbar a{padding:9px 14px;text-decoration:none;color:var(--ink2);font-weight:700;font-size:12.5px;border-bottom:2px solid transparent;white-space:nowrap}
-.subbar a.on{color:var(--ink);border-bottom-color:var(--brand)}
-.subbar a:hover{color:var(--ink)}
-.ptabs{display:flex;gap:4px;flex-wrap:wrap;margin:12px 0}
+.navrow{background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:4px;
+  padding:0 12px;position:sticky;top:0;z-index:30;overflow-x:auto;scrollbar-width:none}
+.navrow::-webkit-scrollbar{display:none}
+.tabbar{display:flex;gap:2px;flex:0 0 auto}
+.tabbar a{padding:11px 12px 9px;text-decoration:none;color:var(--ink2);font-weight:700;font-size:13.5px;
+  white-space:nowrap;border-bottom:2px solid transparent;display:flex;align-items:center;gap:6px}
+.tabbar a.on{color:var(--ink);border-bottom-color:var(--brand)}
+.tabbar a:hover{color:var(--ink)}
+.subbar{display:flex;gap:2px;padding:0 0 0 12px;margin-left:8px;border-left:1px solid var(--line);flex:0 0 auto}
+.subbar a{padding:5px 11px;margin:6px 0;border-radius:999px;text-decoration:none;color:var(--ink2);font-weight:600;font-size:12.5px;white-space:nowrap;line-height:1.3}
+.subbar a.on{color:var(--card);background:var(--ink)}
+.subbar a:hover:not(.on){color:var(--ink);background:var(--card2)}
+.ptabs{display:flex;gap:3px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0}
+.ptabs::-webkit-scrollbar{display:none}
 .hl .acts .backproj{max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:#fff;color:var(--ink);font-weight:800}
-.ptabs button{border:1px solid var(--line);background:var(--card);color:var(--ink2);font-weight:700;font-size:12px;padding:6px 12px;border-radius:999px;cursor:pointer}
+.ptabs button{border:1px solid transparent;background:none;color:var(--ink2);font-weight:600;font-size:12.5px;padding:5px 10px;border-radius:999px;cursor:pointer;white-space:nowrap;line-height:1.3}
+.ptabs button:hover{color:var(--ink);background:var(--card2)}
 .ptabs button.on{background:var(--ink);color:var(--card);border-color:var(--ink)}
 .nextstep{display:inline-flex;align-items:center;gap:6px}
 .main{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch}
-.pad{padding:16px 18px 28px;max-width:1520px;margin:0 auto}
+.pad{padding:16px 20px 32px;max-width:1520px;margin:0 auto}
 @media (min-width:1700px){.pad{max-width:1680px}}
 
 /* hazard stripe, used sparingly */
@@ -121,15 +127,15 @@ a{color:var(--blue);text-underline-offset:2px}
 
 /* ========= breadcrumbs ========= */
 .crumbs{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:0 0 12px;min-height:30px}
-.crumbs .back{background:var(--card);border:1px solid var(--line);border-radius:3px;
+.crumbs .back{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
   width:30px;height:30px;display:flex;align-items:center;justify-content:center;
-  font-size:16px;line-height:1;color:var(--ink);flex:0 0 auto;box-shadow:var(--sh)}
-.crumbs .back:hover{border-color:var(--brand);color:var(--brand)}
+  font-size:16px;line-height:1;color:var(--ink);flex:0 0 auto}
+.crumbs .back:hover{border-color:var(--ink3)}
 .crumbs a,.crumbs button.c{background:none;border:0;padding:2px 0;color:var(--ink2);
-  font-size:12px;font-weight:700;letter-spacing:.03em;text-decoration:none;text-align:left;white-space:normal}
-.crumbs button.c:hover{color:var(--brand);text-decoration:underline;text-underline-offset:2px}
-.crumbs .sep{color:var(--ink2);font-size:12px;flex:0 0 auto}
-.crumbs .here{color:var(--ink);font-weight:800;font-size:12px;letter-spacing:.03em}
+  font-size:12.5px;font-weight:600;text-decoration:none;text-align:left;white-space:normal}
+.crumbs button.c:hover{color:var(--brand-ink);text-decoration:underline;text-underline-offset:3px}
+.crumbs .sep{color:var(--ink3);font-size:12px;flex:0 0 auto}
+.crumbs .here{color:var(--ink);font-weight:700;font-size:12.5px}
 @media (max-width:640px){.crumbs a,.crumbs button.c{max-width:120px}.crumbs .here{max-width:150px}}
 
 /* ========= object marks ========= */
@@ -145,31 +151,24 @@ a{color:var(--blue);text-underline-offset:2px}
   background:linear-gradient(180deg,rgba(255,255,255,.20) 0%,rgba(255,255,255,0) 48%,rgba(0,0,0,.16) 100%)}
 .actico .ic{stroke-width:2.1;position:relative;z-index:1;filter:drop-shadow(0 1px 0 rgba(0,0,0,.3))}
 /* Record-type tiles: one deep colour each, the same in light and dark, lit from the top. */
-.oi{--t1:#5B636C;--t2:#353B42;
+.oi{--t1:#5B636C;--t2:#4A515A;
   width:30px;height:30px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;
   color:#fff;font-weight:800;font-size:12.5px;flex:0 0 auto;font-family:Overpass,Arial,sans-serif;
-  background:var(--t2);background:linear-gradient(165deg,var(--t1) 0%,var(--t2) 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.34),
-    inset 0 -2px 0 rgba(0,0,0,.20),
-    0 0 0 1px rgba(0,0,0,.38),
-    0 2px 3px rgba(0,0,0,.28),
-    0 6px 12px -6px rgba(0,0,0,.50);
-  text-shadow:0 1px 1px rgba(0,0,0,.35)}
-.oi .ic{stroke-width:2.1;filter:drop-shadow(0 1px 0 rgba(0,0,0,.35))}
-.oi.sm{width:24px;height:24px;border-radius:7px;font-size:10.5px}
+  background:var(--t2)}
+.oi .ic{stroke-width:2}
+.oi.sm{width:24px;height:24px;border-radius:6px;font-size:10.5px}
 .oi.sm .ic{width:14px;height:14px}
-.oi.lg{width:46px;height:46px;border-radius:12px;font-size:18px}
+.oi.lg{width:44px;height:44px;border-radius:11px;font-size:18px}
 .oi.lg .ic{width:22px;height:22px;stroke-width:1.9}
-.oi-acct{--t1:#C8201E;--t2:#8E0C10}
-.oi-cont{--t1:#2C68AE;--t2:#1A4678}
-.oi-proj{--t1:#4B525B;--t2:#22262B}
-.oi-job{--t1:#A85F10;--t2:#7A4205}
-.oi-file{--t1:#526E7C;--t2:#34495A}
+.oi-acct{--t1:#C8201E;--t2:#B1221F}
+.oi-cont{--t1:#2C68AE;--t2:#2A5F9E}
+.oi-proj{--t1:#4B525B;--t2:#3B4149}
+.oi-job{--t1:#A85F10;--t2:#9A5A12}
+.oi-file{--t1:#526E7C;--t2:#4C6572}
 
 /* ========= cards ========= */
-.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
-  box-shadow:0 1px 1px rgba(0,0,0,.04),0 2px 4px rgba(0,0,0,.05),0 8px 18px -8px rgba(0,0,0,.18);margin-bottom:14px;overflow:hidden;min-width:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r2);
+  box-shadow:var(--sh);margin-bottom:16px;overflow:hidden;min-width:0}
 .card.flush{overflow-x:auto;-webkit-overflow-scrolling:touch}
 .card.flush:has(.kb){overflow-x:visible}
 .card.flush > header{position:sticky;left:0}
@@ -182,79 +181,89 @@ td,th{overflow-wrap:anywhere}
 .card.wide{overflow-x:auto;-webkit-overflow-scrolling:touch}
 .card.wide table{min-width:max-content}
 .fgal,.act,.fgrid{min-width:0}
-.card>header{display:flex;align-items:center;gap:10px;padding:11px 15px;
-  border-bottom:1px solid var(--line);background:var(--hd);flex-wrap:wrap;position:relative}
-.card>header::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--brand)}
-.card>header h2{margin:0;font-size:12px;font-weight:800;letter-spacing:.07em;text-transform:uppercase}
-.card>header .n{color:var(--ink2);font-weight:700;font-size:12px;font-variant-numeric:tabular-nums}
-.card>header .sp{margin-left:auto;display:flex;gap:7px;flex-wrap:wrap}
-.card .body{padding:15px}
+.card>header{display:flex;align-items:center;gap:10px;padding:12px 16px;
+  border-bottom:1px solid var(--line2);background:var(--card);flex-wrap:wrap;position:relative}
+.card>header h2{margin:0;font-size:15px;font-weight:700;letter-spacing:-.01em;text-transform:none;line-height:1.3}
+.card>header .n{color:var(--ink3);font-weight:600;font-size:13px;font-variant-numeric:tabular-nums}
+.card>header .sp{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.card>header > .sub{flex:1 1 100%;order:9;margin-top:-2px;line-height:1.45}
+.card .body{padding:16px}
 .card.flush .body{padding:0}
 
 /* ========= buttons ========= */
-.btn{border:1px solid var(--line);background:var(--card);border-radius:var(--r);padding:7px 13px;
-  font-weight:700;font-size:13px;color:var(--ink);line-height:1.2;
+/* three tiers: primary (red), secondary (outline), quiet (text) */
+.btn{border:1px solid var(--line);background:var(--card);border-radius:var(--r);padding:7px 12px;
+  font-weight:600;font-size:13px;color:var(--ink);line-height:1.25;display:inline-flex;align-items:center;gap:5px;
   transition:border-color .12s ease,background .12s ease}
 .btn:hover{background:var(--card2);border-color:var(--ink3)}
-.btn.p{background:var(--brand);border-color:var(--brand);color:#fff;
-  box-shadow:inset 0 -2px 0 rgba(0,0,0,.22)}
+.btn.p{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:700}
 .btn.p:hover{background:var(--brand2);border-color:var(--brand2)}
+.btn.q{border-color:transparent;background:none;color:var(--ink2)}
+.btn.q:hover{background:var(--card2);color:var(--ink);border-color:transparent}
 .btn.d{color:var(--danger-ink);border-color:var(--line)}
 .btn.d:hover{border-color:var(--red);background:var(--card2)}
-.btn.sm{padding:5px 10px;font-size:12px}
+.btn.sm{padding:5px 10px;font-size:12.5px}
 .btn[disabled]{opacity:.45;cursor:not-allowed}
+summary.btn{list-style:none;cursor:pointer;user-select:none}
+summary.btn::-webkit-details-marker{display:none}
+summary.btn::after{content:"";width:0;height:0;border:4px solid transparent;border-top:5px solid currentColor;border-bottom:0;margin-left:2px;opacity:.7}
 
 /* ========= tables ========= */
 table{width:100%;border-collapse:collapse;font-size:13.5px}
-th{text-align:left;font-size:10.5px;font-weight:800;color:var(--ink2);padding:9px 14px;
-  border-bottom:1px solid var(--line);background:var(--hd);letter-spacing:.07em;text-transform:uppercase}
+th{text-align:left;font-size:11.5px;font-weight:700;color:var(--ink2);padding:9px 14px;
+  border-bottom:1px solid var(--line);background:var(--hd);letter-spacing:0;text-transform:none}
 td{padding:10px 14px;border-bottom:1px solid var(--line2);vertical-align:middle}
 tbody tr:last-child td{border-bottom:0}
-tbody tr:hover{background:var(--card2)}
+table:has(> thead) > tbody > tr:nth-child(even) > td{background:color-mix(in srgb,var(--card2) 55%,var(--card))}
+tbody tr:hover td{background:var(--card2)}
+td.mono,th.mono{font-variant-numeric:tabular-nums}
 .lnk{background:none;border:0;padding:0;color:var(--ink);font-weight:700;text-align:left;font-size:13.5px;
   line-height:1.3;text-decoration:none;cursor:pointer}
 .lnk:hover,.lnk:focus-visible{color:var(--brand-ink);text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1.5px}
 /* list rows: the whole row opens the record */
 tbody tr.rowgo{cursor:pointer;transition:background .12s}
-tbody tr.rowgo:hover{background:var(--card2)}
+tbody tr.rowgo:hover td{background:var(--card2)}
 tbody tr.rowgo:hover .lnk{color:var(--brand-ink)}
 /* reference lines under a name read as text, not code */
 .sub.mono{font-family:inherit;letter-spacing:0;font-variant-numeric:tabular-nums}
-.empty{padding:30px 18px;text-align:center;color:var(--ink2);
-  background:repeating-linear-gradient(135deg,transparent 0 14px,var(--card2) 14px 28px);min-height:96px}
+.empty{padding:28px 18px;text-align:center;color:var(--ink2);background:var(--card2);min-height:96px}
 .empty b{display:block;color:var(--ink);margin-bottom:4px;font-size:15px;letter-spacing:-.01em}
 
 /* ========= pills ========= */
-/* Pills: rounded, lit from above. One fixed palette so the text is readable in light and dark —
-   every colour measures 4.5:1 or better against its whole gradient. */
-.pill{--pb:#F1F3F5;--pb2:#DDE1E6;--pf:#2A2F35;--pe:#C9CED4;
+/* Flat, meaningful colours: grey = neutral, blue = in progress, green = done, orange = attention,
+   red = late or wrong, yellow = warning, teal/violet = email/meeting. Same meaning in both themes. */
+.pill{--pb:#EFEDE8;--pf:#4A4741;--pe:#E2DFD8;
   display:inline-flex;align-items:center;gap:5px;vertical-align:middle;
-  font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;line-height:1.1;
-  padding:5px 10px 4px;border-radius:999px;color:var(--pf);border:1px solid var(--pe);
-  background:var(--pb);background:linear-gradient(180deg,var(--pb) 0%,var(--pb2) 100%);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.28),inset 0 -1px 0 rgba(0,0,0,.14),
-    0 1px 2px rgba(0,0,0,.24),0 3px 7px -3px rgba(0,0,0,.3);
+  font-size:11px;font-weight:700;letter-spacing:.01em;text-transform:none;line-height:1.15;
+  padding:4px 9px 3px;border-radius:999px;color:var(--pf);border:1px solid var(--pe);background:var(--pb);
   white-space:nowrap;max-width:100%}
 .pill .ic{width:12px;height:12px;flex:0 0 auto}
-.pill{background:var(--pb)!important;box-shadow:none!important;border-radius:6px;font-weight:700;letter-spacing:.04em;padding:4px 8px 3px;text-shadow:none!important}
-:root:not([data-theme="dark"]) .pill.g{--pb:#E3F3E8;--pf:#146B38;--pe:#C4E4CF}
-:root:not([data-theme="dark"]) .pill.o{--pb:#FCEEDD;--pf:#8F4405;--pe:#F2D2AE}
-:root:not([data-theme="dark"]) .pill.r{--pb:#FCE6E4;--pf:#A51E17;--pe:#F3C4C0}
-:root:not([data-theme="dark"]) .pill.b{--pb:#E3EDFA;--pf:#1D4E8F;--pe:#C3D6F1}
-:root:not([data-theme="dark"]) .pill.s{--pb:#ECEEF1;--pf:#3A424B;--pe:#D5DAE0}
-:root:not([data-theme="dark"]) .pill.y{--pb:#FFF3C7;--pf:#6E5200;--pe:#EFD98A}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .pill.g{--pb:#1F7A42;--pf:#fff}:root:not([data-theme="light"]) .pill.o{--pb:#A94E07;--pf:#fff}
-  :root:not([data-theme="light"]) .pill.r{--pb:#B8231C;--pf:#fff}:root:not([data-theme="light"]) .pill.b{--pb:#255CA3;--pf:#fff}:root:not([data-theme="light"]) .pill.s{--pb:#4F5964;--pf:#fff}}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .pill:not(.g):not(.o):not(.r):not(.b):not(.s):not(.y):not(.t):not(.v){
-  --pb:#3B4148;--pb2:#2A2F35;--pf:#ECEEF0;--pe:#4A5058}}
-:root[data-theme="dark"] .pill:not(.g):not(.o):not(.r):not(.b):not(.s):not(.y):not(.t):not(.v){--pb:#3B4148;--pb2:#2A2F35;--pf:#ECEEF0;--pe:#4A5058}
-.pill.g,.pill.o,.pill.r,.pill.b,.pill.s{--pf:#fff;text-shadow:0 1px 0 rgba(0,0,0,.25)}
-.pill.g{--pb:#1F7A42;--pb2:#15592F;--pe:#124D29}
-.pill.o{--pb:#A94E07;--pb2:#7C3905;--pe:#6A3104}
-.pill.r{--pb:#B8231C;--pb2:#8A1914;--pe:#761511}
-.pill.b{--pb:#255CA3;--pb2:#183F73;--pe:#153763}
-.pill.s{--pb:#4F5964;--pb2:#363D45;--pe:#2E343B}
-.pill.y{--pb:#F4C542;--pb2:#DDA720;--pf:#1F1A00;--pe:#B98A12;text-shadow:0 1px 0 rgba(255,255,255,.35)}
+.pill.g{--pb:#E3F3E8;--pf:#146B38;--pe:#C4E4CF}
+.pill.o{--pb:#FCEEDD;--pf:#8F4405;--pe:#F2D2AE}
+.pill.r{--pb:#FCE6E4;--pf:#A51E17;--pe:#F3C4C0}
+.pill.b{--pb:#E3EDFA;--pf:#1D4E8F;--pe:#C3D6F1}
+.pill.s{--pb:#ECEEF1;--pf:#3A424B;--pe:#D5DAE0}
+.pill.y{--pb:#FFF3C7;--pf:#6E5200;--pe:#EFD98A}
+.pill.t{--pb:#DFF1F2;--pf:#145A62;--pe:#B8DEE1}
+.pill.v{--pb:#EFE4F7;--pf:#5A2C75;--pe:#DCC6EA}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .pill{--pb:#2E2D29;--pf:#D6D3CC;--pe:#3C3A35}
+  :root:not([data-theme="light"]) .pill.g{--pb:#17392A;--pf:#8FE0AE;--pe:#1F4D36}
+  :root:not([data-theme="light"]) .pill.o{--pb:#3F2A12;--pf:#F2B46E;--pe:#5A3A14}
+  :root:not([data-theme="light"]) .pill.r{--pb:#44201E;--pf:#FF9B95;--pe:#5E2B28}
+  :root:not([data-theme="light"]) .pill.b{--pb:#1C2F48;--pf:#9CC4F2;--pe:#294468}
+  :root:not([data-theme="light"]) .pill.s{--pb:#2E3238;--pf:#CBD1D8;--pe:#3E444C}
+  :root:not([data-theme="light"]) .pill.y{--pb:#3E3410;--pf:#F2D46B;--pe:#5A4A14}
+  :root:not([data-theme="light"]) .pill.t{--pb:#143538;--pf:#8FD6DC;--pe:#1C4A4E}
+  :root:not([data-theme="light"]) .pill.v{--pb:#33223F;--pf:#D7B6EE;--pe:#48305A}}
+:root[data-theme="dark"] .pill{--pb:#2E2D29;--pf:#D6D3CC;--pe:#3C3A35}
+:root[data-theme="dark"] .pill.g{--pb:#17392A;--pf:#8FE0AE;--pe:#1F4D36}
+:root[data-theme="dark"] .pill.o{--pb:#3F2A12;--pf:#F2B46E;--pe:#5A3A14}
+:root[data-theme="dark"] .pill.r{--pb:#44201E;--pf:#FF9B95;--pe:#5E2B28}
+:root[data-theme="dark"] .pill.b{--pb:#1C2F48;--pf:#9CC4F2;--pe:#294468}
+:root[data-theme="dark"] .pill.s{--pb:#2E3238;--pf:#CBD1D8;--pe:#3E444C}
+:root[data-theme="dark"] .pill.y{--pb:#3E3410;--pf:#F2D46B;--pe:#5A4A14}
+:root[data-theme="dark"] .pill.t{--pb:#143538;--pf:#8FD6DC;--pe:#1C4A4E}
+:root[data-theme="dark"] .pill.v{--pb:#33223F;--pf:#D7B6EE;--pe:#48305A}
 /* a pill never runs into what's next to it */
 .pill + .pill{margin-left:4px;margin-top:3px}
 .pill + span:not(.pill):not(.sub),.pill + a,.pill + b,.pill + button{margin-left:7px}
@@ -305,38 +314,32 @@ td .btn,th .btn{white-space:nowrap;word-break:normal;overflow-wrap:normal}
   .main table.stackplain td:not(:first-child):not(:last-child) > div{margin:0}
   .main table.stackplain td:only-child,.main table.stackplain td[colspan]{grid-column:1 / -1}
 }
-/* Work order chips on the tracker get the same depth */
-.jchip{border-radius:999px!important;padding:4px 10px 3px!important;
-  background:linear-gradient(180deg,color-mix(in srgb,var(--card) 88%,#fff),var(--card) 55%,color-mix(in srgb,var(--card) 92%,#000))!important;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 1px 2px rgba(0,0,0,.25)}
+.jchip{border-radius:999px!important;padding:3px 10px 2px!important;background:var(--card)!important}
 .jchip i{box-shadow:0 0 0 2px color-mix(in srgb,currentColor 12%,transparent)}
 
 /* ========= record header: the sign plate ========= */
-.hl{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
-  box-shadow:var(--sh);margin-bottom:16px;overflow:hidden}
-.hl-top{display:flex;gap:14px;align-items:flex-start;padding:16px 18px 16px;flex-wrap:wrap;
+.hl{background:var(--card);border:1px solid var(--line);border-radius:var(--r2);
+  box-shadow:var(--sh);margin-bottom:16px;overflow:visible}
+.hl:has(details[open]){position:relative;z-index:30}
+.hl > :first-child{border-radius:var(--r2) var(--r2) 0 0}
+.hl > :last-child{border-radius:0 0 var(--r2) var(--r2);overflow:hidden}
+.hl-facts .btn{white-space:nowrap}
+.hl-top{display:flex;gap:14px;align-items:flex-start;padding:18px 20px 16px;flex-wrap:wrap;
   background:var(--plate);color:#fff;position:relative}
-.hl-top::before,.hl-top::after{content:"";position:absolute;left:50%;transform:translateX(-50%);
-  width:9px;height:9px;border-radius:50%;background:#6E7378;
-  box-shadow:inset 0 1px 1px rgba(255,255,255,.6),0 1px 2px rgba(0,0,0,.5)}
-.hl-top::before{top:5px}.hl-top::after{bottom:5px}
-.hl-top::before,.hl-top::after{display:none}
 .hl-top .tt{min-width:200px;flex:1}
-.hl-top .kicker{font-size:19px;font-weight:800;color:#FF6B6B;letter-spacing:.1em;text-transform:uppercase;line-height:1.2}
-.hl-top h1{margin:4px 0 0;font-size:30px;font-weight:800;letter-spacing:-.015em;line-height:1.1;
+.hl-top .kicker{font-size:12.5px;font-weight:700;color:#FF8A8A;letter-spacing:.12em;text-transform:uppercase;line-height:1.2}
+.hl-top h1{margin:4px 0 0;font-size:28px;font-weight:800;letter-spacing:-.01em;line-height:1.1;
   overflow-wrap:anywhere;color:#fff;text-transform:uppercase}
-@media (max-width:700px){.hl-top h1{font-size:24px}.hl-top .kicker{font-size:15px}}
+@media (max-width:700px){.hl-top h1{font-size:22px}.hl-top .kicker{font-size:11.5px}}
 .hl-top .sub{color:#B9BEC4}
 .hl-top .sub .lnk{color:#fff;text-decoration:underline;text-decoration-color:var(--brand);text-underline-offset:4px;text-decoration-thickness:2px}
-.hl-top .sub .lnk:hover{color:#FF6B6B}
-.hl-top .acts{display:flex;gap:7px;flex-wrap:wrap}
-.hl-top .btn{background:rgba(255,255,255,.10);border-color:rgba(255,255,255,.22);color:#fff}
-.hl-top .btn:hover{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.4)}
+.hl-top .sub .lnk:hover{color:#FF8A8A}
+.hl-top .acts{display:flex;gap:7px;flex-wrap:wrap;align-items:flex-start}
+.hl-top .btn{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.22);color:#fff}
+.hl-top .btn:hover{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.4)}
 .hl-top .btn.p{background:var(--brand);border-color:var(--brand)}
 .hl-top .btn.d{color:#FF8080;border-color:rgba(255,255,255,.22)}
-.hl-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));
-  background:var(--line2);border-top:3px solid var(--brand);gap:1px}
-.hl-facts{display:flex!important;flex-wrap:wrap}
+.hl-facts{display:flex!important;flex-wrap:wrap;background:var(--line2);border-top:1px solid var(--line);gap:1px}
 .hl-facts > div{flex:1 1 104px}
 .qstate{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 16px;background:#FFF8E1;border-top:1px solid #F0D98C;border-bottom:1px solid #F0D98C;color:#5E4600;font-size:13px}
 .qstate .qdot{width:10px;height:10px;border-radius:50%;background:#E0A800;flex:0 0 auto;box-shadow:0 0 0 4px rgba(224,168,0,.18)}
@@ -346,36 +349,35 @@ td .btn,th .btn{white-space:nowrap;word-break:normal;overflow-wrap:normal}
 .btn.warnbtn{border-color:#E0A800;color:#7A5B00;background:#FFF6D6}
 .btn.is-off{opacity:.45;cursor:not-allowed;filter:grayscale(1)}.qstate .sp{display:flex;gap:6px}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .qstate{background:#3A3016;color:#F5E3A6;border-color:#5C4A12}}
-.hl-facts .pill{max-width:100%;overflow:hidden;text-overflow:ellipsis;font-size:9.5px;padding:3px 7px 2px}
+.hl-facts .pill{max-width:100%;white-space:normal;text-align:left;line-height:1.2}
 @media (max-width:700px){.hl-facts > div{flex:1 1 42%}}
-.hl-facts > div{padding:10px 14px;background:var(--card2);min-width:0;
+.hl-facts > div{padding:10px 14px;background:var(--card);min-width:0;
   display:flex;flex-direction:column;justify-content:flex-start}
-.hl-facts .k{font-size:9.5px;color:var(--ink2);font-weight:800;letter-spacing:.08em;
-  text-transform:uppercase;line-height:1.3;margin-bottom:3px}
+.hl-facts .k{font-size:11.5px;color:var(--ink2);font-weight:600;letter-spacing:0;
+  text-transform:none;line-height:1.3;margin-bottom:3px}
 .hl-facts .v{font-size:15px;font-weight:700;line-height:1.25;overflow-wrap:anywhere}
-.hl-facts .v .sub{font-size:11px;font-weight:600;margin-top:2px}
+.hl-facts .v .sub{font-size:11.5px;font-weight:500;margin-top:2px}
 .hl-facts .v .pill{vertical-align:1px}
 
-/* ========= stage path ========= */
-.path{display:flex;gap:2px;padding:11px;border-top:3px solid var(--brand);border-bottom:1px solid var(--line);overflow-x:auto;background:var(--card2)}
-.path button{flex:1 1 0;min-width:96px;border:0;padding:8px 8px 8px 22px;font-size:11px;font-weight:800;
-  background:var(--card2);color:var(--ink2);text-align:left;letter-spacing:.04em;text-transform:uppercase;
-  clip-path:polygon(0 0,calc(100% - 12px) 0,100% 50%,calc(100% - 12px) 100%,0 100%,12px 50%)}
-.path button:first-child{clip-path:polygon(0 0,calc(100% - 12px) 0,100% 50%,calc(100% - 12px) 100%,0 100%);padding-left:13px}
-.path button.done{background:var(--plate2);color:#fff}
-.path button.cur{background:var(--brand);color:#fff}
-.path button.lost{background:var(--plate);color:#fff}
-.path button small{display:block;font-weight:600;font-size:10px;opacity:1;letter-spacing:0;text-transform:none}
-.path button:hover{filter:brightness(1.2)}
+/* ========= stage track: read-only progress; "Change stage" is a menu ========= */
+.path{display:flex;gap:10px;align-items:flex-end;padding:12px 20px 10px;border-bottom:1px solid var(--line2);overflow:visible;background:var(--card);position:relative;z-index:2}
+.step{flex:1 1 0;min-width:88px;padding:8px 8px 0 0;border-top:3px solid var(--line);position:relative}
+.step b{display:block;font-size:12.5px;font-weight:700;color:var(--ink3);white-space:nowrap}
+.step small{display:block;font-size:11px;color:var(--ink3);margin-top:1px;white-space:nowrap}
+.step.done{border-top-color:var(--ink2)}
+.step.done b{color:var(--ink)}
+.step.cur{border-top-color:var(--brand)}
+.step.cur b{color:var(--ink)}
+.step.cur small{color:var(--brand-ink);font-weight:600}
+.step.lost{border-top-color:var(--red)}
+.step.lost b{color:var(--danger-ink)}
+.path > details{flex:0 0 auto;margin-left:auto;align-self:center}
 
 .card > header .cz{width:26px;height:26px;padding:0;margin:0 2px 0 -4px;border-radius:50%;cursor:pointer;
-  display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;color:var(--ink2);
-  border:1px solid var(--line);
-  background:var(--card2);background:linear-gradient(180deg,color-mix(in srgb,var(--card2) 86%,#fff),var(--card2));
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 1px 2px rgba(0,0,0,.25);
-  transition:transform .18s ease,color .15s,border-color .15s}
+  display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;color:var(--ink3);
+  border:1px solid transparent;background:none;transition:transform .18s ease,color .15s,border-color .15s}
 .card > header .cz svg{width:14px;height:14px;stroke-width:2.4}
-.card > header .cz:hover{color:var(--brand);border-color:var(--brand)}
+.card > header .cz:hover{color:var(--ink);background:var(--card2)}
 .card > header h2[data-cz]{cursor:pointer}
 .card.collapsed > header .cz{transform:rotate(-90deg)}
 .card.collapsed > :not(header){display:none!important}
@@ -392,19 +394,16 @@ td .btn,th .btn{white-space:nowrap;word-break:normal;overflow-wrap:normal}
 .addropt.on,.addropt:hover{background:var(--card2)}
 .addrfoot{font-size:10px;color:var(--ink3);text-align:right;padding:4px 10px}
 .stepno{width:22px;height:22px;border-radius:50%;flex:0 0 auto;display:inline-flex;align-items:center;
-  justify-content:center;font-size:11.5px;font-weight:800;color:#fff;margin-right:2px;
-  background:var(--brand);background:linear-gradient(165deg,color-mix(in srgb,var(--brand) 80%,#fff),color-mix(in srgb,var(--brand) 82%,#000));
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 0 0 1px rgba(0,0,0,.3),0 1px 3px rgba(0,0,0,.3);
+  justify-content:center;font-size:11.5px;font-weight:800;color:#fff;margin-right:2px;background:var(--brand);
   font-family:Overpass,Arial,sans-serif;font-variant-numeric:tabular-nums}
-.actbar{border-bottom:1px solid var(--line);background:var(--card2);padding:10px 12px 12px}
+/* the Activity card's log row: one plain row of outline buttons */
+.actbar{border-bottom:1px solid var(--line2);background:none;padding:10px 16px}
 .actbar-h{display:none}
 .actbar-g{display:flex;gap:8px;flex-wrap:wrap}
-.actg{flex:1 1 150px;min-width:0;display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:6px;overflow:hidden;
-  box-shadow:0 1px 2px rgba(0,0,0,.08)}
-.actg-l{font-size:9.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);padding:5px 9px;
-  background:var(--card2);border-bottom:1px solid var(--line2)}
-.actg-b{display:flex;gap:5px;flex-wrap:wrap;padding:8px}
-.actg-b .btn{flex:1 1 auto;justify-content:center}
+.actg{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;background:none;border:0;border-radius:0;overflow:visible;box-shadow:none}
+.actg-l{display:none}
+.actg-b{display:flex;gap:6px;flex-wrap:wrap;padding:0}
+.actg-b .btn{flex:0 1 auto}
 .sortb{background:none;border:0;padding:3px 0;cursor:pointer;font:inherit;font-size:10.5px;font-weight:800;
   letter-spacing:.07em;text-transform:uppercase;color:var(--ink2);border-bottom:2px solid transparent}
 .sortb:hover{color:var(--ink)}
@@ -421,36 +420,25 @@ td .btn,th .btn{white-space:nowrap;word-break:normal;overflow-wrap:normal}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .t-r{color:#FF6B6B}}
 :root[data-theme="dark"] .t-r{color:#FF6B6B}
 @media (max-width:700px){.matrow{grid-template-columns:1fr 1fr}.matrow-main,.matrow-act{grid-column:1 / -1}.matrow-act{text-align:left}}
-/* coloured section headers: a band of the section's colour, fading into the header */
-.card.hued{border-left:4px solid var(--hc)!important}
-.card.hued > header{background:linear-gradient(90deg,color-mix(in srgb,var(--hc) 16%,var(--card)) 0%,var(--card) 70%)!important;
-  box-shadow:inset 0 -2px 0 color-mix(in srgb,var(--hc) 35%,transparent)}
-.card.hued > header h2{color:color-mix(in srgb,var(--hc) 72%,var(--ink))}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .card.hued > header h2{color:color-mix(in srgb,var(--hc) 35%,#fff)}}
-:root[data-theme="dark"] .card.hued > header h2{color:color-mix(in srgb,var(--hc) 35%,#fff)}
-/* coloured action buttons — each kind of thing has one colour everywhere */
-.cbtn{--cb:#4F5964;color:#fff!important;border:1px solid color-mix(in srgb,var(--cb) 70%,#000)!important;
-  background:linear-gradient(180deg,var(--cb),color-mix(in srgb,var(--cb) 80%,#000))!important;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 1px 2px rgba(0,0,0,.25);text-shadow:0 1px 0 rgba(0,0,0,.25)}
-.cbtn:hover{filter:brightness(1.1)}
-.cbtn .ic{color:#fff}
-.pill.t{--pb:#1F6F78;--pb2:#15515A;--pe:#124850;--pf:#fff;text-shadow:0 1px 0 rgba(0,0,0,.25)}
-.pill.v{--pb:#7A3E9D;--pb2:#5A2C75;--pe:#4E2666;--pf:#fff;text-shadow:0 1px 0 rgba(0,0,0,.25)}
+/* section colour: one small chip before the title, the same colour for that kind of section everywhere */
+.card.hued > header h2::before{content:"";display:inline-block;width:9px;height:9px;border-radius:3px;background:var(--hc);margin-right:9px;vertical-align:1px}
+/* action buttons: one outline style; the icon carries the kind's colour */
+.cbtn{--cb:#4F5964}
+.cbtn .ic,.btn[data-log] .ic,.btn[data-email] .ic{color:var(--cb)}
+.pill.t,.pill.v{text-shadow:none}
 .btn[data-log$=":call"],.btn[data-log*=":call:"]{--cb:#255CA3}
 .btn[data-email]{--cb:#1F6F78}
-.btn[data-log$=":call"],.btn[data-log*=":call:"],.btn[data-email]{color:#fff!important;border:1px solid color-mix(in srgb,var(--cb) 70%,#000)!important;
-  background:linear-gradient(180deg,var(--cb),color-mix(in srgb,var(--cb) 80%,#000))!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 1px 2px rgba(0,0,0,.25)}
 .c-call{--cb:#255CA3}.c-email{--cb:#1F6F78}.c-note{--cb:#4F5964}.c-task{--cb:#A94E07}
 .c-file{--cb:#526E7C}.c-cal{--cb:#7A3E9D}.c-quote{--cb:#35635B}.c-money{--cb:#1F7A42}.c-signed{--cb:#1F7A42}
 .pickone{display:block}
-.nextbar{display:flex;gap:13px;align-items:center;flex-wrap:wrap;border-radius:5px;padding:13px 16px;margin-bottom:14px;
+.nextbar{display:flex;gap:13px;align-items:center;flex-wrap:wrap;border-radius:var(--r2);padding:12px 16px;margin-bottom:16px;
   background:linear-gradient(180deg,#FFF4D6 0%,#FFE9B0 100%);border:1px solid #E0B94A;border-left:6px solid #D99100;
   box-shadow:0 1px 2px rgba(120,80,0,.10),0 6px 16px -10px rgba(120,80,0,.45);color:#3A2A00;
   -webkit-print-color-adjust:exact;print-color-adjust:exact}
 .nextbar b{font-size:14.5px;display:block;line-height:1.3}
 .nextbar > div span{font-size:12px;color:#6B5200}
-.nextbar .nextbar-tag{background:#8A5A00;color:#fff !important;font-size:9.5px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;
-  padding:5px 10px;border-radius:3px;flex:0 0 auto}
+.nextbar .nextbar-tag{background:#8A5A00;color:#fff !important;font-size:11px;font-weight:700;letter-spacing:.02em;text-transform:none;
+  padding:4px 9px;border-radius:999px;flex:0 0 auto}
 .nextbar-go{background:#8A5A00;border-color:#6E4700;color:#fff;font-weight:800}
 .nextbar-go:hover{background:#6E4700}
 @media (prefers-color-scheme:dark){
@@ -508,32 +496,32 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
   .card.wide{overflow-x:visible}
 }
 @media (max-width:700px){
-  .tabbar,.subbar{display:none}
+  .tabbar,.subbar,.navrow{display:none}
   .mnav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--plate);
     box-shadow:0 -2px 0 var(--brand),0 -6px 18px rgba(0,0,0,.25);
     padding:4px 4px calc(4px + env(safe-area-inset-bottom,0px))}
   .mnav a,.mnav button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-    gap:3px;padding:7px 2px 6px;color:#C9CED3;font-size:9.5px;font-weight:800;letter-spacing:.05em;
-    text-transform:uppercase;text-decoration:none;background:none;border:0;border-radius:3px;min-height:52px}
+    gap:3px;padding:7px 2px 6px;color:#C9CED3;font-size:10.5px;font-weight:600;
+    text-decoration:none;background:none;border:0;border-radius:6px;min-height:52px}
   .mnav a.on{color:#fff;background:rgba(255,255,255,.08);box-shadow:inset 0 -3px 0 var(--brand)}
   .mnav .ic{opacity:.9}
   .main{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
-  .gbar .gset[data-go="settings"],.gbar .gset[data-helptoggle],.gbar .gset[data-palette]{display:none}
+  .gbar .gset[data-go="settings"],.gbar .gset[data-palette],.gbar .gdd{display:none}
+  .gbar .gright{margin-left:0}
   .ptabs{overflow-x:auto;flex-wrap:nowrap;padding-bottom:4px}.ptabs button{white-space:nowrap}
   .helppop{max-width:calc(100vw - 24px)}
 }
-.cols{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:14px;
+.cols{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:16px;
   align-items:start;min-width:0;margin-bottom:14px}
 .cols.even{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
-.card > header{background:linear-gradient(180deg,var(--card) 0%,var(--card2) 100%);box-shadow:inset 0 -1px 0 var(--line2)}
-.hl{box-shadow:0 2px 4px rgba(0,0,0,.08),0 12px 26px -12px rgba(0,0,0,.35)}
-.tri{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr) minmax(0,1fr);gap:14px;align-items:start;margin-bottom:14px}
+.hl{box-shadow:var(--sh)}
+.tri{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr) minmax(0,1fr);gap:16px;align-items:start;margin-bottom:14px}
 .tri > div{min-width:0}
 .tri.placed{align-items:stretch}.tri.placed > div{display:flex;flex-direction:column}
-.tri > div > .card{margin-bottom:14px}
+.tri > div > .card{margin-bottom:16px}
 .tri > div > .card:last-child{margin-bottom:0}
 
-.cols.flow > div > .card{margin-bottom:14px}
+.cols.flow > div > .card{margin-bottom:16px}
 .cols.flow > div > .card:last-child{margin-bottom:0}
 .cols.flow.placed{align-items:stretch}.cols.flow.placed > div{display:flex;flex-direction:column}
 .cols.flow.placed > div > .card:last-child,.tri.placed > div > .card:last-child{flex:1 1 auto}
@@ -549,17 +537,16 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
 .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:0}
 @media (max-width:620px){.fgrid{grid-template-columns:1fr}}
 .fld{padding:10px 15px;border-bottom:1px solid var(--line2);min-width:0}
-.fld .k{font-size:10px;color:var(--ink2);font-weight:800;margin-bottom:3px;letter-spacing:.07em;text-transform:uppercase}
+.fld .k{font-size:11.5px;color:var(--ink2);font-weight:600;margin-bottom:3px;letter-spacing:0;text-transform:none}
 .fld .v{font-size:13.5px;overflow-wrap:anywhere}
 .fld input,.fld select,.fld textarea{width:100%;padding:7px 9px;border:1px solid var(--line);
   border-radius:var(--r);background:var(--card2);font-size:13.5px}
-.fld input:focus,.fld select:focus,.fld textarea:focus{background:var(--card);border-color:var(--brand)}
+.fld input:focus,.fld select:focus,.fld textarea:focus{background:var(--card);border-color:var(--ink3);outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 14%,transparent)}
 .fld textarea{min-height:62px;resize:vertical;font-family:inherit}
 .fld.full{grid-column:1/-1}
 
 /* ========= live tracker ========= */
-.livebar{display:flex;align-items:center;gap:7px;font-size:10.5px;color:var(--ink2);font-weight:800;
-  letter-spacing:.07em;text-transform:uppercase}
+.livebar{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink3);font-weight:600}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--brand);animation:pulse 2.4s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.2}}
 .trk{border-bottom:1px solid var(--line2);padding:14px 15px;cursor:pointer;border-left:4px solid transparent}
@@ -569,9 +556,9 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
 .trk-name{font-weight:800;font-size:15.5px;letter-spacing:-.015em}
 .trk-meta{margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .seg{display:flex;gap:2px;margin-bottom:9px}
-.seg span{flex:1;height:26px;background:var(--card2);border:1px solid var(--line2);position:relative;
-  display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:800;
-  color:var(--ink3);overflow:hidden;white-space:nowrap;padding:0 4px;letter-spacing:.05em;text-transform:uppercase}
+.seg span{flex:1;height:24px;background:var(--card2);border:1px solid var(--line2);position:relative;
+  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;
+  color:var(--ink3);overflow:hidden;white-space:nowrap;padding:0 4px;border-radius:3px}
 .seg span.done{background:var(--plate2);color:#fff;border-color:var(--plate2)}
 .seg span.cur{background:var(--brand);color:#fff;border-color:var(--brand);
   box-shadow:inset 0 0 0 2px rgba(255,255,255,.55)}
@@ -608,20 +595,19 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
   .trk-jobs{gap:6px}
   .trk-jobs .jchip{font-size:12px;padding:4px 9px}
 
-  /* project stage path: a grid with full labels instead of cut-off arrows */
-  .path{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:10px;overflow:visible}
-  .path button,.path button:first-child{clip-path:none!important;min-width:0;padding:8px 6px!important;
-    font-size:10px;letter-spacing:.02em;text-align:center;border-radius:3px;white-space:normal;line-height:1.2}
-  .path button small{font-size:9px}
-
+  /* project stage track: four to a row, the stage menu underneath */
+  .path{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px 8px;padding:10px 14px;overflow:visible}
+  .step{min-width:0;padding-right:2px}
+  .step b,.step small{white-space:normal;font-size:11.5px;line-height:1.25}
+  .path > details{grid-column:1 / -1;margin-left:0;justify-self:start}
   /* general breathing room between cards and inside headers */
   .pad{padding:10px 8px 24px}
-  .card{margin-bottom:12px;border-radius:6px}
+  .card{margin-bottom:12px;border-radius:8px}
   .card > header{flex-wrap:wrap;row-gap:6px}
   .card > header .sp{margin-left:0;width:100%;justify-content:flex-start;flex-wrap:wrap}
   .hl-facts{grid-template-columns:repeat(2,minmax(0,1fr))}
   .hl-facts > div:last-child:nth-child(odd){grid-column:1 / -1}
-  .pill{font-size:11px;padding:6px 11px 5px}
+  .pill{font-size:11.5px;padding:5px 10px 4px}
   .btn,.btn.sm{min-height:38px}
   .main select,.mbox select{min-height:38px}
   .crumbs button.c,.crumbs a{padding:5px 0}
@@ -639,8 +625,7 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
   .card > header .cz{width:36px;height:36px;margin:0 2px 0 -4px}
   .card > header .cz svg{width:16px;height:16px}
   .card.collapsed > header{background:var(--card)}
-  .card.collapsed > header h2::after{content:"tap to open";margin-left:8px;font-size:10px;font-weight:600;
-    letter-spacing:.03em;text-transform:none;color:var(--ink3)}
+  .card.collapsed > header h2::after{content:"tap to open";margin-left:8px;font-size:11px;font-weight:500;color:var(--ink3)}
   .pill{white-space:nowrap}
 }
 .jchip{border:1px solid var(--line);border-radius:2px;padding:2px 7px;font-size:11px;font-weight:700;
@@ -653,7 +638,7 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
 .kb .kcol{flex:1 1 180px;min-width:158px;display:flex;flex-direction:column}
 .kb .kbody{flex:1}
 .kcol{min-width:0}
-.kcol h3{margin:0;font-size:10px;font-weight:800;padding:8px 9px;letter-spacing:.05em;text-transform:uppercase;
+.kcol h3{margin:0;font-size:12px;font-weight:700;padding:8px 10px;border-radius:6px 6px 0 0;
   display:flex;gap:4px;color:#fff;background:var(--slate);line-height:1.25}
 .kcol h3 .n{margin-left:auto;font-family:"Overpass Mono",monospace}
 .kbody{background:var(--card2);border:1px solid var(--line);border-top:0;
@@ -680,8 +665,7 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
 /* ========= calendar ========= */
 .cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:1px;background:var(--line);
   border-top:1px solid var(--line)}
-.cal .dow{background:var(--plate);color:#9BA1A7;padding:7px 8px;font-size:10px;font-weight:800;
-  text-align:center;letter-spacing:.09em;text-transform:uppercase}
+.cal .dow{background:var(--hd);color:var(--ink2);padding:7px 8px;font-size:11.5px;font-weight:700;text-align:center}
 .cal .day{background:var(--card);min-height:108px;padding:6px 7px;display:flex;flex-direction:column;gap:3px}
 .cal .day.off{background:var(--card2)}
 .day.off .dnum{color:var(--ink3)}
@@ -707,13 +691,13 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
 .calnav{display:flex;align-items:center;gap:8px}
 .calnav h2{margin:0;font-size:17px!important;font-weight:800;min-width:180px;letter-spacing:-.02em;
   text-transform:none!important}
-.alert{background:var(--brand);color:#fff;padding:10px 16px;display:flex;gap:10px;align-items:center;
-  font-size:13px;font-weight:700;flex-wrap:wrap;min-width:0;
-  overflow-wrap:anywhere;
-  background-image:repeating-linear-gradient(135deg,rgba(0,0,0,.14) 0 12px,transparent 12px 24px)}
-.alert{background-image:none;border-radius:6px}
-.alert .btn{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.45);color:#fff}
-.alert .btn:hover{background:rgba(255,255,255,.3)}
+.alert{background:color-mix(in srgb,var(--red) 9%,var(--card));color:var(--ink);padding:10px 16px;display:flex;gap:10px;align-items:center;
+  font-size:13px;font-weight:600;flex-wrap:wrap;min-width:0;overflow-wrap:anywhere;
+  border:1px solid color-mix(in srgb,var(--red) 30%,var(--line));border-left:4px solid var(--red);border-radius:var(--r2)}
+.main > .alert{margin:12px 20px 0}
+.alert.amber{background:color-mix(in srgb,var(--yellow) 14%,var(--card));border-left-color:var(--yellow);border-color:color-mix(in srgb,var(--yellow) 40%,var(--line))}
+.alert .btn{background:var(--card);border-color:var(--line);color:var(--ink)}
+.alert .btn:hover{border-color:var(--ink3)}
 .alert .sp{margin-left:auto;display:flex;gap:7px;flex:0 0 auto;flex-wrap:wrap}
 .alert > span:first-child{flex:1 1 260px;min-width:0}
 
@@ -752,8 +736,7 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
 .viewer .nav.prev{left:10px}.viewer .nav.next{right:10px}
 .viewer .nav:hover{background:var(--brand);border-color:var(--brand)}
 .drop{border:2px dashed var(--line);border-radius:var(--r);padding:20px;text-align:center;color:var(--ink2);
-  margin:15px;font-size:13.5px;
-  background:repeating-linear-gradient(135deg,transparent 0 14px,var(--card2) 14px 28px)}
+  margin:16px;font-size:13.5px;background:var(--card2)}
 .drop.hot{border-color:var(--brand);background:var(--card2)}
 
 /* ========= activity & history ========= */
@@ -761,7 +744,7 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
 .act li{display:flex;gap:11px;padding:11px 15px;border-bottom:1px solid var(--line2)}
 .act li:last-child{border-bottom:0}
 .act li:hover{background:var(--card2)}
-.act .w{width:27px;height:27px;border-radius:2px;background:var(--plate);color:#fff;
+.act .w{width:27px;height:27px;border-radius:6px;background:var(--plate2);color:#fff;
   display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;
   font-family:"Overpass Mono",monospace;flex:0 0 auto}
 .act .c{min-width:0;flex:1}
@@ -771,7 +754,7 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
 .hrow{display:flex;gap:11px;padding:9px 15px;border-bottom:1px solid var(--line2);font-size:13px;align-items:baseline}
 .hrow:last-child{border-bottom:0}
 .hrow:hover{background:var(--card2)}
-.hrow .f{font-weight:800;flex:0 0 128px;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink2)}
+.hrow .f{font-weight:700;flex:0 0 128px;font-size:12px;color:var(--ink2)}
 .hrow .v{flex:1;min-width:0;overflow-wrap:anywhere}
 .hrow .o{color:var(--ink3);text-decoration:line-through}
 .hrow .n{color:var(--ink);font-weight:700}
@@ -780,7 +763,7 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
 /* ========= modal ========= */
 .scrim{position:fixed;inset:0;background:rgba(8,8,9,.55);z-index:90;backdrop-filter:blur(2px)}
 .modal{position:fixed;inset:0;z-index:91;display:flex;align-items:center;justify-content:center;padding:16px}
-.mbox{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+.mbox{background:var(--card);border:1px solid var(--line);border-radius:var(--r2);
   width:min(640px,100%);max-width:100%;min-width:0;
   max-height:90vh;display:flex;flex-direction:column;box-shadow:var(--sh2);overflow:hidden}
 .mbox .fgrid,.mbox .fld{min-width:0}
@@ -801,7 +784,7 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
 .mbox>.foot{padding:13px 18px;border-top:1px solid var(--line);display:flex;gap:8px;
   justify-content:flex-end;flex-wrap:wrap;background:var(--hd)}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));
-  background:var(--plate);color:#fff;padding:11px 18px;border-radius:2px;z-index:99;font-size:13.5px;
+  background:var(--plate);color:#fff;padding:11px 18px;border-radius:8px;z-index:99;font-size:13.5px;
   box-shadow:var(--sh2);max-width:92vw;border-left:4px solid var(--brand);font-weight:600}
 .boot{padding:56px 20px;text-align:center;color:var(--ink2)}
 .gate{display:flex;gap:10px;align-items:flex-start;padding:9px 15px;border-bottom:1px solid var(--line2)}
@@ -810,14 +793,12 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
 .gate input{width:19px;height:19px;margin:1px 0 0;accent-color:var(--brand);flex:0 0 auto}
 .gate .t{font-size:13.5px;font-weight:700}
 .gate .h{font-size:11.5px;color:var(--ink2)}
-.warn{background:var(--yellow);color:var(--yellow-ink);padding:10px 15px;font-size:13px;font-weight:700;
-  background-image:repeating-linear-gradient(135deg,rgba(0,0,0,.07) 0 12px,transparent 12px 24px)}
-.warn{background-image:none;border-radius:6px}
+.warn{background:#3A3016;color:#F5E3A6;padding:10px 15px;font-size:13px;font-weight:600;border-radius:var(--r);border:1px solid #5C4A12;border-left:4px solid #C08A10}
 :root:not([data-theme="dark"]) .warn{background:#FFF6D6;color:#5E4600;border:1px solid #F0D98C;border-left:4px solid #E0A800;font-weight:600}
-.tabbar .pill,.subbar .pill{--pb:#D50101!important;--pf:#fff!important;--pe:#D50101!important}
+.tabbar .pill,.subbar .pill{--pb:#D50101!important;--pf:#fff!important;--pe:#D50101!important;padding:2px 6px 1px;font-size:10.5px}
 .note{background:var(--card2);border-left:3px solid var(--brand);padding:10px 13px;font-size:13px;margin:0}
 .items{width:100%;border-collapse:collapse;font-size:13px}
-.items th{padding:7px 9px;font-size:9.5px}
+.items th{padding:7px 9px;font-size:11px}
 .items td{padding:5px 9px}
 .items input{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:2px;
   background:var(--card2);font-size:13px}
@@ -828,15 +809,112 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
 
 /* ========= print ========= */
 #print{display:none}
-.helpi{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:50%;
-  border:1px solid var(--line);background:var(--card2);color:var(--ink2);font:700 11px/1 Georgia,serif;font-style:italic;
-  cursor:pointer;vertical-align:middle;margin:2px 4px;padding:0}
-.helpi:hover{background:var(--brand);color:#fff;border-color:var(--brand)}
+.helpq{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;
+  border:1px solid var(--line);background:var(--card);color:var(--ink3);font:700 12px/1 Overpass,sans-serif;
+  cursor:pointer;vertical-align:middle;padding:0;flex:0 0 auto}
+.helpq:hover,.helpq[aria-expanded="true"]{background:var(--ink);color:var(--card);border-color:var(--ink)}
+.card>header > .sub.hint-long{background:var(--card2);border-radius:var(--r);padding:8px 10px;margin-top:4px;max-width:none}
 .helppop{position:absolute;z-index:9999;max-width:330px;background:var(--card);color:var(--ink);border:1px solid var(--line);
-  border-left:3px solid var(--brand);border-radius:6px;padding:10px 12px;font-size:12.5px;line-height:1.5;box-shadow:0 10px 28px -8px rgba(0,0,0,.35)}
+  border-radius:var(--r2);padding:10px 12px;font-size:12.5px;line-height:1.5;box-shadow:var(--sh2)}
 .pal-item{display:flex;gap:10px;align-items:center;padding:8px 14px;cursor:pointer;border-bottom:1px solid var(--line)}
 .pal-item.on,.pal-item:hover{background:var(--card2)}
-.pal-item .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink2);width:88px;flex:0 0 auto}
+.pal-item .k{font-size:11.5px;color:var(--ink3);width:88px;flex:0 0 auto;font-weight:600}
+/* ========= drop-down menus (a <details>, so they work with no script) ========= */
+details.dd{position:relative;display:inline-block}
+details.dd[open] > summary{border-color:var(--ink3)}
+.dd-m{position:absolute;top:calc(100% + 6px);right:0;min-width:230px;background:var(--card);color:var(--ink);
+  border:1px solid var(--line);border-radius:var(--r2);box-shadow:var(--sh2);padding:6px;z-index:70;display:flex;flex-direction:column;text-align:left}
+.dd.left .dd-m{left:0;right:auto}
+.dd-m > button,.dd-m > a,.dd-m > label{display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:none;border:0;
+  border-radius:6px;padding:8px 10px;font-size:13px;font-weight:600;color:var(--ink);text-decoration:none;cursor:pointer;line-height:1.3;white-space:nowrap}
+.dd-m > button:hover,.dd-m > a:hover,.dd-m > label:hover{background:var(--card2)}
+.dd-m > button[disabled]{opacity:.45;cursor:not-allowed}
+.dd-m > .danger{color:var(--danger-ink)}
+.dd-m > .on{background:var(--card2);box-shadow:inset 3px 0 0 var(--brand)}
+.dd-m > .on::after{content:"current";margin-left:auto;font-size:11px;color:var(--ink3);font-weight:500}
+.dd-m .ic{color:var(--ink3)}
+.dd-sep{height:1px;background:var(--line2);margin:5px 4px}
+.dd-h{font-size:11.5px;color:var(--ink3);padding:6px 10px 2px;font-weight:600}
+.dd-m kbd{margin-left:auto}
+@media (max-width:700px){.dd-m{left:0;right:auto;max-width:calc(100vw - 32px)}}
+
+/* ========= sticky project row: what it is, where it stands, what's next ========= */
+.pstick{position:sticky;top:0;z-index:25;margin:-8px 0 16px;padding:8px 0}
+.pstick::before{content:"";position:absolute;inset:0;background:var(--bg);background-image:var(--grain);z-index:-1}
+.pstick-in{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);
+  border-radius:var(--r2);padding:8px 12px;box-shadow:var(--sh)}
+.pstick-num{font-family:"Overpass Mono",monospace;font-weight:700;font-size:12.5px;color:var(--ink3)}
+.pstick-name{font-weight:700;font-size:14px;flex:0 1 auto;min-width:60px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pstick-fact{font-size:13px;color:var(--ink2);white-space:nowrap}
+.pstick-fact b{color:var(--ink);font-weight:700}
+.pstick-tabs{flex:1 1 auto;min-width:0;display:flex;justify-content:center}
+.pstick-go{margin-left:auto;display:flex;align-items:center;gap:6px}
+.pstick-go .btn{white-space:nowrap}
+@media (max-width:1180px){.pstick-tabs{order:9;flex:1 1 100%;justify-content:flex-start}}
+@media (max-width:940px){.pstick-name{max-width:160px}}
+@media (max-width:700px){.pstick{margin-top:0}.pstick-go{margin-left:0;flex:1 1 100%}.pstick-go .btn{width:100%;justify-content:center}}
+
+/* ========= page heading and the dashboard's today strip ========= */
+.pagehead{display:flex;align-items:center;gap:12px;margin:2px 0 14px;flex-wrap:wrap}
+.pagehead h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-.02em}
+.pagehead .sp{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.today{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);
+  border-radius:var(--r2);padding:12px 16px;margin-bottom:16px;box-shadow:var(--sh)}
+.today-d{flex:0 0 auto;padding-right:14px;border-right:1px solid var(--line2);line-height:1.15}
+.today-d b{display:block;font-size:15px;font-weight:800;letter-spacing:-.01em}
+.today-d span{font-size:12.5px;color:var(--ink2)}
+.today-items{flex:1 1 300px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.tchip{--tb:var(--card2);--tf:var(--ink);--te:var(--line);display:inline-flex;align-items:center;gap:7px;border:1px solid var(--te);background:var(--tb);
+  color:var(--tf);border-radius:999px;padding:6px 12px 5px;font-size:12.5px;font-weight:600;cursor:pointer;line-height:1.2;text-align:left}
+.tchip:hover{border-color:var(--ink3)}
+.tchip::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--ink3);flex:0 0 auto}
+.tchip.r::before{background:var(--red)}.tchip.o::before{background:var(--orange)}.tchip.g::before{background:var(--green)}.tchip.y::before{background:var(--yellow)}.tchip.b::before{background:var(--blue)}
+.tchip.r{--te:color-mix(in srgb,var(--red) 35%,var(--line))}
+.today-acts{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+.kpi-l{font-size:12px;color:var(--ink2);font-weight:600;line-height:1.3}
+.kpi-v{font-size:24px;font-weight:800;line-height:1.15;margin-top:3px;letter-spacing:-.01em}
+.kpi-s{font-size:12px;color:var(--ink3);margin-top:3px}
+
+/* ========= settings: groups down the side, one sticky save bar ========= */
+.setwrap{display:grid;grid-template-columns:200px minmax(0,1fr);gap:20px;align-items:start}
+.snav{position:sticky;top:8px;display:flex;flex-direction:column;gap:2px;background:var(--card);border:1px solid var(--line);border-radius:var(--r2);padding:6px;box-shadow:var(--sh)}
+.snav button{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:none;border:0;border-radius:6px;padding:9px 10px;
+  font-size:13px;font-weight:600;color:var(--ink2);cursor:pointer;line-height:1.3}
+.snav button:hover{background:var(--card2);color:var(--ink)}
+.snav button.on{background:var(--ink);color:var(--card)}
+.snav button .n{margin-left:auto;font-size:11px;font-weight:600;opacity:.7}
+.snav .snav-v{padding:10px 10px 6px;font-size:11.5px;color:var(--ink3);border-top:1px solid var(--line2);margin-top:4px;line-height:1.4}
+.spanel{display:none;min-width:0}
+.spanel.on{display:block}
+.spanel > h2{margin:4px 0 12px;font-size:19px;font-weight:800;letter-spacing:-.015em}
+.spanel > h2 .sub{display:block;font-weight:500;margin-top:2px;max-width:70ch}
+.savebar{position:sticky;bottom:0;z-index:24;margin:8px 0 0;padding:10px 0}
+.savebar::before{content:"";position:absolute;inset:0;background:var(--bg);background-image:var(--grain);z-index:-1}
+.savebar-in{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-radius:var(--r2);padding:10px 14px;box-shadow:var(--sh2)}
+.savebar-t{font-size:12.5px;color:var(--ink2);flex:1 1 240px}
+.savebar.dirty .savebar-in{border-color:var(--brand)}
+.savebar.dirty .savebar-t::before{content:"Unsaved changes — ";font-weight:700;color:var(--brand-ink)}
+.setrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.setgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.setgrid .sub{font-weight:600}
+.setgrid .mono{font-size:20px;font-weight:700}
+.ckrow{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line2);font-size:13.5px;line-height:1.4;cursor:pointer}
+.ckrow:first-of-type{border-top:0}
+.ckrow input{width:17px;height:17px;margin-top:2px;flex:0 0 auto;accent-color:var(--brand)}
+.ckrow span.sub{display:block;margin-top:1px}
+@media (max-width:860px){.setwrap{grid-template-columns:1fr}.snav{position:static;flex-direction:row;overflow-x:auto;scrollbar-width:none}
+  .snav button{white-space:nowrap;width:auto}.snav .snav-v{display:none}}
+@media (max-width:700px){.savebar{bottom:calc(62px + env(safe-area-inset-bottom,0px))}}
+
+/* ========= dark-theme checks for things that were hard-coded ========= */
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .hl .acts .backproj{background:var(--card2)}
+  :root:not([data-theme="light"]) .btn.warnbtn{background:#3A3016;color:#F5E3A6;border-color:#7A5E18}}
+:root[data-theme="dark"] .hl .acts .backproj{background:var(--card2)}
+:root:not([data-theme="dark"]) .warn{background:#FFF6D6;color:#5E4600;border-color:#F0D98C;border-left-color:#E0A800}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .warn{background:#3A3016;color:#F5E3A6;border-color:#5C4A12;border-left-color:#C08A10}}
+@media (prefers-reduced-motion:reduce){.dot{animation:none}}
+.quotepic{width:40px;height:40px;object-fit:contain;border:1px solid var(--line);border-radius:6px;background:#fff;cursor:pointer}
+
 @media print{
   body{background:#fff;background-image:none}.app,.scrim,.modal,.toast{display:none!important}
   #print{display:block;font-family:Overpass,Arial,sans-serif;color:#000}
@@ -3688,8 +3766,7 @@ function closeCard(p){
     <header><h2>Close-out</h2>
       <span class="n">${L.length-open.length} of ${L.length}</span>
       ${waiting===L.length?`<span class="pill">nothing to close out yet</span>`:ready?`<span class="pill g">Ready to close</span>`:`<span class="pill o">${open.length} open</span>`}
-      <span class="sub" style="flex:1 1 100%;order:9">What has to be true before this is closed won. It stays open while
-        it's invoiced and unpaid — closing it files the project and its work orders into the archive.</span>
+      <span class="sub">What has to be true before it's closed won. Closing it files the project and its work orders in the archive.</span>
       <span class="sp">
         ${open.length?`<button class="btn sm" data-closeout="${esc(p.id)}">Work through them</button>`:""}
         <button class="btn sm ${ready?"p":""}" data-closego="${esc(p.id)}">${ic("archive",14)}Close won</button>
@@ -3837,8 +3914,8 @@ function billCard(p){
   const owed=billOwed(p);
   return `<section class="card flush" ${!owed?`style="border-color:var(--brand)"`:""}>
     <header><h2>Billing</h2>${billPill(p)}
-      <span class="sub" style="flex:1 1 100%;order:9">${esc(w.help)}</span>
-      <span class="sp"><button class="btn sm" data-billwhen="${esc(p.id)}">Change</button></span></header>
+      <span class="sub">${esc(w.help)} The invoice number is recorded here and nowhere else.</span>
+      <span class="sp"><button class="btn sm" data-billwhen="${esc(p.id)}">When we bill</button></span></header>
     ${(function(){const ol=orderedLines(p);const amt=l=>(Number(l.qty)||(isCharge(l)?1:0))*(Number(l.price)||0);
       const items=ol.filter(l=>!isCharge(l)).reduce((t,l)=>t+amt(l),0),chg=ol.filter(isCharge).reduce((t,l)=>t+amt(l),0);
       const v=projValue(p),dep=billWhen(p)==="deposit"&&Number(p.depositAmt)>0?Number(p.depositAmt):0;
@@ -3848,7 +3925,8 @@ function billCard(p){
         ${billState(p)==="paid"?`<span class="pill g">Paid in full</span>`:""}</div>`})()}
     <div class="fgrid">
       <div class="fld"><div class="k">When we bill</div><div class="v">${esc(w.label)}</div></div>
-      <div class="fld"><div class="k">Invoice number</div><div class="v mono">${esc(p.invNum||"—")}</div></div>
+      <div class="fld"><div class="k">Invoice number</div><div class="v mono" style="display:flex;align-items:center;gap:8px">${esc(p.invNum||"—")}
+        <button class="btn sm q" data-invnum="${esc(p.id)}" title="Type or change the QuickBooks invoice number">${p.invNum?"Change":"Add"}</button></div></div>
       <div class="fld"><div class="k">Invoiced on</div><div class="v">${p.billDate?fmtDate(p.billDate):"—"}</div></div>
       <div class="fld"><div class="k">Paid on</div><div class="v">${p.paidDate?fmtDate(p.paidDate):"—"}</div></div>
       ${billWhen(p)==="deposit"?`<div class="fld"><div class="k">Deposit</div>
@@ -3875,9 +3953,9 @@ function billModal(pid){
         <div><div class="t">${esc(w.label)}</div><div class="h">${esc(w.help)}</div></div></label>`).join("")}
      </div>
      <div class="fgrid">
-       ${inp("bw-inv","Invoice number",p.invNum)}
        ${inp("bw-dep","Deposit amount",p.depositAmt,"number")}
-     </div>`,
+     </div>
+     <p class="note" style="margin:0 14px 8px">The invoice number is kept on the Billing card — add it there when it's invoiced.</p>`,
     `<button class="btn" data-close="1">Cancel</button>
      <button class="btn p" data-billwsave="${esc(pid)}">Save</button>`));
 }
@@ -3889,7 +3967,8 @@ async function billWhenSave(pid){
   const dep=$("#bw-dep")?$("#bw-dep").value.trim():"";
   closeModal();
   const old=(BILLWHEN.find(x=>x.id===billWhen(p))||{}).label||"";
-  await push("projects/"+pid,{billWhen:w,invNum:inv,depositAmt:dep,updatedAt:Date.now()});
+  const patch={billWhen:w,depositAmt:dep,updatedAt:Date.now()};if($("#bw-inv"))patch.invNum=inv;
+  await push("projects/"+pid,patch);
   const nw=(BILLWHEN.find(x=>x.id===w)||{}).label||"";
   if(old!==nw)recordHistory("project",pid,[{f:"Billing",o:old,n:nw}]);
 }
@@ -3917,9 +3996,9 @@ async function setBill(pid,st,noStage,invNum){
 function invNumAsk(pid){
   const p=proj(pid);if(!p)return;
   openModal(mshell("QuickBooks invoice number","money",
-    `<div style="padding:4px 0"><p class="note" style="margin:0 0 8px">Type the number QuickBooks gave the invoice for <b>P-${esc(String(p.num||""))}</b> — it goes to the accountant with the "invoiced" event.</p>
-     <div class="fgrid">${inp("inv-num","Invoice number","")}</div></div>`,
-    `<button class="btn" data-close="1">Cancel</button><button class="btn p" id="inv-ok">Mark invoiced</button>`));
+    `<div style="padding:4px 0"><p class="note" style="margin:0 0 8px">The number QuickBooks gave the invoice for <b>P-${esc(String(p.num||""))}</b>. It goes to the accountant with the "invoiced" event.</p>
+     <div class="fgrid">${inp("inv-num","Invoice number",p.invNum||"")}</div></div>`,
+    `<button class="btn" data-close="1">Cancel</button><button class="btn p" id="inv-ok">${String(p.invNum||"").trim()?"Save":"Mark invoiced"}</button>`));
   const b=$("#inv-ok");
   if(b)b.onclick=()=>{const v=String(($("#inv-num")||{}).value||"").trim();if(!v){toast("Type the invoice number from QuickBooks.");return}
     closeModal();setBill(pid,"invoiced",false,v)};
@@ -3979,11 +4058,10 @@ function reconCard(p){
       ${ord.length?(st.state==="ok"?`<span class="pill g">All on work orders</span>`
         :`<span class="pill r">${notOn} not fully on a work order</span>`)
         :rows.length?`<span class="pill o">Only on work orders</span>`:""}
-      <span class="sub" style="flex:1 1 100%;order:9">${(p.stage==="inquiry"||p.stage==="quoted")
-        ?"What you're quoting — add a line for each item and the quote comes off this. Once it's won, work orders are built from the same lines."
-        :"What the customer ordered — the master list. Work orders are built from it, and each line shows which work order it's on."}</span>
-      <span class="sp">${orderedLines(p).length?`<button class="btn sm cbtn c-quote" data-doc="${esc(p.id)}:quote">${ic("file",14)}Quote PDF</button>`:""}
-        <button class="btn sm" data-chadd="${esc(p.id)}" title="Design time, setup, installation, freight">Add a charge</button>
+      <span class="sub">${(p.stage==="inquiry"||p.stage==="quoted")
+        ?"One line per item. The quote PDF and, once it's won, the work orders come off these lines."
+        :"The master list of what they ordered. Each line shows the work order it's on."}</span>
+      <span class="sp"><button class="btn sm" data-chadd="${esc(p.id)}" title="Design time, setup, installation, freight">Add a charge</button>
         ${ord.filter(l=>!isCharge(l)&&!(Number(l.price)>0)&&fillPriceFor(p,l)).length?`<button class="btn sm" data-fillprices="${esc(p.id)}" title="Puts the default price on every line that has none — you can change any of them after">Fill in ${ord.filter(l=>!isCharge(l)&&!(Number(l.price)>0)&&fillPriceFor(p,l)).length} missing price${ord.filter(l=>!isCharge(l)&&!(Number(l.price)>0)&&fillPriceFor(p,l)).length===1?"":"s"}</button>`:""}
         ${(function(){const hasDecal=ord.some(l=>!isCharge(l)&&isDecalLine(l));const hasSetup=ord.some(l=>isCharge(l)&&(l.charge==="setup"||/setup/i.test(l.desc||"")));
           const c=decalCfg();return hasDecal&&!hasSetup&&Number(c.runSetup)>0?`<button class="btn sm" data-decalsetup="${esc(p.id)}" title="One setup fee for the decal run">Add decal setup ${money2(c.runSetup)}</button>`:""})()}
@@ -3991,8 +4069,7 @@ function reconCard(p){
           return ord.some(l=>!isCharge(l)&&Number(l.price)>0)?`<button class="btn sm${k?" warnbtn":""}" data-reprice="${esc(p.id)}" title="Compare each line's price with today's pricing and update the ones you choose">${k?k+" price"+(k===1?"":"s")+" out of date — re-price":"Re-price"}</button>`:""})()}
         ${ord.filter(l=>!isCharge(l)).length>1?`<button class="btn sm" data-allgrade="${esc(p.id)}" title="Put the same sheeting or material on every line">Change grade on every line</button>`:""}
         <button class="btn sm p" data-ordadd="${esc(p.id)}">Add a line</button>
-        ${!ord.length&&rows.length?`<button class="btn sm" data-ordfill="${esc(p.id)}">Make these the order</button>`:""}
-        ${ord.length&&st.state!=="ok"&&!jobsN?`<button class="btn sm" data-quickwo="${esc(p.id)}">Create work order</button>`:""}</span></header>
+        ${!ord.length&&rows.length?`<button class="btn sm" data-ordfill="${esc(p.id)}">Make these the order</button>`:""}</span></header>
     ${rows.length?`<table><thead><tr><th>Item</th><th>Size</th><th>Grade</th><th style="text-align:right">Qty</th>
       <th style="text-align:right">Costs us</th><th style="text-align:right">Price ea</th><th style="text-align:right">Line</th><th style="text-align:right">Margin</th>
       <th>On work order</th><th style="width:110px"></th></tr></thead><tbody>
@@ -4004,7 +4081,7 @@ function reconCard(p){
           :`<span class="pill o">${r.sched} made, ${r.ordered} ordered</span>${where?`<div style="margin-top:5px">${where}</div>`:""}`;
         return `<tr>
         <td><div style="display:flex;gap:10px;align-items:center">
-          ${linePic(p,r)?`<img src="${esc(linePic(p,r))}" alt="" data-signpic="${esc(picKey(r))}" data-picfall="1" style="width:40px;height:40px;object-fit:contain;border:1px solid var(--line);border-radius:4px;background:#fff;cursor:pointer" title="Change this item's picture">`:""}
+          ${linePic(p,r)?`<img src="${esc(linePic(p,r))}" alt="" class="quotepic" data-signpic="${esc(picKey(r))}" data-picfall="1" style="width:40px;height:40px" title="Change this item's picture">`:""}
           <div><b>${esc(r.desc||signName(r)||r.code||"—")}</b>${(r.desc||signName(r))&&r.code?`<div class="sub">${esc(r.code)}</div>`:""}${r.note?`<div class="sub">${esc(r.note)}</div>`:""}</div></div></td>
         <td>${esc(r.size?sizeLabel(r.size):"—")}</td><td>${esc(r.grade||"—")}${legendsOf(r).length&&r.build!=="print"
           ?`<div class="sub" title="Legend film">legend ${esc(legendText(r,true))}</div>`:""}</td>
@@ -4489,19 +4566,21 @@ function autoPass(){
 // Long explanations on the pages fold into a small ⓘ — tap it for the text. "Help" in the header
 // shows them all again. Warnings and anything with a button or link in it stay as they are.
 function helpOn(){try{return localStorage.getItem("sscHelp")==="1"}catch(e){return false}}
+const PTAB_OF={"quote lines":"lines","order lines":"lines","work orders":"wos","billing":"billing","all files on this project":"files",
+  "activity":"activity","field history":"activity","close-out":"close","schedule":"close","notes":"details","project details":"details",
+  "contacts on this project":"details","@acct":"details"};
 function decorateProjectTabs(){
   if(S.route.v!=="project")return;const main=document.querySelector(".main");if(!main)return;
   const cards=[...main.querySelectorAll("section.card")];if(cards.length<4)return;
-  const tabOf=c=>{const h=((c.querySelector("header h2")||{}).textContent||"").toLowerCase();
-    if(/quote lines|order lines|billing/.test(h))return "lines";if(/work orders/.test(h))return "wos";
-    if(/files|proof/.test(h))return "files";if(/activity|history/.test(h))return "activity";if(/close-out/.test(h))return "close";return "details"};
-  const tabs=[["all","Everything"],["lines","Quote lines"],["wos","Work orders"],["files","Files and proofs"],["activity","Activity"],["close","Close-out"],["details","Details"]];
+  const tabOf=c=>{if(c.querySelector(":scope > header .oi-acct"))return PTAB_OF["@acct"];
+    const h=((c.querySelector("header h2")||{}).textContent||"").replace(/\s+/g," ").trim().toLowerCase();
+    const k=Object.keys(PTAB_OF).find(x=>x!=="@acct"&&h.indexOf(x)===0);return k?PTAB_OF[k]:"details"};
+  const tabs=[["all","All"],["lines","Lines"],["wos","Work orders"],["billing","Billing"],["files","Files"],["activity","Activity"],["close","Close-out"],["details","Details"]];
   let cur=S.ptab||"all";
-  const host=main.querySelector(".cols.flow")||cards[0].parentNode;
-  const strip=document.createElement("div");strip.className="ptabs";
-  strip.innerHTML=tabs.map(([k,l])=>`<button type="button" data-ptab="${k}" class="${cur===k?"on":""}">${l}</button>`).join("");
-  const hl=main.querySelector(".pad > .hl");
-  if(hl)hl.insertAdjacentElement("afterend",strip);else host.parentNode.insertBefore(strip,host);
+  const strip=document.createElement("div");strip.className="ptabs";strip.setAttribute("role","tablist");
+  strip.innerHTML=tabs.map(([k,l])=>`<button type="button" role="tab" aria-selected="${cur===k}" data-ptab="${k}" class="${cur===k?"on":""}">${l}</button>`).join("");
+  const slot=main.querySelector(".pstick-tabs"),hl=main.querySelector(".pad > .hl");
+  if(slot)slot.appendChild(strip);else if(hl)hl.insertAdjacentElement("afterend",strip);else cards[0].parentNode.insertBefore(strip,cards[0]);
   if(cur!=="all")cards.forEach(c=>{if(tabOf(c)!==cur)c.style.display="none"});
 }
 function trackingMail(j){
@@ -4531,14 +4610,16 @@ function nextStepFor(p){
   return "";
 }
 function decorateHelp(){
-  if(helpOn())return;const main=document.querySelector(".main");if(!main)return;
-  main.querySelectorAll(".note,.sub,.h,p.help").forEach(el=>{
-    if(el.closest(".warn,.mbox,table,.pill,button,.hl-facts,.hl-top,[data-nohelp]"))return;
-    if(el.querySelector("button,a,input,select,textarea,img"))return;
-    const t=el.textContent.trim();if(t.split(/\s+/).length<12)return;
-    const b=document.createElement("button");b.type="button";b.className="helpi";b.textContent="i";
-    b.title="What's this?";b.setAttribute("aria-label","Explain");b.dataset.helptext=el.innerHTML;
-    el.replaceWith(b);
+  const main=document.querySelector(".main");if(!main)return;const show=helpOn();
+  main.querySelectorAll("section.card > header > .sub").forEach(el=>{
+    if(el.closest("[data-nohelp]")||el.querySelector("button,a,input,select,textarea,img"))return;
+    const t=el.textContent.trim();if(t.split(/\s+/).length<18)return;
+    el.classList.add("hint-long");
+    const b=document.createElement("button");b.type="button";b.className="helpq";b.textContent="?";
+    b.title="What is this section for?";b.setAttribute("aria-label","Explain this section");b.setAttribute("aria-expanded",show?"true":"false");
+    const h2=el.parentElement.querySelector(":scope > h2");if(h2)h2.insertAdjacentElement("afterend",b);else el.parentElement.insertBefore(b,el);
+    if(!show)el.hidden=true;
+    b.addEventListener("click",()=>{el.hidden=!el.hidden;b.setAttribute("aria-expanded",el.hidden?"false":"true")});
   });
 }
 function paletteItems(q){
@@ -6068,15 +6149,9 @@ function qbInvModal(pid){
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0">
       <button class="btn p" data-qbcsv="${esc(pid)}">Download for QuickBooks import (.csv)</button>
       <button class="btn" data-qbcopy="${esc(pid)}">Copy the lines to paste</button></div>
-    <div class="sub">In QuickBooks Online: <b>New → Import data → Invoices</b> and pick the file. Its products and services are named in Settings → QuickBooks item names.</div>
-    <div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--line)">
-      ${inp("qb-invno","QuickBooks invoice number",p.invNum||"")}
-      ${chk("qb-sent","Mark the project invoiced",billState(p)==="none"||billState(p)==="deposit")}</div></div>`,
-    `<button class="btn" data-close="1">Close</button><button class="btn p" id="qb-save">Save</button>`));
-  $("#qb-save").onclick=async()=>{const no=$("#qb-invno").value.trim();const up={invNum:no,updatedAt:Date.now()};
-    if($("#qb-sent")&&$("#qb-sent").checked&&(billState(p)==="none"||billState(p)==="deposit")){up.billStatus="invoiced";up.billDate=new Date().toISOString().slice(0,10)}
-    await push("projects/"+pid,up);recordHistory("project",pid,[{f:"Invoice number",o:p.invNum||"",n:no+" (QuickBooks)",ev:1}]);
-    closeModal();toast(no?"QuickBooks invoice "+no+" recorded":"Saved")};
+    <div class="sub">In QuickBooks Online: <b>New → Import data → Invoices</b> and pick the file. Its products and services are named in Settings → Connections.</div>
+    <p class="note" style="margin:14px 0 0">Once QuickBooks has made the invoice, press <b>Mark invoiced</b> on the project's Billing card — it asks for the invoice number there.</p></div>`,
+    `<button class="btn" data-close="1">Close</button><button class="btn p" data-bill="${esc(pid)}:invoiced">Mark invoiced</button>`));
 }
 async function qbCsv(pid){
   const p=proj(pid);if(!p)return;const rows=qbRows(p);if(!rows.length)return toast("No lines to send.");
@@ -7192,13 +7267,13 @@ const PAGE_ORDER={
     after:["field history"]},
   project:{steps:["order lines","quote lines","work orders","project details","@acct","contacts on this project","billing",
     "close-out","schedule"],
-    after:["activity","working notes","all files on this project","field history"],
+    after:["activity","notes","all files on this project","field history"],
     left:["project details","@acct","contacts on this project","billing"],right:["activity"],
     // one fixed arrangement for every project, whatever it contains
-    fixed:{tri:[["project details","@acct","contacts on this project","billing","field history"],["activity"],
-                ["close-out","schedule","working notes","all files on this project"]],
-           two:[["project details","@acct","contacts on this project","billing","field history","schedule","all files on this project"],
-                ["activity","close-out","working notes"]]},
+    fixed:{tri:[["notes","project details","@acct","contacts on this project","field history"],["activity"],
+                ["billing","close-out","schedule","all files on this project"]],
+           two:[["notes","project details","@acct","contacts on this project","field history","schedule","all files on this project"],
+                ["activity","billing","close-out"]]},
     center:"activity",nonum:true},
   account:{steps:[],center:"activity",
     after:["details","billing","contacts","projects","open work orders","files","activity","field history"],
@@ -7302,7 +7377,7 @@ const SECTION_HUE=[
   [/^(project details|details|what this)/,"#B8231C"],[/^(contacts)/,"#255CA3"],[/^(billing|money)/,"#1F7A42"],
   [/^(activity)/,"#2B5F8A"],[/^(schedule)/,"#A94E07"],[/^(close-out|pre-production|quality check)/,"#7A3E9D"],
   [/^(order lines|items to make|work orders|open work orders|projects)/,"#8A4A08"],[/^(material)/,"#526E7C"],
-  [/^(production route|shipping)/,"#35635B"],[/^(working notes)/,"#9A7B0A"],[/^(all files|files|paperwork)/,"#4F5964"],
+  [/^(production route|shipping)/,"#35635B"],[/^(notes|working notes)/,"#9A7B0A"],[/^(all files|files|paperwork)/,"#4F5964"],
   [/^(field history)/,"#5A5E63"]];
 function decorateHeaders(){
   document.querySelectorAll(".main section.card").forEach(c=>{
@@ -7427,14 +7502,32 @@ function gbar(){
       :`<div class="gme" ${(S.me||"").trim()?"":`style="border-color:var(--brand);box-shadow:0 0 0 2px rgba(213,1,1,.18)"`}>
         <label for="me">${(S.me||"").trim()?"Initials":"Your initials"}</label>
         <input id="me" maxlength="4" value="${esc(S.me)}" placeholder="??"></div>`}
+    <div class="gright">
+    <button class="gset p" data-quick="1" title="Create something">+ New</button>
+    <button class="gset" data-palette="1" title="Find anything or start anything — Ctrl+K">Find <kbd>Ctrl K</kbd></button>
+    ${assistMenu()}
     ${bellBtn()}
-    <button class="gset" data-quick="1" title="Create something"
-      style="background:var(--brand);border-color:var(--brand);color:#fff">+ New</button>
-    <button class="gset" data-helptoggle="1" title="Show or hide the explanations on every page">Help ${helpOn()?"on":"off"}</button>
-    <button class="gset" data-palette="1" title="Find anything or start anything — Ctrl+K">Find ⌘K</button>
-    <button class="gset" data-go="settings">Settings</button>
+    <button class="gset" data-go="settings" title="Settings">Settings</button>
     ${typeof window.sscSignOut==="function"?`<button class="gset" data-signout="1" title="Sign out of the CRM">Sign out</button>`:""}
   </header>`;
+}
+// one quiet menu for the assistant and the help toggles — it knows which record is open
+function assistMenu(){
+  const r=S.route||{};const id=r.id||"";
+  const ai=[];
+  if(S.ai){
+    ai.push(`<button data-ai="brief:0">${ic("chart",14)}Brief me — what matters today</button>`);
+    if(r.v==="project"&&id)ai.push(`<button data-ai="catch:${esc(id)}">${ic("project",14)}Catch me up on this project</button>
+      <button data-ai="follow:${esc(id)}">${ic("email",14)}Draft a follow-up email</button>
+      <button data-ai="paste:${esc(id)}">${ic("file",14)}Read a PO into a work order</button>`);
+    if(r.v==="account"&&id)ai.push(`<button data-ai="acct:${esc(id)}">${ic("account",14)}Catch me up on this account</button>`);
+  }
+  return `<details class="dd gdd"><summary class="gset">${S.ai?"Assistant":"Help"}</summary><div class="dd-m">
+    ${ai.length?`<div class="dd-h">Claude reads only the record that's open</div>${ai.join("")}<div class="dd-sep"></div>`:""}
+    <button data-helptoggle="1">${ic("note",14)}${helpOn()?"Hide the long explanations":"Show the long explanations"}</button>
+    <button data-palette="1">${ic("search",14)}Find or start anything<kbd>Ctrl K</kbd></button>
+    <button data-wizstart="1">${ic("task",14)}Walk me through a new order</button>
+  </div></details>`;
 }
 function mark(){
   return `<svg width="28" height="28" viewBox="0 0 40 40" aria-hidden="true">
@@ -7519,8 +7612,8 @@ function tabbar(){
     :r==="inventory"&&lowStock().length?` <span class="pill r">${lowStock().length}</span>`:"";
   const gBadge=g=>{const t=g.pages.reduce((x,[r])=>x+(r==="calendar"?overdueItems().length:r==="inventory"?lowStock().length:0),0);return t?` <span class="pill r" style="margin-left:4px">${t}</span>`:""};
   const pages=grp.pages.filter(([r])=>r!=="mybook"||S.viewerTeam).filter(([r])=>r!=="settings"||can("settings"));
-  return `<nav class="tabbar">${NAVG.filter(g=>g.id!=="admin"||can("settings")||true).map(g=>`<a href="#/${g.pages[0][0]}" class="${g===grp?"on":""}">${ic(g.icon,14)}${g.label}${g===grp?"":gBadge(g)}</a>`).join("")}</nav>
-  <nav class="subbar">${pages.map(([r,i,l])=>`<a href="#/${r}" class="${cur===r?"on":""}">${l}${r==="mybook"&&S.scope?` <span class="pill b">${esc((scopeTeam()||{}).initials||"")}</span>`:""}${badge(r)}</a>`).join("")}</nav>`;
+  return `<div class="navrow"><nav class="tabbar" aria-label="Sections">${NAVG.filter(g=>g.id!=="admin"||can("settings")||true).map(g=>`<a href="#/${g.pages[0][0]}" class="${g===grp?"on":""}" ${g===grp?'aria-current="true"':""}>${ic(g.icon,14)}${g.label}${g===grp?"":gBadge(g)}</a>`).join("")}</nav>
+  <nav class="subbar" aria-label="Pages">${pages.map(([r,i,l])=>`<a href="#/${r}" class="${cur===r?"on":""}" ${cur===r?'aria-current="page"':""}>${l}${r==="mybook"&&S.scope?` <span class="pill b">${esc((scopeTeam()||{}).initials||"")}</span>`:""}${badge(r)}</a>`).join("")}</nav></div>`;
 }
 function body(){
   if(!S.ready)return `<div class="boot">Connecting…</div>`;
@@ -7692,14 +7785,19 @@ function home(){
     if(unpaid.length)attn.push({t:unpaid.length+" prepaid job"+(unpaid.length===1?"":"s")+" waiting on money before it can run",h:"projects",c:"r"})})();
   if(noExempt.length)attn.push({t:noExempt.length+" agency account"+(noExempt.length===1?"":"s")+" with no exemption certificate",h:"accounts",c:"y"});
   if(unsignedWO.length)attn.push({t:unsignedWO.length+" shipped work order"+(unsignedWO.length===1?"":"s")+" with no signed copy scanned",h:"jobs",c:"y"});
+  const todayD=new Date();
   return `<div class="pad">
-    <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:14px;flex-wrap:wrap">
-      <h1 style="margin:0;font-size:22px;font-weight:800;letter-spacing:-.02em">Company dashboard</h1>
-      <span class="livebar"><span class="dot"></span>live</span>
-      ${S.ai?`<button class="btn sm p" data-ai="brief:0">Brief me</button>`:""}
-      <button class="btn sm p" data-wizstart="1">${ic("task",14)}New order</button>
-      <span class="sub" style="margin-left:auto">${esc(new Date().toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"}))}</span>
-    </div>
+    <div class="pagehead"><h1>Dashboard</h1><span class="livebar"><span class="dot"></span>live</span>
+      <span class="sp"><button class="btn p" data-wizstart="1">${ic("task",14)}New order</button></span></div>
+    <section class="today" data-nohelp="1">
+      <div class="today-d"><b>${esc(todayD.toLocaleDateString(undefined,{weekday:"long"}))}</b><span>${esc(todayD.toLocaleDateString(undefined,{month:"long",day:"numeric"}))}</span></div>
+      <div class="today-items">
+        <button class="tchip ${dt.length?"o":"g"}" data-go="jobs">${dt.length?dt.length+" work order"+(dt.length===1?"":"s")+" due today":"Nothing due today"}</button>
+        ${attn.map(a=>`<button class="tchip ${a.c}" data-go="${esc(a.h)}">${esc(a.t)}</button>`).join("")}
+        ${tasks.length?`<span class="tchip b" style="cursor:default">${tasks.length} open task${tasks.length===1?"":"s"}</span>`:""}
+      </div>
+      <div class="today-acts"><button class="btn sm q" data-remind="1">Email the due list</button><button class="btn sm q" data-ics="all">Export dates</button></div>
+    </section>
     ${kpiRow([
       kpi("Invoiced this month",money(invM.reduce((t,p2)=>t+projValue(p2),0)),invM.length+" project"+(invM.length===1?"":"s")),
       kpi("Invoiced YTD",money(revYTD),yr+" to date"),
@@ -7707,15 +7805,7 @@ function home(){
       kpi("Waiting on payment",money(awaitVal),awaiting.length+" invoiced"+(pastTerms.length?" · "+pastTerms.length+" past terms":""),pastTerms.length?"r":""),
       kpi("Open pipeline",money(pipe),open.length+" open project"+(open.length===1?"":"s")),
       kpi("Won this month",money(wonM.reduce((t,p2)=>t+projValue(p2),0)),wonM.length+" won"),
-      kpi("Win rate",wr===null?"—":wr+"%","last 6 months",wr===null?"":wr>=50?"g":wr>=30?"":"o"),
-      kpi("Past due",late.length||"—","work orders",late.length?"r":"g"),
-      kpi("Due today",dt.length||"—","work orders",dt.length?"o":"")])}
-
-    ${attn.length?`<section class="card flush" data-keepopen="1" style="border-color:var(--brand);margin-bottom:16px">
-      <header><h2>Needs attention</h2><span class="n">${attn.length}</span></header>
-      <table><tbody>${attn.map(a=>`<tr><td><div style="display:flex;gap:10px;align-items:center">
-        <span class="pill ${a.c}" style="flex:0 0 auto">!</span><button class="lnk" data-go="${esc(a.h)}">${esc(a.t)}</button></div></td></tr>`).join("")}</tbody></table>
-      </section>`:""}
+      kpi("Win rate",wr===null?"—":wr+"%","last 6 months",wr===null?"":wr>=50?"g":wr>=30?"":"o")])}
 
     <div class="cols">
       ${barCard("Pipeline by stage",stageRows,v=>money(v),"open value and project count")}
@@ -7742,15 +7832,6 @@ function home(){
                 <div class="sub">${esc(accName(p2.accountId))}</div></div>
               <span class="pill ${stageCls(p2.stage)}">${esc((SG[p2.stage]||{}).label||"")}</span>
             </div>`).join("")||`<div class="empty">No projects yet.</div>`}</section>
-        <section class="card"><header><h2>Shortcuts</h2></header><div class="body">
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-            ${S.ai?`<button class="btn p" data-ai="brief:0">Brief me</button>`:""}
-            <button class="btn" data-go="reports">Reports</button>
-            <button class="btn" data-go="calendar">Calendar</button>
-            <button class="btn" data-ics="all">Export dates</button>
-            <button class="btn" data-remind="1">Email the due list</button>
-            ${low.length?`<button class="btn" data-go="inventory">${low.length} to reorder</button>`:""}
-          </div></div></section>
       </div>
     </div></div>`;
 }
@@ -7817,7 +7898,6 @@ function accountRec(id){
       <div class="acts"><button class="btn" data-edit="account:${esc(id)}">Edit</button>
         <button class="btn" data-new="contact:${esc(id)}">New contact</button>
         <button class="btn p" data-new="project:${esc(id)}">New project</button>
-        ${aiBtn("Catch me up","acct",id)}
         <button class="btn d" data-del="account:${esc(id)}">Delete</button></div></div>
       <div class="hl-facts">
         <div><div class="k">Sales rep</div><div class="v" style="font-size:13px;display:flex;
@@ -8125,7 +8205,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.19-1";
+const APP_VERSION="2026.11.20-1";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -8331,12 +8411,10 @@ function projectRec(id){
   return `<div class="pad">
     ${crumbBar(crumbsForProject(p))}
     ${nextStep("project",p)}
-    ${(p.stage==="shipped"&&!billingFor(p))?`<div class="alert" style="border-radius:6px;margin-bottom:14px;
-      background:var(--yellow);color:var(--yellow-ink)">
+    ${(p.stage==="shipped"&&!billingFor(p))?`<div class="alert amber" style="margin-bottom:14px">
       <span>This is shipped and ready to invoice, but no billing contact is set.</span>
-      <span class="sp"><button class="btn sm" data-billing="project:${esc(id)}"
-        style="background:rgba(0,0,0,.08);border-color:rgba(0,0,0,.25);color:inherit">Set it now</button></span></div>`:""}
-    ${isLate?`<div class="alert" style="border-radius:6px;margin-bottom:14px">
+      <span class="sp"><button class="btn sm" data-billing="project:${esc(id)}">Set it now</button></span></div>`:""}
+    ${isLate?`<div class="alert" style="margin-bottom:14px">
       <span>This project is ${Math.abs(od)} day${Math.abs(od)>1?"s":""} past its due date of ${esc(fmtDate(p.due))}.</span>
       <span class="sp"><button class="btn sm" data-edit="project:${esc(id)}">Change the date</button>
         <button class="btn sm" data-log="project:${esc(id)}:call">Log a call</button></span></div>`:""}
@@ -8346,16 +8424,37 @@ function projectRec(id){
           <div class="sub"><button class="lnk" data-go="account/${esc(p.accountId)}">${esc(accName(p.accountId))}</button>
             ${lineage(p)}</div></div>
         <div class="acts"><button class="btn" data-edit="project:${esc(id)}">Edit</button>
-          <button class="btn" data-reorder="${esc(id)}">Reorder</button>
-          <button class="btn" data-doc="${esc(id)}:quote" title="Make the quote as a PDF — any time">Quote PDF</button>
-          ${nextStepFor(p).indexOf("data-quickwo")>=0?"":woBtn(p)}
-          ${nextStepFor(p)}
-          <button class="btn d" data-del="project:${esc(id)}">Delete</button></div></div>
-      <div class="path">
-        ${PATH.map((s2,i2)=>{const hit=sl.filter(x=>x.stage===s2).pop();
-          return `<button class="${p.stage===s2?"cur":(cur>i2?"done":"")}" data-stage="${esc(id)}:${s2}" title="${esc(SG[s2].help)}">
-            ${esc(SG[s2].label)}<small>${hit&&cur>=i2?fmtDate(new Date(hit.at).toISOString().slice(0,10)).replace(/, \d{4}$/,""):"—"}</small></button>`}).join("")}
-        <button class="${p.stage==="lost"?"lost":""}" data-stage="${esc(id)}:lost" style="min-width:72px">Closed lost<small>${p.stage==="lost"&&stageAt(p,"lost")?fmtDate(new Date(stageAt(p,"lost")).toISOString().slice(0,10)).replace(/, \d{4}$/,""):"&nbsp;"}</small></button>
+          <details class="dd"><summary class="btn">${ic("file",14)}Documents</summary><div class="dd-m">
+            <div class="dd-h">Make</div>
+            <button data-doc="${esc(id)}:quote">${ic("file",14)}Quote PDF</button>
+            <button data-proof="${esc(id)}">${ic("file",14)}Proof PDF</button>
+            ${(S.brand||{}).qbInvoicing===false?`<button data-doc="${esc(id)}:invoice">${ic("money",14)}Invoice PDF</button>`
+              :acctInvoices()?``:`<button data-qbinv="${esc(id)}">${ic("money",14)}Lines for the QuickBooks invoice</button>`}
+            <button data-ics="${esc(id)}">${ic("calendar",14)}Dates as a calendar file (.ics)</button>
+            ${S.canUpload?`<div class="dd-sep"></div><div class="dd-h">File</div>
+            <button data-upload="project:${esc(id)}:Artwork proof">${ic("file",14)}Upload artwork proof</button>
+            <button data-upload="project:${esc(id)}:Signed proof">${ic("task",14)}Upload signed proof</button>
+            <button data-upload="project:${esc(id)}">${ic("file",14)}Upload any file</button>`:""}
+          </div></details>
+          <details class="dd"><summary class="btn">More</summary><div class="dd-m">
+            <button data-reorder="${esc(id)}">${ic("archive",14)}Reorder — copy this project</button>
+            <div class="dd-sep"></div>
+            <button class="danger" data-del="project:${esc(id)}">Delete this project</button>
+          </div></details></div></div>
+      <div class="path" data-nohelp="1">
+        ${p.stage==="lost"
+          ?`<div class="step lost"><b>Closed lost</b><small>${stageAt(p,"lost")?fmtDate(new Date(stageAt(p,"lost")).toISOString().slice(0,10)):"—"}</small></div>`
+          :PATH.map((s2,i2)=>{const hit=sl.filter(x=>x.stage===s2).pop();const isCur=p.stage===s2;
+            const when=hit&&cur>=i2?fmtDate(new Date(hit.at).toISOString().slice(0,10)).replace(/, \d{4}$/,""):"";
+            const ds=daysSince(lastAt);
+            return `<div class="step ${isCur?"cur":(cur>i2?"done":"")}" title="${esc(SG[s2].help)}"><b>${esc(SG[s2].label)}</b>
+              <small>${isCur?(ds!==null?(when?when+" · ":"")+ds+(ds===1?" day":" days")+" here":when||"now"):when||"—"}</small></div>`}).join("")}
+        <details class="dd"><summary class="btn sm">Change stage</summary><div class="dd-m">
+          <div class="dd-h">Moves are checked — a quote has to be finished before it's won</div>
+          ${PATH.map(s2=>`<button data-stage="${esc(id)}:${s2}" class="${p.stage===s2?"on":""}">${esc(SG[s2].label)}</button>`).join("")}
+          <div class="dd-sep"></div>
+          <button class="danger" data-stage="${esc(id)}:lost">Closed lost</button>
+        </div></details>
       </div>
       ${(function(){const q=quoteState(p);if(q.ok||p.stage==="closed"||p.stage==="lost")return "";
         const fill=q.noPrice.filter(l=>fillPriceFor(p,l)).length;
@@ -8386,31 +8485,30 @@ function projectRec(id){
         <div><div class="k">Days in stage</div><div class="v mono">${daysSince(lastAt)!==null?daysSince(lastAt):"—"}</div></div>
       </div>
     </div>
+    <div class="pstick" data-nohelp="1"><div class="pstick-in">
+      <span class="pstick-num">P-${p.num}</span><b class="pstick-name" title="${esc(p.name)}">${esc(p.name)}</b>
+      <span class="pill ${stageCls(p.stage)}">${esc((SG[p.stage]||{}).label||p.stage)}</span>
+      <span class="pstick-fact"><b>${money(projValue(p))}</b></span>
+      <span class="pstick-tabs"></span>
+      <span class="pstick-go">${nextStepFor(p)}</span>
+    </div></div>
 
     <div class="cols">
       <section class="card flush"><header><h2>Project details</h2>
-        <span class="sp"><button class="btn sm" data-edit="project:${esc(id)}">Edit</button></span></header>
+        <span class="sub">The order, the dates and where it ships. Edit is on the header.</span></header>
         ${(function(){
           // what's being made, from the ordered lines — or the work orders if nothing's been recorded
           const ol=orderedLines(p);
           const sched=Object.values(scheduledFor(p));
-          const lines=ol.length?ol.map(l=>({qty:l.qty,code:l.code,size:l.size,grade:l.grade})):sched.map(b=>({qty:b.qty,code:b.code,size:b.size}));
-          const making=lines.map(l=>`<li><b>${esc(String(l.qty||""))}</b> × ${esc(l.code||"custom")}${l.size?" "+esc(sizeLabel(l.size)):""}${l.grade?` <span class="sub">${esc(l.grade)}</span>`:""}</li>`).join("");
-          const desc=(p.scope||"").trim();
-          return `<div style="padding:12px 15px;border-bottom:1px solid var(--line2)">
-            <div class="k" style="margin-bottom:5px;font-size:10.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--ink2)">What this project is</div>
-            ${desc?`<div style="font-size:14.5px;line-height:1.45;white-space:pre-wrap">${esc(desc)}</div>`
-              :`<div class="sub" style="font-size:13px">Nothing written yet. <button class="lnk" data-edit="project:${esc(p.id)}">Describe it</button> —
-                what it's for, where it's going, anything the shop or the customer should know.</div>`}
-          </div>
-          <div style="padding:12px 15px;border-bottom:1px solid var(--line2)">
-            <div class="k" style="margin-bottom:5px;font-size:10.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--ink2)">What's being made</div>
+          const lines=ol.length?ol.map(l=>({qty:l.qty,code:l.code,size:l.size,grade:l.grade,desc:l.desc})):sched.map(b=>({qty:b.qty,code:b.code,size:b.size,desc:b.desc}));
+          return `          <div style="padding:12px 15px;border-bottom:1px solid var(--line2)">
+            <div class="k" style="margin-bottom:6px;font-size:12px;font-weight:700;color:var(--ink2)">What's being made</div>
             ${lines.length?`${(function(){
               const g={};lines.forEach(l=>{const k=lineProd(l);(g[k]=g[k]||[]).push(l)});
               const order=Object.keys(g).sort((a,b)=>g[b].length-g[a].length);
               return `<div style="display:flex;flex-direction:column;gap:9px">
                 ${order.map(k=>`<div>
-                  <div style="font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2);margin-bottom:2px">${esc(kindLabel(k))}</div>
+                  <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:2px">${esc(kindLabel(k))}</div>
                   ${g[k].map(l=>`<div style="font-size:13.5px;line-height:1.5"><b>${esc(String(l.qty||""))}</b> × ${esc(l.desc||signName(l)||l.code||"custom")}${l.size?` <span class="sub">${esc(sizeLabel(l.size))}</span>`:""}${l.grade?` <span class="sub">· ${esc(l.grade)}</span>`:""}</div>`).join("")}
                 </div>`).join("")}
                 <div class="sub">${lines.reduce((t,l)=>t+(Number(l.qty)||0),0)} pieces, ${lines.length} line${lines.length===1?"":"s"} — details under ${(p.stage==="inquiry"||p.stage==="quoted")?"Quote lines":"Order lines"}</div></div>`})()}`
@@ -8441,9 +8539,9 @@ function projectRec(id){
                 ${rep?`<span class="sub">Rep: <b style="color:var(--ink)">${esc(rep.name)}</b></span>`:""}
                 ${since!==Infinity?`<span class="sub" style="margin-left:auto">Customer since ${esc(new Date(since).toLocaleDateString(undefined,{month:"short",year:"numeric"}))}</span>`:""}</div>
               <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-bottom:1px solid var(--line2)">
-                <div style="padding:10px 15px;border-right:1px solid var(--line2)"><div style="font-size:9.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2)">Open projects</div><div class="v" style="font-size:18px;font-weight:800">${open.length}</div><div class="sub">${money(openVal)}</div></div>
-                <div style="padding:10px 15px;border-right:1px solid var(--line2)"><div style="font-size:9.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2)">Won to date</div><div class="v" style="font-size:18px;font-weight:800">${won.length}</div><div class="sub">${money(wonVal)}</div></div>
-                <div style="padding:10px 15px"><div style="font-size:9.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2)">All projects</div><div class="v" style="font-size:18px;font-weight:800">${ps.length}</div><div class="sub">${esc(a.terms||"no terms set")}</div></div>
+                <div style="padding:10px 15px;border-right:1px solid var(--line2)"><div class="kpi-l">Open projects</div><div class="v" style="font-size:18px;font-weight:800">${open.length}</div><div class="sub">${money(openVal)}</div></div>
+                <div style="padding:10px 15px;border-right:1px solid var(--line2)"><div class="kpi-l">Won to date</div><div class="v" style="font-size:18px;font-weight:800">${won.length}</div><div class="sub">${money(wonVal)}</div></div>
+                <div style="padding:10px 15px"><div class="kpi-l">All projects</div><div class="v" style="font-size:18px;font-weight:800">${ps.length}</div><div class="sub">${esc(a.terms||"no terms set")}</div></div>
               </div>
               <div class="fgrid">${fld("Phone",fmtPhone(a.phone))}${fld("Main contact",prim?prim.name+(prim.role?" — "+prim.role:""):"none yet")}
                 ${fld("Address",addr||"—")}${fld("Website",a.website||"—")}`})()}
@@ -8469,7 +8567,7 @@ function projectRec(id){
 
     <section class="card flush"><header><h2>Schedule</h2>
       <span class="n">${eventsOf(id).length}</span>
-      <span class="sub" style="flex:1 1 100%;order:9">installs, deliveries, site visits and deadlines — shows on the calendar too</span>
+      <span class="sub">Installs, deliveries, site visits and deadlines. They show on the calendar too.</span>
       <span class="sp"><button class="btn sm p" data-newev=":${esc(id)}">Add event</button></span></header>
       ${eventsOf(id).length?`<table><thead><tr><th style="width:130px">When</th><th>Event</th>
         <th>Where</th><th>Invited</th><th style="width:180px"></th></tr></thead><tbody>
@@ -8491,15 +8589,20 @@ function projectRec(id){
     <div class="cols">
       
 
-      <section class="card flush"><header><h2>Working notes</h2>
-        <span class="sub" style="margin-left:auto">saves as you type</span></header>
-        <div style="padding:12px 14px">
-          <textarea data-pnote="${esc(id)}" style="width:100%;min-height:150px;padding:9px 11px;
-            border:1px solid var(--line);border-radius:4px;background:var(--card2);font-family:inherit;
-            font-size:13.5px;resize:vertical" placeholder="Running notes on this project — specs, what they asked for, what changed.">${esc(p.notes||"")}</textarea>
-          <div style="display:flex;gap:7px;margin-top:9px">
-            <button class="btn sm" data-log="project:${esc(id)}:note">Add a dated note instead</button>
-            <span class="sub" id="pnotestat" style="align-self:center"></span></div>
+      <section class="card flush"><header><h2>Notes</h2>
+        <span class="sub">What the project is, and your running notes. Dated notes, calls and emails go under Activity.</span></header>
+        <div style="padding:12px 16px;border-bottom:1px solid var(--line2)">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px"><div class="k" style="font-size:12px;font-weight:700;color:var(--ink2)">About this project</div>
+            <button class="btn sm q" data-edit="project:${esc(id)}" style="margin-left:auto">${(p.scope||"").trim()?"Change":"Describe it"}</button></div>
+          ${(p.scope||"").trim()?`<div style="font-size:14px;line-height:1.5;white-space:pre-wrap">${esc((p.scope||"").trim())}</div>`
+            :`<div class="sub">Nothing written yet — what it's for, where it's going, anything the shop or the customer should know.</div>`}
+        </div>
+        <div style="padding:12px 16px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px"><div class="k" style="font-size:12px;font-weight:700;color:var(--ink2)">Running notes</div>
+            <span class="sub" id="pnotestat" style="margin-left:auto">saves as you type</span></div>
+          <textarea data-pnote="${esc(id)}" style="width:100%;min-height:120px;padding:9px 11px;
+            border:1px solid var(--line);border-radius:var(--r);background:var(--card2);font-family:inherit;
+            font-size:13.5px;resize:vertical" placeholder="Specs, what they asked for, what changed.">${esc(p.notes||"")}</textarea>
         </div></section>
     </div>
 
@@ -8545,7 +8648,7 @@ function projectRec(id){
 
     <section class="card flush"><header><span class="oi sm oi-file">${ic("file",14)}</span><h2>All files on this project</h2>
       <span class="n">${flsAll.length}</span>
-      <span class="sub" style="flex:1 1 100%;order:9">project files plus every file on its jobs — nothing from other projects</span>
+      <span class="sub">Project files plus every file on its work orders.</span>
       <span class="sp">${S.canUpload?`<button class="btn sm p" data-upload="project:${esc(id)}">Upload</button>`:""}</span></header>
       ${flsAll.length?`${fileFilterBar(flsAll)}<div class="fgal">${fls.map(f=>fileTile(f,1)).join("")}</div>`
       :`<div class="${S.canUpload?"drop":"empty"}" data-drop="project:${esc(id)}">
@@ -9008,22 +9111,10 @@ function activityCard(kind,id){
   a=openT.concat(a.filter(x=>!(x.kind==="task"&&!x.done)));
   const all=a;
   if(S.actFilter)a=a.filter(x=>actKind(x)===S.actFilter);
-  const tools=kind==="project"?actionBar([
-        {l:"Log",html:actButtons("project",id)},
-        {l:"Files & calendar",html:`${S.canUpload?`<button class="btn sm cbtn c-file" data-upload="project:${esc(id)}">${ic("file",14)}Upload file</button>`:""}
-          <button class="btn sm cbtn c-cal" data-ics="${esc(id)}">${ic("calendar",14)}Add to calendar</button>`},
-        {l:"Paperwork",html:`<button class="btn sm cbtn c-quote" data-doc="${esc(id)}:quote">${ic("file",14)}Quote</button>
-          ${(S.brand||{}).qbInvoicing===false?`<button class="btn sm cbtn c-money" data-doc="${esc(id)}:invoice">${ic("money",14)}Invoice</button>`
-            :acctInvoices()?``
-            :`<button class="btn sm cbtn c-money" data-qbinv="${esc(id)}" title="Invoices are made in QuickBooks — get the lines ready for it">${ic("money",14)}QuickBooks invoice</button>`}`},
-        {l:"Proof",html:`${S.canUpload?`<button class="btn sm cbtn c-file" data-upload="project:${esc(id)}:Artwork proof">${ic("file",14)}Upload artwork</button>`:""}
-          <button class="btn sm cbtn c-cal" data-proof="${esc(id)}">${ic("file",14)}Proof PDF</button>
-          ${S.canUpload?`<button class="btn sm cbtn c-signed" data-upload="project:${esc(id)}:Signed proof">${ic("task",14)}Upload signed proof</button>`:""}`},
-        {l:"Ask Claude",html:`${aiBtn("Catch me up","catch",id)}${aiBtn("Draft a follow-up","follow",id)}${aiBtn("Read a PO","paste",id)}`}
-      ]):"";
+  const tools=kind==="project"?actionBar([{l:"Log",html:actButtons("project",id)}]):"";
   return `<section class="card flush actcard"><header><h2>Activity</h2><span class="n">${all.length}</span>
     ${tools?"":`<span class="sp">${actButtons(kind,id)}</span>`}
-    <span class="sub" style="flex:1 1 100%;order:9">calls, emails, meetings, notes and tasks — ${kind==="project"?"on this project and its work orders":kind==="account"?"with this account":"on this record"}. Open tasks stay at the top.</span></header>
+    <span class="sub">Calls, emails, meetings, dated notes and tasks${kind==="project"?" — including its work orders":""}. Open tasks stay on top.</span></header>
     ${tools}
     ${followUpBar(kind,id)?`<div style="padding:0 15px 2px">${followUpBar(kind,id)}</div>`:""}
     ${actFilterBar(all)}
@@ -9383,10 +9474,10 @@ function winRate(list,days){
 }
 function kpi(label,value,sub,color){
   return `<div class="card" style="margin:0"><div class="body" style="padding:12px 14px">
-    <div class="sub" style="font-weight:800;letter-spacing:.06em;text-transform:uppercase;font-size:9.5px">${esc(label)}</div>
-    <div class="mono kpiv" style="font-size:23px;font-weight:800;line-height:1.15;margin-top:2px;${
+    <div class="kpi-l">${esc(label)}</div>
+    <div class="mono kpiv kpi-v" style="${
       color==="r"?"color:var(--red)":color==="o"?"color:var(--orange)":color==="g"?"color:var(--green)":""}">${esc(String(value))}</div>
-    ${sub?`<div class="sub" style="margin-top:2px">${esc(sub)}</div>`:""}</div></div>`;
+    ${sub?`<div class="kpi-s">${esc(sub)}</div>`:""}</div></div>`;
 }
 function kpiRow(cells){
   // tiles share the row evenly, so a ninth tile doesn't sit alone on a second line
@@ -9401,8 +9492,8 @@ function barCard(title,rows,fmt,note){
       ${rows.map(r=>`<div style="display:flex;align-items:center;gap:10px;margin-bottom:9px">
         <div style="flex:0 0 118px;font-size:12.5px;font-weight:700;overflow:hidden;
           text-overflow:ellipsis;white-space:nowrap">${r.link?`<button class="lnk" data-go="${esc(r.link)}">${esc(r.k)}</button>`:esc(r.k)}</div>
-        <div style="flex:1;background:var(--card2);height:18px;border:1px solid var(--line2)">
-          <div style="height:100%;width:${Math.max(1,Math.abs(r.v)/max*100)}%;background:${r.c||"var(--brand)"}"></div></div>
+        <div style="flex:1;background:var(--card2);height:14px;border-radius:3px">
+          <div style="height:100%;width:${Math.max(1,Math.abs(r.v)/max*100)}%;background:${r.c||"var(--ink2)"};border-radius:3px"></div></div>
         <div class="mono" style="flex:0 0 auto;font-weight:700;font-size:12.5px;min-width:74px;text-align:right">${esc(fmt(r.v))}</div>
         ${r.n!=null?`<div class="sub mono" style="flex:0 0 34px;text-align:right">${r.n}</div>`:""}
       </div>`).join("")}</div>`
@@ -9450,7 +9541,6 @@ function myBook(){
         <button class="btn" data-scope="${esc(t.id)}:accounts">My accounts</button>
         <button class="btn" data-scope="${esc(t.id)}:projects">My projects</button>
         <button class="btn" data-scope="${esc(t.id)}:jobs">My work orders</button>
-        ${S.ai?`<button class="btn" data-ai="brief:0">Brief me</button>`:""}
         <button class="btn p" data-new="project">New project</button></div></div></div>
 
     ${kpiRow([
@@ -9977,60 +10067,78 @@ function archiveView(){
   </div>`;
 }
 /* ========== settings + bin ========== */
+const SET_GROUPS=[["company","Company"],["pricing","Pricing"],["connections","Connections"],["production","Production"],
+  ["codes","Codes & pictures"],["team","Team & access"],["data","Data"],["about","How it works"]];
 function settingsView(){
   const b=S.brand||DEF_BRAND;
   const crumbs=crumbBar([{l:"Dashboard",h:"home"},{l:"Settings"}]);
   const counts=[["Accounts",live(S.accounts).length],["Contacts",live(S.contacts).length],
     ["Projects",live(S.projects).length],["Work orders",liveJobs().length+" live · "+archivedJobs().length+" archived"],["Files",live(S.files).length],
     ["History entries",[...S.history.values()].reduce((t,h)=>t+((h.entries||[]).length),0)]];
+  const sampleN=["accounts","contacts","projects","jobs","files","activity","events","vendors","items","invtx","team"]
+    .reduce((t,k)=>t+[...S[k].values()].filter(x=>x.sample).length,0);
+  const cur=SET_GROUPS.some(([k])=>k===S.stab)?S.stab:"company";
+  const panel=(k,title,hint,inner)=>`<div class="spanel ${cur===k?"on":""}" data-spanel="${k}" role="tabpanel"><h2>${esc(title)}<span class="sub">${esc(hint)}</span></h2>${inner}</div>`;
+  const ck=(id,on,label,sub)=>`<label class="ckrow"><input type="checkbox" id="${id}" ${on?"checked":""}><span>${label}${sub?`<span class="sub">${sub}</span>`:""}</span></label>`;
+  const hosted=isHosted();
+  const sheetLine=S.sheet?`${sheetRows().length} signs from ${esc(S.sheet.source||"the workbook")}${S.sheet.importedAt?", loaded "+esc(fmtTs(S.sheet.importedAt)):""}`
+    :(hosted?"Not loaded yet. It loads by itself from the agents' sheet each morning, or press Pull now.":"Not loaded yet. Pick the NewCo workbook (.xlsx) — tabs 04 and 11 are read.");
   return `<div class="pad">
     ${crumbs}
-    <section class="card"><header><h2>Branding</h2></header><div class="body">
-      <p class="note" style="margin-bottom:14px">Upload your logo and set your exact hex codes — the whole app re-skins itself, including the header and every status color.</p>
+    <div class="pagehead"><h1>Settings</h1></div>
+    <div class="setwrap">
+    <nav class="snav" role="tablist" aria-label="Settings groups">
+      ${SET_GROUPS.map(([k,l])=>`<button type="button" role="tab" data-stab="${k}" class="${cur===k?"on":""}" aria-selected="${cur===k}">${l}${k==="data"&&sampleN?`<span class="n">${sampleN} sample</span>`:""}</button>`).join("")}
+      <div class="snav-v">Version ${esc(APP_VERSION)}<br>${window.sscHosted?"your site":"in Claude"}</div>
+    </nav>
+    <div class="setpanels">
+
+    ${panel("company","Company","Your name, logo and contact details as they print on quotes, invoices and emails.",`
+    <section class="card"><header><h2>Name and logo</h2></header><div class="body">
       <div class="fgrid">
         <div class="fld full"><div class="k">Logo</div>
-          <div style="display:flex;gap:12px;align-items:center;margin-top:5px">
-            <div style="background:var(--card2);border:1px solid var(--line);padding:8px 12px;border-radius:5px;display:flex;align-items:center">
+          <div style="display:flex;gap:12px;align-items:center;margin-top:5px;flex-wrap:wrap">
+            <div style="background:var(--card2);border:1px solid var(--line);padding:8px 12px;border-radius:6px;display:flex;align-items:center">
               ${b.logo?`<img src="${esc(b.logo)}" alt="Logo" style="height:34px;max-width:180px">`:mark()}</div>
             ${S.canUpload?`<button class="btn" data-logo="1">${b.logo?"Replace":"Upload"} logo</button>`:`<span class="sub">Needs edit access</span>`}
             ${b.logo&&S.canUpload?`<button class="btn d" data-logoclear="1">Remove</button>`:""}
           </div></div>
         <div class="fld"><div class="k">Company name</div><input id="b-name" value="${esc(b.name||"")}"></div>
-        <div class="fld"><div class="k">Primary (header, buttons)</div>
+        <div class="fld"><div class="k">Address on quotes and invoices</div><input id="b-addr" value="${esc(b.address||"")}" placeholder="Street, city, state, zip"></div>
+        <div class="fld"><div class="k">Phone</div><input id="b-phone" value="${esc(fmtPhone(b.phone||""))}" placeholder="(435) 555-0100" data-phone="1" inputmode="tel" autocomplete="tel"></div>
+        <div class="fld"><div class="k">Email</div><input id="b-email" value="${esc(b.email||"")}" placeholder="Email"></div>
+      </div></div></section>
+    <section class="card"><header><h2>Colours</h2><span class="sub">The brand red is the accent across the app. Change it only if the logo changes.</span></header><div class="body">
+      <div class="fgrid">
+        <div class="fld"><div class="k">Primary — buttons and the current step</div>
           <div style="display:flex;gap:7px"><input type="color" id="b-brand" value="${esc(b.brand||DEF_BRAND.brand)}" style="width:52px;padding:2px">
           <input id="b-brandx" value="${esc(b.brand||DEF_BRAND.brand)}" class="mono"></div></div>
-        <div class="fld"><div class="k">Dark primary (completed steps)</div>
+        <div class="fld"><div class="k">Primary, pressed</div>
           <div style="display:flex;gap:7px"><input type="color" id="b-brand2" value="${esc(b.brand2||DEF_BRAND.brand2)}" style="width:52px;padding:2px">
           <input id="b-brand2x" value="${esc(b.brand2||DEF_BRAND.brand2)}" class="mono"></div></div>
-        <div class="fld"><div class="k">Address on quotes and invoices</div><input id="b-addr" value="${esc(b.address||"")}" placeholder="Street, city, state, zip"></div>
-        <div class="fld"><div class="k">Phone and email</div><input id="b-phone" value="${esc(fmtPhone(b.phone||""))}" placeholder="(435) 555-0100" data-phone="1" inputmode="tel" autocomplete="tel" style="margin-bottom:5px">
-          <input id="b-email" value="${esc(b.email||"")}" placeholder="Email"></div>
+        <div class="fld"><div class="k">Accent on the dark header</div>
+          <div style="display:flex;gap:7px"><input type="color" id="b-accent" value="${esc(b.accent||DEF_BRAND.accent)}" style="width:52px;padding:2px">
+          <input id="b-accentx" value="${esc(b.accent||DEF_BRAND.accent)}" class="mono"></div></div>
+      </div></div></section>
+    <section class="card"><header><h2>Tax and terms</h2></header><div class="body">
+      <div class="fgrid">
         <div class="fld"><div class="k">Sales tax rate for non-exempt customers</div>
           <div style="display:flex;gap:7px;align-items:center"><input id="b-tax" type="number" step="0.01" value="${esc(String(b.taxRate||""))}" style="width:90px"><span class="sub">%</span></div>
           <div class="sub" style="margin-top:4px">Left blank, quotes say tax is added at invoicing.</div></div>
         ${inp("b-qdays","A quote is good for — days",b.quoteDays||30,"number")}
-    <div class="fld full"><div class="k">Pricing levels — for accounts that get a discount</div>
-          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-            <span>${priceLevels().length?priceLevels().map(l=>esc(l.name)+" "+l.pct+"%").join(" · "):"None yet"}</span>
-            <button class="btn sm" data-plevels="1">Pricing levels and margin floor</button></div></div>
-    <div class="fld full"><div class="k">How the CRM works for you</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" data-automations="1">Automations</button>
-        <button class="btn sm" data-decalprice="1">Decal pricing and common charges</button>
-        <button class="btn sm" data-workflow="1">Checklists and production routes</button>
-        <button class="btn sm" data-codes="1">Sign codes</button>
-        <button class="btn sm" data-conntest="1">Check the database</button>
-        <button class="btn sm" data-docset="1">Documents and emails</button>
-        <button class="btn sm" data-lists="1">Lists — terms, sources, ship methods, account types, contact roles</button>
-        <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="b-qpics" ${b.quotePics===false?"":"checked"} style="width:16px;height:16px">Pictures on quotes</label>
-        <label style="display:flex;gap:6px;align-items:center">Box labels <select id="b-lsize"><option value="4x6" ${(b.labelSize||"4x6")==="4x6"?"selected":""}>4×6 label printer</option><option value="letter" ${b.labelSize==="letter"?"selected":""}>Letter paper</option></select></label></div></div>
-    <div class="fld full"><div class="k">Invoicing</div>
-      <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="b-qbinv" ${b.qbInvoicing===false?"":"checked"} style="width:17px;height:17px">
-        Invoices are made in QuickBooks — the project's button gets the lines ready for it instead of printing an invoice here</label>
-      <label style="display:flex;gap:8px;align-items:center;margin-top:6px"><input type="checkbox" id="b-acctinv" ${b.accountantInvoices===false?"":"checked"} style="width:17px;height:17px">
-        The accountant agent invoices in QuickBooks from the order sync — shipped projects wait for its invoice row instead of the CSV button</label>
-      <div style="margin-top:6px"><button class="btn sm" data-qbitems="1">QuickBooks item names</button></div></div>
-    <div class="fld full"><div class="k">Quote terms</div><textarea id="b-qnote" style="min-height:54px">${esc(b.quoteNote||"")}</textarea></div>
+        <div class="fld full"><div class="k">Quote terms</div><textarea id="b-qnote" style="min-height:54px">${esc(b.quoteNote||"")}</textarea></div>
         <div class="fld full"><div class="k">Payment instructions on invoices</div><textarea id="b-pnote" style="min-height:54px">${esc(b.payNote||"")}</textarea></div>
+      </div></div></section>
+    <section class="card"><header><h2>Documents, emails and lists</h2></header><div class="body">
+      <div class="setrow">
+        <button class="btn" data-docset="1">Wording on documents and emails</button>
+        <button class="btn" data-lists="1">Lists — terms, sources, ship methods, account types, roles</button></div>
+      <div style="margin-top:10px">${ck("b-qpics",b.quotePics!==false,"Pictures on quotes","Each line shows its sign picture when there is one")}</div>
+    </div></section>`)}
+
+    ${panel("pricing","Pricing","Margins, floors and the costs every quote is checked against.",`
+    <section class="card"><header><h2>Margin</h2></header><div class="body">
+      <div class="fgrid">
         <div class="fld"><div class="k">Target margin</div>
           <div class="v mono">${Math.round(Number(sheetRates().margin||0.4)*100)}% <span class="sub">from the workbook</span></div>
           <label style="display:flex;gap:7px;align-items:center;margin-top:6px;font-size:12.5px">
@@ -10040,93 +10148,91 @@ function settingsView(){
           <div style="display:flex;gap:7px;align-items:center">
             <input id="b-legend" type="number" value="${esc(String(legendPctDefault()))}" style="width:88px">
             <span class="sub">% of the face</span></div>
-          <div class="sub" style="margin-top:4px">Only used for signs that aren't on tab 04 of the workbook.
-            Signs on the sheet use its real colour and third-layer square footage.</div></div>
-        <div class="fld full"><div class="k">Website orders — streetsignsupply.com</div>
-          <div class="sub" style="margin-bottom:6px">The address of your WordPress site and the key shown under
-            <b>WooCommerce → CRM orders</b> once the plugin is installed. On your own site the CRM then checks for new orders itself.</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <input id="b-shopurl" value="${esc(b.shopUrl||"")}" placeholder="https://streetsignsupply.com" style="flex:2;min-width:220px">
-            <input id="b-shoptoken" value="${esc(b.shopToken||"")}" placeholder="Key from WordPress" class="mono" style="flex:1;min-width:180px"></div>
-          <label style="display:flex;gap:8px;align-items:center;margin-top:8px"><input type="checkbox" id="b-shopauto" ${b.shopAuto===false?"":"checked"} style="width:17px;height:17px">
-            Bring new orders in by themselves (on your own site)</label>
-          <label style="display:flex;gap:8px;align-items:center;margin-top:4px"><input type="checkbox" id="b-shopwo" ${b.shopWO===false?"":"checked"} style="width:17px;height:17px">
-            Make the work orders straight away</label></div>
-        <div class="fld full"><div class="k">Website catalogue — every sign on streetsignsupply.com, with pictures and prices</div>
-          <div class="sub" style="margin-bottom:6px">The agents keep the <b>Price List</b> and <b>Catalog</b> tabs of their sheet current from the website (every product, size, material,
-            price, quantity tier and picture). On your own site the CRM pulls those tabs in once a day and whenever you press the button, using the sheet link below.
-            Then <b>Browse the price list</b> on any quote shows every website sign with its picture, and a line named like a website product prices itself.</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-            <button class="btn p" data-webcat="1" type="button">Pull the website catalogue now</button>
-            <button class="btn" data-costsheet="1" type="button">Pull the cost sheet now</button>
-            <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="b-webcatauto" ${b.webcatAuto===false?"":"checked"} style="width:17px;height:17px">Refresh it daily (on your own site)</label></div>
-          <div class="sub" id="webcat-stat" style="margin-top:6px">${esc(webcatStat())}</div>
-          <div class="sub" style="margin-top:4px">Cost sheet: ${sheetRows().length?sheetRows().length+" signs loaded from "+esc((S.sheet&&S.sheet.source)||"the workbook")+((S.sheet&&S.sheet.importedAt)?", "+esc(fmtTs(S.sheet.importedAt)):""):"not loaded yet — on your own site it loads from the agents' mirror of the NewCo workbook (tabs 04 and 11), refreshed every morning"}.</div></div>
-        <div class="fld full"><div class="k">Sales pipeline feed — Claude's sales agents</div>
-          <div class="sub" style="margin-bottom:6px">Claude's agents keep every prospect, email, call and quote in a Google Sheet. Publish that sheet to the web as CSV
-            (File → Share → Publish to web → CSV) and put the link here. On your own site the CRM pulls it in by itself every 15 minutes:
-            accounts and contacts are made or matched, each email and call lands in the activity area, and quotes come in as Inquiry projects.
-            Inside Claude, use <b>Import pipeline feed</b> on the Projects page with the CSV file instead.</div>
-          <input id="b-pipeurl" value="${esc(b.pipeUrl||"")}" placeholder="https://docs.google.com/spreadsheets/d/e/…/pub?output=csv" style="width:100%">
-          <label style="display:flex;gap:8px;align-items:center;margin-top:8px"><input type="checkbox" id="b-pipeauto" ${b.pipeAuto===false?"":"checked"} style="width:17px;height:17px">
-            Bring the feed in by itself (on your own site)</label>
-          <div class="sub" style="margin-top:6px">Columns the sheet needs, one row per thing that happened: <span class="mono">row_id, type, account, account_type, phone, website, street, city, state, zip, contact, title, email, contact_phone, activity, direction, subject, text, when, back_on, project, amount, stage, source</span>.
-            <b>type</b> is account, activity or quote; <b>activity</b> is email, call, meeting or note; <b>direction</b> is in or out. A row is never brought in twice.
-            A quote row can carry its lines in a <span class="mono">lines</span> column (JSON: qty, code, desc, size, grade, price — or one per line as <span class="mono">10 x R1-1 | Stop | 30x30 | HIP @ 50.43</span>);
-            with lines the project opens as Quoted with a quote number, without them it stays an Inquiry. A later row with <span class="mono">updates</span> = the first row's row_id revises that project's lines
-            (only while it is still an inquiry or quote — past that the lines land as a note to review; a stage never moves backwards).
-            Three more row types need no account: <b>invoice</b> (<span class="mono">project</span> = the quote row's row_id, P-number or quote number; <span class="mono">text</span> = JSON invoice_number, invoice_date, paid_date, amount, status) records the accountant's QuickBooks invoice;
-            <b>setting</b> (<span class="mono">subject</span> = the setting, <span class="mono">text</span> = its value) changes a Settings field such as taxRate, minMargin or qtyBreaks;
-            <b>inventory</b> (<span class="mono">text</span> = JSON sku, item, qty, unit, unit_cost, vendor, ref, received, freight) receives stock.
-            ${b.pipeLast?"Last feed row: "+esc(String(b.pipeLast))+".":""}</div></div>
-        <div class="fld full"><div class="k">Order sync — quotes and work orders out to Google Sheets</div>
-          <div class="sub" style="margin-bottom:6px">Every time a quote or work order is saved — new, lines changed, won, proof approved, shipped, picked up, invoiced, paid —
-            the CRM sends it to a Google Apps Script web app, which keeps the <b>CRM Orders</b> tab of the SSS Pipeline sheet up to date for Claude's agents.
-            Put the web app link here (Extensions → Apps Script → Deploy → Web app). Saving never waits on it; if Google can't be reached it tries again later.</div>
-          <input id="b-syncurl" value="${esc(b.syncUrl||"")}" placeholder="https://script.google.com/macros/s/…/exec" style="width:100%">
-          <label style="display:flex;gap:8px;align-items:center;margin-top:8px"><input type="checkbox" id="b-syncauto" ${b.syncAuto===false?"":"checked"} style="width:17px;height:17px">
-            Send quotes and work orders automatically</label>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-            <button class="btn" data-synctest="1" type="button">Send test</button>
-            <button class="btn" data-syncall="1" type="button">Send all open quotes and work orders now</button></div>
-          <div class="sub" id="sync-stat" style="margin-top:6px">${syncStatHTML()}</div></div>
-        <div class="fld"><div class="k">Accent (current step marker)</div>
-          <div style="display:flex;gap:7px"><input type="color" id="b-accent" value="${esc(b.accent||DEF_BRAND.accent)}" style="width:52px;padding:2px">
-          <input id="b-accentx" value="${esc(b.accent||DEF_BRAND.accent)}" class="mono"></div></div>
-      </div>
-      <div style="padding:12px 14px;display:flex;gap:8px"><button class="btn p" id="savebrand">Save branding</button>
-        <button class="btn" id="resetbrand">Reset to MUTCD default</button></div>
+          <div class="sub" style="margin-top:4px">Only for signs that aren't on tab 04 of the workbook.</div></div>
+        <div class="fld full"><div class="k">Price levels and the quote floor</div>
+          <div class="setrow"><span>${priceLevels().length?priceLevels().map(l=>esc(l.name)+" "+l.pct+"%").join(" · "):"No price levels yet"}</span>
+            <button class="btn sm" data-plevels="1">Price levels, quantity breaks and margin floor</button>
+            <button class="btn sm" data-decalprice="1">Decal pricing and common charges</button></div></div>
+      </div></div></section>
+    <section class="card flush"><header><h2>Sign costs from the workbook</h2>
+      ${S.sheet?`<span class="pill g">${sheetRows().length} signs loaded</span>`:`<span class="pill o">not loaded</span>`}
+      <span class="sub">${sheetLine}</span>
+      <span class="sp">${hosted?`<button class="btn sm p" data-costsheet="1" type="button">Pull now</button>`
+        :`<label class="btn sm p" style="cursor:pointer" title="Pick NewCo_Signs .xlsx — tab 04 is the sign costs, tab 11 the vinyl rates">Load the workbook (.xlsx)<input type="file" id="wb-file" accept=".xlsx" style="display:none"></label>`}</span></header>
+      ${S.sheet?`<div class="fgrid">
+        <div class="fld"><div class="k">Mounting tape</div><div class="v mono">$${Number(sheetRates().tapeSqft).toFixed(4)} / sq ft</div></div>
+        <div class="fld"><div class="k">Freight in</div><div class="v mono">$${Number(sheetRates().freightLb).toFixed(4)} / lb</div></div>
+        <div class="fld"><div class="k">Signs on estimate</div><div class="v mono">${sheetRows().filter(r=>r.estimate).length} of ${sheetRows().length}</div></div>
+        ${sheetVinyl()?`<div class="fld"><div class="k">3M 7125 film</div><div class="v mono">$${Number(sheetVinyl().filmSqft).toFixed(4)} / sq ft × ${sheetVinyl().waste} waste</div></div>
+        <div class="fld"><div class="k">Transfer tape</div><div class="v mono">$${Number(sheetVinyl().tapeSqft).toFixed(4)} / sq ft × ${sheetVinyl().tapeOverlap}</div></div>
+        <div class="fld"><div class="k">Packaging</div><div class="v mono">$${Number(sheetVinyl().packPiece).toFixed(2)} / piece</div></div>
+        <div class="fld"><div class="k">Labour</div><div class="v">not included</div></div>`:""}
+      </div>`:""}
+    </section>
+    ${costCheckCard()}`)}
+
+    ${panel("connections","Connections","The website, the agents' sheets and QuickBooks. Each one says when it last ran.",`
+    <section class="card"><header><h2>Website orders</h2><span class="sub">streetsignsupply.com sends paid orders in. On your own site the CRM checks every 15 minutes.</span></header><div class="body">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input id="b-shopurl" value="${esc(b.shopUrl||"")}" placeholder="https://streetsignsupply.com" style="flex:2;min-width:220px">
+        <input id="b-shoptoken" value="${esc(b.shopToken||"")}" placeholder="Key from WordPress → WooCommerce → CRM orders" class="mono" style="flex:1;min-width:180px"></div>
+      <div style="margin-top:8px">${ck("b-shopauto",b.shopAuto!==false,"Bring new orders in by themselves","On your own site")}
+      ${ck("b-shopwo",b.shopWO!==false,"Make the work orders straight away")}</div>
+      ${b.shopLast?`<div class="sub" style="margin-top:6px">Last order seen: ${esc(String(b.shopLast))}</div>`:""}
     </div></section>
-
-    <section class="card"><header><h2>Your data</h2></header><div class="body">
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px">
-        ${counts.map(([k,v])=>`<div><div class="sub" style="font-weight:600">${esc(k)}</div>
-          <div class="mono" style="font-size:20px;font-weight:700">${v}</div></div>`).join("")}</div>
-      <p class="note">Nothing is ever hard-deleted. Deleting moves a record to the recycle bin, where you can restore it. Field history is kept permanently and is not affected by deletion.</p>
-      ${(function(){let last=0;try{last=Number(localStorage.getItem("sscBackup")||0)}catch(e){}
-        const d=last?Math.floor((Date.now()-last)/86400000):null;
-        if(d===null)return `<p class="warn" style="margin:0 0 12px">No backup taken from this machine yet. Pull one now — it takes a second.</p>`;
-        if(d>30)return `<p class="warn" style="margin:0 0 12px">Last backup from this machine was ${d} days ago.</p>`;
-        return `<p class="note" style="margin:0 0 12px">Last backup from this machine: ${esc(fmtTs(last))}.</p>`})()}
-      <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
-        <button class="btn p" data-backup="1">Download full backup</button>
-        <button class="btn" data-backup="csv">Export projects + jobs as CSV</button>
-        <button class="btn" data-go="bin">Open recycle bin</button></div>
-      <p class="sub" style="margin-top:12px">Download a backup monthly. It's a single JSON file with every account, contact, project, job, file link, activity, and history entry.</p>
+    <section class="card"><header><h2>Website catalogue</h2><span class="sub">Every sign on the website with its picture and prices, from the agents' Price List and Catalog tabs. Browse the price list on any quote uses it.</span></header><div class="body">
+      <div class="setrow"><button class="btn p" data-webcat="1" type="button">Pull the catalogue now</button></div>
+      <div style="margin-top:8px">${ck("b-webcatauto",b.webcatAuto!==false,"Refresh it daily","On your own site")}</div>
+      <div class="sub" id="webcat-stat" style="margin-top:6px">${esc(webcatStat())}</div>
     </div></section>
+    <section class="card"><header><h2>Sales pipeline feed</h2><span class="sub">The agents' sheet, published to the web as CSV. Accounts, contacts, calls, emails, quotes, invoices, settings and stock come in from it — on your own site every 15 minutes, inside Claude from Import pipeline feed on the Projects page.</span></header><div class="body">
+      <input id="b-pipeurl" value="${esc(b.pipeUrl||"")}" placeholder="https://docs.google.com/spreadsheets/d/e/…/pub?output=csv" style="width:100%">
+      <div style="margin-top:8px">${ck("b-pipeauto",b.pipeAuto!==false,"Bring the feed in by itself","On your own site")}</div>
+      ${b.pipeLast?`<div class="sub" style="margin-top:6px">Last feed row: ${esc(String(b.pipeLast))}</div>`:""}
+      <details style="margin-top:10px"><summary class="sub" style="cursor:pointer">Columns the sheet needs</summary>
+        <div class="sub" style="margin-top:6px;line-height:1.6">One row per thing that happened: <span class="mono">row_id, type, account, account_type, phone, website, street, city, state, zip, contact, title, email, contact_phone, activity, direction, subject, text, when, back_on, project, amount, stage, source</span>.
+          <b>type</b> is account, activity, quote, invoice, setting or inventory; <b>activity</b> is email, call, meeting or note; <b>direction</b> is in or out. A row is never brought in twice.
+          A quote row can carry its lines in a <span class="mono">lines</span> column (JSON: qty, code, desc, size, grade, price — or one per line as <span class="mono">10 x R1-1 | Stop | 30x30 | HIP @ 50.43</span>);
+          with lines the project opens as Quoted, without them it stays an Inquiry. A later row with <span class="mono">updates</span> = the first row's row_id revises that project's lines while it's still a quote — a stage never moves backwards.
+          <b>invoice</b> rows (<span class="mono">project</span> = row_id, P-number or quote number; <span class="mono">text</span> = JSON invoice_number, invoice_date, paid_date, amount, status) record the accountant's QuickBooks invoice;
+          <b>setting</b> rows (<span class="mono">subject</span> = the setting, <span class="mono">text</span> = its value) change a Settings field such as taxRate, minMargin or qtyBreaks;
+          <b>inventory</b> rows (<span class="mono">text</span> = JSON sku, item, qty, unit, unit_cost, vendor, ref, received, freight) receive stock.</div></details>
+    </div></section>
+    <section class="card"><header><h2>Order sync</h2><span class="sub">Every saved quote and work order goes to a Google Apps Script web app that keeps the CRM Orders tab current for the agents. Saving never waits on it.</span></header><div class="body">
+      <input id="b-syncurl" value="${esc(b.syncUrl||"")}" placeholder="https://script.google.com/macros/s/…/exec" style="width:100%">
+      <div style="margin-top:8px">${ck("b-syncauto",b.syncAuto!==false,"Send quotes and work orders automatically")}</div>
+      <div class="setrow" style="margin-top:8px">
+        <button class="btn" data-synctest="1" type="button">Send a test</button>
+        <button class="btn" data-syncall="1" type="button">Send every open quote and work order now</button></div>
+      <div class="sub" id="sync-stat" style="margin-top:6px">${syncStatHTML()}</div>
+    </div></section>
+    <section class="card"><header><h2>QuickBooks and invoicing</h2></header><div class="body">
+      ${ck("b-qbinv",b.qbInvoicing!==false,"Invoices are made in QuickBooks","The project's Documents menu gets the lines ready for it instead of printing an invoice here")}
+      ${ck("b-acctinv",b.accountantInvoices!==false,"The accountant agent invoices from the order sync","Shipped projects wait for its invoice row instead of the CSV button")}
+      <div class="setrow" style="margin-top:10px"><button class="btn sm" data-qbitems="1">QuickBooks item names</button>
+        <button class="btn sm" data-conntest="1">Check the database</button></div>
+    </div></section>`)}
 
-    ${(function(){
-      const count=["accounts","contacts","projects","jobs","files","activity","events","vendors","items","invtx","team"]
-        .reduce((t,k)=>t+[...S[k].values()].filter(x=>x.sample).length,0);
-      if(!count)return "";
-      return `<section class="card" style="border-color:var(--brand)">
-        <header><h2>Sample data</h2><span class="n">${count} records</span></header><div class="body">
-        <p class="note" style="margin:0 0 12px">These are demo records loaded so you could see the app with something in it.
-        They're tagged, so removing them takes nothing real with it. Anything you created yourself stays.</p>
-        <button class="btn" id="killsample" style="background:#B8231C;border-color:#B8231C;color:#fff">
-          Remove all ${count} sample records</button></div></section>`;
-    })()}
+    ${panel("production","Production","How work orders run: routes, checklists, automations and what else the shop makes.",`
+    <section class="card"><header><h2>Routes, checklists and automations</h2></header><div class="body">
+      <div class="setrow">
+        <button class="btn" data-workflow="1">Checklists and production routes</button>
+        <button class="btn" data-automations="1">Automations — stage moves, follow-ups, lead times</button></div>
+      <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span>Box labels print on</span>
+        <select id="b-lsize"><option value="4x6" ${(b.labelSize||"4x6")==="4x6"?"selected":""}>4×6 label printer</option><option value="letter" ${b.labelSize==="letter"?"selected":""}>Letter paper</option></select></div>
+    </div></section>
+    ${prodTypesCard()}`)}
 
+    ${panel("codes","Codes & pictures","The sign code library and the pictures that show on quotes, work orders and lines.",`
+    <section class="card"><header><h2>Sign codes</h2><span class="sub">MUTCD codes with their names, sizes and sheeting. Quote lines and work orders look names up here.</span></header><div class="body">
+      <div class="setrow"><button class="btn p" data-codes="1">Open the sign code library</button></div>
+    </div></section>
+    <section class="card"><header><h2>Pictures for your items</h2><span class="sub">Upload image files named after their codes (R1-1.jpg, S1-1.png), or import a CSV of picture links. A picture shows on every line with that code.</span></header><div class="body">
+      <div class="setrow"><button class="btn p" data-bulkpics="1">${ic("file",14)}Upload pictures</button>
+        <button class="btn" data-csvimport="pictures">Import picture links</button></div>
+    </div></section>`)}
+
+    ${panel("team","Team & access","Who uses the CRM and what each person can see. Owner: everything. Office: everything but Settings. Sales: no costs. Shop: no prices or costs.",`
     <section class="card"><header><h2>Our team</h2><span class="n">${teamList().length}</span>
       <span class="sp"><button class="btn sm p" data-newteam="1">Add team member</button></span></header>
       ${teamList().length?`<table><thead><tr><th>Name</th><th>Initials</th><th>Role</th><th>Sales rep</th>
@@ -10143,74 +10249,34 @@ function settingsView(){
           <td class="mono">${val?money(val):"—"}</td>
           <td style="text-align:right"><button class="btn sm" data-editteam="${esc(t.id)}">Edit</button></td></tr>`}).join("")}</tbody></table>`
       :`<div class="empty"><b>No team members yet</b>Add your crew so you can invite them to installs, deliveries, and site visits.</div>`}
-    </section>
+    </section>`)}
 
-    ${prodTypesCard()}
-    ${costCheckCard()}
-    <section class="card"><header><h2>Import from a spreadsheet</h2></header>
-      <div class="body"><p class="note" style="margin:0 0 10px">Bring in inventory, stock counts, accounts, contacts, vendors,
-        your selling prices or item pictures from a CSV file — save any Excel or Google Sheets tab as CSV. You see every column
-        match and a preview before anything saves. Existing records are updated, not duplicated, and blank cells never wipe what's
-        already there.</p>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          ${Object.keys(IMPORT_TYPES).map(k=>`<button class="btn ${k==="items"?"p":""}" data-csvimport="${k}">${esc(IMPORT_TYPES[k].label)}</button>`).join("")}</div>
-        <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line2)">
-          <div style="font-weight:700;margin-bottom:4px">Pictures for your items</div>
-          <p class="note" style="margin:0 0 8px">Two ways: upload a pile of image files named after their codes
-            (<b>R1-1.jpg</b>, <b>S1-1.png</b>), or import a CSV of picture links from your website. A picture shows on every
-            line with that code — work orders, quote lines and the project.</p>
-          <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <button class="btn p" data-bulkpics="1">${ic("file",14)}Upload pictures</button>
-            <button class="btn" data-csvimport="pictures">Import picture links</button></div>
-        </div>
+    ${panel("data","Data","Backups, imports, the recycle bin and a check of what's in the database.",`
+    <section class="card"><header><h2>Your data</h2></header><div class="body">
+      <div class="setgrid" style="margin-bottom:14px">
+        ${counts.map(([k,v])=>`<div><div class="sub">${esc(k)}</div><div class="mono">${v}</div></div>`).join("")}</div>
+      ${(function(){let last=0;try{last=Number(localStorage.getItem("sscBackup")||0)}catch(e){}
+        const d=last?Math.floor((Date.now()-last)/86400000):null;
+        if(d===null)return `<p class="warn" style="margin:0 0 12px">No backup taken from this machine yet. Pull one now — it takes a second.</p>`;
+        if(d>30)return `<p class="warn" style="margin:0 0 12px">Last backup from this machine was ${d} days ago.</p>`;
+        return `<p class="note" style="margin:0 0 12px">Last backup from this machine: ${esc(fmtTs(last))}.</p>`})()}
+      <div class="setrow">
+        <button class="btn p" data-backup="1">Download a full backup</button>
+        <button class="btn" data-backup="csv">Export projects and work orders (CSV)</button>
+        <button class="btn" data-go="bin">Open the recycle bin</button></div>
+      <p class="sub" style="margin:12px 0 0">Nothing is ever hard-deleted — deleting moves a record to the recycle bin, and field history is kept permanently. Download a backup monthly; it's one JSON file with everything in it.</p>
+    </div></section>
+    <section class="card"><header><h2>Import from a spreadsheet</h2><span class="sub">Save any Excel or Google Sheets tab as CSV. You match the columns and see a preview before anything saves; existing records update, blank cells never wipe anything.</span></header>
+      <div class="body">
+        <div class="setrow">
+          ${Object.keys(IMPORT_TYPES).filter(k=>k!=="pictures"&&k!=="costsheet"&&k!=="rates").map(k=>`<button class="btn ${k==="items"?"p":""}" data-csvimport="${k}">${esc(IMPORT_TYPES[k].label)}</button>`).join("")}</div>
         <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line2);display:flex;gap:10px;align-items:center;flex-wrap:wrap">
           <span class="sub" style="flex:1;min-width:200px">Starting over with a new inventory list? Clear the current one first, then import.</span>
           <button class="btn d" data-clrinv="1">Start inventory fresh</button></div></div></section>
-
-    <section class="card"><header><h2>How it all fits together</h2>
-      <span class="sp"><span class="pill">version ${APP_VERSION}${window.sscHosted?" · your site":" · in Claude"}</span></span></header>
-      <div class="body">${flowStrip(0,[])}
-      <p class="note" style="margin:12px 0 8px">Every order follows the same path. <b>+ New → New order</b> walks you through it.</p>
-      <div class="sub" style="line-height:1.7">
-        <b>Account</b> — the customer: a city, a contractor, an HOA.<br>
-        <b>Contact</b> — a person at that account. They get proofs, quotes and calls.<br>
-        <b>Project</b> — one order, bid or package. It carries the PO, the value and the invoice.<br>
-        <b>Work order</b> — one batch the shop builds. A project can have several.<br>
-        Then the work order runs its route, ships, and the project closes out and archives.</div>
-      <div style="margin-top:12px"><button class="btn p" data-wizstart="1">${ic("task",14)}Start a new order</button></div>
-      </div></section>
-
-    <section class="card flush"><header><h2>Costs from the workbook</h2>
-      <span class="sp">${S.sheet?`<span class="pill g">${sheetRows().length} signs loaded</span>`:`<span class="pill r">not loaded</span>`}</span>
-      <span class="sub" style="flex:1 1 100%;order:9">${S.sheet?esc(S.sheet.source||""):"On your own site it loads by itself from the agents' sheet (Settings → Pull the cost sheet now); inside Claude, pick the NewCo workbook .xlsx in Browse the price list."}
-        ${S.sheet&&S.sheet.importedAt?" · imported "+esc(fmtTs(S.sheet.importedAt)):""}</span></header>
-      ${S.sheet?`<div class="fgrid">
-        <div class="fld"><div class="k">Mounting tape</div><div class="v mono">$${Number(sheetRates().tapeSqft).toFixed(4)} / sq ft</div></div>
-        <div class="fld"><div class="k">Freight in</div><div class="v mono">$${Number(sheetRates().freightLb).toFixed(4)} / lb</div></div>
-        <div class="fld"><div class="k">Signs on estimate</div><div class="v mono">${sheetRows().filter(r=>r.estimate).length} of ${sheetRows().length}</div></div>
-        ${sheetVinyl()?`<div class="fld"><div class="k">3M 7125 film</div><div class="v mono">$${Number(sheetVinyl().filmSqft).toFixed(4)} / sq ft × ${sheetVinyl().waste} waste</div></div>
-        <div class="fld"><div class="k">Transfer tape</div><div class="v mono">$${Number(sheetVinyl().tapeSqft).toFixed(4)} / sq ft × ${sheetVinyl().tapeOverlap}</div></div>
-        <div class="fld"><div class="k">Packaging</div><div class="v mono">$${Number(sheetVinyl().packPiece).toFixed(2)} / piece</div></div>
-        <div class="fld"><div class="k">Labour</div><div class="v">not included</div></div>`:""}
-      </div>`:""}
-    </section>
-
-    <section class="card"><header><h2>Assist</h2>
-      <span class="sp"><span class="pill ${S.ai?"g":"r"}">${S.ai?"Available":"Off"}</span>
-        ${S.aiState?`<span class="pill">${esc(String(S.aiState))}</span>`:""}
-        ${S.ai?`<button class="btn sm" data-ai="brief:0">Test it</button>`:""}</span></header><div class="body">
-      <p class="note" style="margin:0 0 10px">${S.ai
-        ?"Claude can read what's on a record and draft from it. It only ever sees the record you press it on — never your whole database. The first time you use it, it asks permission."
-        :"Not available on this view. Whoever owns the artifact controls it."}</p>
-      <div class="fgrid">
-        <div class="fld"><div class="k">Catch me up</div><div class="v">On an account or a project. Reads the activity, stages and work orders and tells you where it stands.</div></div>
-        <div class="fld"><div class="k">Draft a follow-up</div><div class="v">Writes a short customer email off the project's own history. You read it before it goes anywhere.</div></div>
-        <div class="fld"><div class="k">Read a PO into a work order</div><div class="v">Paste a purchase order or email and it pulls out the line items. You check them before anything saves.</div></div>
-        <div class="fld"><div class="k">Brief me</div><div class="v">On either dashboard. What costs money if it's ignored today.</div></div>
-      </div>
-    </div></section>
-
-    <section class="card"><header><h2>Data check</h2></header><div class="body">
+    ${sampleN?`<section class="card" style="border-color:var(--brand)">
+        <header><h2>Sample data</h2><span class="n">${sampleN} records</span><span class="sub">Demo records so you could see the app with something in it. They're tagged, so removing them takes nothing real with it.</span></header><div class="body">
+        <button class="btn d" id="killsample">Remove all ${sampleN} sample records</button></div></section>`:""}
+    <section class="card"><header><h2>Data check</h2><span class="sub">Records that don't link up or steps that were skipped. None of it breaks anything.</span></header><div class="body">
       ${(function(){
         const issues=[];
         live(S.projects).forEach(p2=>{const a2=S.accounts.get(p2.accountId);
@@ -10271,25 +10337,35 @@ function settingsView(){
         live(S.accounts).forEach(a2=>{if(a2.type==="Government agency"&&!a2.exempt)
           issues.push({t:"Agency with no exemption certificate on file",l:a2.name,h:"account/"+a2.id})});
         if(!issues.length)return `<p class="note" style="margin:0">Everything links up. No orphaned records, no projects shipped without a billing contact.</p>`;
-        return `<p style="margin:0 0 10px">${issues.length} thing${issues.length>1?"s":""} worth a look. None of it breaks anything — it's what you'd want to tidy.</p>
+        return `<p style="margin:0 0 10px">${issues.length} thing${issues.length>1?"s":""} worth a look.</p>
           <table><tbody>${issues.slice(0,30).map(i=>`<tr>
             <td style="width:270px">${esc(i.t)}</td>
             <td><button class="lnk" data-go="${esc(i.h)}">${esc(i.l)}</button></td></tr>`).join("")}</tbody></table>`;
       })()}
-    </div></section>
+    </div></section>`)}
 
-    <section class="card"><header><h2>How the pieces fit</h2></header><div class="body">
-      <div class="fgrid">
-        <div class="fld"><div class="k">Account</div><div class="v">The customer organization. City of Hurricane. Created once, lives forever.</div></div>
-        <div class="fld"><div class="k">Contact</div><div class="v">A person at that account. The buyer and the AP contact are usually different people.</div></div>
-        <div class="fld"><div class="k">Project</div><div class="v">One order, bid, or package from that account. Has a dollar value, a PO, a due date, and a stage from Inquiry to Invoiced. An account can carry dozens, running at once or years apart.</div></div>
-        <div class="fld"><div class="k">Work order</div><div class="v">One batch of physical work under a project. Has its own number, a printed sheet for the floor, prep checks, and the eight shop statuses. A project can have one or several.</div></div>
-        <div class="fld"><div class="k">Reorder</div><div class="v">Open the old project and press Reorder. You get a fresh project with the same account and ship-to, a blank PO and due date, and its own empty file list — linked back to the original so you can see the whole reorder chain.</div></div>
-        <div class="fld"><div class="k">Vendor</div><div class="v">Who you buy from. Holds your account number, terms, lead time, and the rep's name. Inventory items point at one.</div></div>
-        <div class="fld"><div class="k">Inventory item</div><div class="v">Something you keep on the shelf. Tracks on hand, a reorder point, and where it lives. Receiving adds, issuing to a work order subtracts, and counting reconciles.</div></div>
-        <div class="fld"><div class="k">Files</div><div class="v">Every file belongs to exactly one record. Upload a proof on a project and it stays on that project — a reorder next year never shows last year's proof. Account-level files are for things that don't change: the W-9, the tax exemption certificate, a signed terms sheet.</div></div>
+    ${panel("about","How it works","Every order follows the same path. + New → New order walks you through it.",`
+    <section class="card"><header><h2>The path of an order</h2>
+      <span class="sp"><span class="pill">version ${APP_VERSION}${window.sscHosted?" · your site":" · in Claude"}</span></span></header>
+      <div class="body">${flowStrip(0,[])}
+      <div class="fgrid" style="margin-top:12px">
+        <div class="fld"><div class="k">Account</div><div class="v">The customer organization — a city, a contractor, an HOA. Created once, lives forever.</div></div>
+        <div class="fld"><div class="k">Contact</div><div class="v">A person at that account. They get proofs, quotes and calls; the buyer and the AP contact are usually different people.</div></div>
+        <div class="fld"><div class="k">Project</div><div class="v">One order, bid or package. It carries the PO, the value, the invoice and a stage from Inquiry to Closed won. An account can carry dozens.</div></div>
+        <div class="fld"><div class="k">Work order</div><div class="v">One batch the shop builds, with its own number, printed sheet, prep checks and shop statuses. A project can have several — signs now, stencils later.</div></div>
+        <div class="fld"><div class="k">Reorder</div><div class="v">Open the old project and press Reorder in More. You get a fresh project with the same account and ship-to, linked back to the original.</div></div>
+        <div class="fld"><div class="k">Vendor and inventory</div><div class="v">Who you buy from, and what you keep on the shelf. Receiving adds, issuing to a work order subtracts, counting reconciles.</div></div>
+        <div class="fld full"><div class="k">Files</div><div class="v">Every file belongs to exactly one record. A proof on a project stays on that project; account files are for things that don't change — the W-9, the exemption certificate, a signed terms sheet.</div></div>
       </div>
-    </div></section></div>`;
+      <div style="margin-top:12px"><button class="btn p" data-wizstart="1">${ic("task",14)}Start a new order</button></div>
+      </div></section>`)}
+
+    </div></div>
+    <div class="savebar" id="savebar"><div class="savebar-in">
+      <span class="savebar-t">Company, pricing, connections and production fields save together.</span>
+      <button class="btn" id="resetbrand">Reset name and colours</button>
+      <button class="btn p" id="savebrand">Save settings</button></div></div>
+  </div>`;
 }
 function binView(){
   const all=deletedAll();
@@ -11410,8 +11486,8 @@ async function saveBrand(){
     brand2:$("#b-brand2x").value.trim()||DEF_BRAND.brand2,
     accent:$("#b-accentx").value.trim()||DEF_BRAND.accent,
     logo:(S.brand||{}).logo||""};
-  try{await setDoc("settings/brand",b);S.brand=b;applyBrand();render();toast("Branding saved")}
-  catch(e){toast("Couldn't save branding.")}
+  try{await setDoc("settings/brand",b);S.brand=b;applyBrand();render();toast("Settings saved")}
+  catch(e){toast("Couldn't save the settings.")}
 }
 async function uploadLogo(){
   if(!assets)return toast("Uploading needs edit access.");
@@ -12433,6 +12509,10 @@ function bind(){
   const rb=$("#resetbrand");if(rb)rb.onclick=async()=>{
     const b=Object.assign({},DEF_BRAND,{logo:(S.brand||{}).logo||""});
     await setDoc("settings/brand",b);S.brand=b;render();toast("Reset to default")};
+  // settings: the group buttons down the side, and the save bar lights up once something changes
+  const sbar=$("#savebar");
+  if(sbar)document.querySelectorAll(".setpanels input,.setpanels select,.setpanels textarea").forEach(el=>{
+    el.addEventListener("input",()=>sbar.classList.add("dirty"));el.addEventListener("change",()=>sbar.classList.add("dirty"))});
 
   document.body.onclick=e=>{try{onClickBody(e)}catch(err){
     console.error("click handler:",err);
@@ -13235,6 +13315,20 @@ async function boot(){
   setTimeout(()=>{webcatLoad()},1500);
   try{setTimeout(()=>syncRetry(),6000);setInterval(()=>syncRetry(),5*60000)}catch(e){}
 }
+// presentation only: settings groups, drop-down menus that close when you click away,
+// and the invoice-number button on the Billing card (it opens the same prompt "Mark invoiced" uses)
+document.addEventListener("click",e=>{
+  const t=e.target;
+  const st=t.closest&&t.closest("[data-stab]");
+  if(st){S.stab=st.dataset.stab;
+    document.querySelectorAll("[data-stab]").forEach(b=>{const on=b.dataset.stab===S.stab;b.classList.toggle("on",on);b.setAttribute("aria-selected",on?"true":"false")});
+    document.querySelectorAll("[data-spanel]").forEach(p=>p.classList.toggle("on",p.dataset.spanel===S.stab));
+    const m=$(".main");if(m)m.scrollTop=0;return}
+  const iv=t.closest&&t.closest("[data-invnum]");
+  if(iv){invNumAsk(iv.dataset.invnum);return}
+  document.querySelectorAll("details.dd[open]").forEach(d=>{if(!d.contains(t)||t.closest(".dd-m"))d.removeAttribute("open")});
+});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")document.querySelectorAll("details.dd[open]").forEach(d=>d.removeAttribute("open"))});
 if(window.claude&&typeof claude.use==="function")boot();
 else setTimeout(()=>{if(window.claude&&claude.use)boot();else{S.ready=true;render()}},1400);
 })();

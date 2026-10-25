@@ -1,5 +1,13 @@
 # What changed
 
+## 2026.11.20-1 — 2026-10-24
+- Fresh look: calm neutral base with brand red as the accent, one header and one nav row, sentence-case titles, clear status colours, three button tiers, dark mode redone, no horizontal scroll on phones
+- Project page: read-only stage track with dates and days-in-stage, one Next action, Change stage menu, Documents menu (quote PDF, proof PDF, invoice lines, uploads), one Notes card, invoice number lives in Billing only, duplicate buttons removed
+- Settings in groups (Company, Pricing, Connections, Production, Codes & pictures, Team & access, Data, How it works) with one Save bar
+- Dashboard Today strip
+- cost sheet card shows status with Pull now on the site or an .xlsx picker in Claude
+- help hints visible instead of i buttons
+
 ## 2026.11.19-1 — 2026-10-24
 - Agent quotes can no longer move a job backwards or orphan its work orders
 - bad prices are rejected instead of imported as $0
