@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.21-2 — 2026-10-24
+- Project tab strip: the lines tab is called Quote
+
 ## 2026.11.21-1 — 2026-10-24
 - New navigation: left sidebar with grouped pages (Dashboard with the Matt's | Company switch, Sales, Production, Inventory, Reports, Admin), slim top bar with page title, search, New, Find, Assistant and bell
 - collapses to icons on smaller windows, phone keeps the bottom bar
