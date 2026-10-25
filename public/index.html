@@ -8518,7 +8518,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-4";
+const APP_VERSION="2026.11.25-5";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -14229,6 +14229,19 @@ function bind(){
 }
 
 /* ========== boot ========== */
+// the shop computer keeps the CRM open all day: when a newer version is published it reloads itself,
+// but only when nobody is typing and no window is open, so nothing half-done is lost
+const CHANGELOG_SRC="https://raw.githubusercontent.com/StreetSignSupply/ssc-crm/main/CHANGELOG.md";
+async function selfUpdateCheck(){
+  if(!isHosted())return;
+  try{const r=await fetch(CHANGELOG_SRC+"?v="+Math.floor(Date.now()/300000),{cache:"no-store"});if(!r.ok)return;
+    const m=/^##\s+(\d{4}\.\d{2}\.\d{2}-\d+)/m.exec(await r.text());if(!m||m[1]===APP_VERSION)return;
+    const newer=m[1].localeCompare(APP_VERSION,undefined,{numeric:true})>0;if(!newer)return;
+    S._updateWaiting=m[1];
+    const tryReload=()=>{if(typing()||S.modal||(document.visibilityState==="visible"&&Date.now()-(S._lastInput||0)<120000)){setTimeout(tryReload,60000);return}
+      location.reload()};tryReload()}catch(e){}}
+try{["keydown","pointerdown"].forEach(ev=>addEventListener(ev,()=>{S._lastInput=Date.now()},true));
+  setTimeout(selfUpdateCheck,60000);setInterval(selfUpdateCheck,20*60000)}catch(e){}
 function typing(){const a=document.activeElement;
   return a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)&&a.type!=="checkbox"}
 function sub(coll,map,numeric){

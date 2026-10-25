@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-5 — 2026-10-25
+- An open CRM updates itself: every 20 minutes it checks for a newer version and reloads when nobody is typing
+
 ## 2026.11.25-4 — 2026-10-25
 - Agents can move duplicate and test projects (and empty test accounts) to the recycle bin — never one with a work order or an invoice
 
