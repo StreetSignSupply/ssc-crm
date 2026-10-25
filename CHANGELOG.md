@@ -1,5 +1,11 @@
 # What changed
 
+## 2026.11.20-2 — 2026-10-24
+- Wording: a project's lines are Quote lines everywhere (card, editor, history, checks)
+- what the shop builds is a Work order
+- 'order' on its own now only means a website order or a material order
+- the wizard is New quote
+
 ## 2026.11.20-1 — 2026-10-24
 - Fresh look: calm neutral base with brand red as the accent, one header and one nav row, sentence-case titles, clear status colours, three button tiers, dark mode redone, no horizontal scroll on phones
 - Project page: read-only stage track with dates and days-in-stage, one Next action, Change stage menu, Documents menu (quote PDF, proof PDF, invoice lines, uploads), one Notes card, invoice number lives in Billing only, duplicate buttons removed

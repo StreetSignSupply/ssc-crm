@@ -2079,7 +2079,7 @@ function projValue(p){
 }
 function projCost(p){return p?jobsOf(p.id).reduce((t,j)=>t+jobCost(j),0)+(Number(p.otherCost)||0)
   +orderedLines(p).filter(isCharge).reduce((t,l)=>t+(Number(l.qty)||1)*(Number(l.cost)||0),0):0}
-function valueFrom(p){return !p||!p.amountAuto?"typed in":orderedLines(p).some(l=>Number(l.price)>0)?"from the order lines"
+function valueFrom(p){return !p||!p.amountAuto?"typed in":orderedLines(p).some(l=>Number(l.price)>0)?"from the quote lines"
   :orderedLines(p).some(l=>!isCharge(l))?"no prices on the lines yet":"from the work order lines"}
 function projMargin(p){const r=projValue(p);if(!r||projCost(p)===0)return null;return (r-projCost(p))/r*100}
 function marginTxt(p){const m=projMargin(p);return m==null?"—":m.toFixed(0)+"%"}
@@ -3479,7 +3479,7 @@ async function csvImport(){
 const WIZ_STEPS=[
   {n:1,l:"Customer",i:"account",h:"Who's buying"},
   {n:2,l:"Contact",i:"contact",h:"Who you deal with"},
-  {n:3,l:"Project",i:"project",h:"The order itself"},
+  {n:3,l:"Project",i:"project",h:"The quote itself"},
   {n:4,l:"Work order",i:"job",h:"What the shop builds"},
   {n:5,l:"Check it",i:"task",h:"Then it's created"}];
 function flowStrip(active,done){
@@ -3538,7 +3538,7 @@ function wizRender(){
   }
   if(w.step===3){
     title="Step 3 — The project";
-    body=`<p class="note" style="margin:12px 15px 0">One order, bid or package. It gets the PO, the value and, at the end, the invoice.</p>
+    body=`<p class="note" style="margin:12px 15px 0">One quote, bid or package. It gets the PO, the value and, at the end, the invoice.</p>
       <div class="fgrid">${inp("wz-pn","What is it — e.g. School zone signs, fall",w.proj.name,"text",1)}
         ${sel("wz-ps","Where it stands",w.proj.stage,STAGES.filter(x=>["inquiry","quoted","won"].indexOf(x.id)>=0).map(x=>({v:x.id,l:x.label})))}
         ${inp("wz-po","PO number, if you have one",w.proj.po)}
@@ -3616,14 +3616,14 @@ async function wizFinish(){
       await setDoc("accounts/"+aid,{id:aid,name:w.acct.name,type:w.acct.type,terms:w.acct.terms,phone:w.acct.phone,
         website:"",street:w.acct.street||"",city:w.acct.city||"",state:w.acct.state||"",zip:w.acct.zip||"",qb:w.acct.name,exempt:false,exemptExp:"",drive:"",
         billingContactId:"",repId:meId()||"",notes:"",deleted:false,createdAt:now,updatedAt:now});
-      logEvent("account",aid,"Account created in New order");
+      logEvent("account",aid,"Account created in New quote");
     }
     let cid=w.contMode==="existing"?w.contId:"";
     if(w.contMode==="new"){
       cid=uid("ct");
       await setDoc("contacts/"+cid,{id:cid,name:w.cont.name,accountId:aid,role:w.cont.role,title:"",email:w.cont.email,
         phone:w.cont.phone,mobile:"",primary:!contactsOf(aid).length,notes:"",deleted:false,createdAt:now,updatedAt:now});
-      logEvent("contact",cid,"Contact created in New order");
+      logEvent("contact",cid,"Contact created in New quote");
     }
     const pid=uid("p"),pnum=await nextNum("nextProject",2001);
     await setDoc("projects/"+pid,{id:pid,num:pnum,name:w.proj.name,scope:w.proj.scope||"",accountId:aid,stage:w.proj.stage,amount:"",
@@ -3631,7 +3631,7 @@ async function wizFinish(){
       stageLog:[{stage:w.proj.stage,at:now,who:me()}],reorderOf:"",contacts:cid?[cid]:[],repId:"",
       amountAuto:true,billWhen:w.proj.billWhen,billStatus:"none",billDate:"",paidDate:"",depositAmt:"",
       orderLines:[],billingContactId:"",deleted:false,createdAt:now,updatedAt:now});
-    logEvent("project",pid,"Project created in New order");
+    logEvent("project",pid,"Project created in New quote");
     let dest="project/"+pid;
     if(w.woMode==="new"){
       const num=await nextNum("nextJob",1001);
@@ -3655,7 +3655,7 @@ function nextStep(kind,rec){
   if(kind==="account"){
     const cs=contactsOf(rec.id),ps=projectsOf(rec.id);
     if(!cs.length){t="No contacts yet";b="Add the person you deal with — they get proofs, quotes and calls.";a=`data-new="contact:${esc(rec.id)}"`}
-    else if(!ps.length){t="No projects yet";b="Start their first order, bid or package.";a=`data-new="project:${esc(rec.id)}"`}
+    else if(!ps.length){t="No projects yet";b="Start their first quote, bid or package.";a=`data-new="project:${esc(rec.id)}"`}
   }
   if(kind==="project"){
     const js=jobsOf(rec.id);
@@ -3722,9 +3722,9 @@ function closeList(p){
     shipped.filter(j=>!filesOf("job",String(j.num)).some(f=>f.cat==="Signed work order")).length
       ?"Missing on "+shipped.filter(j=>!filesOf("job",String(j.num)).some(f=>f.cat==="Signed work order")).map(j=>j.num).join(", ")
       :!shipped.length?"Nothing shipped yet":"All scanned","jobs",!shipped.length);
-  auto("c_recon","Ordered matches what we made",reconStatus(p).state!=="off"&&reconStatus(p).state!=="none",
-    reconStatus(p).state==="none"?"No ordered lines recorded, so nothing was checked"
-      :reconStatus(p).state==="ok"?"Every line accounted for":"Ordered and made don't line up","proj",reconStatus(p).state==="none");
+  auto("c_recon","Quote lines match what we made",reconStatus(p).state!=="off"&&reconStatus(p).state!=="none",
+    reconStatus(p).state==="none"?"No quote lines recorded, so nothing was checked"
+      :reconStatus(p).state==="ok"?"Every line accounted for":"Quote lines and what we made don't line up","proj",reconStatus(p).state==="none");
   auto("c_mat","Material pulled against the work orders",js.length&&js.every(j=>planIssued(j).length||!planFor(j,j.wastePct).length),
     js.filter(j=>planFor(j,j.wastePct).length&&!planIssued(j).length).length
       ?"Nothing issued on "+js.filter(j=>planFor(j,j.wastePct).length&&!planIssued(j).length).map(j=>j.num).join(", ")+" — the margin will read high"
@@ -4054,7 +4054,7 @@ function reconCard(p){
   const noneYet=!ord.length&&!rows.length;
   const notOn=rows.filter(r=>!r.extra&&!r.charge&&r.sched<r.ordered).length;
   return `<section class="card flush" ${st.state==="off"?`style="border-color:var(--brand)"`:""}>
-    <header><h2>${(p.stage==="inquiry"||p.stage==="quoted")?"Quote lines":"Order lines"}</h2>
+    <header><h2>${(p.stage==="inquiry"||p.stage==="quoted")?"Quote lines":"Quote lines"}</h2>
       ${ord.length?(st.state==="ok"?`<span class="pill g">All on work orders</span>`
         :`<span class="pill r">${notOn} not fully on a work order</span>`)
         :rows.length?`<span class="pill o">Only on work orders</span>`:""}
@@ -4069,13 +4069,13 @@ function reconCard(p){
           return ord.some(l=>!isCharge(l)&&Number(l.price)>0)?`<button class="btn sm${k?" warnbtn":""}" data-reprice="${esc(p.id)}" title="Compare each line's price with today's pricing and update the ones you choose">${k?k+" price"+(k===1?"":"s")+" out of date — re-price":"Re-price"}</button>`:""})()}
         ${ord.filter(l=>!isCharge(l)).length>1?`<button class="btn sm" data-allgrade="${esc(p.id)}" title="Put the same sheeting or material on every line">Change grade on every line</button>`:""}
         <button class="btn sm p" data-ordadd="${esc(p.id)}">Add a line</button>
-        ${!ord.length&&rows.length?`<button class="btn sm" data-ordfill="${esc(p.id)}">Make these the order</button>`:""}</span></header>
+        ${!ord.length&&rows.length?`<button class="btn sm" data-ordfill="${esc(p.id)}">Make these the quote lines</button>`:""}</span></header>
     ${rows.length?`<table><thead><tr><th>Item</th><th>Size</th><th>Grade</th><th style="text-align:right">Qty</th>
       <th style="text-align:right">Costs us</th><th style="text-align:right">Price ea</th><th style="text-align:right">Line</th><th style="text-align:right">Margin</th>
       <th>On work order</th><th style="width:110px"></th></tr></thead><tbody>
       ${rows.map((r,ix)=>{const d=r.sched-r.ordered;
         const where=r.wos.length?r.wos.map(w=>`<button class="lnk mono" data-go="job/${w}">${w}</button>`).join(" "):"";
-        const status=r.charge?`<span class="sub">a charge — nothing to make</span>`:r.extra?`<span class="pill o" title="This is on a work order but isn't on the order — add it to the order or take it off the work order">not on the order</span> ${where?`<div style="margin-top:5px">${where}</div>`:""}`
+        const status=r.charge?`<span class="sub">a charge — nothing to make</span>`:r.extra?`<span class="pill o" title="This is on a work order but isn't on the order — add it to the order or take it off the work order">not on the quote</span> ${where?`<div style="margin-top:5px">${where}</div>`:""}`
           :d===0?`<span class="pill g">yes</span>${where?`<div style="margin-top:5px">${where}</div>`:""}`
           :d<0?(r.sched?`<span class="pill r">${r.sched} of ${r.ordered}</span>${where?`<div style="margin-top:5px">${where}</div>`:""}`:`<span class="pill r">not yet</span>`)
           :`<span class="pill o">${r.sched} made, ${r.ordered} ordered</span>${where?`<div style="margin-top:5px">${where}</div>`:""}`;
@@ -4566,7 +4566,7 @@ function autoPass(){
 // Long explanations on the pages fold into a small ⓘ — tap it for the text. "Help" in the header
 // shows them all again. Warnings and anything with a button or link in it stay as they are.
 function helpOn(){try{return localStorage.getItem("sscHelp")==="1"}catch(e){return false}}
-const PTAB_OF={"quote lines":"lines","order lines":"lines","work orders":"wos","billing":"billing","all files on this project":"files",
+const PTAB_OF={"quote lines":"lines","quote lines":"lines","work orders":"wos","billing":"billing","all files on this project":"files",
   "activity":"activity","field history":"activity","close-out":"close","schedule":"close","notes":"details","project details":"details",
   "contacts on this project":"details","@acct":"details"};
 function decorateProjectTabs(){
@@ -5143,14 +5143,14 @@ function ordModal(pid,ix,pre){
   const isNew=(ix==null);
   const o=isNew?Object.assign({qty:"",code:"",size:"",grade:"",legend:"",note:""},pre||{}):Object.assign({},orderedLines(p)[ix]||{});
   S.ordPre=isNew?(pre||null):null;S.ordAid=p.accountId||"";
-  openModal(mshell(isNew?"Add what they ordered":"Edit ordered line","proj",
+  openModal(mshell(isNew?"Add a quote line":"Edit quote line","proj",
     `<div style="padding:12px 15px;border-bottom:1px solid var(--line);background:var(--card2);display:flex;gap:12px;align-items:center;flex-wrap:wrap">
       <div style="flex:1;min-width:220px"><b>Don't know the code?</b>
         <div class="sub">Search your own price list — every sign you sell, with its size, grade and price.</div></div>
       <button class="btn p" data-catalog="ord:${esc(pid)}">${ic("search",14)}Browse the price list</button></div>
      <p class="note" style="margin:10px 15px">Or type it straight off the PO or the email.</p>
      <div class="fgrid">
-      ${inp("o-qty","Quantity ordered",o.qty,"number")}
+      ${inp("o-qty","Quantity",o.qty,"number")}
       ${inp("o-desc","What to call it on the quote",o.desc||"","text",1)}
       ${inp("o-price","Price each — what they pay",o.price||"","number")}
       <div class="fld" id="o-price-why" style="border-bottom:0;align-self:end"></div>
@@ -5239,7 +5239,7 @@ async function ordSave(pid,ixRaw){
   if(ixRaw==="new")lines.push(rec);else lines[Number(ixRaw)]=rec;
   closeModal();
   await push("projects/"+pid,{orderLines:lines,updatedAt:Date.now()});
-  recordHistory("project",pid,[{f:"Ordered",o:"",
+  recordHistory("project",pid,[{f:"Quote lines",o:"",
     n:(ixRaw==="new"?"Added ":"Changed ")+(rec.qty||"")+" "+(rec.code||"")+" "+(rec.size||""),ev:1}]);
 }
 async function ordDel(pid,ix){
@@ -5247,7 +5247,7 @@ async function ordDel(pid,ix){
   const lines=orderedLines(p).slice();const gone=lines[ix];lines.splice(ix,1);
   closeModal();
   await push("projects/"+pid,{orderLines:lines,updatedAt:Date.now()});
-  recordHistory("project",pid,[{f:"Ordered",o:"",n:"Removed "+((gone&&gone.code)||"a line"),ev:1}]);
+  recordHistory("project",pid,[{f:"Quote lines",o:"",n:"Removed "+((gone&&gone.code)||"a line"),ev:1}]);
 }
 async function ordFill(pid){
   const p=proj(pid);if(!p)return;
@@ -5267,7 +5267,7 @@ async function ordFill(pid){
   if(!jobUp.length)return toast("No work order lines to copy yet.");
   await push("projects/"+pid,{orderLines:lines,updatedAt:Date.now()});
   for(const [num,items] of jobUp)await push("jobs/"+num,{items,updatedAt:Date.now()});
-  recordHistory("project",pid,[{f:"Ordered",o:"",n:"Seeded "+lines.length+" line(s) from the work orders",ev:1}]);
+  recordHistory("project",pid,[{f:"Quote lines",o:"",n:"Seeded "+lines.length+" line(s) from the work orders",ev:1}]);
   toast("Copied — now check it against the PO");
 }
 /* ================= PRE-PRODUCTION CHECKLIST ================= */
@@ -5336,7 +5336,7 @@ function prepList(j){
     :j.blankSrc==="vendor"?"Blanks received from the vendor, counted, and the gauge checked"
     :j.blankSrc==="cut"?"Sheet stock on hand for the Biesse"
     :"Blanks pulled from stock and tagged with the work order number");
-  man("qtyPO","Quantity checked against the order","Count on the lines matches the PO, not what you remember them saying");
+  man("qtyPO","Quantity checked against the quote","Count on the lines matches the PO, not what you remember them saying");
   if(pd==="sign"){
     man("holes","Hole pattern and mounting confirmed","Where it's going and what it's going on — post, wall, u-channel");
     man("legend","Legend colour and film confirmed","Which EC film for the legend, and that it isn't 7125 on a regulatory face");
@@ -6990,7 +6990,7 @@ async function lineSave(num,ixRaw){
     {const dp=defaultPrice(ol,p0.accountId);if(dp)ol.price=dp.price.toFixed(2)}
     rec.lineId=ol.id;
     await push("projects/"+p0.id,{orderLines:orderedLines(p0).concat([ol]),updatedAt:Date.now()});
-    recordHistory("project",p0.id,[{f:"Ordered",o:"",n:"Added "+(rec.qty||"")+" "+(rec.desc||rec.code||"a line")+" from work order "+num,ev:1}]);
+    recordHistory("project",p0.id,[{f:"Quote lines",o:"",n:"Added "+(rec.qty||"")+" "+(rec.desc||rec.code||"a line")+" from work order "+num,ev:1}]);
   }
   const items=raw.slice();
   if(ix>=0)items[ix]=rec;else items.push(rec);
@@ -7265,7 +7265,7 @@ const PAGE_ORDER={
   job:{steps:["details","items to make","material / inventory","pre-production checklist","production route","quality check",
     "paperwork","shipping","money on this work order"],
     after:["field history"]},
-  project:{steps:["order lines","quote lines","work orders","project details","@acct","contacts on this project","billing",
+  project:{steps:["quote lines","quote lines","work orders","project details","@acct","contacts on this project","billing",
     "close-out","schedule"],
     after:["activity","notes","all files on this project","field history"],
     left:["project details","@acct","contacts on this project","billing"],right:["activity"],
@@ -7292,7 +7292,7 @@ function orderPage(){
     :title(x).indexOf(m)===0));if(c)used.add(c);return c};
   // Tables need the full width on a laptop; on a wide screen half the page is room enough,
   // so everything flows into the two columns.
-  const WIDE=innerWidth>=1700&&!(spec.center&&innerWidth>=950)?["work orders","open work orders","items to make"]:["work orders","order lines","quote lines","items to make","open work orders","projects"];
+  const WIDE=innerWidth>=1700&&!(spec.center&&innerWidth>=950)?["work orders","open work orders","items to make"]:["work orders","quote lines","quote lines","items to make","open work orders","projects"];
   const isWide=c=>WIDE.some(w=>title(c).indexOf(w)===0);
   // 1. the order
   const seq=[];let step=0;
@@ -8180,7 +8180,7 @@ function projectList(){
         <td><span class="pill ${dueCls(p.due,isClosed(p))}">${dueTxt(p.due)}</span></td>
         <td class="mono">${jobsOf(p.id).length||"—"}</td></tr>`).join("")}</tbody></table>`
     :`<div class="empty"><b>${S.scope?"No projects on "+esc((scopeTeam()||{}).name||"their")+"'s book":"No projects yet"}</b>${
-      S.scope?"Clear the filter above to see them all.":"A project is one order, bid, or job package for an account."}</div>`}
+      S.scope?"Clear the filter above to see them all.":"A project is one quote, bid, or job package for an account."}</div>`}
   </section></div>`;
 }
 
@@ -8205,7 +8205,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.20-1";
+const APP_VERSION="2026.11.20-2";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -8474,7 +8474,7 @@ function projectRec(id){
         <div><div class="k">PO</div><div class="v">${esc(p.po||"—")}</div></div>
         <div><div class="k">Start</div><div class="v">${fmtDate(p.start)}</div></div>
         <div><div class="k">Due</div><div class="v"><span class="pill ${dueCls(p.due,closed)}">${dueTxt(p.due)}</span></div></div>
-        <div><div class="k">Order lines</div><div class="v">${(function(){const st=reconStatus(p);
+        <div><div class="k">Quote lines</div><div class="v">${(function(){const st=reconStatus(p);
           const ol=orderedLines(p);const pcs=ol.reduce((t,l)=>t+(Number(l.qty)||0),0);
           const q=quoteState(p);
           if(!q.ok&&q.lines)return `${pcs} pcs <span class="pill o">${q.noPrice.length?q.noPrice.length+" unpriced":q.noQty.length+" no qty"}</span>`;
@@ -8495,7 +8495,7 @@ function projectRec(id){
 
     <div class="cols">
       <section class="card flush"><header><h2>Project details</h2>
-        <span class="sub">The order, the dates and where it ships. Edit is on the header.</span></header>
+        <span class="sub">The quote, the dates and where it ships. Edit is on the header.</span></header>
         ${(function(){
           // what's being made, from the ordered lines — or the work orders if nothing's been recorded
           const ol=orderedLines(p);
@@ -8511,8 +8511,8 @@ function projectRec(id){
                   <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:2px">${esc(kindLabel(k))}</div>
                   ${g[k].map(l=>`<div style="font-size:13.5px;line-height:1.5"><b>${esc(String(l.qty||""))}</b> × ${esc(l.desc||signName(l)||l.code||"custom")}${l.size?` <span class="sub">${esc(sizeLabel(l.size))}</span>`:""}${l.grade?` <span class="sub">· ${esc(l.grade)}</span>`:""}</div>`).join("")}
                 </div>`).join("")}
-                <div class="sub">${lines.reduce((t,l)=>t+(Number(l.qty)||0),0)} pieces, ${lines.length} line${lines.length===1?"":"s"} — details under ${(p.stage==="inquiry"||p.stage==="quoted")?"Quote lines":"Order lines"}</div></div>`})()}`
-              :`<div class="sub" style="font-size:13px">No lines yet. <button class="lnk" data-ordadd="${esc(p.id)}">Add what they ordered</button>.</div>`}
+                <div class="sub">${lines.reduce((t,l)=>t+(Number(l.qty)||0),0)} pieces, ${lines.length} line${lines.length===1?"":"s"} — details under ${(p.stage==="inquiry"||p.stage==="quoted")?"Quote lines":"Quote lines"}</div></div>`})()}`
+              :`<div class="sub" style="font-size:13px">No lines yet. <button class="lnk" data-ordadd="${esc(p.id)}">Add a quote line</button>.</div>`}
           </div>
           <div class="fgrid">
             ${fld("Customer",accName(p.accountId))}${fld("PO number",p.po||"none yet")}
@@ -9404,7 +9404,7 @@ function itemRec(id){
         <div><div class="k">On hand</div><div class="v mono">
           <span class="pill ${stockCls(i)}">${esc(stockText(i))}</span></div></div>
         <div><div class="k">Reorder at</div><div class="v mono">${i.reorderPoint!==""&&i.reorderPoint!=null?esc(String(i.reorderPoint)):"—"}</div></div>
-        <div><div class="k">Order qty</div><div class="v mono">${esc(String(i.reorderQty||"—"))}</div></div>
+        <div><div class="k">Quantity</div><div class="v mono">${esc(String(i.reorderQty||"—"))}</div></div>
         <div><div class="k">Unit cost</div><div class="v mono">${i.cost?money(i.cost):"—"}</div></div>
         <div><div class="k">Value</div><div class="v mono">${money(onHand(i)*(Number(i.cost)||0))}</div></div>
         <div><div class="k">Used, 30 days</div><div class="v mono">${used30||"—"}</div></div>
@@ -10314,12 +10314,12 @@ function settingsView(){
           if((billState(p2)==="invoiced"||billState(p2)==="paid"||p2.stage==="invoiced"||p2.stage==="closed")&&!p2.invNum)
             issues.push({t:"Marked invoiced with no invoice number",l:"P-"+p2.num+" "+p2.name,h:"project/"+p2.id})});
         live(S.projects).forEach(p2=>{const st=reconStatus(p2);
-          if(st.state==="off")issues.push({t:"Ordered and scheduled don't match"+(st.short?" ("+st.short+" short)":""),
+          if(st.state==="off")issues.push({t:"Quote lines and the schedule don't match"+(st.short?" ("+st.short+" short)":""),
             l:"P-"+p2.num+" "+p2.name,h:"project/"+p2.id})});
         live(S.projects).forEach(p2=>{if((p2.stage==="won"||p2.stage==="production")&&!jobsOf(p2.id).length)
           issues.push({t:"Won but no work order raised",l:"P-"+p2.num+" "+p2.name,h:"project/"+p2.id})});
         live(S.projects).forEach(p2=>{if(!isClosed(p2)&&!orderedLines(p2).length&&jobsOf(p2.id).length)
-          issues.push({t:"No ordered lines recorded to check against",l:"P-"+p2.num+" "+p2.name,h:"project/"+p2.id})});
+          issues.push({t:"No quote lines recorded to check against",l:"P-"+p2.num+" "+p2.name,h:"project/"+p2.id})});
         live(S.projects).forEach(p2=>{if(p2.amountAuto&&!jobsOf(p2.id).some(j=>jobRevenue(j)>0))
           issues.push({t:"Set to value-from-lines but no work order has prices",l:"P-"+p2.num+" "+p2.name,h:"project/"+p2.id})});
         liveJobs().forEach(j=>{const off=woItems(j).filter(x=>Number(x.qty)>0&&lineUnitCost(j,x).src!=="sheet");
@@ -10344,20 +10344,20 @@ function settingsView(){
       })()}
     </div></section>`)}
 
-    ${panel("about","How it works","Every order follows the same path. + New → New order walks you through it.",`
-    <section class="card"><header><h2>The path of an order</h2>
+    ${panel("about","How it works","Every job follows the same path: quote, then work order. + New → New quote walks you through it.",`
+    <section class="card"><header><h2>The path of a job: quote, then work order</h2>
       <span class="sp"><span class="pill">version ${APP_VERSION}${window.sscHosted?" · your site":" · in Claude"}</span></span></header>
       <div class="body">${flowStrip(0,[])}
       <div class="fgrid" style="margin-top:12px">
         <div class="fld"><div class="k">Account</div><div class="v">The customer organization — a city, a contractor, an HOA. Created once, lives forever.</div></div>
         <div class="fld"><div class="k">Contact</div><div class="v">A person at that account. They get proofs, quotes and calls; the buyer and the AP contact are usually different people.</div></div>
-        <div class="fld"><div class="k">Project</div><div class="v">One order, bid or package. It carries the PO, the value, the invoice and a stage from Inquiry to Closed won. An account can carry dozens.</div></div>
+        <div class="fld"><div class="k">Project</div><div class="v">One quote, bid or package. It carries the PO, the value, the invoice and a stage from Inquiry to Closed won. An account can carry dozens.</div></div>
         <div class="fld"><div class="k">Work order</div><div class="v">One batch the shop builds, with its own number, printed sheet, prep checks and shop statuses. A project can have several — signs now, stencils later.</div></div>
         <div class="fld"><div class="k">Reorder</div><div class="v">Open the old project and press Reorder in More. You get a fresh project with the same account and ship-to, linked back to the original.</div></div>
         <div class="fld"><div class="k">Vendor and inventory</div><div class="v">Who you buy from, and what you keep on the shelf. Receiving adds, issuing to a work order subtracts, counting reconciles.</div></div>
         <div class="fld full"><div class="k">Files</div><div class="v">Every file belongs to exactly one record. A proof on a project stays on that project; account files are for things that don't change — the W-9, the exemption certificate, a signed terms sheet.</div></div>
       </div>
-      <div style="margin-top:12px"><button class="btn p" data-wizstart="1">${ic("task",14)}Start a new order</button></div>
+      <div style="margin-top:12px"><button class="btn p" data-wizstart="1">${ic("task",14)}Start a new quote</button></div>
       </div></section>`)}
 
     </div></div>
@@ -10644,7 +10644,7 @@ function projectModal(p,aid,then){
   if(!accs.length){toast("Every project belongs to an account — add the account first.");
     accountModal(null,newId=>projectModal(Object.assign({},p,{accountId:newId}),newId));return}
   openModal(mshell(p.id?"Edit project":"New project","proj",
-    `${p.id?"":`<p class="note" style="margin:10px 14px">${p.reorderOf?"A reorder starts clean: new PO, new due date, and its own files. The original project keeps everything it had.":"A project is one order, bid, or package. One account can run dozens over the years — each keeps its own files, PO, and history."}</p>`}
+    `${p.id?"":`<p class="note" style="margin:10px 14px">${p.reorderOf?"A reorder starts clean: new PO, new due date, and its own files. The original project keeps everything it had.":"A project is one quote, bid, or package. One account can run dozens over the years — each keeps its own files, PO, and history."}</p>`}
     <div class="fgrid">${sel("f-acct","Account — every project belongs to one",p.accountId||aid||accs[0].v,withNew(accs,"Add a new account…")).replace('<div class="fld">','<div class="fld full">')}
       ${inp("f-name","Project name",p.name,"text",1)}
       ${sel("f-stage","Stage",p.stage||"inquiry",STAGES.map(s=>({v:s.id,l:s.label})))}
@@ -10662,7 +10662,7 @@ function projectModal(p,aid,then){
           Work the value out from the order lines</label>
           <div id="f-amtwrap" style="margin-top:8px;${auto?"display:none":""}">
             <div class="k">Value</div><input id="f-amt" type="number" value="${esc(p.amount||"")}" placeholder="0.00"></div>
-          <div class="sub" id="f-amthint" style="margin-top:4px">${auto?"Price the order lines and this adds itself up.":"Typed in — it won't change when the order lines are priced."}</div>`})()}</div>
+          <div class="sub" id="f-amthint" style="margin-top:4px">${auto?"Price the quote lines and this adds itself up.":"Typed in — it won't change when the quote lines are priced."}</div>`})()}</div>
       ${sel("f-prep","Sales rep — blank uses the account's",p.repId||"",
         repList().map(t=>({v:t.id,l:t.name})),1)}
       ${sel("f-billwhen","When we bill",p.billWhen||"after",BILLWHEN.map(x=>({v:x.id,l:x.label})))}
@@ -10673,7 +10673,7 @@ function projectModal(p,aid,then){
   const fau=$("#f-auto");
   if(fau)fau.onchange=()=>{const w=$("#f-amtwrap"),h=$("#f-amthint");
     if(w)w.style.display=fau.checked?"none":"";
-    if(h)h.textContent=fau.checked?"Price the order lines and this adds itself up.":"Typed in — it won't change when the order lines are priced."};
+    if(h)h.textContent=fau.checked?"Price the quote lines and this adds itself up.":"Typed in — it won't change when the quote lines are priced."};
   const pae=$("#f-acct");
   if(pae)pae.onchange=()=>{
     if(pae.value!==NEWOPT)return;
@@ -11887,13 +11887,13 @@ async function webFetch(auto){
       if((S.brand||{}).shopAuto!==false&&go2.length){
         await new Promise(r=>setTimeout(r,Math.random()*15000));   // several screens open: don't all import at once
         const made=await webImportOrders(go2.filter(o=>!webProj(o.id)));S.webNew=0;
-        if(made.length)toast("Website: "+made.length+" new order"+(made.length===1?"":"s")+" in — P-"+made.map(x=>x.p).join(", P-"));
+        if(made.length)toast("Website: "+made.length+" new quote"+(made.length===1?"":"s")+" in — P-"+made.map(x=>x.p).join(", P-"));
         return 0}
       S.webNew=go2.length;return S.webNew}
     S.webList=L;const box=$("#wo-list");
     if(box)box.innerHTML=(L.length?"":`<p class="note" style="margin:14px 15px"><b>No new orders on the website</b> since ${esc(fmtDate(String(after).slice(0,10)))}.
       Orders already in the CRM aren't shown again.</p>`)+webListHTML();
-    toast(L.length?L.length+" new order"+(L.length===1?"":"s"):"No new orders on the website");
+    toast(L.length?L.length+" new quote"+(L.length===1?"":"s"):"No new orders on the website");
   }catch(e){if(!auto){const box=$("#wo-list");const why=(e&&e.message&&!/fetch|network/i.test(e.message))?e.message:"the website didn't answer";
       if(box)box.innerHTML=`<div class="warn" style="margin:12px 15px"><b>Couldn't reach the website</b> — ${esc(why)}.
         <div class="sub" style="margin-top:6px">Check the plugin is active and the key matches <b>WooCommerce → CRM orders</b>. If both are right,
@@ -12652,7 +12652,7 @@ function bind(){
         <div style="padding:4px 0">
           ${[["account","Account","A customer — agency, contractor, reseller"],
              ["contact","Contact","Somebody at an account"],
-             ["project","Project","An order, bid or package. Gets a PO and an invoice."],
+             ["project","Project","A quote, bid or package. Gets a PO and an invoice."],
              ["job","Work order","One batch the shop builds. Gets a number and a printed sheet."]]
             .map(([k,l,h])=>`<button class="gate" data-new="${k}"
               style="width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line2);cursor:pointer">
