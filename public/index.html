@@ -1119,6 +1119,16 @@ const R_METHOD={
 const R_FINAL=[{id:"qcroute",label:"Final trim, clean, inspect"}];
 
 function prodOf(j){return (j&&j.prod)||"sign"}
+// which stencil sheeting a quote line means: a tracked inventory item first, then the grade's thickness words
+function stenMatFromGrade(g){g=String(g||"").trim();if(!g)return "";
+  const inv=itemList().filter(x=>x.cat==="Stencil material");const lg=g.toLowerCase();
+  const hit=inv.find(x=>x.name.toLowerCase().indexOf(lg)>=0||lg.indexOf(x.name.toLowerCase())>=0);if(hit)return hit.id;
+  const u=g.toUpperCase();
+  if(/ALUM/.test(u))return "alum";
+  if(/HDPE/.test(u)){if(/\.25|1\/4|250/.test(u))return "hdpe250";if(/\.06|062|1\/16/.test(u))return "hdpe062";return "hdpe030"}
+  if(/1\/8|\.125|\bPRO\b|HEAVY/.test(u))return "ldpe18";
+  if(/1\/16|\.06|LIGHT/.test(u))return "ldpe16";
+  const m=STENMAT.find(x=>x.label.toLowerCase()===lg);return m?m.id:""}
 function stenThick(j){const it=stenItem(j);if(it)return /1\/8|\.125|1\/4|thick/i.test(it.name||"");const m=STENMAT.find(x=>x.id===((j&&j.stencilMat)||"ldpe16"));return !!(m&&m.thick)}
 function routeForKind(j,k){
   const fake=Object.assign({},j,{prod:k});
@@ -1291,7 +1301,7 @@ function routeLabel(j,id){const r=routeFor(j).find(x=>x.id===id);return r?r.labe
 const ROUTE=R_BLANK.stock.concat(R_METHOD.film).concat(R_FINAL);
 const SHIPM=["UPS / FedEx","Freight","Will call","Local delivery"];
 const ACCT_TYPE=["Government agency","Contractor","Reseller","Retail"];
-const TERMS=["Card at checkout","Net 30","Net 45","Net 60","Prepay"];
+const TERMS=["Due on receipt","Card at checkout","Net 30","Net 45","Net 60","Prepay"];
 const FILECAT=["Artwork proof","Signed proof","Signed work order","Artwork","Purchase order","Quote","Signed quote","Invoice","Packing slip / BOL","Photo","Spec sheet","Other"];
 const ROLES=["Buyer / purchasing","Accounts payable","Engineer","Public works","Field contact","Other"];
 const SRC=["Website","Phone","Email","Agency PO","Bid","Walk-in","Referral"];
@@ -1388,7 +1398,7 @@ function fmtDate(iso){if(!iso)return "—";const d=new Date(iso+"T00:00:00");
   return isNaN(d)?"—":d.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"})}
 function fmtTs(ms){if(!ms)return "—";return new Date(ms).toLocaleString(undefined,{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}
 function money(v){const n=Number(v);if(v===""||v==null||isNaN(n))return "—";
-  return "$"+n.toLocaleString(undefined,{maximumFractionDigits:0})}
+  return (n<0?"-$":"$")+Math.abs(n).toLocaleString(undefined,{maximumFractionDigits:0})}
 function stamp(){return fmtTs(Date.now())}
 function me(){return S.me||"??"}
 function uid(p){return p+Date.now().toString(36)+Math.random().toString(36).slice(2,5)}
@@ -2080,7 +2090,7 @@ function teamModal(t){
       ${can("settings")?sel("t-rscope","Reminders for",remScopeOf(t),[{v:"own",l:"Their own accounts only"},{v:"all",l:"Everything"}]):""}
       ${chk("t-rep","Sales rep — can be assigned to accounts",t.isRep)}
       ${can("settings")?chk("t-cdash","Can open the Company dashboard (the owner always can)",!!t.companyDash):""}
-      ${sel("t-access","Access",t.access||"owner",Object.keys(ACCESS).map(k=>({v:k,l:ACCESS[k].label+" — "+({owner:"everything",office:"everything but Settings",sales:"no costs or margins, can't delete",shop:"no prices, costs or margins, can't delete"})[k]})))}
+      ${sel("t-access","Access",t.access||(t.id?"owner":"sales"),Object.keys(ACCESS).map(k=>({v:k,l:ACCESS[k].label+" — "+({owner:"everything",office:"everything but Settings",sales:"no costs or margins, can't delete",shop:"no prices, costs or margins, can't delete"})[k]})))}
       <div class="fld full sub">${t.claudeId?(t.claudeId===viewerId()?"This is you — claimed on your sign-in."
         :"Claimed by a signed-in account. They're recognised automatically."):"Not claimed yet. Whoever picks this record on their own device gets signed in as them."}
         ${t.claudeId?` <button class="btn sm" data-unclaim="${esc(t.id)}" style="margin-left:8px">Unclaim</button>`:""}</div></div>`,
@@ -2088,6 +2098,9 @@ function teamModal(t){
      <button class="btn" data-close="1">Cancel</button><button class="btn p" id="save">Save</button>`));
   $("#save").onclick=async()=>{
     const name=$("#t-name").value.trim();if(!name)return toast("Name is required.");
+    const ini0=($("#t-init").value||inits(name)).toUpperCase().slice(0,4);
+    const twin=live(S.team).find(x=>x.id!==t.id&&String(x.initials||"").toUpperCase()===ini0);
+    if(twin)return toast(ini0+" is already "+twin.name+"'s initials — pick different initials (the CRM tells people apart by them).");
     const id=t.id||uid("tm");
     const rec={id,name,initials:($("#t-init").value||inits(name)).toUpperCase().slice(0,4),
       role:$("#t-role").value.trim(),email:$("#t-email").value.trim(),phone:fmtPhone($("#t-phone").value.trim()),
@@ -2163,7 +2176,7 @@ function emailInvoice(pid){
   if(mailCfg().cc)mailPreLog("project:"+pid+":"+c.id);else setTimeout(()=>logModal("project",pid,"email",c.id),400);
 }
 function money2(v){const x=Number(v);if(v===""||v==null||isNaN(x))return "—";
-  return "$"+x.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}
+  return (x<0?"-$":"$")+Math.abs(x).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}
 function lineTotal(it){const q=Number(it.qty)||0,p2=Number(it.price)||0;return q*p2}
 // what a line sells for: the project's quote line decides it; a work order never sets a price
 function priceOfLine(j,it){
@@ -2178,14 +2191,15 @@ function quoteLineCost(line){
   const uc=lineUnitCost(line.build==="print"?{method:"print"}:null,{code:line.code,size:line.size,grade:line.grade,sheetKey:line.sheetKey,
     legend:line.legend||"",legends:line.legends||[],build:line.build||""});
   // the cost sheet wins; anything else is worked out from the material, which knows about laminate
-  if(uc&&uc.cost&&uc.src==="sheet")return {cost:uc.cost,why:uc.why||"from the cost sheet",src:"sheet"};
+  if(uc&&uc.cost&&uc.src==="sheet"){const off=(line.noLam&&linePrinted(line))?lamCostFor(line):0;
+    return {cost:Math.round((uc.cost-off)*100)/100,why:(uc.why||"from the cost sheet")+(off?" less the declined overlaminate $"+off.toFixed(2):""),src:"sheet"}}
   const lp=lineProd(line);
   if((lp==="decal"||lp==="letter")&&parseSize(line.size)){const t=decalCfg().model==="tab11"?tab11Cost(line):decalCost(line);if(t&&t.cost)return t}
   // a sign that isn't on the cost sheet — or a printed decal or banner: everything that goes into
   // one (blank, sheeting or print media, legend film, overlay or laminate), the way the work order pulls it
   if((lp==="sign"||lp==="decal"||lp==="banner")&&parseSize(line.size)){
     const one={qty:"1",code:line.code||"",desc:line.desc||"",size:line.size,grade:line.grade||"",sub:line.sub||"",
-      legend:line.legend||"",legends:line.legends||[],build:line.build||""};
+      legend:line.legend||"",legends:line.legends||[],build:line.build||"",noLam:!!line.noLam};
     const printed=line.build==="print"||(lp!=="sign"&&/40C|IJ35|PRINT/i.test(line.grade||""));
     const rows=planFor({prod:lp,method:printed?"print":"film",decalMethod:printed?"print":"cut",blankSrc:"stock",items:[one]},null);
     let tot=0;const parts=[],noCost=[];
@@ -2235,8 +2249,12 @@ function projValue(p){
   }
   return Number(p.amount)||0;
 }
-function projCost(p){return p?jobsOf(p.id).reduce((t,j)=>t+jobCost(j),0)+(Number(p.otherCost)||0)
-  +orderedLines(p).filter(isCharge).reduce((t,l)=>t+(Number(l.qty)||1)*(Number(l.cost)||0),0):0}
+function projCost(p){if(!p)return 0;const js=jobsOf(p.id);
+  const onWO=js.reduce((m,j)=>{woItems(j).forEach(x=>{m[itKey(x)]=1});return m},{});
+  // lines still only on the quote cost what the quote says they cost, so the header agrees with the Quote lines table
+  const quoteOnly=orderedLines(p).filter(l=>!isCharge(l)&&!onWO[olKey(l)]).reduce((t,l)=>{let c=0;try{const r=quoteLineCost(l);c=r&&r.cost?r.cost:0}catch(e){}return t+(Number(l.qty)||0)*c},0);
+  return js.reduce((t,j)=>t+jobCost(j),0)+(Number(p.otherCost)||0)+quoteOnly
+  +orderedLines(p).filter(isCharge).reduce((t,l)=>t+(Number(l.qty)||1)*(Number(l.cost)||0),0)}
 function valueFrom(p){return !p||!p.amountAuto?"typed in":orderedLines(p).some(l=>Number(l.price)>0)?"from the quote lines"
   :orderedLines(p).some(l=>!isCharge(l))?"no prices on the lines yet":"from the work order lines"}
 function projMargin(p){const r=projValue(p);if(!r||projCost(p)===0)return null;return (r-projCost(p))/r*100}
@@ -2681,7 +2699,7 @@ function docHTML(p,kind){
   const lines=docLines(p);
   const sub=lines.reduce((t,l)=>t+l.qty*l.unit,0);
   const rate=Number(b.taxRate)||0;
-  const exempt=!!a.exempt;
+  const exempt=isExempt(a);
   const tax=(!exempt&&rate>0)?sub*rate/100:0;
   const dep=(billWhen(p)==="deposit"&&Number(p.depositAmt)>0&&kind==="invoice"&&billState(p)!=="none")?Number(p.depositAmt):0;
   const total=sub+tax-dep;
@@ -2865,6 +2883,10 @@ async function htmlToPdf(html,opt){
       while(y<end-2){const room=(page===0?ph-bottom:ph-bottom-top2);let cut=y+room;
         if(cut<end){const ok=breaks.filter(b=>b>y+room*0.45&&b<=y+room);if(ok.length)cut=ok[ok.length-1]}else cut=end;
         cuts.push([y,cut]);y=cut;page++}
+      // a last slice with nothing drawn on it (white margin, an empty footer) isn't a page
+      const blankSlice=(a,b)=>{try{const h=Math.max(1,Math.round((b-a)*SC));const im=cv.getContext("2d").getImageData(0,Math.round(a*SC),cv.width,Math.min(h,cv.height-Math.round(a*SC))).data;
+        for(let i=0;i<im.length;i+=4*7){if(im[i]<235||im[i+1]<235||im[i+2]<235)return false}return true}catch(e){return false}};
+      while(cuts.length>1&&blankSlice(cuts[cuts.length-1][0],cuts[cuts.length-1][1]))cuts.pop();
       cuts.forEach(([a,b],i)=>{const part=document.createElement("canvas");part.width=cv.width;part.height=Math.max(1,Math.round((b-a)*SC));
         const g=part.getContext("2d");g.fillStyle="#fff";g.fillRect(0,0,part.width,part.height);g.drawImage(cv,0,-Math.round(a*SC));
         if(i)pdf.addPage([opt.w,opt.h],"portrait");
@@ -3157,7 +3179,7 @@ async function quickWOGo(pid,preset){
     const num=await nextNum("nextJob",1001);
     await setDoc("jobs/"+num,{num,desc:p.name,projectId:pid,accountId:p.accountId,due:q.due||p.due||"",
       source:p.source||"",prod:q.prod,blankSrc:q.prod==="sign"?q.blankSrc:"",method:q.prod==="sign"?q.method:"",
-      stencilMat:q.prod==="stencil"?(q.stencilMat||"ldpe16"):"",bannerFin:q.prod==="banner"?"hem":"",
+      stencilMat:q.prod==="stencil"?(stenMatFromGrade((items[0]||{}).grade)||q.stencilMat||"ldpe16"):"",bannerFin:q.prod==="banner"?"hem":"",
       decalMethod:q.prod==="decal"?"print":"",postFin:q.prod==="posts"?"bundle":"",
       rush:false,needsProof:q.prod==="sign",drive:"",notes:"",status:"new",
       gates:{specs:false,payment:false,proof:false,material:false,qc:false},route:{},items,
@@ -3169,7 +3191,7 @@ async function quickWOGo(pid,preset){
     S.qwo=null;
     if(q.quiet)return num;
     go("job/"+num);
-    toast("Work order "+num+" created"+(items.length?" with "+items.length+" line"+(items.length===1?"":"s"):"")+" — price the lines next");
+    toast("Work order "+num+" created"+(items.length?" with "+items.length+" line"+(items.length===1?"":"s"):"")+"");
   }catch(e){toast("That didn't save.")}
 }
 
@@ -4255,7 +4277,7 @@ function reconCard(p){
       ${rows.map((r,ix)=>{const d=r.sched-r.ordered;
         const where=r.wos.length?r.wos.map(w=>`<button class="lnk mono" data-go="job/${w}">${w}</button>`).join(" "):"";
         const status=r.charge?`<span class="sub">a charge — nothing to make</span>`:r.extra?`<span class="pill o" title="This is on a work order but isn't on the order — add it to the order or take it off the work order">not on the quote</span> ${where?`<div style="margin-top:5px">${where}</div>`:""}`
-          :d===0?`<span class="pill g">yes</span>${where?`<div style="margin-top:5px">${where}</div>`:""}`
+          :!(Number(r.ordered)>0)&&!r.sched?`<span class="pill o">no quantity yet</span>`:d===0?`<span class="pill g">yes</span>${where?`<div style="margin-top:5px">${where}</div>`:""}`
           :d<0?(r.sched?`<span class="pill r">${r.sched} of ${r.ordered}</span>${where?`<div style="margin-top:5px">${where}</div>`:""}`:`<span class="pill r">not yet</span>`)
           :`<span class="pill o">${r.sched} made, ${r.ordered} ordered</span>${where?`<div style="margin-top:5px">${where}</div>`:""}`;
         return `<tr>
@@ -4295,7 +4317,7 @@ function reconCard(p){
             <td style="text-align:right">${rm==null?"":`<span class="pill ${rm>=35?"g":rm>=20?"o":"r"}">${Math.round(rm)}%</span>`}</td><td colspan="2"></td></tr>`})()}`})()}
       </tbody></table>
       <div style="padding:9px 15px;border-top:1px solid var(--line2);display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <span class="sub" style="flex:1">Other costs on this job — labour, freight, outside work: <b style="color:var(--ink)">${money(Number(p.otherCost)||0)}</b></span>
+        <span class="sub" style="flex:1">Other costs on this project — labour, freight, outside work: <b style="color:var(--ink)">${money(Number(p.otherCost)||0)}</b></span>
         <button class="btn sm" data-othercost="${esc(p.id)}">Change</button></div>`
     :`<div class="empty"><b>No lines yet</b>Add what the customer ordered — code, size, grade, quantity — and build the work order from it.
       <div style="margin-top:12px"><button class="btn p" data-ordadd="${esc(p.id)}">Add the first line</button></div></div>`}
@@ -4820,10 +4842,10 @@ function paletteItems(q){
     ["Company dashboard",()=>{closeModal();go("home")}],["My dashboard",()=>{closeModal();go("mybook")}],["Projects",()=>{closeModal();go("projects")}],["Work orders",()=>{closeModal();go("jobs")}],
     ["Inventory",()=>{closeModal();go("inventory")}],["Accounts",()=>{closeModal();go("accounts")}],["Calendar",()=>{closeModal();go("calendar")}],["Reports",()=>{closeModal();go("reports")}]];
   acts.forEach(([l,f])=>{if(has(l))out.push({k:"Go / do",l,f})});
-  live(S.projects).forEach(p=>{if(has("p-"+p.num)||has(p.name)||has(accName(p.accountId))||has(p.po)||has(p.quote))out.push({k:"Project",l:"P-"+p.num+" "+p.name+" · "+accName(p.accountId),f:()=>{closeModal();go("project/"+p.id)}})});
+  live(S.projects).forEach(p=>{if(has("p-"+p.num)||has(p.name)||has(accName(p.accountId))||has(p.po)||has(p.quote)||has(p.invNum))out.push({k:"Project",l:"P-"+p.num+" "+p.name+" · "+accName(p.accountId),f:()=>{closeModal();go("project/"+p.id)}})});
   live(S.jobs).forEach(j=>{if(has(String(j.num))||has(j.desc))out.push({k:"Work order",l:j.num+" "+(j.desc||"")+" · "+accName(j.accountId),f:()=>{closeModal();go("job/"+j.num)}})});
   live(S.accounts).forEach(a=>{if(has(a.name))out.push({k:"Account",l:a.name,f:()=>{closeModal();go("account/"+a.id)}})});
-  live(S.contacts).forEach(c=>{if(has(c.name)||has(c.email))out.push({k:"Contact",l:c.name+(c.email?" · "+c.email:""),f:()=>{closeModal();go("contact/"+c.id)}})});
+  live(S.contacts).forEach(c=>{const dg=t.replace(/\D/g,"");if(has(c.name)||has(c.email)||(dg.length>=4&&[c.phone,c.mobile].some(x=>String(x||"").replace(/\D/g,"").indexOf(dg)>=0)))out.push({k:"Contact",l:c.name+(c.email?" · "+c.email:""),f:()=>{closeModal();go("contact/"+c.id)}})});
   itemList().forEach(i=>{if(t&&(has(i.name)||has(i.sku)))out.push({k:"Inventory",l:i.name+" · "+stockText(i),f:()=>{closeModal();go("item/"+i.id)}})});
   return t?out.slice(0,40):out.slice(0,11);
 }
@@ -5630,7 +5652,7 @@ function prepModal(num,thenRelease){
            <div class="h">${esc(r.help)}</div>
            <label style="display:flex;gap:7px;align-items:center;margin-top:7px;font-size:12.5px;font-weight:600">
              <input type="checkbox" data-pna="${ix}" style="width:16px;height:16px;accent-color:var(--slate)">
-             Doesn't apply to this job</label>
+             Doesn't apply to this work order</label>
            <input data-pwhy="${ix}" placeholder="Why not — one line"
              style="width:100%;margin-top:6px;padding:6px 8px;border:1px solid var(--line);
              border-radius:2px;background:var(--card2);font-size:12.5px">
@@ -5651,7 +5673,7 @@ async function prepSave(num,release){
     const isna=document.querySelector('[data-pna="'+ix+'"]');
     const why=document.querySelector('[data-pwhy="'+ix+'"]');
     if(isna&&isna.checked){
-      na[k]=((why&&why.value.trim())||"Doesn't apply to this job");
+      na[k]=((why&&why.value.trim())||"Doesn't apply to this work order");
       log.push("N/A — "+d.labels[ix]+" ("+na[k]+")");
     }else if(done&&done.checked){
       gates[k]=true;log.push("✓ "+d.labels[ix]);
@@ -6082,8 +6104,8 @@ function planFor0(j,wastePct){
       qty:k.indexOf("f:")===0?Math.round(a.qty*1000)/1000:a.qty,
       sq:a.sq?Math.round(a.sq*10)/10:0,sqRaw:a.sq||0,
       onHand:onHand(a.item),
-      sheet:!!a.sheet,
-      why:a.why.join("; ")+((k.indexOf("f:")===0&&!a.sheet)?" — estimated, includes "+(wastePct==null?WASTE_DEFAULT:wastePct)+"% waste":"")});
+      sheet:!!a.sheet,onOrder:k.indexOf("b:")===0&&j.blankSrc==="vendor",
+      why:(k.indexOf("b:")===0&&j.blankSrc==="vendor"?"ON ORDER from the vendor — receive and count them first, then pull: ":"")+a.why.join("; ")+((k.indexOf("f:")===0&&!a.sheet)?" — estimated, includes "+(wastePct==null?WASTE_DEFAULT:wastePct)+"% waste":"")});
   });
   return out;
 }
@@ -6328,8 +6350,15 @@ function defaultPrice(line,aid){
   if(fl&&fl.price>out.price)return {price:fl.price,list:out.price,why:"the quote floor (cost ÷ "+fl.div+") — "+money2(fl.cost)+" cost; "+out.why+" would be "+money2(out.price),floor:true};
   return out;
 }
+// what the clear overlaminate on one printed face costs (material, with waste) — taken off when the customer declines it
+function lamCostFor(line){try{const d=parseSize(line.size);if(!d)return 0;const it=matchItem(line.grade)||matchItem(line.sub);
+  const lam=laminateFor(it,null,true);if(!lam)return 0;const per=itemSqft(lam);if(!per||!(Number(lam.cost)>0))return 0;
+  return Math.round(d.w*d.h/144*Number(lam.cost)/per*(1+WASTE_DEFAULT/100)*100)/100}catch(e){return 0}}
 function listPrice(line){const r=listPrice0(line);
-  return (r&&line&&line.noLam&&linePrinted(line))?Object.assign({},r,{why:r.why+" (no overlaminate)"}):r}
+  if(!(r&&line&&line.noLam&&linePrinted(line)))return r;
+  const lc=lamCostFor(line);if(!lc)return Object.assign({},r,{why:r.why+" (no overlaminate)"});
+  const m=Math.min(0.9,Math.max(0,(Number((S.brand||{}).margin)||40)/100));const off=Math.round(lc/(1-m)*100)/100;
+  return Object.assign({},r,{price:Math.max(0,Math.round((r.price-off)*100)/100),why:r.why+" less $"+off.toFixed(2)+" for the declined overlaminate"})}
 function listPrice0(line){
   if(!line||isCharge(line))return null;
   const pl=(S.pricelist||{}).byKey||{};const g=gradeTok(line.grade)||String(line.grade||"").trim();
@@ -6370,7 +6399,7 @@ function qbRows(p){
     return {InvoiceNo:inv,Customer:cust,InvoiceDate:invDate,DueDate:due,Terms:a.terms||"",
       Memo:[p.name,"P-"+p.num,p.po?"PO "+p.po:""].filter(Boolean).join(" · "),
       Item:qbItemName(l),Description:[l.desc||signName(l)||l.code,l.code&&l.desc?l.code:"",l.size?sizeLabel(l.size):"",custMaterial(l.grade)].filter(Boolean).join(" · "),
-      Qty:q,Rate:r.toFixed(2),Amount:(q*r).toFixed(2),Taxable:(a.exempt||(isCharge(l)&&l.charge==="freight"))?"N":"Y"}});
+      Qty:q,Rate:r.toFixed(2),Amount:(q*r).toFixed(2),Taxable:(isExempt(a)||(isCharge(l)&&l.charge==="freight"))?"N":"Y"}});
 }
 function qbInvModal(pid){
   const p=proj(pid);if(!p)return;const a=acct(p.accountId)||{};const rows=qbRows(p);
@@ -6646,7 +6675,7 @@ function planIssued(j){return txOfJob(j.num).filter(t=>t.type==="use")}
 function humanQty(qty,unit,sq){
   const q=Number(qty)||0;
   const u=(unit||"").toLowerCase();
-  const plural=(k,w)=>k===1?w:(w+"s");
+  const plural=(k,w)=>k===1||/^(each|ea|pcs?)$|s$/.test(w)?w:/(x|ch|sh)$/.test(w)?w+"es":w+"s";
   let main="";
   if(q>0&&q<1&&(u==="roll"||u==="sheet")){
     const f=q<=0.15?"about a tenth of a "+u:q<=0.3?"about a quarter of a "+u:q<=0.6?"about half a "+u:"most of a "+u;
@@ -7360,6 +7389,15 @@ async function ensureQuote(pid,opts){
   return q;
 }
 async function nextNum(key,start){
+  const used=key==="nextJob"?[...S.jobs.values()].map(j=>Number(j.num)||0)
+    :key==="nextQuote"?[...S.projects.values()].map(p=>{const k=String(p.quote||"").match(/(\d{3,})/);return k?Number(k[1]):0})
+    :[...S.projects.values()].map(p=>Number(p.num)||0);
+  const hi=used.reduce((m,x)=>Math.max(m,x),0);
+  let n=await nextNum0(key,start);
+  if(n<=hi||used.indexOf(n)>=0){n=hi+1;try{if(db){const ref=db.doc("meta/counter");const s0=await ref.get();const d0=(s0&&s0.exists&&s0.data())||{};
+    if(!(Number(d0[key])>n)){const pt=Object.assign({},d0);pt[key]=n+1;await ref.set(pt)}}}catch(e){}}
+  return n}
+async function nextNum0(key,start){
   if(db&&typeof db.nextCounter==="function"){
     try{return await db.nextCounter(key,start)}catch(e){}
   }
@@ -7823,7 +7861,7 @@ function mark(){
 function searchRes(){
   const q=S.gsearch.trim().toLowerCase(),out=[];
   live(S.accounts).forEach(a=>{if((a.name||"").toLowerCase().includes(q))out.push({t:"Account",i:"acct",l:a.name,h:"account/"+a.id})});
-  live(S.projects).forEach(p=>{if((p.name||"").toLowerCase().includes(q)||String(p.num).includes(q)||(p.po||"").toLowerCase().includes(q))
+  live(S.projects).forEach(p=>{if((p.name||"").toLowerCase().includes(q)||String(p.num).includes(q)||(p.po||"").toLowerCase().includes(q)||(p.invNum||"").toLowerCase().includes(q))
     out.push({t:"Project",i:"proj",l:"P-"+p.num+" · "+p.name,h:"project/"+p.id})});
   live(S.jobs).forEach(j=>{if(String(j.num).includes(q)||(j.desc||"").toLowerCase().includes(q)||((j.ship&&j.ship.tracking)||"").toLowerCase().includes(q))
     out.push({t:"Work order",i:"job",l:j.num+" · "+(j.desc||""),h:"job/"+j.num})});
@@ -7887,7 +7925,7 @@ function dashToggle(route){
 function decorateAccess(){
   const A=ACCESS[myAccess()];document.body.classList.toggle("no-cost",!A.cost);document.body.classList.toggle("no-price",!A.price);
   if(A.cost&&A.price)return;
-  const costRx=/^(costs? us|cost|margin|cost \/ sign|what it costs you|material cost|value)$/i,priceRx=/^(price ea|price each|line|line \$|value|total|we sell for|amount)$/i;
+  const costRx=/\b(costs?|margin|what it costs you)\b/i,priceRx=/^(price ea|price each|line|line \$|value|total|we sell for|amount)$/i;
   // the cell under column i, counting colspans; a cell that spans several columns is left alone (it carries labels too)
   const cellAt=(tr,i)=>{let at=0;for(const c of tr.children){const sp=Math.max(1,Number(c.getAttribute("colspan"))||1);if(i>=at&&i<at+sp)return sp>1?null:c;at+=sp}return null};
   document.querySelectorAll(".main table").forEach(tb=>{const hs=[...tb.querySelectorAll("thead th")];
@@ -7895,6 +7933,14 @@ function decorateAccess(){
       tb.querySelectorAll("tr").forEach(tr=>{const c=cellAt(tr,i);if(c)c.style.display="none"})}})});
   document.querySelectorAll(".main .hl-facts > div, .main .fld").forEach(el=>{const k=(el.querySelector(".k")||{}).textContent||"";
     if((!A.cost&&/\b(cost|margin)\b/i.test(k))||(!A.price&&/\b(value|price)\b/i.test(k)))el.style.visibility="hidden"});
+  // money and costs written as plain text (cards, totals, close-out, inventory value): blanked or hidden by level
+  try{const main=document.querySelector(".main");if(main){
+    const money=/-?\$\s?-?[\d,]+(\.\d+)?/g;const tw=document.createTreeWalker(main,NodeFilter.SHOW_TEXT);const nodes=[];let n;
+    while((n=tw.nextNode()))nodes.push(n);
+    nodes.forEach(tn=>{const t=tn.nodeValue||"";if(!t.trim())return;const el=tn.parentElement;if(!el||el.closest("input,textarea,select,.modal"))return;
+      if(!A.cost&&/\b(costs?|margin)\b/i.test(t)&&(/\$|\d%/.test(t)||/\$|\d%/.test(el.textContent||""))){
+        const blk=el.closest("tr,li,.fld,.line,.row,p,div");if(blk&&blk!==main&&!blk.querySelector("table"))blk.style.display="none";return}
+      if(!A.price&&money.test(t)){money.lastIndex=0;tn.nodeValue=t.replace(money,"—")}money.lastIndex=0})}}catch(e){}
   if(!A.del)document.querySelectorAll(".main [data-del]").forEach(b=>b.style.display="none");
   if(!A.settings)document.querySelectorAll("[data-go=settings]").forEach(b=>b.style.display="none");
 }
@@ -7929,6 +7975,9 @@ function body(){
   if(!S.ready)return `<div class="boot">Connecting…</div>`;
   if(!db)return `<div class="boot"><b>This view can't reach the data.</b><br>Open the CRM from your Claude artifacts while signed in.</div>`;
   const r=S.route;
+  // access is checked on every draw, so a link typed in (or a page opened before the team list loaded) can't get round it
+  if(r.v==="home"&&!canCompanyDash()){S.route={v:"mybook"};try{history.replaceState(null,"","#/mybook")}catch(e){}return myBook()}
+  if(r.v==="settings"&&!can("settings"))return `<div class="pad"><div class="empty"><b>Settings are for the owner</b>Ask Matt to change anything here.</div></div>`;
   switch(r.v){
     case "tracker":return tracker();
     case "home":return home();
@@ -7974,7 +8023,7 @@ function tracker(){
           <input class="btn" id="lq" placeholder="Filter" value="${esc(S.q)}" style="font-weight:400;width:150px">
           ${myInitials()?`<button class="btn sm ${S.mineOnly?"p":""}" data-mine="1">Mine (${myInitials()})</button>`:""}
           <button class="btn p" data-new="project">New project</button></span></header>
-      ${late?`<div class="warn">${late} job${late>1?"s":""} past due. Red segments and red chips below.</div>`:""}
+      ${late?`<div class="warn">${late} work order${late>1?"s":""} past due. Red segments and red chips below.</div>`:""}
       ${ps.length?ps.slice(0,40).map(trackerRow).join("")+(ps.length>40?`<div class="sub" style="padding:10px 14px">Showing 40 of ${ps.length} open projects — filter to narrow.</div>`:"")
         :`<div class="empty"><b>Nothing open</b>Every project is invoiced or closed. Start one from an account.</div>`}
     </section>
@@ -8074,7 +8123,8 @@ function home(){
   const reps=repList().map(t=>{
     const mine=real(projsFor(t));
     return {k:t.name,v:mine.filter(p2=>!isClosed(p2)).reduce((x,p2)=>x+projValue(p2),0),
-      n:mine.filter(p2=>!isClosed(p2)).length,link:""}}).filter(r=>r.n||r.v);
+      n:mine.filter(p2=>!isClosed(p2)).length,link:""}}).filter(r=>r.n||r.v)
+      .concat((function(){const u=open.filter(p2=>!repFor(p2));return u.length?[{k:"Unassigned",v:u.reduce((x,p2)=>x+projValue(p2),0),n:u.length,link:""}]:[]})());
   const shopRows=["released","production","qc","packed"].map(st=>{
     const l=oj.filter(j=>j.status===st);
     return {k:(JS[st]||{}).label||st,v:l.length,n:null,
@@ -8092,7 +8142,7 @@ function home(){
   if(readyClose.length)attn.push({t:readyClose.length+" paid and shipped — ready to close won",h:"projects",c:"g"});
   if(low.length)attn.push({t:low.length+" item"+(low.length===1?"":"s")+" at or below reorder",h:"inventory",c:"o"});
   (function(){const unpaid=all.filter(p2=>!isClosed(p2)&&billWhen(p2)!=="after"&&!billOwed(p2));
-    if(unpaid.length)attn.push({t:unpaid.length+" prepaid job"+(unpaid.length===1?"":"s")+" waiting on money before it can run",h:"projects",c:"r"})})();
+    if(unpaid.length)attn.push({t:unpaid.length+" prepaid order"+(unpaid.length===1?"":"s")+" waiting on money before it can run",h:"projects",c:"r"})})();
   if(noExempt.length)attn.push({t:noExempt.length+" agency account"+(noExempt.length===1?"":"s")+" with no exemption certificate",h:"accounts",c:"y"});
   if(unsignedWO.length)attn.push({t:unsignedWO.length+" shipped work order"+(unsignedWO.length===1?"":"s")+" with no signed copy scanned",h:"jobs",c:"y"});
   const todayD=new Date();
@@ -8191,7 +8241,9 @@ function accountList(){
       S.scope?"Clear the filter above to see everyone's.":"An account is a customer organization — an agency, contractor, or reseller."}</div>`}
   </section></div>`;
 }
+function isExempt(a){return !!(a&&a.exempt&&(!a.exemptExp||String(a.exemptExp)>=today()))}
 function exemptPill(a){
+  if(a.exempt&&!isExempt(a))return `<span class="pill r" title="Certificate expired ${esc(fmtDate(a.exemptExp))}">Expired</span>`;
   if(a.exempt)return `<span class="pill g">On file</span>`;
   if(a.type==="Government agency")return `<span class="pill r">Missing</span>`;
   return "—";
@@ -8477,7 +8529,7 @@ function projectList(){
               <div class="r1"><span class="nm">${esc(p.name)}</span></div>
               <div class="r2">${esc(accName(p.accountId))}</div>
               <div class="r3"><span class="pill">${money(projValue(p))}</span>${projDuePill(p)}
-                ${jobsOf(p.id).length?`<span class="pill">${jobsOf(p.id).length} job${jobsOf(p.id).length>1?"s":""}</span>`:""}</div></button>`
+                ${jobsOf(p.id).length?`<span class="pill">${jobsOf(p.id).length} work order${jobsOf(p.id).length>1?"s":""}</span>`:""}</div></button>`
           }).join("")||`<div class="sub" style="padding:4px 2px">—</div>`}</div></div>`;
       }).join("")}</div></section></div>`;
   }
@@ -8518,7 +8570,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-5";
+const APP_VERSION="2026.11.25-7";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -8817,9 +8869,9 @@ function projectRec(id){
               return `<div style="display:flex;flex-direction:column;gap:9px">
                 ${order.map(k=>`<div>
                   <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:2px">${esc(kindLabel(k))}</div>
-                  ${g[k].map(l=>`<div style="font-size:13.5px;line-height:1.5"><b>${esc(String(l.qty||""))}</b> × ${esc(l.desc||signName(l)||l.code||"custom")}${l.size?` <span class="sub">${esc(sizeLabel(l.size))}</span>`:""}${l.grade?` <span class="sub">· ${esc(l.grade)}</span>`:""}</div>`).join("")}
+                  ${g[k].map(l=>`<div style="font-size:13.5px;line-height:1.5">${Number(l.qty)>0?`<b>${esc(String(l.qty))}</b> × `:`<span class="sub">no qty —</span> `}${esc(l.desc||signName(l)||l.code||"custom")}${l.size?` <span class="sub">${esc(sizeLabel(l.size))}</span>`:""}${l.grade?` <span class="sub">· ${esc(l.grade)}</span>`:""}</div>`).join("")}
                 </div>`).join("")}
-                <div class="sub">${lines.reduce((t,l)=>t+(Number(l.qty)||0),0)} pieces, ${lines.length} line${lines.length===1?"":"s"} — details under ${(p.stage==="inquiry"||p.stage==="quoted")?"Quote lines":"Quote lines"}</div></div>`})()}`
+                <div class="sub">${(function(){const n=lines.reduce((t,l)=>t+(Number(l.qty)||0),0);return n+" piece"+(n===1?"":"s")})()}, ${lines.length} line${lines.length===1?"":"s"} — details under ${(p.stage==="inquiry"||p.stage==="quoted")?"Quote lines":"Quote lines"}</div></div>`})()}`
               :`<div class="sub" style="font-size:13px">No lines yet. <button class="lnk" data-ordadd="${esc(p.id)}">Add a quote line</button>.</div>`}
           </div>
           <div class="fgrid">
@@ -8843,7 +8895,7 @@ function projectRec(id){
             const rep=repOfAccount(a);const prim=contactsOf(a.id).find(c=>c.primary)||contactsOf(a.id)[0];
             const addr=[a.street,[a.city,a.state].filter(Boolean).join(", "),a.zip].filter(Boolean).join(" ");
             return `<div style="padding:12px 15px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--line2)">
-                ${a.type?`<span class="pill b">${esc(a.type)}</span>`:""}${a.exempt?`<span class="pill g" title="Exemption certificate on file">Tax exempt</span>`:""}
+                ${a.type?`<span class="pill b">${esc(a.type)}</span>`:""}${isExempt(a)?`<span class="pill g" title="Exemption certificate on file">Tax exempt</span>`:a.exempt?`<span class="pill r" title="The exemption certificate has expired — get a new one">Cert expired</span>`:""}
                 ${rep?`<span class="sub">Rep: <b style="color:var(--ink)">${esc(rep.name)}</b></span>`:""}
                 ${since!==Infinity?`<span class="sub" style="margin-left:auto">Customer since ${esc(new Date(since).toLocaleDateString(undefined,{month:"short",year:"numeric"}))}</span>`:""}</div>
               <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-bottom:1px solid var(--line2)">
@@ -9077,7 +9129,7 @@ function jobListView(){
               ${(prodOf(j)==="sign"&&j.blankSrc==="cut")?`<span class="pill">Cut blanks</span>`
                 :(prodOf(j)==="sign"&&j.blankSrc==="vendor")?`<span class="pill y">Blanks on order</span>`:""}</div>
             <div style="display:flex;gap:7px"><button class="btn sm" data-go="job/${j.num}">Open</button>
-              ${nx?`<button class="btn p sm" data-adv="${j.num}:${nx}" style="flex:1">Move to ${esc(JS[nx].label.toLowerCase())}</button>`:""}</div></div>`}).join("")}
+              ${nx?`<button class="btn p sm" data-adv="${j.num}:${nx}" style="flex:1">Move to ${esc(JS[nx].label==="QC"?"QC":JS[nx].label.toLowerCase())}</button>`:""}</div></div>`}).join("")}
         </div></div>`}).join("")+`</div>`;
     if(!shop.length)inner=`<div class="empty"><b>Nothing in the shop</b>Work orders appear once the office releases them.</div>`;
   }else if(S.jobMode==="ship"){
@@ -9175,7 +9227,7 @@ function jobRec(num){
           <button class="btn" data-edit="job:${j.num}">Edit</button>
           <button class="btn" data-dupjob="${j.num}">Duplicate</button>
           ${j.status!=="shipped"?`<button class="btn" data-hold="${j.num}">Hold</button>`:""}
-          ${nx?`<button class="btn p" data-adv="${j.num}:${nx}">Move to ${esc(JS[nx].label.toLowerCase())}</button>`:""}
+          ${nx?`<button class="btn p" data-adv="${j.num}:${nx}">Move to ${esc(JS[nx].label==="QC"?"QC":JS[nx].label.toLowerCase())}</button>`:""}
           <button class="btn d" data-del="job:${j.num}">Delete</button></div></div>
       <div class="path">${JFLOW.map((s2,k)=>{
         const hit=sl.filter(x=>x.status===s2).pop();const at=JFLOW.indexOf(j.status);
@@ -9350,7 +9402,7 @@ function gateRow(j,k,t,h){
 function fileCard(kind,id){
   const fs=filesOf(kind,id);
   const scope=kind==="account"?"account-level only — project files live on the project"
-    :kind==="project"?"this project only":"this job only";
+    :kind==="project"?"this project only":"this work order only";
   return `<section class="card flush"><header><span class="oi sm oi-file">${ic("file",14)}</span><h2>Files</h2><span class="n">${fs.length}</span>
     <span class="sub" style="flex:1 1 100%;order:9">${esc(scope)}</span>
     <span class="sp">${S.canUpload?`<button class="btn sm p" data-upload="${kind}:${esc(String(id))}">Upload</button>`:""}</span></header>
@@ -9411,7 +9463,7 @@ function fileList(){
   </section></div>`;
 }
 function fileOwner(f){
-  if(f.jobId)return `<button class="lnk mono" data-go="job/${esc(f.jobId)}">Job ${esc(f.jobId)}</button>`;
+  if(f.jobId)return `<button class="lnk mono" data-go="job/${esc(f.jobId)}">Work order ${esc(f.jobId)}</button>`;
   if(f.projectId){const p=S.projects.get(f.projectId);return `<button class="lnk" data-go="project/${esc(f.projectId)}">${esc(p?p.name:"Project")}</button>`}
   if(f.accountId)return `<button class="lnk" data-go="account/${esc(f.accountId)}">${esc(accName(f.accountId))}</button>`;
   return "—";
@@ -9884,7 +9936,7 @@ function myBook(){
       kpi("Open pipeline",money(pipe),open.length+" project"+(open.length===1?"":"s")),
       kpi("Won this month",money(wonM.reduce((x,p2)=>x+projValue(p2),0)),wonM.length+" won"),
       kpi("Invoiced this month",money(invM.reduce((x,p2)=>x+billedValue(p2),0)),invM.length+" invoiced"),
-      kpi("Invoiced YTD",money(invYTD.reduce((x,p2)=>x+billedValue(p2),0)),invYTD.length+" projects"),
+      kpi("Invoiced YTD",money(invYTD.reduce((x,p2)=>x+billedValue(p2),0)),invYTD.length+" project"+(invYTD.length===1?"":"s")),
       kpi("Win rate",wr===null?"—":wr+"%","last 6 months",wr===null?"":wr>=50?"g":wr>=30?"":"o"),
       kpi("Past due",late.length||"—",late.length?"needs a call today":"all on time",late.length?"r":"g"),
       kpi("My accounts",accs.length,"")])}
@@ -10102,7 +10154,7 @@ function reportsView(){
     <section class="card flush wide"><header><h2>${esc(ml)} by ${esc(gl.toLowerCase())}</h2>
       <span class="n">${data.length} row${data.length===1?"":"s"}</span>
       <span class="sub" style="flex:1 1 100%;order:9">${esc((isWo?"Work orders":"Projects"))} counted by ${
-        esc((basis.find(x=>x[0]===cfg.basis)||["",""])[1].toLowerCase())} date${
+        esc((basis.find(x=>x[0]===cfg.basis)||["",""])[1].toLowerCase().replace(/ date$/,""))} date${
         cfg.from||cfg.to?", "+esc(cfg.from||"start")+" to "+esc(cfg.to||"today"):""}</span></header>
       ${data.length?`<table><thead><tr><th>${esc(gl)}</th><th style="width:70px;text-align:right">Count</th>
         <th style="width:110px;text-align:right">Value</th><th style="width:110px;text-align:right">Cost</th>
@@ -10407,6 +10459,7 @@ function archiveView(){
 const SET_GROUPS=[["company","Company"],["pricing","Pricing"],["connections","Connections"],["production","Production"],
   ["codes","Codes & pictures"],["team","Team & access"],["data","Data"],["about","How it works"]];
 function settingsView(){
+  if(!can("settings"))return `<div class="pad"><div class="empty"><b>Settings are for the owner</b>Ask Matt to change anything here.</div></div>`;
   const b=S.brand||DEF_BRAND;
   const crumbs=crumbBar([{l:"Company dashboard",h:"home"},{l:"Settings"}]);
   const counts=[["Accounts",live(S.accounts).length],["Contacts",live(S.contacts).length],
@@ -10914,7 +10967,7 @@ function accountModal(a,then){
   openModal(mshell(a.id?"Edit account":"New account","acct",
     `${a.id?"":`<p class="note" style="margin:10px 14px">An account is the customer organization. Its projects and jobs hang off it forever.</p>`}
     <div class="fgrid">${inp("f-name","Account name",a.name,"text",1)}
-      ${sel("f-type","Type",a.type||ACCT_TYPE[0],ACCT_TYPE)}${sel("f-terms","Terms",a.terms||TERMS[1],TERMS)}
+      ${sel("f-type","Type",a.type||ACCT_TYPE[0],ACCT_TYPE)}${sel("f-terms","Terms",a.terms||TERMS[2],a.terms&&TERMS.indexOf(a.terms)<0?TERMS.concat([a.terms]):TERMS)}
       ${inp("f-phone","Phone",a.phone,"tel")}${inp("f-web","Website",a.website)}
       ${inp("f-street","Street",a.street,"text",1)}
       ${inp("f-city","City",a.city)}${inp("f-state","State",a.state)}
@@ -11000,6 +11053,7 @@ function contactModal(c,aid){
     closeModal();
     try{await setDoc("contacts/"+id,mergeDoc("contacts/"+id,rec));
       if(c.id)recordHistory("contact",id,diffs);else logEvent("contact",id,"Contact created");
+      if(rec.primary)contactsOf(rec.accountId).filter(o=>o.id!==id&&o.primary).forEach(o=>push("contacts/"+o.id,{primary:false}));
       toast("Contact saved")}catch(e){toast("That didn't save.")}
   };
   focusFirst("f-name");
@@ -11022,7 +11076,7 @@ function projectModal(p,aid,then){
           <input type="checkbox" id="f-ourpo" style="width:16px;height:16px;accent-color:var(--brand)"> They don't use POs — use ours (SSS-${p.num||"project number"})</label></div>
       <div class="fld"><div class="k">Quote number</div>
         <input id="f-quote" value="${esc(p.quote||"")}" placeholder="${p.quote?"":"Numbered for you when it's quoted"}"></div>
-      ${sel("f-src","Came in from",p.source||"Website",SRC)}
+      ${sel("f-src","Came in from",p.id?(p.source||""):(p.source||"Website"),SRC,!!p.id)}
       <div class="fld full" style="border-bottom:0">${(function(){const auto=p.id?!!p.amountAuto:(p.amountAuto!==false);
         return `<label style="display:flex;gap:9px;align-items:center;font-weight:700;cursor:pointer">
           <input type="checkbox" id="f-auto" ${auto?"checked":""} style="width:18px;height:18px;accent-color:var(--brand)">
@@ -11063,7 +11117,7 @@ function projectModal(p,aid,then){
     if(!p.id||p.stage!==stage)sl.push({stage,at:Date.now(),who:me()});
     const rec={id,num,name,accountId:$("#f-acct").value,stage,amount:$("#f-amt").value,
       start:$("#f-start").value,due:$("#f-due").value,
-      po:$("#f-po").value.trim()||($("#f-ourpo")&&$("#f-ourpo").checked?"SSS-"+num:""),quote:$("#f-quote").value.trim()||(stage!=="inquiry"&&stage!=="lost"?await nextQuote():""),
+      po:$("#f-po").value.trim()||($("#f-ourpo")&&$("#f-ourpo").checked?"SSS-"+num:""),quote:$("#f-quote").value.trim()||(stage!=="inquiry"&&stage!=="lost"&&(!p.id||p.stage!==stage)?await nextQuote():""),
       source:$("#f-src").value,
       invNum:p.invNum||"",shipTo:$("#f-ship").value.trim(),drive:$("#f-drive").value.trim(),
       scope:$("#f-scope")?$("#f-scope").value.trim():(p.scope||""),notes:$("#f-notes").value.trim(),stageLog:sl,reorderOf:p.reorderOf||"",
@@ -11091,8 +11145,8 @@ function projectModal(p,aid,then){
           for(const f of filesOf("job",String(j.num)))await push("files/"+f.id,{accountId:rec.accountId})}
         for(const f of filesOf("project",id))await push("files/"+f.id,{accountId:rec.accountId});
         recordHistory("project",id,[{f:"Account",o:accName(p.accountId),
-          n:accName(rec.accountId)+" — "+js2.length+" job"+(js2.length===1?"":"s")+" and their files moved with it; contacts and billing reset"}]);
-        toast("Moved to "+accName(rec.accountId)+" — jobs, files, contacts all realigned");
+          n:accName(rec.accountId)+" — "+js2.length+" work order"+(js2.length===1?"":"s")+" and their files moved with it; contacts and billing reset"}]);
+        toast("Moved to "+accName(rec.accountId)+" — work orders, files, contacts all realigned");
       }
       if(p.id)recordHistory("project",id,diffs);else{logEvent("project",id,"Project created");go("project/"+id)}
       toast("Project saved")}catch(e){toast("That didn't save.")}
@@ -11383,7 +11437,7 @@ function moveModal(num,to){
 }
 function gateModal(num,to,bl){
   openModal(mshell("Work order "+num+" isn't ready","job",
-    `<div style="padding:12px 16px"><p style="margin:0 0 8px;color:var(--ink2)">Still open before ${esc(JS[to].label.toLowerCase())}:</p>
+    `<div style="padding:12px 16px"><p style="margin:0 0 8px;color:var(--ink2)">Still open before ${esc(JS[to].label==="QC"?"QC":JS[to].label.toLowerCase())}:</p>
       <ul style="margin:0;padding-left:20px">${bl.map(b=>`<li style="margin-bottom:4px">${esc(b)}</li>`).join("")}</ul></div>`,
     `<button class="btn" data-close="1">Go back</button><button class="btn p" data-adv="${num}:${to}:1">Move it anyway</button>`));
 }
@@ -11588,7 +11642,8 @@ async function setStage(id,stage,why){
   }
   const p=proj(id);if(!p||p.stage===stage)return;
   const sl=(p.stageLog||[]).concat([{stage,at:Date.now(),who:me(),auto:/^moved itself/.test(why||"")}]).slice(-60);
-  await push("projects/"+id,{stage,stageLog:sl,updatedAt:Date.now()});
+  const unBill=p.stage==="invoiced"&&PATH.indexOf(stage)>=0&&PATH.indexOf(stage)<PATH.indexOf("invoiced")&&p.billStatus==="invoiced"&&!(p.invNum||"").trim()&&!p.paidDate;
+  await push("projects/"+id,Object.assign({stage,stageLog:sl,updatedAt:Date.now()},unBill?{billStatus:(Number(p.depositAmt)>0&&p.billWhen==="deposit")?"deposit":"none",billDate:""}:{}));
   recordHistory("project",id,[{f:"Stage",o:(SG[p.stage]||{}).label||p.stage,
     n:((SG[stage]||{}).label||stage)+(why?" ("+why+")":"")}]);
   // follow-ups start when it's quoted and stop the moment it's won, lost or further along
@@ -11992,7 +12047,7 @@ function buildWO(num){
     <div class="pj-no">${j.num}<small>WORK ORDER</small></div>
     <div class="pj-mid">
       <div class="pj-cust">${esc(accName(j.accountId))}</div>
-      <div class="pj-ref">${esc(j.desc||"")}${p&&p.name!==j.desc?" · "+esc(p.name):""}${p?" (P-"+p.num+")":""}${p&&p.po?" · PO "+esc(p.po):""}</div>
+      <div class="pj-ref">${esc(j.desc||"")}${p&&p.name!==j.desc?" · "+esc(p.name):""}${p?" (P-"+p.num+")":""}${p&&p.po?" · <span style=\"white-space:nowrap\">PO "+esc(p.po)+"</span>":""}</div>
       ${j.rush?`<div><span class="pj-rush">RUSH</span></div>`:""}
     </div>
     <div class="pj-due"><b>${esc(due)}</b><small>DUE</small></div></div>
@@ -12056,7 +12111,7 @@ function buildWO(num){
         <td>${b?esc(b.label):""}</td><td></td><td></td></tr>`).join("")}</tbody></table>`})()}
   <div class="pj-notes"><h4>NOTES / REVISIONS — date and initial every entry</h4>
     ${j.notes?`<div style="font-size:12px;margin-top:4px">${esc(j.notes)}</div>`:""}</div>
-  <div class="pj-foot"><span style="margin-left:0">${esc((S.brand||DEF_BRAND).name||"Street Sign Supply")} · Job ${j.num}</span>
+  <div class="pj-foot"><span style="margin-left:0">${esc((S.brand||DEF_BRAND).name||"Street Sign Supply")} · Work order ${j.num}</span>
     <span>Printed ${esc(stamp())} by ${esc(me())}</span></div>`;
 }
 
@@ -12304,7 +12359,7 @@ async function webMakeWOs(pid,pnum,aid,name,lines,paid){
     const items=byK[k].map(l=>({qty:String(l.qty),lineId:l.id,desc:l.desc||"",code:l.code||"",size:l.size||"",
       grade:l.grade||"",build:l.build||"",sub:l.sub||"",legend:l.legend||"",legends:l.legends||[],price:"",noLam:!!l.noLam}));
     let sten="";if(k==="stencil"){const g=String(byK[k][0].grade||"").toLowerCase();
-      const inv=itemList().filter(x=>x.cat==="Stencil material");const hit=inv.find(x=>g&&x.name.toLowerCase().indexOf(g)>=0);sten=hit?hit.id:"ldpe16"}
+      const inv=itemList().filter(x=>x.cat==="Stencil material");const hit=inv.find(x=>g&&x.name.toLowerCase().indexOf(g)>=0);sten=hit?hit.id:(stenMatFromGrade(g)||"ldpe16")}
     const num=await nextNum("nextJob",1001);
     await setDoc("jobs/"+num,{num,desc:name+(kinds.length>1?" — "+kindLabel(k).toLowerCase():""),projectId:pid,accountId:aid,due:"",
       source:"Website",prod:k,blankSrc:k==="sign"?"stock":"",method:"",stencilMat:sten,bannerFin:k==="banner"?"hem":"",
@@ -12553,7 +12608,8 @@ async function pipeImportRows(rows){
   const stLabel=st=>(SG[st]||{}).label||st;
   try{
   for(const r of rows){
-    const id=String(r.row_id);if(!id||pipeSeen(id)){out.skipped++;continue}
+    if(r.row_id==null||String(r.row_id).trim()===""||String(r.row_id)==="undefined"){out.bad++;continue}
+    const id=String(r.row_id).trim();if(pipeSeen(id)){out.skipped++;continue}
     const type=String(r.type||"activity").toLowerCase();
     const now=Date.now();
     // lines are read first: a row whose lines can't be read is left for the agents to fix, never marked done
@@ -12736,7 +12792,8 @@ async function pipeImportRows(rows){
         await push("projects/"+tgt.id,up);
         if(up.orderLines)logEvent("project",tgt.id,"Updated by Claude's sales agents — "+ol.length+" quote line"+(ol.length===1?"":"s")+", "+money2(pipeTotal(ol)));
         else if(!ol.length)logEvent("project",tgt.id,"Updated by Claude's sales agents");
-        out.quotes++;done[id]=1;mark(id);continue}}
+        out.quotes++;done[id]=1;mark(id);continue}
+      out.bad++;continue}
     // --- draft: the writer's email for a planned follow-up (stage 1/2/3) or a requested draft (stage = its kind) ---
     if(type==="draft"){const tgt=pipeFind(r.project);if(!tgt){out.bad++;continue}
       const kind=String(r.stage||r.kind||"").trim().toLowerCase();const fn=/^(?:followup|follow-up|fu)?\s*([123])$/.exec(kind);
@@ -12897,7 +12954,7 @@ function pipeModal(){
         <div style="margin-top:6px"><button class="btn" data-pipepaste="1">Bring in the pasted rows</button></div></div>
      </div>
      <p class="note" style="margin:10px 15px 0">Accounts and contacts are matched by email, then by name, and made when they're new. Emails and calls go to the account's activity area,
-       marked <b>AI</b>. Quotes open as <b>Inquiry</b> projects with the amount the agent quoted. A row that's already in is never brought in twice.</p>
+       marked <b>AI</b>. Quotes with priced lines open as <b>Quoted</b> projects with those lines; a row with no lines opens as an <b>Inquiry</b>. A row that's already in is never brought in twice.</p>
      <div id="pf-out"></div>`,
     `<button class="btn" data-close="1">Close</button>`));
 }
@@ -12956,7 +13013,7 @@ function syncLine(l,price){
   if(!l.charge&&(l.noLam||syncTxt(()=>linePrinted(l)?"y":"")))out.overlaminate=!l.noLam;   // printed lines say whether the clear overlaminate goes on
   return out;
 }
-function syncTax(a,amt){const rate=Number((S.brand||{}).taxRate)||0;return (!(a&&a.exempt)&&rate>0)?syncN(amt*rate/100):0}
+function syncTax(a,amt){const rate=Number((S.brand||{}).taxRate)||0;return (!isExempt(a)&&rate>0)?syncN(amt*rate/100):0}
 function syncBuild(key,rec){
   const [coll]=key.split("/");
   // accounts and contacts: small records the sheet upserts by type + id, so the agents have the current name,
@@ -12964,7 +13021,7 @@ function syncBuild(key,rec){
   if(coll==="accounts"){const a=rec;const bc=billingForAccount(a);const rep2=a.repId?S.team.get(a.repId):null;
     return {type:"account",id:String(a.id),number:a.name||"",status:a.deleted?"deleted":"active",
       created:syncISO(a.createdAt),updated:syncISO(a.updatedAt),customer:a.name||"",name:a.name||"",customer_type:a.type||"",
-      terms:a.terms||"",tax_exempt:!!a.exempt,phone:a.phone||"",email:(bc&&bc.email)||"",contact:(bc&&bc.name)||"",
+      terms:a.terms||"",tax_exempt:isExempt(a),phone:a.phone||"",email:(bc&&bc.email)||"",contact:(bc&&bc.name)||"",
       street:a.street||"",city:a.city||"",state:a.state||"",zip:a.zip||"",billing_address:[a.street,a.city,a.state,a.zip].filter(Boolean).join(", "),
       rep:rep2?(rep2.initials||rep2.name||""):"",project:"",po_number:"",ship_to:"",lines:[],subtotal:"",shipping:"",tax:"",total:"",
       due_date:"",ship_date:"",notes:"",deleted:!!a.deleted}}
@@ -12984,7 +13041,7 @@ function syncBuild(key,rec){
     const subtotal=syncN(lines.filter(l=>l.charge!=="freight").reduce((t,l)=>t+l.line_total,0));
     const tax=syncTax(a,subtotal+shipping);const rep2=repFor(p);
     const rate=Number((S.brand||{}).taxRate)||0;
-    const taxNote=a.exempt?"Tax exempt — no sales tax on the invoice":rate>0?"Estimate at "+rate+"% — QuickBooks calculates the final sales tax":"No tax rate set in the CRM — QuickBooks calculates the final sales tax";
+    const taxNote=isExempt(a)?"Tax exempt — no sales tax on the invoice":rate>0?"Estimate at "+rate+"% — QuickBooks calculates the final sales tax":"No tax rate set in the CRM — QuickBooks calculates the final sales tax";
     // shipped when the project's log says so, else when its newest work order shipped
     const lastShipP=(p.stageLog||[]).filter(x=>x&&x.stage==="shipped").slice(-1)[0];
     const shipJ=jobsOf(p.id).map(j=>(((j.statusLog||[]).filter(x=>x&&x.status==="shipped").slice(-1)[0])||{}).at||0).filter(Boolean).sort((x,y)=>x-y).slice(-1)[0]||0;
@@ -12995,7 +13052,7 @@ function syncBuild(key,rec){
       quote_number:p.quote||"",quote_date:p.quoteDate||"",project_number:p.num?"P-"+p.num:"",invoice_number:p.invNum||"",
       invoice_date:p.billDate||"",paid_date:p.paidDate||"",
       customer:a.name||"",account_id:p.accountId||"",contact:cc.name,email:cc.email,phone:cc.phone||a.phone||"",
-      customer_type:a.type||"",tax_exempt:!!a.exempt,billing_email:(bc&&bc.email)||(pc&&pc.email)||cc.email||"",
+      customer_type:a.type||"",tax_exempt:isExempt(a),billing_email:(bc&&bc.email)||(pc&&pc.email)||cc.email||"",
       billing_address:[a.street,a.city,a.state,a.zip].filter(Boolean).join(", "),ship_to:p.shipTo||"",
       po_number:p.po||"",project:p.name||"",rep:rep2?(rep2.name||rep2.initials||""):"",source:p.source||"",
       lines,subtotal,shipping,tax,tax_note:taxNote,total:syncN(subtotal+shipping+tax),deposit:syncN(p.depositAmt),
@@ -13817,7 +13874,7 @@ function bind(){
     const mk=t.closest("[data-mkstencil]");if(mk){const jj=job(Number(mk.dataset.mkstencil));if(!jj)return;
       const g=(woItems(jj)[0]||{}).grade||"";const inv=itemList().filter(x=>x.cat==="Stencil material");
       const hit=inv.find(x=>g&&x.name.toLowerCase().indexOf(g.toLowerCase())>=0);
-      const mat=hit?hit.id:(STENMAT.find(x=>x.label.toLowerCase()===g.toLowerCase())||{id:"ldpe16"}).id;
+      const mat=hit?hit.id:(stenMatFromGrade(g)||"ldpe16");
       askConfirm("Make work order "+jj.num+" a stencil?","<p style=\"margin:0\">Product becomes <b>Stencil</b>, cut from <b>"+esc(hit?hit.name:g||"1/16 LDPE")+"</b>. The route and checklist switch to the stencil ones. Route steps already signed stay recorded.</p>","Make it a stencil",false,
         async()=>{await push("jobs/"+jj.num,{prod:"stencil",stencilMat:mat,method:"",blankSrc:"",updatedAt:Date.now()});
           recordHistory("job",String(jj.num),[{f:"Product",o:prodLabel(jj),n:"Stencil",ev:1}]);toast("Now a stencil work order")});return}
@@ -13966,7 +14023,7 @@ function bind(){
         stageModal(id2,"invoiced",go8);return}
       if(false){askConfirm("Mark this project lost?",
         `<p style="margin:0 0 8px">P-${pp.num} ${esc(pp.name)} drops out of the pipeline and stops counting toward open value.</p>
-         <p class="note">Its jobs, files, and history stay exactly as they are. You can move it back onto the path any time.</p>`,
+         <p class="note">Its work orders, files, and history stay exactly as they are. You can move it back onto the path any time.</p>`,
         "Mark lost",true,()=>setStage(id2,st));return}
       stageModal(id2,st);return}
     const hd=t.closest("[data-hold]");if(hd){holdModal(hd.dataset.hold);return}

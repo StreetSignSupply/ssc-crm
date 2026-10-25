@@ -1,5 +1,25 @@
 # What changed
 
+## 2026.11.25-7 — 2026-10-25
+- Staff only see what their access level allows: shop users see no prices, sales users see no costs, and only the owner opens Settings or the Company dashboard
+- New team members start as Sales and two people can't share initials
+- A 1/8 stencil on the quote stays 1/8 on the work order
+- Declining the clear overlaminate lowers the cost and the price
+- Project cost and margin count the quote lines before a work order exists
+- Work order, project and quote numbers are never reused
+- Quote PDFs no longer end with a blank page
+- Blanks on order say ON ORDER on the pull list
+- Due on receipt is a payment term and saving an account keeps its terms
+- An expired tax certificate charges tax and shows Cert expired
+- Negative amounts print as -$25.00
+- Agent feed rows with no id, or updates aimed at nothing, are counted bad
+- Moving a project back from Invoiced clears the invoiced mark
+- One primary contact per account
+- Saving a project no longer changes Came in from or hands out quote numbers
+- Search finds invoice and phone numbers
+- Open pipeline by rep shows Unassigned
+- Wording: work order instead of job, QC, pieces/projects plurals, PO kept on one line
+
 ## 2026.11.25-5 — 2026-10-25
 - An open CRM updates itself: every 20 minutes it checks for a newer version and reloads when nobody is typing
 
