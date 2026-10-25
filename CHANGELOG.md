@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-3 — 2026-10-25
+- Sign pictures now print on work orders, quotes and proofs (website pictures are copied into the PDF instead of being left out)
+- agents' revised quote lines find their project by number or name, never making a second one
+
 ## 2026.11.25-2 — 2026-10-25
 - Stencil price list in the CRM: 1,761 stencils in 5 grades (LDPE .125, LDPE .063, HDPE .030, HDPE .250, ALUM .080) load with the website catalogue
 - grade sanity fixes (4in number kit HDPE .250 was 5744, now 723.50)
