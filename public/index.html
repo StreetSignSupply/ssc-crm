@@ -1292,7 +1292,7 @@ const ROUTE=R_BLANK.stock.concat(R_METHOD.film).concat(R_FINAL);
 const SHIPM=["UPS / FedEx","Freight","Will call","Local delivery"];
 const ACCT_TYPE=["Government agency","Contractor","Reseller","Retail"];
 const TERMS=["Card at checkout","Net 30","Net 45","Net 60","Prepay"];
-const FILECAT=["Artwork proof","Signed proof","Signed work order","Artwork","Purchase order","Quote","Invoice","Packing slip / BOL","Photo","Spec sheet","Other"];
+const FILECAT=["Artwork proof","Signed proof","Signed work order","Artwork","Purchase order","Quote","Signed quote","Invoice","Packing slip / BOL","Photo","Spec sheet","Other"];
 const ROLES=["Buyer / purchasing","Accounts payable","Engineer","Public works","Field contact","Other"];
 const SRC=["Website","Phone","Email","Agency PO","Bid","Walk-in","Referral"];
 const LBL={
@@ -1319,7 +1319,7 @@ const SSS_LOGO="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAAC0CAYAAAAuPx
 const VTYPE=["Sheeting","Substrate / blanks","Film / vinyl","Hardware","Stencil material",
   "Ink / consumable","Packaging","Freight","Equipment","Other"];
 const UNITS=["sheet","roll","each","sq ft","lin ft","box","gallon","lb"];
-const TXT={receive:"Received",use:"Used",adjust:"Adjusted",count:"Counted"};
+const TXT={receive:"Received",use:"Used",adjust:"Adjusted",count:"Counted",ordered:"Ordered"};
 const DEF_BRAND={brand:"#D50101",brand2:"#8E0000",accent:"#FFFFFF",logo:SSS_LOGO,name:"Street Sign Supply"};
 
 /* ========== state ========== */
@@ -1739,8 +1739,15 @@ const itemsOf=vid=>itemList().filter(i=>i.vendorId===vid);
 const txOf=iid=>live(S.invtx).filter(t=>t.itemId===iid).sort((a,b)=>(b.at||0)-(a.at||0));
 const txOfJob=jid=>live(S.invtx).filter(t=>t.jobId===String(jid)&&!t.undone).sort((a,b)=>(b.at||0)-(a.at||0));
 const onHand=i=>Number(i.onHand||0);
+// ordered from a vendor, not here yet (the Material Planner's purchase orders); item.orders keeps each one by ref
+const onOrder=i=>Math.max(0,Number((i&&i.onOrder)||0));
+function onOrderTxt(i){const n=onOrder(i);if(!n)return "";
+  const os=((i.orders||[]).filter(o=>Number(o.left)>0)).sort((a,b)=>String(a.expected||"").localeCompare(String(b.expected||"")));
+  const o=os[0]||{};const bits=[o.expected?"expected "+fmtDate(o.expected):"",o.ref||""].filter(Boolean);
+  return "On order "+(Math.round(n*10000)/10000)+(bits.length?" ("+bits.join(", ")+(os.length>1?", +"+(os.length-1)+" more":"")+")":"")}
+// low only when what's on the shelf plus what's on order is at or below the reorder point
 const lowStock=()=>itemList().filter(i=>!i.sample).filter(i=>i.reorderPoint!==""&&i.reorderPoint!=null
-  &&onHand(i)<=Number(i.reorderPoint||0));
+  &&onHand(i)+onOrder(i)<=Number(i.reorderPoint||0));
 const stockCls=i=>{const rp=Number(i.reorderPoint||0);
   if(!i.reorderPoint&&i.reorderPoint!==0)return "";
   if(onHand(i)<=0)return "r"; if(onHand(i)<=rp)return "o";
@@ -8483,7 +8490,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.24-1";
+const APP_VERSION="2026.11.25-1";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -9324,7 +9331,20 @@ function fileCard(kind,id){
       ${S.canUpload?"Drop proofs, POs, invoices, or photos here — or use Upload.":"No files. Uploading needs edit access."}</div>`}
   </section>`;
 }
+function linkHost(u){return ((String(u||"").match(/^https?:\/\/([^\/?#]+)/i)||[])[1]||"link").replace(/^www\./,"")}
+// a file the agents linked (Google Drive and the like): nothing stored here, it opens where it lives
+function linkTile(f,showSrc){
+  return `<div class="ftile"><a class="th" href="${esc(f.url)}" target="_blank" rel="noopener" title="Open ${esc(f.name)}" style="text-decoration:none"><span class="ext">LINK</span></a>
+    <div class="meta"><b class="nm" title="${esc(f.name)}">${esc(f.name)}</b>
+      <span class="sub">${esc(f.cat||"Other")} · ${esc(linkHost(f.url))}${f.who==="AI"?" · added by the agents":""}</span>
+      ${showSrc&&f._src?`<span class="pill" style="margin-top:3px">${esc(f._src)}</span>`:""}</div>
+    <div class="row" data-stop="1">
+      <a class="btn sm" href="${esc(f.url)}" target="_blank" rel="noopener" style="text-decoration:none">Open link</a>
+      <span style="flex:1"></span>
+      ${S.canUpload?`<button class="btn sm d" data-delfile="${esc(f.id)}">Delete</button>`:""}</div></div>`;
+}
 function fileTile(f,showSrc){
+  if(f.link)return linkTile(f,showSrc);
   const isImg=(f.type||"").indexOf("image/")===0;
   const ext=(f.name||"").split(".").pop().slice(0,4).toUpperCase();
   return `<div class="ftile" data-view="${esc(f.id)}" style="cursor:pointer">
@@ -9614,7 +9634,7 @@ function itemRows(list){
       <td><button class="lnk" data-go="item/${esc(i.id)}">${esc(i.name)}</button>
         <div class="sub mono">${esc(i.sku||"")}</div></td>
       <td>${esc(i.cat||"—")}</td>
-      <td><span class="pill ${stockCls(i)}">${esc(stockText(i))}</span></td>
+      <td><span class="pill ${stockCls(i)}">${esc(stockText(i))}</span>${onOrder(i)?`<div class="sub">${esc(onOrderTxt(i))}</div>`:""}</td>
       <td class="mono">${i.reorderPoint!==""&&i.reorderPoint!=null?esc(String(i.reorderPoint)):"—"}</td>
       <td class="sub">${esc(i.bin||"—")}</td>
       <td class="mono" style="text-align:right">${Number(i.cost)>0?money2(Number(i.cost)):`<span class="sub">—</span>`}${(Number(i.cost)>0&&itemSqft(i)&&/roll|sheet/i.test(i.unit||""))?`<div class="sub">${money2(Number(i.cost)/itemSqft(i))}/sq ft</div>`:""}</td>
@@ -9682,6 +9702,7 @@ function itemRec(id){
       <div class="hl-facts">
         <div><div class="k">On hand</div><div class="v mono">
           <span class="pill ${stockCls(i)}">${esc(stockText(i))}</span></div></div>
+        ${onOrder(i)?`<div><div class="k">On order</div><div class="v">${esc(onOrderTxt(i))}</div></div>`:""}
         <div><div class="k">Reorder at</div><div class="v mono">${i.reorderPoint!==""&&i.reorderPoint!=null?esc(String(i.reorderPoint)):"—"}</div></div>
         <div><div class="k">Quantity</div><div class="v mono">${esc(String(i.reorderQty||"—"))}</div></div>
         <div><div class="k">Unit cost</div><div class="v mono">${i.cost?money(i.cost):"—"}</div></div>
@@ -9717,7 +9738,7 @@ function itemRec(id){
           <td>${t.jobId?`<button class="lnk mono" data-go="job/${esc(t.jobId)}">${esc(t.jobId)}</button>`:"—"}</td>
           <td class="sub">${esc(t.note||"")}</td>
           <td class="sub mono">${esc(t.who||"")}${t.undone?`<div class="sub">undone</div>`:""}</td>
-          <td style="text-align:right">${t.undone?`<span class="sub">—</span>`
+          <td style="text-align:right">${t.undone||t.type==="ordered"?`<span class="sub">—</span>`
             :`<button class="btn sm" data-txundo="${esc(t.id)}" title="Put the stock back the way it was">Undo</button>`}</td></tr>`).join("")}</tbody></table>`
       :`<div class="empty">No movement recorded. Receive some stock to start the count.</div>`}
     </section></div>`;
@@ -10473,24 +10494,34 @@ function settingsView(){
       <div style="margin-top:8px">${ck("b-webcatauto",b.webcatAuto!==false,"Refresh it daily","On your own site")}</div>
       <div class="sub" id="webcat-stat" style="margin-top:6px">${esc(webcatStat())}</div>
     </div></section>
-    <section class="card"><header><h2>Sales pipeline feed</h2><span class="sub">The agents' sheet, published to the web as CSV. Accounts, contacts, calls, emails, quotes, invoices, settings and stock come in from it — on your own site every 15 minutes, inside Claude from Import pipeline feed on the Projects page.</span></header><div class="body">
+    <section class="card"><header><h2>Sales pipeline feed</h2><span class="sub">The agents' sheet, published to the web as CSV. Accounts, contacts, calls, emails, quotes, invoices, settings and stock come in from it, and the agents move projects along, make work orders, link files and ship work orders — on your own site every 15 minutes, inside Claude from Import pipeline feed on the Projects page.</span></header><div class="body">
       <input id="b-pipeurl" value="${esc(b.pipeUrl||"")}" placeholder="https://docs.google.com/spreadsheets/d/e/…/pub?output=csv" style="width:100%">
-      <div style="margin-top:8px">${ck("b-pipeauto",b.pipeAuto!==false,"Bring the feed in by itself","On your own site")}</div>
+      <div style="margin-top:8px">${ck("b-pipeauto",b.pipeAuto!==false,"Bring the feed in by itself","On your own site")}
+      ${ck("b-agentctl",b.agentControl!==false,"Agents can move projects, create work orders and attach files","Off: they only leave a note saying what they'd do")}</div>
+      <div class="sub" style="margin-top:6px"><b>Keep the CRM open on one shop computer so agent changes land within 15 minutes.</b> The CRM brings the feed in while it's open in a browser on your site — nothing lands while every copy is closed.</div>
       ${b.pipeLast?`<div class="sub" style="margin-top:6px">Last feed row: ${esc(String(b.pipeLast))}</div>`:""}
       <details style="margin-top:10px"><summary class="sub" style="cursor:pointer">Columns the sheet needs</summary>
         <div class="sub" style="margin-top:6px;line-height:1.6">One row per thing that happened: <span class="mono">row_id, type, account, account_type, phone, website, street, city, state, zip, contact, title, email, contact_phone, activity, direction, subject, text, when, back_on, project, amount, stage, source</span>.
-          <b>type</b> is account, activity, quote, invoice, setting or inventory; <b>activity</b> is email, call, meeting or note; <b>direction</b> is in or out. A row is never brought in twice.
+          <b>type</b> is account, activity, quote, invoice, setting, inventory, draft, stage, workorder, file or job; <b>activity</b> is email, call, meeting or note; <b>direction</b> is in or out. A row is never brought in twice.
           A quote row can carry its lines in a <span class="mono">lines</span> column (JSON: qty, code, desc, size, grade, price — or one per line as <span class="mono">10 x R1-1 | Stop | 30x30 | HIP @ 50.43</span>);
           with lines the project opens as Quoted, without them it stays an Inquiry. A later row with <span class="mono">updates</span> = the first row's row_id revises that project's lines while it's still a quote — a stage never moves backwards.
           <b>invoice</b> rows (<span class="mono">project</span> = row_id, P-number or quote number; <span class="mono">text</span> = JSON invoice_number, invoice_date, paid_date, amount, status) record the accountant's QuickBooks invoice;
           <b>setting</b> rows (<span class="mono">subject</span> = the setting, <span class="mono">text</span> = its value) change a Settings field such as taxRate, minMargin or qtyBreaks;
-          <b>inventory</b> rows (<span class="mono">text</span> = JSON sku, item, qty, unit, unit_cost, vendor, ref, received, freight) receive stock.
+          <b>inventory</b> rows (<span class="mono">text</span> = JSON sku, item, qty, unit, unit_cost, vendor, ref, received, freight) receive stock;
+          with <span class="mono">qty</span> 0 and <span class="mono">on_order</span> N (plus <span class="mono">ref</span>, <span class="mono">expected</span>) they record a purchase order — on order, not on hand — and a later receipt with the same ref (or vendor) brings it down.
           An outgoing <b>email</b> activity row completes the entry the CRM made when that email was opened here — same contact (by <span class="mono">email</span>), within three hours of <span class="mono">when</span>, or the same day when <span class="mono">when</span> is only a date; an optional <span class="mono">at</span> ISO time narrows it. No new columns.
           A quote line may say <span class="mono">"overlaminate": false</span> when the customer declined the clear overlaminate on a printed sign.
           <b>draft</b> rows carry an email the writer drafted: <span class="mono">project</span> = the project's feed row_id, P-number or quote number; <span class="mono">stage</span> = which one —
           <span class="mono">1</span>, <span class="mono">2</span> or <span class="mono">3</span> (or followup1/2/3) for a planned follow-up, else <span class="mono">proof</span>, <span class="mono">shipping</span>, <span class="mono">invoice</span>, <span class="mono">quote</span> or <span class="mono">thanks</span> for a requested draft;
           <span class="mono">subject</span> and <span class="mono">text</span> are the email. <span class="mono">source</span> = <span class="mono">sent</span> with a <span class="mono">when</span> means the agents sent it themselves (only when the follow-up record said auto) — the CRM marks it sent and logs the email as AI.
-          The requests go the other way on the order sync as types <span class="mono">followup</span>, <span class="mono">draft_request</span> and <span class="mono">reminder</span>.</div></details>
+          The requests go the other way on the order sync as types <span class="mono">followup</span>, <span class="mono">draft_request</span> and <span class="mono">reminder</span>.
+          <div style="margin-top:8px"><b>Agents running the project</b> — <span class="mono">project</span> is the feed row_id, P-number or quote number. Each row leaves a note on the project's activity; a step the CRM won't allow (unpriced quote, open work orders, close-out not settled, gates not done) is not forced — the note says why.</div>
+          <table style="margin-top:6px;font-size:12.5px;border-collapse:collapse;width:100%"><thead><tr><th style="text-align:left;padding:3px 8px 3px 0">type</th><th style="text-align:left;padding:3px 8px 3px 0">columns</th><th style="text-align:left;padding:3px 0">what it does</th></tr></thead><tbody>
+            <tr><td class="mono" style="padding:3px 8px 3px 0;vertical-align:top">stage</td><td class="mono" style="padding:3px 8px 3px 0;vertical-align:top">project, stage, po, text</td><td style="padding:3px 0">Moves it forward (inquiry … closed, or lost) like the stage buttons; optional PO number and note.</td></tr>
+            <tr><td class="mono" style="padding:3px 8px 3px 0;vertical-align:top">workorder</td><td class="mono" style="padding:3px 8px 3px 0;vertical-align:top">project, when, text</td><td style="padding:3px 0">Makes the work orders from the quote lines, one per kind of work, due <span class="mono">when</span>; <span class="mono">text</span> is the shop note. Lines already on a work order are skipped.</td></tr>
+            <tr><td class="mono" style="padding:3px 8px 3px 0;vertical-align:top">file</td><td class="mono" style="padding:3px 8px 3px 0;vertical-align:top">project (or account), text</td><td style="padding:3px 0">JSON <span class="mono">url, name, kind</span> (signed_quote, po, artwork, proof, photo, other)<span class="mono">, approved</span>. Linked, not uploaded. A signed quote or PO moves Quoted to Won; an approved proof files the Signed proof and ticks the proof check.</td></tr>
+            <tr><td class="mono" style="padding:3px 8px 3px 0;vertical-align:top">job</td><td class="mono" style="padding:3px 8px 3px 0;vertical-align:top">project (WO-1042 or a project + <span class="mono">item</span>), text</td><td style="padding:3px 0">JSON <span class="mono">status</span> (released, in_production, qc, shipped, picked_up)<span class="mono">, tracking, carrier, ship_date</span>. Ship details first, then the status — QC and tracking must be in for shipped.</td></tr>
+          </tbody></table></div></details>
     </div></section>
     <section class="card"><header><h2>Order sync</h2><span class="sub">Every saved quote, work order, account and contact goes to a Google Apps Script web app that keeps the CRM Orders tab current for the agents. Saving never waits on it.</span></header><div class="body">
       <input id="b-syncurl" value="${esc(b.syncUrl||"")}" placeholder="https://script.google.com/macros/s/…/exec" style="width:100%">
@@ -10722,6 +10753,7 @@ function viewFile(fid){
   const f=S.files.get(fid);
   if(!f){toast("That file isn't in the list any more — reload the page.");return}
   if(f.deleted){toast("That file is in the recycle bin.");return}
+  if(f.link){const w=window.open(f.url,"_blank","noopener");if(!w)toast("Your browser blocked the new tab — the link is "+f.url);return}
   S.viewerFile=fid;
   render();
 }
@@ -10761,6 +10793,7 @@ function viewerHTML(){
 }
 async function downloadFile(fid){
   const f=S.files.get(fid);if(!f)return;
+  if(f.link){window.open(f.url,"_blank","noopener");return}            // a link: it's saved where it lives
   toast("Preparing "+f.name+"…");
   try{
     const res=await fetch(f.url);
@@ -11788,6 +11821,7 @@ async function saveBrand(){
     shopWO:$("#b-shopwo")?!!$("#b-shopwo").checked:((S.brand||{}).shopWO!==false),
     pipeUrl:$("#b-pipeurl")?$("#b-pipeurl").value.trim():((S.brand||{}).pipeUrl||""),
     pipeAuto:$("#b-pipeauto")?!!$("#b-pipeauto").checked:((S.brand||{}).pipeAuto!==false),
+    agentControl:$("#b-agentctl")?!!$("#b-agentctl").checked:((S.brand||{}).agentControl!==false),
     webcatAuto:$("#b-webcatauto")?!!$("#b-webcatauto").checked:((S.brand||{}).webcatAuto!==false),webcatLast:(S.brand||{}).webcatLast||0,
     pipeLast:(S.brand||{}).pipeLast||"",
     syncUrl:$("#b-syncurl")?$("#b-syncurl").value.trim():((S.brand||{}).syncUrl||""),
@@ -12368,7 +12402,7 @@ function pipeMatch(r){
 // one import at a time — in this tab (busy) and across tabs (a two-minute lock on settings/pipefeed)
 const PIPE={busy:false,id:Math.random().toString(36).slice(2,10),seen:new Set()};
 // rows the done map must remember; everything else is found again by the feedId on the record it made
-function pipeKeep(id,r){const t=String((r&&r.type)||"").toLowerCase();return /^INV-/i.test(String(id))||!!(r&&r.updates)||["invoice","setting","inventory","draft"].indexOf(t)>=0}
+function pipeKeep(id,r){const t=String((r&&r.type)||"").toLowerCase();return /^INV-/i.test(String(id))||!!(r&&r.updates)||["invoice","setting","inventory","draft","stage","workorder","work_order","file","job"].indexOf(t)>=0}
 function pipeJSON(t){const x=String(t||"").trim();if(!x)return null;try{const o=JSON.parse(x);return o&&typeof o==="object"?o:null}catch(e){return null}}
 // a project by the quote row's row_id, its P-number ("P-2015" or 2015) or its quote number
 function pipeFind(ref){const x=String(ref||"").trim();if(!x)return null;const u=x.toUpperCase(),n=u.replace(/^P-?/,"");
@@ -12387,8 +12421,100 @@ function pipeSettingValue(field,text){const k=PIPE_SETTINGS[field];if(!k)return 
   if(field==="labelSize")return t==="letter"?"letter":"4x6";
   return t}
 function pipeLineTxt(l){return (l.qty||1)+" x "+(l.code||l.desc)+(l.code&&l.desc&&l.desc!==l.code?" | "+l.desc:"")+(l.size?" | "+l.size:"")+(l.grade?" | "+l.grade:"")+" @ "+money2(l.price)}
+/* ===== agents run the project: stage, workorder, file and job rows ===== */
+// Settings → Connections → "Agents can move projects, create work orders and attach files" (owner's switch, on by default)
+function agentOn(){return (S.brand||{}).agentControl!==false}
+// everything the agents do is recorded as AI, whoever's initials this machine has
+async function asAI(fn){const was=S.me;S.me="AI";try{return await fn()}finally{S.me=was}}
+async function pipeNote(recType,recId,text,fid,subject){const xid=uid("ac");
+  await setDoc("activity/"+xid,{id:xid,recType,recId:String(recId),kind:"note",type:"note",text,whoId:"",subject:subject||"Agents",contactId:"",direction:"",
+    when:today(),due:"",backOn:"",noBack:true,who:"AI",at:Date.now(),done:true,deleted:false,feedId:fid||""});
+  try{await asAI(()=>logEvent(recType,String(recId),String(text).split("\n")[0].slice(0,240)))}catch(e){}}
+// why the agents can't move this project to st — the same checks the stage buttons make; "" when it can go
+function agentStageWhy(p,st){
+  const L=x=>((SG[x]||{}).label||x);
+  if(!p)return "the project wasn't found";
+  if(p.stage==="closed"||p.stage==="lost")return "it's already "+L(p.stage)+" — reopen it by hand first";
+  const cur=PATH.indexOf(p.stage),to=PATH.indexOf(st);
+  if(st!=="lost"&&cur>=0&&to<cur)return "agents only move projects forward (it's at "+L(p.stage)+")";
+  if(st!=="lost"&&to>=PATH.indexOf("quoted")){const q=quoteState(p);if(!q.ok)return q.why}
+  if(st==="shipped"){const open=jobsOf(p.id).filter(j=>j.status!=="shipped");
+    if(open.length)return open.length+" work order"+(open.length===1?" is":"s are")+" still open ("+open.map(j=>j.num).join(", ")+")"}
+  if(st==="closed"){const o=closeOpen(p);if(o.length)return "the close-out list isn't settled: "+o.map(r=>r.label).join("; ")}
+  return "";
+}
+// move it through setStage (stage log, follow-up auto-stop, history, order sync); "" when moved, else the reason it didn't
+async function agentStage(p,st,why){
+  const r=agentStageWhy(p,st);if(r)return r;
+  if(st==="lost")await push("projects/"+p.id,{lostWhy:"other",lostTo:"",lostNote:String(why||""),updatedAt:Date.now()});
+  await asAI(()=>setStage(p.id,st,"by the agents"));
+  if(st==="invoiced"){const p2=proj(p.id)||p;const bs=billState(p2);if(bs==="none"||bs==="deposit")await asAI(()=>setBill(p.id,"invoiced",true))}
+  return "";
+}
+// the work orders the Create work order button would make: one per kind of work not already on a work order
+async function agentWO(p,due,note){
+  if(p.stage==="closed"||p.stage==="lost")return {made:[],why:"it's "+((SG[p.stage]||{}).label||p.stage)};
+  const q=quoteState(p);if(!q.ok)return {made:[],why:q.why};
+  const groups=lineGroups(p);
+  const done=jobsOf(p.id).reduce((m,j)=>{woItems(j).forEach(x=>{m[itKey(x)]=1});return m},{});
+  const kinds=Object.keys(groups).filter(k=>groups[k].some(l=>!done[olKey(l)]));
+  if(!kinds.length)return {made:[],why:"",covered:true};
+  const last=jobsOf(p.id).slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))[0];
+  const made=[];
+  for(const k of kinds){
+    const n=await asAI(()=>quickWOGo(p.id,{only:k,prod:k,method:k==="sign"?(last&&last.method?last.method:"film"):"",
+      blankSrc:last&&last.blankSrc?last.blankSrc:"stock",stencilMat:last?last.stencilMat:"",due:due||p.due||"",copy:true,won:true,quiet:true}));
+    if(n){made.push(n);if(note)await push("jobs/"+n,{notes:String(note),updatedAt:Date.now()})}
+  }
+  return {made,why:made.length?"":"the work order didn't save"};
+}
+const AGENT_FILE={signed_quote:"Signed quote",po:"Purchase order",artwork:"Artwork",proof:"Artwork proof",photo:"Photo",other:"Other"};
+function agentMime(name,url){if(/(drive|docs)\.google\.com/i.test(String(url||"")))return "";   // a Drive page, not the file itself
+  const e=String(name||"").split("?")[0].split(".").pop().toLowerCase();
+  return e==="pdf"?"application/pdf":/^(png|gif|webp)$/.test(e)?"image/"+e:/^jpe?g$/.test(e)?"image/jpeg":e==="svg"?"image/svg+xml":""}
+// job statuses the agents may set, as the shop floor names them
+const JOB_AGENT={released:"released",in_production:"production",production:"production",qc:"qc",packed:"packed",shipped:"shipped",picked_up:"shipped"};
+// the work orders a job row means: WO-1042 / a job column, or a project's (narrowed by item), or a bare work order number
+function agentJobs(r,o){
+  const ref=String(r.job||r.work_order||r.wo||"").trim()||String(r.project||"").trim();
+  const m=/^(?:WO|W|J|JOB)[-\s#]*(\d+)$/i.exec(ref);
+  if(m){const j=job(m[1]);return j?[j]:[]}
+  const p=pipeFind(ref);
+  if(p){let js=jobsOf(p.id);const it=String((o&&o.item)||r.item||"").trim().toLowerCase();
+    if(it)js=js.filter(j=>[j.desc,prodOf(j),String(j.num)].concat(woItems(j).map(x=>(x.code||"")+" "+(x.desc||""))).join(" ").toLowerCase().indexOf(it)>=0);
+    return js}
+  if(/^\d+$/.test(ref)){const j=job(ref);return j?[j]:[]}
+  return [];
+}
+// ship details first, then the status through advance() with the shop's own blockers; returns {why,moved,changed}
+async function agentJob(j,o){
+  const want=String(o.status||"").trim().toLowerCase().replace(/[\s-]+/g,"_");
+  const to=want?JOB_AGENT[want]:"";
+  if(want&&!to)return {why:"\""+o.status+"\" isn't a work order status"};
+  const sh=Object.assign({method:"",carrier:"",tracking:"",cartons:"",weight:""},j.ship||{});const was=Object.assign({},sh);
+  if(o.carrier)sh.carrier=String(o.carrier).trim();
+  if(o.tracking)sh.tracking=String(o.tracking).trim();
+  if(o.ship_date)sh.date=String(o.ship_date).slice(0,10);
+  if(want==="picked_up")sh.method="Will call";
+  else if(!sh.method&&(o.carrier||o.tracking))sh.method=/freight|ltl|\bpro\b|truck/i.test(String(o.carrier||""))?"Freight":"UPS / FedEx";
+  const L={method:"Ship method",carrier:"Carrier",tracking:"Tracking",date:"Ship date"};
+  const ch=Object.keys(L).filter(k=>String(was[k]||"")!==String(sh[k]||"")).map(k=>({f:L[k],o:String(was[k]||""),n:String(sh[k]||"")}));
+  if(ch.length){await push("jobs/"+j.num,{ship:sh,updatedAt:Date.now()});await asAI(()=>recordHistory("job",String(j.num),ch))}
+  if(!to||j.status===to)return {why:"",moved:false,changed:ch.length};
+  const JL=x=>((JS[x]||{}).label||x);
+  if(/^hold/.test(j.status))return {why:"it's on hold ("+JL(j.status)+")",changed:ch.length};
+  const at=JFLOW.indexOf(j.status),nt=JFLOW.indexOf(to);
+  if(nt<at)return {why:"agents only move work orders forward (it's at "+JL(j.status)+")",changed:ch.length};
+  const jj=Object.assign({},j,{ship:sh});let bl=[];
+  for(let k=at+1;k<=nt;k++)bl=bl.concat(jobBlockers(jj,JFLOW[k]));
+  if(want==="picked_up")bl=bl.filter(x=>!/^Tracking/.test(x));        // a will-call pickup has no tracking number
+  bl=[...new Set(bl)];
+  if(bl.length)return {why:"not done yet — "+bl.join("; "),changed:ch.length};
+  await asAI(()=>advance(j.num,to,true));
+  return {why:"",moved:true,changed:ch.length};
+}
 async function pipeImportRows(rows){
-  const out={accounts:0,contacts:0,activity:0,quotes:0,invoices:0,settings:0,inventory:0,drafts:0,skipped:0,bad:0};
+  const out={accounts:0,contacts:0,activity:0,quotes:0,invoices:0,settings:0,inventory:0,drafts:0,stages:0,workorders:0,files:0,jobs:0,blocked:0,suggested:0,skipped:0,bad:0};
   let ex=null;
   try{const d=await db.doc("settings/pipefeed").get();const ok=d&&(typeof d.exists==="function"?d.exists():d.exists);ex=ok&&d.data()?d.data():null}catch(e){}
   if(ex){S.pipeDone=Object.assign({},S.pipeDone||{},ex.done||{});
@@ -12424,7 +12550,24 @@ async function pipeImportRows(rows){
         it={id:iid,sku,name:nm||sku,cat:String(o.cat||o.category||"Other"),unit:String(o.unit||"each"),onHand:0,reorderPoint:"",reorderQty:"",cost:cost||"",
           bin:"",vendor:String(o.vendor||""),notes:"",shipClass:"parcel",feedId:id,deleted:false,createdAt:now,updatedAt:now};
         await setDoc("items/"+iid,it);logEvent("item",iid,"Item added from the agents' inventory feed");}
+      const ono=Number(csvNum(o.on_order))||0;const ref=String(o.ref||"").trim();
+      if(ono>0&&qty<=0){const txid=uid("tx");const exp=/^\d{4}-\d{2}-\d{2}/.test(String(o.expected||""))?String(o.expected).slice(0,10):"";
+        await setDoc("invtx/"+txid,{id:txid,itemId:it.id,type:"ordered",kind:"ordered",qty:ono,at:now,who:"AI",
+          note:["Ordered",o.vendor?"from "+o.vendor:"",ref?"— "+ref:"",exp?"(expected "+exp+")":""].filter(Boolean).join(" "),jobId:"",cost:uc===""?"":Number(uc).toFixed(2),
+          ref,expected:exp,vendor:String(o.vendor||""),itemName:it.name||"",unit:it.unit||"",unitCost:it.cost||"",deleted:false,feedId:id});
+        const ords=(it.orders||[]).map(x=>Object.assign({},x));const ex=ref?ords.find(x=>x.ref===ref):null;
+        if(ex){ex.qty=Number(ex.qty||0)+ono;ex.left=Number(ex.left||0)+ono;if(exp)ex.expected=exp}
+        else ords.push({ref,vendor:String(o.vendor||""),qty:ono,left:ono,expected:exp,at:now});
+        const was=onOrder(it);await push("items/"+it.id,{onOrder:was+ono,orders:ords.slice(-30),updatedAt:now});it.onOrder=was+ono;it.orders=ords;
+        recordHistory("item",it.id,[{f:"On order",o:String(was),n:String(was+ono)+" (ordered — agents' feed"+(ref?", "+ref:"")+(exp?", expected "+exp:"")+")"}]);
+        out.inventory++;done[id]=1;mark(id);continue}
       if(qty>0){const txid=uid("tx");const at=Date.parse(String(o.received||""))||now;
+        // the purchase order this receipt fills: same ref, else same vendor — onOrder comes down by what arrived
+        if(onOrder(it)>0){const ords=(it.orders||[]).map(x=>Object.assign({},x));
+          const m=(ref&&ords.find(x=>x.ref===ref&&Number(x.left)>0))||(o.vendor&&ords.find(x=>Number(x.left)>0&&lc(x.vendor)===lc(o.vendor)))||null;
+          if(m){m.left=Math.max(0,Number(m.left||0)-qty);const was=onOrder(it),nw=Math.max(0,was-qty);
+            await push("items/"+it.id,{onOrder:nw,orders:ords,updatedAt:now});it.onOrder=nw;it.orders=ords;
+            recordHistory("item",it.id,[{f:"On order",o:String(was),n:String(nw)+" (received against "+(m.ref||m.vendor||"the order")+")"}])}}
         await setDoc("invtx/"+txid,{id:txid,itemId:it.id,type:"receive",qty,at,who:"AI",
           note:["Received",o.vendor?"from "+o.vendor:"",o.ref?"— "+o.ref:""].filter(Boolean).join(" "),jobId:"",cost,
           itemName:it.name||"",unit:it.unit||"",unitCost:it.cost||"",deleted:false,feedId:id});
@@ -12452,6 +12595,74 @@ async function pipeImportRows(rows){
         when,due:"",backOn:"",noBack:true,who:"AI",at:now,done:true,deleted:false,feedId:id});
       logEvent("project",tgt.id,text);
       out.invoices++;done[id]=1;mark(id);continue}
+    // --- agents run the project: stage, workorder, file, job — each logs a note as AI and is marked done ---
+    if(["stage","workorder","work_order","file","job"].indexOf(type)>=0){
+      let nn=0;const note=(rt,ri,t,sub)=>pipeNote(rt,ri,t,nn++?id+":"+nn:id,sub);
+      const on=agentOn();const more=r.text&&type!=="file"&&type!=="job"?"\n"+r.text:"";
+      const sugg=async(rt,ri,what)=>{await note(rt,ri,"Agents suggested: "+what+". Agent control is off in Settings → Connections, so nothing was changed.","Agents suggested");out.suggested++};
+      if(type==="stage"){const p=pipeFind(r.project||r.updates);const st=String(r.stage||"").trim().toLowerCase();
+        if(!p||(PATH.indexOf(st)<0&&st!=="lost")){out.bad++;continue}
+        const lbl=stLabel(st),po=String(r.po||"").trim();
+        if(!on){await sugg("project",p.id,"move this to "+lbl+(po?" (PO "+po+")":"")+(r.text?" — "+r.text:""));done[id]=1;mark(id);continue}
+        if(po&&po!==String(p.po||"")){const old=p.po||"";await push("projects/"+p.id,{po,updatedAt:now});p.po=po;
+          await asAI(()=>recordHistory("project",p.id,[{f:"PO",o:old,n:po+" (agents)"}]))}
+        if(p.stage===st)await note("project",p.id,"Agents asked to move this to "+lbl+" — it's already there."+(po?" PO "+po+" recorded.":"")+more);
+        else{const why=await agentStage(p,st,r.text);
+          if(why){await note("project",p.id,"Agents tried to move this to "+lbl+": blocked because "+why+"."+(po?" PO "+po+" recorded.":"")+more,"Agents — blocked");out.blocked++}
+          else{await note("project",p.id,"Agents moved this to "+lbl+"."+(po?" PO "+po+".":"")+more);out.stages++}}
+        done[id]=1;mark(id);continue}
+      if(type==="workorder"||type==="work_order"){const p=pipeFind(r.project||r.updates);if(!p){out.bad++;continue}
+        const due=/^\d{4}-\d{2}-\d{2}/.test(String(r.when||""))?String(r.when).slice(0,10):"";
+        if(!on){await sugg("project",p.id,"create the work orders"+(due?" due "+due:"")+(r.text?" — "+r.text:""));done[id]=1;mark(id);continue}
+        const res=await agentWO(p,due,r.text);
+        if(res.covered)await note("project",p.id,"Agents asked for work orders — every quote line is already on one, so nothing was made."+more);
+        else if(res.why){await note("project",p.id,"Agents tried to create the work orders: blocked because "+res.why+"."+more,"Agents — blocked");out.blocked++}
+        else{await note("project",p.id,"Agents created work order"+(res.made.length===1?" ":"s ")+res.made.join(", ")+(due?" — due "+due:"")+"."+(r.text?"\nShop note: "+r.text:""));out.workorders+=res.made.length}
+        done[id]=1;mark(id);continue}
+      if(type==="file"){const o=pipeJSON(r.text);const url=o?String(o.url||"").trim():"";
+        if(!o||!/^https?:\/\/[^\s"'<>]+$/i.test(url)){out.bad++;continue}
+        const p=pipeFind(r.project||r.updates);let aid=p?p.accountId:"";
+        if(!p&&(r.account||r.email)){const m=pipeMatch(r);if(m.acct)aid=m.acct.id}
+        if(!p&&!aid){out.bad++;continue}
+        const k0=String(o.kind||"other").trim().toLowerCase().replace(/[\s-]+/g,"_");const kind=AGENT_FILE[k0]?k0:"other";
+        const appr=o.approved===true||/^(true|yes|y|1)$/i.test(String(o.approved==null?"":o.approved));
+        const cat=kind==="proof"&&appr?"Signed proof":AGENT_FILE[kind];
+        let name=String(o.name||"").trim();if(!name){try{name=decodeURIComponent(url.split(/[?#]/)[0].split("/").pop()||"")}catch(e){}}name=name||"Linked file";
+        const rt=p?"project":"account",ri=p?p.id:aid;
+        if(!on){await sugg(rt,ri,"attach “"+name+"” ("+cat+") — "+url);done[id]=1;mark(id);continue}
+        const dup=filesOf(rt,ri).find(f=>f.url===url&&f.cat===cat);
+        const lines=[dup?"Agents linked “"+name+"” again — it's already on file as "+cat+".":"Agents attached “"+name+"” ("+cat+") as a link: "+url];
+        if(!dup){const fid=uid("f");
+          await setDoc("files/"+fid,{id:fid,assetId:"",url,name,size:0,type:agentMime(name,url),cat,who:"AI",when:stamp(),at:now,deleted:false,
+            accountId:aid||"",projectId:p?p.id:"",jobId:"",link:true,kind,approved:kind==="proof"?appr:false,feedId:id});
+          out.files++}
+        if(p&&(kind==="signed_quote"||kind==="po")){
+          const up={updatedAt:now};if(kind==="signed_quote"){up.quoteSigned=true;up.quoteSignedAt=now}else{up.poOnFile=true;up.poFileAt=now}
+          const po=String(o.po||r.po||"").trim();if(po&&po!==String(p.po||"")){up.po=po;lines.push("PO "+po+" recorded.")}
+          await push("projects/"+p.id,up);Object.assign(p,up);
+          if(p.stage==="quoted"){const why=await agentStage(p,"won",kind==="po"?"PO in":"signed quote in");
+            if(why){lines.push("Agents tried to move this to Won: blocked because "+why+".");out.blocked++}
+            else{lines.push("Moved to Won — the "+(kind==="po"?"PO":"signed quote")+" is in.");out.stages++}}}
+        if(p&&kind==="proof"){
+          if(appr){const js=jobsOf(p.id).filter(j=>!(j.gates||{}).proof);
+            for(const j of js){await push("jobs/"+j.num,{gates:Object.assign({},j.gates||{},{proof:true}),updatedAt:now});
+              await asAI(()=>recordHistory("job",String(j.num),[{f:"Prep",o:"",n:"✓ Proof approved (signed proof linked by the agents)",ev:1}]))}
+            await push("projects/"+p.id,{proofApprovedAt:now,updatedAt:now});
+            lines.push("Proof approved"+(js.length?" — ticked on work order"+(js.length===1?" ":"s ")+js.map(j=>j.num).join(", "):"")+".")}
+          else if(!dup){const rev=(Number(p.proofRev)||0)+1;await push("projects/"+p.id,{proofRev:rev,proofAt:now,updatedAt:now});
+            lines.push("Proof"+(rev>1?" rev "+rev:"")+" recorded as sent — the CRM chases the signed copy.")}}
+        await note(rt,ri,lines.join("\n"),"Agents — file");
+        done[id]=1;mark(id);continue}
+      if(type==="job"){const o=pipeJSON(r.text);if(!o){out.bad++;continue}
+        const js=agentJobs(r,o);if(!js.length){out.bad++;continue}
+        for(const j of js){const rt=j.projectId&&proj(j.projectId)?"project":"job",ri=rt==="project"?j.projectId:String(j.num);
+          const what=[o.status?String(o.status).replace(/_/g," "):"",o.carrier?String(o.carrier):"",o.tracking?"tracking "+o.tracking:"",o.ship_date?"shipped "+o.ship_date:""].filter(Boolean).join(", ");
+          if(!on){await sugg(rt,ri,"work order "+j.num+": "+what);continue}
+          const res=await agentJob(j,o);
+          if(res.why){await note(rt,ri,"Agents tried to move work order "+j.num+" to "+String(o.status).replace(/_/g," ")+": blocked because "+res.why+"."+(res.changed?" Ship details saved.":""),"Agents — blocked");out.blocked++}
+          else{await note(rt,ri,"Agents updated work order "+j.num+(what?" — "+what:"")+"."+(res.moved?"":res.changed?"":" Nothing changed."));if(res.moved||res.changed)out.jobs++}}
+        done[id]=1;mark(id);continue}
+    }
     // --- updates: revised lines for a project the agents opened ---
     if(r.updates){const tgt=live(S.projects).find(p=>p.feedId===String(r.updates).trim());
       if(tgt){const up={updatedAt:now};const cur=PATH.indexOf(tgt.stage||"inquiry");
@@ -12567,9 +12778,13 @@ function pipeSummary(o){const parts=[];if(o.locked)return "another copy of the C
   if(o.invoices)parts.push(o.invoices+" invoice"+(o.invoices===1?"":"s")+" recorded");if(o.inventory)parts.push(o.inventory+" stock receipt"+(o.inventory===1?"":"s"));
   if(o.settings)parts.push(o.settings+" setting"+(o.settings===1?"":"s")+" changed");
   if(o.drafts)parts.push(o.drafts+" draft"+(o.drafts===1?"":"s")+" from the writer");
+  if(o.stages)parts.push(o.stages+" project"+(o.stages===1?"":"s")+" moved along");if(o.workorders)parts.push(o.workorders+" work order"+(o.workorders===1?"":"s")+" created");
+  if(o.files)parts.push(o.files+" file"+(o.files===1?"":"s")+" linked");if(o.jobs)parts.push(o.jobs+" work order"+(o.jobs===1?"":"s")+" updated");
+  if(o.blocked)parts.push(o.blocked+" agent step"+(o.blocked===1?"":"s")+" blocked (see the project's activity)");
+  if(o.suggested)parts.push(o.suggested+" agent suggestion"+(o.suggested===1?"":"s")+" logged (agent control is off)");
   if(o.bad)parts.push(o.bad+" row"+(o.bad===1?"":"s")+" couldn't be read (left for the agents to fix)");
   return parts.length?parts.join(", "):"nothing new"+(o.skipped?" ("+o.skipped+" already in)":"")}
-function pipeAny(o){return !!(o.accounts||o.contacts||o.activity||o.quotes||o.invoices||o.inventory||o.settings||o.drafts||o.bad)}
+function pipeAny(o){return !!(o.accounts||o.contacts||o.activity||o.quotes||o.invoices||o.inventory||o.settings||o.drafts||o.stages||o.workorders||o.files||o.jobs||o.blocked||o.suggested||o.bad)}
 async function pipeFetch(auto){
   const cfg=pipeCfg();if(!cfg.url)return auto?0:toast("Put the published sheet link in Settings → Sales pipeline feed first.");
   if(auto&&!cfg.auto)return 0;
@@ -13413,7 +13628,7 @@ function bind(){
     const pts=t.closest("[data-prodtypesave]");if(pts){prodTypeSave(pts.dataset.prodtypesave||"");return}
     const ptd=t.closest("[data-prodtypedel]");if(ptd){prodTypeDel(ptd.dataset.prodtypedel);return}
     const tu=t.closest("[data-txundo]");
-    if(tu){const rec=S.invtx.get(tu.dataset.txundo);if(!rec)return;
+    if(tu){const rec=S.invtx.get(tu.dataset.txundo);if(!rec||rec.type==="ordered")return;
       const it0=S.items.get(rec.itemId)||{};
       const per=itemSqft(it0), amt=Math.abs(Number(rec.qty)||0);
       const words=(per&&/roll|sheet/i.test(it0.unit||""))?(Math.round(amt*1000)/1000+" "+(it0.unit||"")+" ("+Math.round(amt*per)+" sq ft)"):(amt+" "+(it0.unit||""));

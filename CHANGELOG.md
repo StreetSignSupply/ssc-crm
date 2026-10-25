@@ -1,5 +1,11 @@
 # What changed
 
+## 2026.11.25-1 — 2026-10-25
+- Agents can run projects: feed rows to move a project's stage (with the same checks as the buttons), create work orders from the quote, attach signed quotes, POs, artwork and proofs as links (a signed quote or PO moves the job to Won
+- an approved proof is filed and ticked), and update work orders with status, carrier and tracking
+- switch in Settings to let agents act or only suggest
+- materials on order from purchase orders show on inventory with expected date, receipts clear them, low stock counts what is on order
+
 ## 2026.11.24-1 — 2026-10-24
 - Follow-up autopilot: every quote gets day 3, 7 and 14 touches written by the agents in your voice, shown on the project with Send, Skip and Edit, or switched to automatic per project
 - stops itself when the customer replies or the job is won or lost
