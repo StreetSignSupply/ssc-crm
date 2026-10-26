@@ -39,8 +39,8 @@ async function store() {
       return fs.runTransaction(async (tx) => { const s = await tx.get(r); const d = (s.exists && s.data()) || {};
         const cur = Number(d[key]) || start; tx.set(r, { [key]: cur + 1 }, { merge: true }); return cur; });
     },
-    watchColl(p, cb) { return fs.collection(p).onSnapshot((qs) => cb(qs.docs.map((d) => ({ id: d.id, data: plain(d.data()) }))), () => {}); },
-    watchDoc(p, cb) { return fs.doc(p).onSnapshot((s) => cb({ id: s.id, exists: s.exists, data: s.exists ? plain(s.data()) : null }), () => {}); },
+    watchColl(p, cb) { return fs.collection(p).onSnapshot((qs) => { (globalThis.__wStats ||= {})[p] = qs.size; cb(qs.docs.map((d) => ({ id: d.id, data: plain(d.data()) }))); }, (e) => console.log("::error::watch " + p + ": " + String(e && e.code || "") + " " + String(e && e.message).slice(0, 160))); },
+    watchDoc(p, cb) { return fs.doc(p).onSnapshot((s) => { (globalThis.__wStats ||= {})[p] = s.exists ? 1 : 0; cb({ id: s.id, exists: s.exists, data: s.exists ? plain(s.data()) : null }); }, (e) => console.log("::error::watch " + p + ": " + String(e && e.code || "") + " " + String(e && e.message).slice(0, 160))); },
   };
 }
 
@@ -92,7 +92,8 @@ await page.waitForTimeout(RUN_MS);
 const counts = await page.evaluate(() => { try { return document.title + " / " + (document.querySelector(".main")||document.body).innerText.length + " chars on screen"; } catch (e) { return ""; } }).catch(() => "");
 console.log("::notice::CRM loaded: " + counts);
 const stats = await page.evaluate(() => { try { const c = (x) => Array.isArray(x) ? x.length : (x && typeof x === "object" ? Object.keys(x).length : 0); const out = []; for (const k of Object.keys(S)) { const n = c(S[k]); if (n > 0 && (Array.isArray(S[k]))) out.push(k + "=" + n); } let pc = {}; try { pc = pipeCfg(); } catch (e) {} return "feed link " + (pc.url ? "set" : "MISSING") + ", auto " + pc.auto + ", last " + (pc.last || "never") + " | " + out.slice(0, 14).join(" "); } catch (e) { return "stats error " + e.message; } }).catch((e) => "stats failed " + e.message);
-console.log("::notice::CRM data: " + reads + " reads | " + stats);
+const booting = await page.evaluate(() => /Connecting…/.test(document.body.innerText)).catch(() => null);
+console.log("::notice::CRM data: " + reads + " reads, still connecting " + booting + ", record counts " + JSON.stringify(globalThis.__wStats || {}));
 const ver = await page.evaluate(() => (document.body.innerText.match(/20\d\d\.\d+\.\d+-\d+/) || [""])[0]).catch(() => "");
 console.log(`::notice::CRM worker done: ${Math.round(RUN_MS / 1000)}s, ${writes} writes, ${errors} page errors${ver ? ", build " + ver : ""}`);
 unsub.forEach((u) => { try { u(); } catch (e) {} });
