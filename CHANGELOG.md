@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-20 — 2026-10-25
+- Quotes: removed 'Made in Washington, Utah' and 'A real person'
+- three promises: MUTCD, 3M sheeting, fast confirmation
+
 ## 2026.11.25-19 — 2026-10-25
 - Quote and invoice redesign: light and clean, no black blocks, no bid-item tags, one spec line per sign, code shown quietly beside the name
 - three looks to choose from in Settings (Documents and emails)
