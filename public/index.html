@@ -1033,6 +1033,7 @@ details.dd[open] > summary{border-color:var(--ink3)}
 <body>
 <div id="root"><div class="boot">Loading…</div></div>
 <div id="print"></div>
+
 <!-- Runs the CRM on Firebase instead of Claude. The CRM code below is unchanged. -->
 <script>
 (function(){var r;var p=new Promise(function(x){r=x});window.__sscResolve=r;
@@ -2777,7 +2778,7 @@ function docHTML(p,kind){
       const pic=!chg&&l.src&&b.quotePics!==false?linePic(p,l.src):"";
       return `<tr${chg?' class="chg"':""}>
       <td class="n">${ix+1}</td>
-      <td class="item"><div class="it">${pic?`<div class="pic"><img src="${esc(pic)}" alt=""></div>`:""}<div>
+      <td class="item"><div class="it">${pic?`<div class="pic"><img src="${esc(pic)}" data-fb="${esc(picFb(l.src))}" alt=""></div>`:""}<div>
         ${it.tag?`<span class="tag">${esc(it.tag)}</span>`:""}<span class="nm">${esc(it.name)}${it.fn?"<sup>†</sup>":""}</span>
         ${it.spec?`<span class="spec">${esc(it.spec)}</span>`:""}${it.sub?`<span class="sub">${esc(it.sub)}</span>`:""}
         ${l.src&&l.src.noLam?`<span class="sub" style="font-weight:700">${esc(NOLAM_TXT)}</span>`:""}</div></div></td>
@@ -2875,12 +2876,20 @@ async function imgAsData(u){S._imgData=S._imgData||{};if(S._imgData[u])return S.
     const r=await fetch(url,{mode:"cors",cache:"force-cache",signal:ctl.signal});clearTimeout(t);if(!r.ok)return "";
     const b=await r.blob();if(!/^image\//.test(b.type||"")||b.size<60)return "";
     return await new Promise(ok=>{const fr=new FileReader();fr.onload=()=>ok(String(fr.result||""));fr.onerror=()=>ok("");fr.readAsDataURL(b)})}catch(e){return ""}};
-  let d=await grab(u);for(const f of IMG_RELAYS){if(d)break;d=await grab(f(u))}
+  const viaImg=url=>new Promise(ok=>{const im=new Image();im.crossOrigin="anonymous";const t=setTimeout(()=>ok(""),10000);
+    im.onload=()=>{clearTimeout(t);try{const c=document.createElement("canvas");c.width=im.naturalWidth||200;c.height=im.naturalHeight||200;
+      c.getContext("2d").drawImage(im,0,0,c.width,c.height);ok(c.toDataURL("image/png"))}catch(e){ok("")}};
+    im.onerror=()=>{clearTimeout(t);ok("")};im.src=url});
+  const tries=[grab(u),viaImg(u)].concat(IMG_RELAYS.map(f=>grab(f(u))));
+  const d=await new Promise(ok=>{let left=tries.length;tries.forEach(p=>p.then(x=>{if(x)ok(x);else if(--left===0)ok("")}).catch(()=>{if(--left===0)ok("")}))});
   if(d)S._imgData[u]=d;return d}
 async function inlineImages(doc){
   const imgs=[...doc.images].filter(im=>{const v=im.getAttribute("src")||"";if(!/^https?:/i.test(v))return false;
     try{return new URL(v,location.href).origin!==location.origin}catch(e){return true}});
-  await Promise.all(imgs.map(async im=>{const d=await imgAsData(im.getAttribute("src"));if(!d)return;
+  await Promise.all(imgs.map(async im=>{let d=await imgAsData(im.getAttribute("src"));
+    // never a blank square: the plain drawing of the sign, or its name in a box
+    if(!d)d=im.getAttribute("data-fb")||"";
+    if(!d){const sp=doc.createElement("span");sp.className="nopic";sp.textContent=im.getAttribute("alt")||"picture";im.replaceWith(sp);return}
     await new Promise(r=>{im.onload=im.onerror=r;im.src=d;setTimeout(r,3000)})}))}
 // opt: {w,h} page inches; pages: selector for one element per page (labels); footer: text before "Page x of y"
 async function htmlToPdf(html,opt){
@@ -7073,7 +7082,7 @@ function allCodes(){const out=new Map();
   return [...out.values()].filter(Boolean)}
 function signName(x){
   const rows=(S.sheet&&S.sheet.rows)||[];
-  const code=String(x.code||"").trim();
+  const code=String(x.code||"").split("|")[0].trim();
   const lib=((S.signlib||{}).byCode||{})[code.toUpperCase()];
   if(lib&&lib.name)return lib.name;
   {const ce=codeEntry(code);if(ce&&ce.name&&!rows.some(r=>r.code&&r.code.toUpperCase()===code.toUpperCase()))return ce.name}
@@ -7095,7 +7104,7 @@ function picEntry(line){
   const lib=(S.signlib||{}).byCode||{};
   if(line&&typeof line==="object"&&line.webImg)return {img:line.webImg,name:line.desc||"",web:true};
   if(typeof line==="string")return lib[line.trim().toUpperCase()]||webcatPic(line)||null;
-  const cd=String((line&&line.code)||"").trim().toUpperCase();
+  const cd=String((line&&line.code)||"").split("|")[0].trim().toUpperCase();
   const nm=String((line&&line.desc)||"").trim().toUpperCase();
   const sz=String((line&&line.size)||"").trim().toUpperCase().replace(/\s+/g,"");
   const tries=[[cd||nm,sz].filter(Boolean).join("|"),      // this item at this size
@@ -7147,7 +7156,7 @@ function webBest(line){if(!line||typeof line!=="object")return null;
    sign is a diamond only when it's square), and it carries the line's own words — it can never show a
    different sign than the line describes. Agents still replace every drawing with a real picture. */
 function genericSignPic(line){if(!line||typeof line!=="object")return null;
-  const cd=String(line.code||"").trim().toUpperCase();
+  const cd=String(line.code||"").split("|")[0].trim().toUpperCase();
   const raw=String(line.desc||line.title||"");
   const t=(raw+" "+String(line.title||"")).toUpperCase().replace(/\bDIAMOND\s+GRADE\b|\bDG3\b/g," ");
   const m=String(line.size||raw).match(/(\d+(?:\.\d+)?)\s*["”]?\s*[X×]\s*(\d+(?:\.\d+)?)/i);
@@ -7188,6 +7197,7 @@ function genericSignPic(line){if(!line||typeof line!=="object")return null;
     svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' '+H+'"><rect x="2" y="2" width="'+(W-4)+'" height="'+(H-4)+'" rx="6" fill="'+bg+'" stroke="'+fg+'" stroke-width="3"/><rect x="7" y="7" width="'+(W-14)+'" height="'+(H-14)+'" rx="4" fill="none" stroke="'+fg+'" stroke-width="2"/>'+lines(50,H/2,arr,fs,fg)+'</svg>'}
   return GENPIC[key]={img:"data:image/svg+xml;base64,"+btoa(unescape(encodeURIComponent(svg))),name:label||kind,generic:true}}
 function signPic(line){const e=picEntry(line);return e&&e.img||""}
+function picFb(line){try{const g=genericSignPic(line);return g&&g.img||""}catch(e){return ""}}
 /* ===== the proof artwork uploaded to a project finds its own line =====
    A line can be pointed at a picture (Edit the line → Picture). Otherwise the file whose name matches
    the line — "Logo_Lockup.png" for "Logo Lockup", "R1-1 stop.jpg" for R1-1 — is used. A line with no
@@ -8730,7 +8740,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-15";
+const APP_VERSION="2026.11.25-16";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -12192,9 +12202,12 @@ async function inlineSheetPics(root){
   for(const im of imgs){
     const src=im.getAttribute("src")||"";
     if(!src||src.indexOf("data:")===0)continue;
-    try{const r=await fetch(src);const bl=await r.blob();
-      im.setAttribute("src",await new Promise((ok,no)=>{const fr=new FileReader();fr.onload=()=>ok(fr.result);fr.onerror=no;fr.readAsDataURL(bl)}));
-    }catch(e){im.remove()}
+    // copied through imgAsData (the site, or an image relay); if no copy can be made, the plain drawing
+    // of the sign stands in, or the sign's name — never an empty box
+    let d="";try{d=await imgAsData(src)}catch(e){}
+    if(!d)d=im.getAttribute("data-fb")||"";
+    if(d)im.setAttribute("src",d);
+    else{const sp=document.createElement("span");sp.className="nopic";sp.textContent=im.getAttribute("alt")||"picture";im.replaceWith(sp)}
   }
 }
 function woFaceSq(it){const d=parseSize(it.size);return d?d.w*d.h/144:0}
@@ -12269,9 +12282,9 @@ function buildWO(num){
       const fs=woFaceSq(it);
       return `<tr>
       <td class="q">${esc(it.qty||"")}</td>
-      <td class="pic">${linePic(p,it)?`<img src="${esc(linePic(p,it))}" alt="">`:(it.qty!=null?`<span class="nopic">no picture on file</span>`:"")}</td>
+      <td class="pic">${linePic(p,it)?`<img src="${esc(linePic(p,it))}" data-fb="${esc(picFb(it))}" alt="${esc(signName(it)||it.desc||it.code||"")}">`:(it.qty!=null?`<span class="nopic">no picture on file</span>`:"")}</td>
       <td>${it.desc||it.code?`<b>${esc(it.desc||signName(it)||it.code)}</b>`:""}
-        ${(it.desc&&it.code)||jobMixed(j)?`<div class="s">${esc([it.code,jobMixed(j)?kindLabel(lineProd(it)):""].filter(Boolean).join(" · "))}</div>`:""}
+        ${(it.desc&&it.code)||jobMixed(j)?`<div class="s">${esc([String(it.code||"").split("|")[0],jobMixed(j)?kindLabel(lineProd(it)):""].filter(Boolean).join(" · "))}</div>`:""}
         ${it.note?`<div class="s">${esc(it.note)}</div>`:""}
         ${it.noLam?`<div class="s" style="font-weight:800">${esc(NOLAM_TXT)}</div>`:""}</td>
       <td>${it.size?`<b>${esc(sizeLabel(it.size))}</b>${fs?`<div class="s">${Math.round(fs*100)/100} sq ft each</div>`:""}`:""}</td>
