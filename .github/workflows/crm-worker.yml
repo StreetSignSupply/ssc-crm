@@ -16,10 +16,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Google sign-in (keyless, no stored key)
-        if: ${{ vars.WIF_PROVIDER != '' }}
+        continue-on-error: true
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          workload_identity_provider: projects/741399760463/locations/global/workloadIdentityPools/github/providers/ssc-crm
           service_account: firebase-adminsdk-fbsvc@ssc-crm-a7224.iam.gserviceaccount.com
       - uses: actions/setup-node@v4
         with:
