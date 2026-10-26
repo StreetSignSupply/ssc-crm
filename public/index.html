@@ -2274,115 +2274,102 @@ function marginPill(m,rev){
 /* ================= QUOTE AND INVOICE DOCUMENTS ================= */
 const DOC_CSS=`*{box-sizing:border-box}
 html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-body{font-family:Overpass,Arial,Helvetica,sans-serif;color:#15181C;background:#F2F4F7;margin:0;padding:26px;
-  font-size:12px;line-height:1.5;-webkit-font-smoothing:antialiased}
-.sheet{max-width:8.5in;margin:0 auto;background:#fff;padding:34px 40px 30px;
-  box-shadow:0 1px 2px rgba(20,24,30,.06),0 10px 30px -10px rgba(20,24,30,.28);position:relative;overflow:hidden}
-.sheet:before{content:"";position:absolute;inset:0 0 auto;height:5px;
-  background:linear-gradient(90deg,#D50101 0%,#D50101 62%,#15181C 62%,#15181C 100%)}
-@page{size:letter portrait;margin:.4in .4in .5in;@bottom-right{content:"Page " counter(page) " of " counter(pages);font:9px Arial,sans-serif;color:#7A828C}}
-thead{display:table-header-group} tr{page-break-inside:avoid}
-
-.hint{background:#D50101;color:#fff;padding:9px 13px;font-weight:700;font-size:12px;max-width:8.5in;margin:0 auto 14px;
-  box-shadow:0 6px 18px -8px rgba(213,1,1,.7)}
-.top{display:flex;justify-content:space-between;align-items:flex-start;gap:28px;padding-top:12px}
-.top img{height:54px;display:block}
-.co{font-size:11px;line-height:1.65;color:#5B636D;margin-top:9px}
-.co b{color:#15181C;font-size:12.5px;display:block;margin-bottom:2px;letter-spacing:.01em}
-.dt{text-align:right;white-space:nowrap}
-.dt h1{margin:0;font-size:34px;letter-spacing:.2em;font-weight:800;color:#15181C;line-height:1}
-.dt .no{font-family:Arial,Helvetica,sans-serif;font-variant-numeric:tabular-nums;font-size:15px;font-weight:700;color:#D50101;
-  letter-spacing:.04em;margin-top:6px}
-.dt .dd{font-size:11px;color:#7A828C;margin-top:2px}
-.meta{display:grid;grid-template-columns:repeat(4,1fr);margin:22px 0 26px;
-  border-top:2px solid #15181C;border-bottom:1px solid #DDE1E6}
-.meta div{padding:12px 16px 13px;font-size:11.5px;line-height:1.6;border-right:1px solid #EDEFF2}
-.meta div:first-child{padding-left:0}
-.meta div:last-child{border-right:0;padding-right:0}
-.meta b{display:block;font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;color:#9AA2AC;margin-bottom:5px;font-weight:800}
-table{width:100%;border-collapse:collapse;font-size:12px}
-thead th{text-align:left;padding:0 12px 8px;font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;
-  font-weight:800;color:#9AA2AC;border-bottom:2px solid #15181C}
-thead th:first-child{padding-left:0}thead th:last-child{padding-right:0}
-tbody td{padding:13px 12px;border-bottom:1px solid #EDEFF2;vertical-align:top}
-tbody td:first-child{padding-left:0}tbody td:last-child{padding-right:0}
-tbody tr:last-child td{border-bottom:1px solid #C9CFD6}
-td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
-td.qty{font-weight:400;font-size:12.5px}
-tbody td{padding-top:7px;padding-bottom:7px}
-.meta{margin:14px 0 16px}.top{padding-top:4px}.top img{height:48px}
-td.item b{font-size:13px;letter-spacing:.005em}
-td.item .sub{display:block;color:#6B737D;font-size:11px;margin-top:3px;letter-spacing:.01em}
-td.amt{font-weight:700}
-.totwrap{display:flex;justify-content:flex-end;margin-top:4px}
-.tot{width:296px;font-size:12px}
-.tot div{display:flex;justify-content:space-between;gap:20px;padding:8px 0;color:#4A515A}
-.tot div span:last-child{font-variant-numeric:tabular-nums;color:#15181C}
-.tot .g{margin-top:6px;padding:12px 0 0;border-top:2px solid #15181C;font-weight:800;font-size:19px;color:#15181C}
-.tot .g span:last-child{color:#D50101}
-.blocks{display:flex;gap:30px;margin-top:32px;align-items:flex-start}
+body{font-family:Overpass,"Helvetica Neue",Arial,sans-serif;color:#16191D;background:#E9ECEF;margin:0;padding:26px;
+  font-size:11.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.sheet{width:8.5in;max-width:100%;margin:0 auto;background:#fff;position:relative;overflow:hidden;
+  box-shadow:0 1px 2px rgba(20,24,30,.08),0 14px 34px -12px rgba(20,24,30,.35)}
+.hint{background:#D50101;color:#fff;padding:9px 13px;font-weight:700;font-size:12px;max-width:8.5in;margin:0 auto 14px}
+@page{size:letter portrait;margin:0}
+tr{page-break-inside:avoid}
+/* header: a dark band with the logo, and the quote number on a red sign plate */
+.top{background:#16191D;color:#fff;display:flex;justify-content:space-between;align-items:center;gap:24px;padding:22px 44px 20px}
+.brandside{display:flex;align-items:center;gap:16px}
+.brandside img{height:62px;display:block}
+.co{font-size:10.5px;line-height:1.6;color:#AEB5BD}
+.co b{display:block;color:#fff;font-size:15px;font-weight:800;letter-spacing:.02em;margin-bottom:1px}
+.docside{text-align:right}
+.docside h1{margin:0 0 9px;font-size:13px;font-weight:800;letter-spacing:.42em;color:#fff;line-height:1}
+.plate{display:inline-block;background:#D50101;border-radius:9px;padding:4px}
+.plate span{display:inline-block;border:3px solid #fff;border-radius:6px;padding:8px 18px 6px;color:#fff;font-weight:900;font-size:26px;
+  letter-spacing:1.5px;line-height:30px;white-space:nowrap}
+.stripe{height:6px;background:repeating-linear-gradient(135deg,#D50101 0 18px,#fff 18px 22px,#D50101 22px 26px);opacity:.98}
+.stripe{background:#D50101}
+.pad{padding:0 44px}
+/* who, where, what, when */
+.meta{display:grid;grid-template-columns:1.25fr 1.1fr 1fr 1fr;gap:0;margin:20px 0 2px}
+.meta > div{padding:0 16px;border-left:1px solid #E4E7EB;font-size:11px;line-height:1.55;color:#2B3036}
+.meta > div:first-child{padding-left:0;border-left:0}
+.meta b{display:block;font-size:8px;letter-spacing:.18em;text-transform:uppercase;color:#D50101;font-weight:800;margin-bottom:5px}
+.meta .big{font-weight:800;font-size:12.5px;color:#16191D;display:block;line-height:1.3;margin-bottom:2px}
+.meta .kv{display:flex;justify-content:space-between;gap:8px}.meta .kv i{font-style:normal;color:#7C848E}
+.hello{margin:14px 0 10px;font-size:12px;color:#2B3036;line-height:1.55}
+.hello b{color:#16191D}
+/* the lines */
+table.lines{width:100%;border-collapse:collapse}
+table.lines thead th{font-size:8px;letter-spacing:.18em;text-transform:uppercase;font-weight:800;color:#7C848E;text-align:left;
+  padding:0 10px 7px;border-bottom:2px solid #16191D}
+table.lines thead th:first-child{padding-left:0}table.lines thead th:last-child{padding-right:0}
+table.lines td{padding:8px 10px;border-bottom:1px solid #E4E7EB;vertical-align:middle}
+table.lines td:first-child{padding-left:0}table.lines td:last-child{padding-right:0}
+td.r,th.r{text-align:right!important;font-variant-numeric:tabular-nums;white-space:nowrap}
+td.n{width:22px;color:#A3AAB2;font-weight:800;font-size:10px;font-variant-numeric:tabular-nums}
+.it{display:flex;align-items:center;gap:14px}
+.pic{width:60px;height:60px;flex:none;border-radius:6px;background:#F4F5F7;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.pic img{max-width:52px;max-height:52px;object-fit:contain;display:block}
+.pic.none{background:#F4F5F7}
+.tag{display:inline-block;font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#fff;background:#16191D;
+  border-radius:3px;padding:2px 6px 1px;margin-bottom:4px}
+.nm{display:block;font-weight:800;font-size:13px;color:#16191D;line-height:1.3;letter-spacing:.005em}
+.nm sup{color:#D50101;font-size:9px;margin-left:2px}
+.chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+.chip{font-size:9.5px;line-height:1;padding:4px 7px 3px;border-radius:20px;background:#F0F2F4;color:#3A4048;white-space:nowrap}
+.chip.code{background:#fff;border:1px solid #D50101;color:#D50101;font-weight:800;padding:3px 7px 2px}
+.chip.sz{background:#16191D;color:#fff;font-weight:700}
+.spec{display:block;color:#59616B;font-size:10.5px;margin-top:4px;line-height:1.45}
+.sub{display:block;color:#7C848E;font-size:10px;margin-top:3px;line-height:1.45}
+td.qty{font-size:13px;font-weight:700;color:#16191D}
+td.unit{color:#3A4048}
+td.amt{font-weight:800;font-size:12.5px;color:#16191D}
+tr.chg td{background:#FAFBFC}tr.chg .nm{font-size:12px}
+.fn{font-size:10px;color:#59616B;margin:8px 0 0}
+.ups{display:flex;align-items:baseline;gap:12px;margin:16px 0 8px}.ups b{font-size:13px}.ups span{font-size:11px;color:#59616B}
+/* totals with the promise beside them */
+.sum{display:flex;gap:26px;align-items:stretch;margin-top:16px}
+.why{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;align-content:start;padding:14px 16px;border-radius:8px;background:#F6F7F9}
+.why .h{grid-column:1/-1;font-size:8px;letter-spacing:.18em;text-transform:uppercase;color:#D50101;font-weight:800}
+.why div.p{display:flex;gap:9px;align-items:flex-start;font-size:10.5px;line-height:1.4;color:#2B3036}
+.why div.p b{display:block;color:#16191D;font-size:11px}
+.why svg{flex:none;margin-top:1px}
+.tot{width:262px;flex:none}
+.tot .row{display:flex;justify-content:space-between;gap:14px;padding:6px 0;font-size:11.5px;color:#3A4048;border-bottom:1px solid #EEF0F2}
+.tot .row span:last-child{font-variant-numeric:tabular-nums;color:#16191D;font-weight:600}
+.tot .est{font-size:9.5px;color:#8A919A;padding:5px 0 2px;line-height:1.4}
+.tot .grand{margin-top:10px;background:#16191D;color:#fff;border-radius:8px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center}
+.tot .grand span:first-child{font-size:9px;letter-spacing:.2em;text-transform:uppercase;font-weight:800;color:#C9CED4}
+.tot .grand span:last-child{font-size:22px;font-weight:900;font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.tot .save{color:#0A7A3E}
+/* accept */
+.blocks{display:flex;gap:26px;margin-top:22px;align-items:flex-start}
 .blocks > div{flex:1}
-.lbl{font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;color:#9AA2AC;font-weight:800;margin-bottom:6px}
-.notes{font-size:11px;color:#4A515A;line-height:1.65}
-.sign{border:1px solid #DDE1E6;border-left:3px solid #D50101;padding:15px 17px;background:#FCFCFD}
-.sign .line{border-bottom:1px solid #A8AFB8;height:24px;margin-bottom:4px}
-.sign .cap{font-size:9px;color:#9AA2AC;letter-spacing:.06em;text-transform:uppercase}
-.foot{margin-top:26px;padding-top:10px;border-top:1px solid #EDEFF2;font-size:9.5px;color:#9AA2AC;
-  display:flex;justify-content:space-between;letter-spacing:.04em}
-/* QuickBooks-style: title and number block top right, a shaded band over the columns */
-.dt h1{font-size:30px;letter-spacing:.05em}
-.dtt{margin:10px 0 0 auto;border-collapse:collapse;font-size:11.5px}
-.dtt td{padding:2px 0 2px 16px;text-align:right;border:0;white-space:nowrap}
-.dtt td:first-child{color:#7A828C;font-weight:800;text-transform:uppercase;font-size:8.5px;letter-spacing:.12em}
-.dtt td:last-child{font-weight:700;color:#15181C}
-.meta{grid-template-columns:repeat(3,1fr)}
-thead th{background:#EEF1F4;color:#4A525C;padding:9px 12px;border-bottom:0}
-thead th:first-child{padding-left:10px}thead th:last-child{padding-right:10px}
-tbody td:first-child{padding-left:10px}tbody td:last-child{padding-right:10px}
-/* line items: number, picture, a short bold name with the spec under it */
-td.n,th.n{width:26px;text-align:center;color:#9AA2AC;font-variant-numeric:tabular-nums;padding-left:6px!important;padding-right:0!important}
-tbody td{vertical-align:middle}
-.it{display:flex;gap:12px;align-items:center}
-.it .pic{width:48px;height:48px;flex:none;border:1px solid #E3E6EA;border-radius:4px;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden}
-.it .pic img{max-width:42px;max-height:42px;object-fit:contain;display:block}
-.it .tag{display:block;font-size:8.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#D50101;margin-bottom:1px}
-.it .nm{display:block;font-weight:700;font-size:12.5px;color:#15181C;line-height:1.35}
-.it .spec{display:block;color:#5B636D;font-size:11px;line-height:1.45;margin-top:1px}
-.it .sub{display:block;color:#7A828C;font-size:10.5px;margin-top:2px}
-.it sup{color:#D50101;font-weight:800;font-size:9px;margin-left:2px}
-tr.chg td{background:#FAFBFC}
-.fn{font-size:10px;color:#6B737D;margin:7px 0 0 6px}
-.ups{display:flex;align-items:baseline;gap:12px;margin:0 0 8px}
-.ups b{font-size:13px;letter-spacing:.02em;color:#15181C}.ups span{font-size:11px;color:#6B737D}
-.tot.upt{width:340px}
-td.r.rate{white-space:nowrap}
-@media print{html,body{background:#fff;padding:0;margin:0;font-size:10px;height:auto}
-  body>*{page-break-after:avoid}
-  .sheet{box-shadow:none;max-width:none;padding:.45in .55in .3in;overflow:hidden}
-  .sheet:before{display:none}
+.lbl{font-size:8px;letter-spacing:.18em;text-transform:uppercase;color:#D50101;font-weight:800;margin-bottom:7px}
+.terms{font-size:10px;color:#4A515A;line-height:1.6}
+.terms .k{display:block;margin-top:8px;font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:#7C848E;font-weight:800}
+.steps{display:flex;flex-direction:column;gap:7px;margin-bottom:12px}
+.steps div{display:flex;gap:10px;align-items:center;font-size:10.5px;color:#2B3036}
+.steps i{font-style:normal;flex:none;width:20px;height:20px;border-radius:50%;background:#D50101;color:#fff;font-weight:900;font-size:10px;
+  display:flex;align-items:center;justify-content:center}
+.sign{border:1px solid #DDE1E6;border-radius:8px;padding:12px 14px 10px}
+.sign .line{border-bottom:1px solid #9EA6AF;height:22px;margin-bottom:3px}
+.sign .cap{font-size:8px;color:#8A919A;letter-spacing:.12em;text-transform:uppercase}
+.sign .two{display:flex;gap:12px;margin-top:9px}
+.foot{margin-top:22px;background:#16191D;color:#AEB5BD;font-size:9.5px;letter-spacing:.04em;padding:11px 44px;display:flex;justify-content:space-between;gap:12px}
+.foot b{color:#fff}
+.lam{font-size:10px;color:#59616B;margin-top:12px}
+@media print{html,body{background:#fff;padding:0;margin:0}
+  .sheet{box-shadow:none;width:auto}
   .hint{display:none}
-  .top{padding-top:0}
-  .top img{height:50px}
-  .dt h1{font-size:30px}
-  .meta{margin:18px 0 20px}
-  .meta div{padding:11px 14px 12px;font-size:11px;line-height:1.55}
-  tbody td{padding:7px 10px}
-  .it .pic{width:42px;height:42px}.it .pic img{max-width:37px;max-height:37px}
-  .it .nm{font-size:11.5px}.it .spec{font-size:10px}
-  td.item b{font-size:11.5px}
-  td.item .sub{font-size:10px;margin-top:2px}
-  .tot div{padding:7px 0}
-  .tot .g{font-size:18px;padding-top:11px;margin-top:5px}
-  .blocks{margin-top:22px;gap:24px}
-  .notes{font-size:10.5px;line-height:1.6}
-  .lbl{margin-bottom:4px}
-  .sign{padding:13px 15px}
-  .sign .line{height:20px}
-
-  .foot{margin-top:20px;padding-top:9px}
-  tr,tbody,.blocks,.sign{page-break-inside:avoid}}
+  tr,.blocks,.sign,.sum,.why,.tot{page-break-inside:avoid}}
 `;
-
 
 // what the customer sees for a material: "White gloss vinyl", not "3M 7125 White gloss — 48in x 50yd"
 function custMaterial(g){
@@ -2721,6 +2708,56 @@ function docItem(l,fnote){let t=String(l.code||"").trim(),tag="",spec="";
   const sub=String(l.desc||"").split(" · ").map(x=>x.trim()).filter(x=>{if(!x)return false;
     if(fnote&&x===fnote){fn=true;return false}return said.indexOf(docNorm(x))<0}).join(" · ");
   return {tag,name:t,spec,sub,fn}}
+/* how an item's name reads on the quote: "Stop Sign", not "30x30Stop Sign DG3 .080" — the size, code and
+   sheeting are shown as chips beside it, so the name doesn't carry them; shouting names get title case */
+const DOC_KEEP=/^(MPH|AM|PM|HOA|ADA|MUTCD|USA|US|UT|NV|AZ|LLC|HIP|DG3|EG|AEGP|LED|ID|II|III|IV|N|S|E|W|NE|NW|SE|SW|RV|ATV|UTV|POA|LDPE|HDPE|PVC|ACM)$/;
+function docTitle(t){
+  const letters=t.replace(/[^A-Za-z]/g,"");const up=letters.replace(/[^A-Z]/g,"").length;
+  if(letters.length<5||up/letters.length<0.7)return t;
+  const small=/^(a|an|and|or|of|the|to|for|on|in|at|by|with|from|per)$/i;
+  return t.split(/(\s+|-|\/)/).map((w,i)=>{if(!/[A-Za-z]/.test(w))return w;
+    if(DOC_KEEP.test(w)||/\d/.test(w))return w.toUpperCase().replace(/^(\d+)MPH$/,"$1 MPH");
+    if(i>0&&small.test(w))return w.toLowerCase();
+    return w.charAt(0).toUpperCase()+w.slice(1).toLowerCase()}).join("");
+}
+function docTidyName(t,src){
+  let x=String(t||"").replace(/\s+/g," ").replace(/\s+([,.;:)])/g,"$1").replace(/\(\s+/g,"(").trim();
+  if(src&&!isCharge(src)){
+    const code=String(src.code||"").split("|")[0].trim();
+    if(src.size)x=x.replace(/^\d+(?:\.\d+)?\s*["”]?\s*[x×X]\s*\d+(?:\.\d+)?\s*["”]?\s*(?:in\.?\s*)?/,"");
+    if(code)x=x.replace(new RegExp("\\s*\\(?\\b(?:MUTCD\\s+)?"+code.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\b\\)?","i")," ").trim();
+    for(let k=0;k<4;k++)x=x.replace(/[\s,–—-]*\(?(?:3M\s+)?(?:diamond\s+grade|high\s+intensity(?:\s+prismatic)?|engineer\s+grade|dg3|hip|aegp|eg|0?\.0?\d{2,3}(?:\s*(?:alum(?:inum)?|gauge|ga))?|alum(?:inum)?|reflective)\)?[\s,]*$/i,"").trim();
+    x=x.replace(/^\s*[-–—,]\s*/,"");
+  }
+  x=docTitle(x.replace(/\s{2,}/g," ").trim()).replace(/(\d)\s*mph\b/gi,"$1 MPH");
+  if(src&&!isCharge(src))x=x.replace(/(\S\s)(For|Of|And|Or|The|To|On|In|At|By|With)(?=\s)/g,(m,a,w)=>a+w.toLowerCase());
+  return x||String(t||"");
+}
+function docSheeting(g){const t=String(g||"").trim();if(!t)return "";
+  const m={DG3:"3M Diamond Grade DG3",HIP:"3M High Intensity Prismatic",EG:"Engineer Grade",AEGP:"3M Advanced Engineer Grade"};
+  const k=t.toUpperCase().replace(/\s+/g," ");if(m[k])return m[k];
+  if(/^DG3\s+FYG/i.test(t))return "3M Diamond Grade DG3 fluorescent yellow-green";
+  return custMaterial(t)||t}
+function docChips(src){if(!src||isCharge(src))return [];const out=[];
+  const code=String(src.code||"").split("|")[0].trim();
+  if(code&&/^[A-Z]{1,3}\d/i.test(code))out.push(["code",code.replace(/^[a-z]+/,m=>m.toUpperCase())]);
+  if(src.size)out.push(["sz",sizeLabel(src.size)]);
+  const sh=docSheeting(src.grade);if(sh)out.push(["",sh]);
+  const ga=String(src.blank||src.gauge||"").trim();if(ga)out.push(["",ga]);
+  return out}
+const DOC_ICONS={
+  pin:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D50101" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.6"/></svg>',
+  oct:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D50101" stroke-width="2.2" stroke-linejoin="round"><polygon points="8,2 16,2 22,8 22,16 16,22 8,22 2,16 2,8"/><path d="M8 12l3 3 5-6" stroke-linecap="round"/></svg>',
+  shine:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D50101" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/><circle cx="12" cy="12" r="3"/></svg>',
+  clock:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D50101" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>'};
+function docPromises(b){
+  const def=[["pin","Made in Washington, Utah","Built and inspected in our own shop."],
+    ["oct","Built to MUTCD standards","Correct shapes, colors, sizes and legends."],
+    ["shine","3M reflective sheeting","On .080 aluminum unless noted."],
+    ["clock","A real person, fast","Your ship date confirmed the same day you order."]];
+  try{const c=String(b.quotePromises||"").trim();if(c){const rows=c.split(/\n+/).map(r=>r.split("|").map(x=>x.trim())).filter(r=>r[0]);
+    if(rows.length)return rows.slice(0,4).map((r,i)=>[def[i]?def[i][0]:"oct",r[0],r[1]||""])}}catch(e){}
+  return def}
 function docHTML(p,kind){
   const a=acct(p.accountId)||{};
   const rep2=repFor(p);
@@ -2749,82 +2786,102 @@ function docHTML(p,kind){
     &&/\bunit\s+prices?\b|\bper\s+sign\b/i.test(String(p.scope||"")+" "+String(p.notes||""))));
   const qNote=b.quoteNote||("This quote is good for "+qDays+" days from the date above. Prices are per piece and include materials to the stated specification. Freight quoted separately where it applies. Lead time confirmed on order.");
   const lamLine=kind==="quote"&&!/overlaminate/i.test(qNote)&&lines.some(l=>{try{return l.src&&!isCharge(l.src)&&linePrinted(l.src)}catch(e){return false}});
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${kind==="quote"?"Quote":"Invoice"} ${esc(no)}</title>
+  const word=kind==="quote"?(b.quoteWord||"Quote"):"Invoice";
+  const addr=[a.street,a.city,a.state,a.zip].filter(Boolean).join(", ");
+  const first=String((bc&&bc.name)||"").trim().split(/\s+/)[0]||"";
+  const nSigns=lines.filter(l=>!(l.src&&isCharge(l.src))).reduce((t,l)=>t+(Number(l.qty)||0),0);
+  const save=(function(){if(!a.showSavings)return 0;return lines.reduce((t,l)=>{if(!l.unit||!l.src||isCharge(l.src))return t;
+        const lp=listPrice(l.src);return t+(lp&&lp.price>l.unit?(lp.price-l.unit)*l.qty:0)},0)})();
+  const row=(l,ix)=>{const it=docItem(l,fnote);const chg=l.src&&isCharge(l.src);
+    const pic=!chg&&l.src&&b.quotePics!==false?linePic(p,l.src):"";
+    const chips=l.src?docChips(l.src):[];
+    const name=l.src?docTidyName(it.name,l.src):it.name;
+    // what's left of the old sub-line once the chips say the code, size and sheeting
+    const said=docNorm(name+" "+chips.map(c=>c[1]).join(" ")+" "+String(l.src&&l.src.grade||"")+" "+String(l.src&&l.src.size||""));
+    const sub2=l.src?String(it.sub||"").split(" · ").filter(x=>x&&said.indexOf(docNorm(x))<0&&!/^\d+\s*["”]?\s*[x×]\s*\d+/.test(x)).join(" · "):it.sub;
+    return `<tr${chg?' class="chg"':""}>
+      <td class="n">${String(ix+1).padStart(2,"0")}</td>
+      <td class="item"><div class="it">${chg?"":`<div class="pic${pic?"":" none"}">${pic?`<img src="${esc(pic)}" data-fb="${esc(picFb(l.src))}" alt="${esc(name)}">`:""}</div>`}<div>
+        ${it.tag?`<span class="tag">${esc(it.tag)}</span>`:""}<span class="nm">${esc(name)}${it.fn?"<sup>†</sup>":""}</span>
+        ${chips.length?`<div class="chips">${chips.map(c=>`<span class="chip ${c[0]}">${esc(c[1])}</span>`).join("")}</div>`:""}
+        ${it.spec?`<span class="spec">${esc(it.spec)}</span>`:""}${sub2?`<span class="sub">${esc(sub2)}</span>`:""}
+        ${l.src&&l.src.noLam?`<span class="sub" style="font-weight:700">${esc(NOLAM_TXT)}</span>`:""}</div></div></td>
+      ${unitMode?`<td class="r qty">${chg?"per order":"each"}</td>`:`<td class="r qty">${l.qty}</td>`}
+      <td class="r unit${unitMode?" amt":""}">${(function(){if(!l.unit)return "—";
+        const lp=(a.showSavings&&l.src&&!isCharge(l.src))?listPrice(l.src):null;
+        return lp&&lp.price>l.unit+0.004?`<span style="text-decoration:line-through;color:#8A919A;font-size:10px">${money2(lp.price)}</span><br>${money2(l.unit)}`:money2(l.unit)})()}</td>
+      ${unitMode?"":`<td class="r amt">${l.unit?money2(l.qty*l.unit):"—"}</td>`}</tr>`};
+  const hello=kind==="quote"&&lines.length?`<div class="hello">${first?`<b>${esc(first)}</b>, thank`:"Thank"} you for the chance to quote ${esc(p.name||"this project")}.
+    Here is our pricing for ${nSigns?nSigns+" sign"+(nSigns===1?"":"s"):"your order"}${lines.some(l=>l.src&&isCharge(l.src))?" with delivery":""}, every one built to order in our shop.</div>`:"";
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(word)} ${esc(no)}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;700;800;900&display=swap" rel="stylesheet">
   <style>${DOC_CSS}</style></head><body>
   <div class="hint">Press Ctrl-P (or Cmd-P) and choose "Save as PDF" to send it, or print it.</div>
   <div class="sheet">
   <div class="top">
-    <div>${b.logo?`<img src="${b.logo}" alt="">`:""}
-      <div class="co"><b>${esc(b.name||"Street Sign Supply")}</b>${esc(b.address||"Washington, UT")}${b.phone?"<br>"+esc(fmtPhone(b.phone)):""}${b.email?"<br>"+esc(b.email):""}</div></div>
-    <div class="dt"><h1>${kind==="quote"?esc(String(b.quoteWord||"Quote").toUpperCase()):"INVOICE"}</h1>
-      <table class="dtt"><tbody>
-        <tr><td>${kind==="quote"?esc(b.quoteWord||"Quote"):"Invoice"} #</td><td>${esc(no||"(no number yet)")}</td></tr>
-        <tr><td>Date</td><td>${f(when)}</td></tr>
-        ${kind==="quote"?`<tr><td>Expiration date</td><td>${f(new Date(when.getTime()+qDays*86400000))}</td></tr>`
-          :`<tr><td>Terms</td><td>${esc(a.terms||"Due on receipt")}</td></tr><tr><td>Due date</td><td>${f(due)}</td></tr>`}
-      </tbody></table></div>
+    <div class="brandside">${b.logo?`<img src="${b.logo}" alt="">`:""}
+      <div class="co"><b>${esc(b.name||"Street Sign Supply")}</b>${esc(b.address||"Washington, UT")}${b.phone?"<br>"+esc(fmtPhone(b.phone)):""}${b.email?" · "+esc(b.email):""}</div></div>
+    <div class="docside"><h1>${esc(String(word).toUpperCase())}</h1><div class="plate"><span>${esc(no||"DRAFT")}</span></div></div>
   </div>
-  <div class="rule"></div>
+  <div class="stripe"></div>
+  <div class="pad">
   <div class="meta">
-    <div><b>Bill to</b>${esc(a.name||"")}
-      ${bc?"<br>Attn: "+esc(bc.name):""}<br>${esc([a.street,a.city,a.state,a.zip].filter(Boolean).join(", "))}</div>
-    <div><b>Ship to</b>${esc(p.shipTo||[a.street,a.city,a.state,a.zip].filter(Boolean).join(", ")||"Same as billing")}</div>
-    <div><b>Project</b>${esc(p.name)}<br>P-${p.num}${p.po?"<br>P.O. "+esc(p.po):""}</div>
+    <div><b>${kind==="quote"?"Prepared for":"Bill to"}</b><span class="big">${esc(a.name||"")}</span>${bc?"Attn: "+esc(bc.name)+"<br>":""}${esc(addr)}</div>
+    <div><b>Ship to</b>${esc(p.shipTo||addr||"Same as billing")}${((p.ship||{}).method)==="Will call"?"<br>Will call — pick up in Washington, UT":""}</div>
+    <div><b>Project</b><span class="big">${esc(p.name||"")}</span>P-${p.num}${p.po?"<br>PO "+esc(p.po):""}</div>
+    <div><b>${kind==="quote"?"Quote details":"Invoice details"}</b>
+      <div class="kv"><i>Date</i><span>${f(when)}</span></div>
+      ${kind==="quote"?`<div class="kv"><i>Valid until</i><span>${f(new Date(when.getTime()+qDays*86400000))}</span></div>`
+        :`<div class="kv"><i>Terms</i><span>${esc(a.terms||"Due on receipt")}</span></div><div class="kv"><i>Due</i><span>${f(due)}</span></div>`}
+      ${rep2?`<div class="kv"><i>Contact</i><span>${esc(rep2.name)}</span></div>`:""}</div>
   </div>
+  ${hello}
   ${unitMode?`<div class="ups"><b>Unit price schedule</b><span>Prices are per sign${p.scope&&/minimum/i.test(p.scope)?" — order minimums are in the scope below":""}.</span></div>`:""}
-  <table><thead><tr><th class="n">#</th><th>Item</th>${unitMode?`<th style="width:80px" class="r">Unit</th>`:`<th style="width:52px" class="r">Qty</th>`}
-    <th class="r" style="width:92px">Unit price</th>${unitMode?"":`<th class="r" style="width:100px">Amount</th>`}</tr></thead><tbody>
-    ${lines.length?lines.map((l,ix)=>{const it=docItem(l,fnote);const chg=l.src&&isCharge(l.src);
-      const pic=!chg&&l.src&&b.quotePics!==false?linePic(p,l.src):"";
-      return `<tr${chg?' class="chg"':""}>
-      <td class="n">${ix+1}</td>
-      <td class="item"><div class="it">${pic?`<div class="pic"><img src="${esc(pic)}" data-fb="${esc(picFb(l.src))}" alt=""></div>`:""}<div>
-        ${it.tag?`<span class="tag">${esc(it.tag)}</span>`:""}<span class="nm">${esc(it.name)}${it.fn?"<sup>†</sup>":""}</span>
-        ${it.spec?`<span class="spec">${esc(it.spec)}</span>`:""}${it.sub?`<span class="sub">${esc(it.sub)}</span>`:""}
-        ${l.src&&l.src.noLam?`<span class="sub" style="font-weight:700">${esc(NOLAM_TXT)}</span>`:""}</div></div></td>
-      ${unitMode?`<td class="r qty">${chg?"per order":"each"}</td>`:`<td class="r qty">${l.qty}</td>`}
-      <td class="r rate${unitMode?" amt":""}">${(function(){if(!l.unit)return "—";
-        const lp=(a.showSavings&&l.src&&!isCharge(l.src))?listPrice(l.src):null;
-        return lp&&lp.price>l.unit+0.004?`<span style="text-decoration:line-through;color:#7A828C;font-size:10.5px">${money2(lp.price)}</span><br>${money2(l.unit)}`:money2(l.unit)})()}</td>
-      ${unitMode?"":`<td class="r amt">${l.unit?money2(l.qty*l.unit):"—"}</td>`}</tr>`}).join("")
-    :`<tr><td colspan="5" style="text-align:center;color:#888;padding:22px">No priced lines on this project yet.</td></tr>`}
+  <table class="lines"><thead><tr><th>#</th><th>Item</th>${unitMode?`<th style="width:70px" class="r">Unit</th>`:`<th style="width:46px" class="r">Qty</th>`}
+    <th class="r" style="width:84px">Unit price</th>${unitMode?"":`<th class="r" style="width:92px">Amount</th>`}</tr></thead><tbody>
+    ${lines.length?lines.map(row).join(""):`<tr><td colspan="5" style="text-align:center;color:#888;padding:22px">No priced lines on this project yet.</td></tr>`}
   </tbody></table>
   ${fnote?`<div class="fn"><b style="color:#D50101">†</b> ${esc(fnote)}</div>`:""}
-  ${unitMode?`<div class="totwrap"><div class="tot upt"><div><span>Sales tax</span><span>${exempt?"Exempt":rate?rate+"% on the invoice":"On the invoice"}</span></div>
-    <div class="g"><span>Order total</span><span style="font-size:13px;color:#15181C">Quantity × unit price${lines.some(l=>l.src&&isCharge(l.src))?" + delivery":""}</span></div></div></div>`:`<div class="totwrap"><div class="tot">
-    ${(function(){if(!a.showSavings)return "";const save=lines.reduce((t,l)=>{if(!l.unit||!l.src||isCharge(l.src))return t;
-        const lp=listPrice(l.src);return t+(lp&&lp.price>l.unit?(lp.price-l.unit)*l.qty:0)},0);
-      return save>0.009?`<div style="color:#0A7A3E"><span>You save</span><span>${money2(save)}</span></div>`:""})()}
-    <div><span>Subtotal</span><span>${money2(sub)}</span></div>
-    <div><span>${exempt?"Sales tax — exempt"+(a.exemptExp?" (cert. to "+f(new Date(a.exemptExp+"T00:00:00"))+")":""):rate?"Sales tax "+rate+"% (estimate)":"Sales tax (estimate)"}</span>
-      <span>${exempt?"$0.00":rate?money2(tax):kind==="quote"?"on the invoice":"—"}</span></div>
-    ${!exempt?`<div class="notes" style="padding:2px 0 0;font-size:10px">Sales tax is an estimate; QuickBooks calculates the final tax on the invoice.</div>`:""}
-    ${dep?`<div><span>Less deposit received</span><span>−${money2(dep)}</span></div>`:""}
-    <div class="g"><span>${kind==="quote"?"Total":"Amount due"}</span><span>${money2(total)}</span></div>
-  </div></div>`}
+  <div class="sum">
+    ${kind==="quote"?`<div class="why"><div class="h">Why Street Sign Supply</div>
+      ${docPromises(b).map(x=>`<div class="p">${DOC_ICONS[x[0]]||""}<div><b>${esc(x[1])}</b>${esc(x[2])}</div></div>`).join("")}</div>`:`<div style="flex:1"></div>`}
+    <div class="tot">
+    ${unitMode?`<div class="row"><span>Sales tax</span><span>${exempt?"Exempt":rate?rate+"% on the invoice":"On the invoice"}</span></div>
+      <div class="grand"><span>Order total</span><span style="font-size:12px;font-weight:700">Qty × unit price${lines.some(l=>l.src&&isCharge(l.src))?" + delivery":""}</span></div>`
+    :`${save>0.009?`<div class="row save"><span>You save</span><span>${money2(save)}</span></div>`:""}
+      <div class="row"><span>Subtotal</span><span>${money2(sub)}</span></div>
+      <div class="row"><span>${exempt?"Sales tax — exempt"+(a.exemptExp?" (cert. to "+f(new Date(a.exemptExp+"T00:00:00"))+")":""):rate?"Sales tax "+rate+"% (estimate)":"Sales tax (estimate)"}</span>
+        <span>${exempt?"$0.00":rate?money2(tax):kind==="quote"?"on the invoice":"—"}</span></div>
+      ${!exempt?`<div class="est">Sales tax is an estimate; the final tax is calculated on the invoice.</div>`:""}
+      ${dep?`<div class="row"><span>Less deposit received</span><span>−${money2(dep)}</span></div>`:""}
+      <div class="grand"><span>${kind==="quote"?"Total":"Amount due"}</span><span>${money2(total)}</span></div>`}
+    </div>
+  </div>
   <div class="blocks">
     <div>
-      <div class="lbl">${kind==="quote"?"Notes":"Payment"}</div>
-      <div class="notes">${kind==="quote"?esc(qNote):esc(b.payNote||"Please reference the invoice number with your payment.")}
-        ${p.scope?`<div style="margin-top:9px"><span class="lbl" style="display:block">Scope</span>${esc(p.scope).replace(/\n/g,"<br>")}</div>`:""}
-        ${rep2?`<div style="margin-top:9px"><span class="lbl" style="display:block">Prepared by</span>${esc(rep2.name)}${b.phone?" · "+esc(fmtPhone(b.phone)):""}${b.email?" · "+esc(b.email):""}</div>`:""}</div>
+      <div class="lbl">${kind==="quote"?"Terms":"Payment"}</div>
+      <div class="terms">${kind==="quote"?esc(qNote):esc(b.payNote||"Please reference the invoice number with your payment.")}
+        ${p.scope?`<span class="k">Scope</span>${esc(p.scope).replace(/\n/g,"<br>")}`:""}
+        ${rep2?`<span class="k">Your contact</span>${esc(rep2.name)}${b.phone?" · "+esc(fmtPhone(b.phone)):""}${b.email?" · "+esc(b.email):""}`:""}
+        ${lamLine?`<span class="k">Overlaminate</span>Printed signs are supplied with a clear protective overlaminate unless marked otherwise.`:""}</div>
     </div>
     ${kind==="quote"?`<div>
-      <div class="lbl">To accept this quote</div>
+      <div class="lbl">Ready to order?</div>
+      <div class="steps"><div><i>1</i>Reply "approved", send a PO, or sign below.</div>
+        <div><i>2</i>We confirm your ship date the same day.</div>
+        <div><i>3</i>Your signs are built, inspected and shipped${((p.ship||{}).method)==="Will call"?" or ready for pickup":""}.</div></div>
       <div class="sign">
         <div class="line"></div><div class="cap">Signature</div>
-        <div style="display:flex;gap:14px;margin-top:12px">
-          <div style="flex:2"><div class="line"></div><div class="cap">Printed name and title</div></div>
+        <div class="two"><div style="flex:2"><div class="line"></div><div class="cap">Printed name and title</div></div>
           <div style="flex:1"><div class="line"></div><div class="cap">Date</div></div></div>
-        <div style="display:flex;gap:14px;margin-top:12px">
-          <div style="flex:1"><div class="line"></div><div class="cap">Purchase order number</div></div></div>
+        <div class="two"><div style="flex:1"><div class="line"></div><div class="cap">Purchase order number</div></div></div>
       </div>
-      <div class="notes" style="margin-top:8px">Sign and return this page, or reply with a PO — we'll confirm the lead time the same day.</div>
     </div>`:""}
   </div>
-  ${lamLine?`<div class="notes" style="margin-top:12px;text-align:center">Printed signs are supplied with a clear protective overlaminate unless marked otherwise.</div>`:""}
-  ${b.docFooter?`<div class="notes" style="margin-top:14px;text-align:center">${esc(b.docFooter)}</div>`:""}
-  <div class="foot"><span>${esc(b.name||"Street Sign Supply")}${b.phone?" · "+esc(fmtPhone(b.phone)):""}</span><span>${kind==="quote"?"Quote":"Invoice"} ${esc(no)} · P-${p.num}</span></div>
+  ${b.docFooter?`<div class="terms" style="margin-top:14px;text-align:center">${esc(b.docFooter)}</div>`:""}
+  </div>
+  <div class="foot"><span><b>${esc(b.name||"Street Sign Supply")}</b>${b.phone?" · "+esc(fmtPhone(b.phone)):""}${b.email?" · "+esc(b.email):""}</span><span>${esc(word)} ${esc(no)} · P-${p.num}</span></div>
   </div>
   ${unpriced?`<script>console.warn("${unpriced} line(s) have no price")<\/script>`:""}
   <script>setTimeout(function(){try{window.print()}catch(e){}},500)<\/script>
@@ -2890,7 +2947,18 @@ async function inlineImages(doc){
     // never a blank square: the plain drawing of the sign, or its name in a box
     if(!d)d=im.getAttribute("data-fb")||"";
     if(!d){const sp=doc.createElement("span");sp.className="nopic";sp.textContent=im.getAttribute("alt")||"picture";im.replaceWith(sp);return}
-    await new Promise(r=>{im.onload=im.onerror=r;im.src=d;setTimeout(r,3000)})}))}
+    await new Promise(r=>{im.onload=im.onerror=r;im.src=d;setTimeout(r,3000)})}));
+  const svgs=[...doc.images].filter(im=>/^data:image\/svg\+xml/i.test(im.getAttribute("src")||""));
+  await Promise.all(svgs.map(async im=>{const png=await svgToPng(im.getAttribute("src"));if(!png)return;
+    await new Promise(r=>{im.onload=im.onerror=r;im.src=png;setTimeout(r,3000)})}))}
+async function svgToPng(uri){try{
+  let txt=uri.indexOf(";base64,")>0?decodeURIComponent(escape(atob(uri.split(";base64,")[1]))):decodeURIComponent(uri.split(",").slice(1).join(","));
+  const vb=(txt.match(/viewBox="\s*[-\d.]+[\s,]+[-\d.]+[\s,]+([\d.]+)[\s,]+([\d.]+)/)||[]);let w=+vb[1]||100,h=+vb[2]||100;
+  const k=Math.max(1,480/Math.max(w,h));const W=Math.round(w*k),H=Math.round(h*k);
+  if(!/<svg[^>]*\swidth=/.test(txt))txt=txt.replace(/<svg/,'<svg width="'+W+'" height="'+H+'"');
+  const im=new Image();const src="data:image/svg+xml;base64,"+btoa(unescape(encodeURIComponent(txt)));
+  await new Promise((ok,no)=>{im.onload=ok;im.onerror=no;im.src=src;setTimeout(no,4000)});
+  const c=document.createElement("canvas");c.width=W;c.height=H;c.getContext("2d").drawImage(im,0,0,W,H);return c.toDataURL("image/png")}catch(e){return ""}}
 // opt: {w,h} page inches; pages: selector for one element per page (labels); footer: text before "Page x of y"
 async function htmlToPdf(html,opt){
   const L=await pdfLibs();const DPI=96,SC=2;
@@ -2925,7 +2993,7 @@ async function htmlToPdf(html,opt){
       const body=d.body,total=Math.ceil(Math.max(body.scrollHeight,d.documentElement.scrollHeight));
       // blocks that must stay whole on one page: a row, the totals, the signature box, a checklist…
       // measured in the copy the picture is drawn from, so the cuts line up exactly with what's drawn
-      const KEEP="tr,.sign,.notes,.totwrap,.tot,.check,.opt,.sig,.art,.pj-box,.pj-grid,.pj-notes,.pj-top,.foot,.terms,.blocks,.meta,.top,.secthead";
+      const KEEP="tr,.sign,.notes,.totwrap,.tot,.check,.opt,.sig,.art,.pj-box,.pj-grid,.pj-notes,.pj-top,.foot,.terms,.blocks,.meta,.top,.secthead,.sum,.why,.hello,.steps";
       let keeps=[],cands=[],base=0;
       const measure=cd=>{base=cd.body.getBoundingClientRect().top;
         keeps=[...cd.querySelectorAll(KEEP)].map(e=>{const r=e.getBoundingClientRect();return [r.top-base,r.bottom-base]}).filter(x=>x[1]-x[0]<ph*0.8);
@@ -8740,7 +8808,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-16";
+const APP_VERSION="2026.11.25-17";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}

@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-17 — 2026-10-25
+- New quote and invoice design: branded header with the quote number on a red sign plate, large sign pictures, clean product names with code, size and sheeting chips, a personal note, Why Street Sign Supply strip, bold total, and a 3-step Ready to order block
+- SVG drawings are drawn crisply into the PDF
+
 ## 2026.11.25-16 — 2026-10-25
 - Work orders and quotes: pictures from other websites are copied into the PDF instead of being dropped
 - if one can't be copied, the sign's drawing (or its name) shows instead of a blank box
