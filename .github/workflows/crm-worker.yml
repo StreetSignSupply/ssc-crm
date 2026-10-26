@@ -3,6 +3,9 @@ on:
   schedule:
     - cron: "*/15 * * * *"
   workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths: [".github/workflows/crm-worker.yml", "worker/**"]
 permissions:
   contents: read
   id-token: write
@@ -12,10 +15,13 @@ concurrency:
 jobs:
   run:
     runs-on: ubuntu-latest
+    env:
+      HAS_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' && 'yes' || 'no' }}
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
       - name: Google sign-in (keyless, no stored key)
+        id: gauth
         continue-on-error: true
         uses: google-github-actions/auth@v2
         with:
@@ -23,11 +29,12 @@ jobs:
           service_account: firebase-adminsdk-fbsvc@ssc-crm-a7224.iam.gserviceaccount.com
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
       - name: Install
         working-directory: worker
         run: npm install --no-audit --no-fund --silent && npx playwright install --with-deps chromium > /dev/null
       - name: Run the CRM
+        if: ${{ steps.gauth.outcome == 'success' || env.HAS_KEY == 'yes' }}
         working-directory: worker
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
