@@ -2837,7 +2837,7 @@ function docHTML(p,kind){
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(word)} ${esc(no)}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <style>${DOC_CSS}</style></head><body class="st-${esc(["clean","red","cat"].indexOf(b.quoteLook)>=0?b.quoteLook:"clean")}">
+  <style>${DOC_CSS}</style></head><body class="st-${esc(["clean","red","cat"].indexOf(b.quoteLook)>=0?b.quoteLook:"cat")}">
   <div class="hint">Press Ctrl-P (or Cmd-P) and choose "Save as PDF" to send it, or print it.</div>
   <div class="sheet">
   <div class="top">
@@ -6689,7 +6689,7 @@ function docsModal(){
   const b=S.brand||{};
   openModal(mshell("Documents and emails","file",`<div style="padding:12px 15px"><div class="fgrid">
     ${sel("dc-word","Call quotes",b.quoteWord||"Quote",["Quote","Estimate","Proposal"])}
-    ${sel("dc-look","Quote and invoice look",b.quoteLook||"clean",[{v:"clean",l:"1 · Clean white, red rule"},{v:"red",l:"2 · Red header"},{v:"cat",l:"3 · Catalog, framed number"}])}
+    ${sel("dc-look","Quote and invoice look",b.quoteLook||"cat",[{v:"clean",l:"1 · Clean white, red rule"},{v:"red",l:"2 · Red header"},{v:"cat",l:"3 · Catalog, framed number"}])}
     <div class="fld full"><div class="k">Footer line on quotes — e.g. your licence number, or "Thank you for your business"</div>
       <input id="dc-foot" value="${esc(b.docFooter||"")}"></div>
     <div class="fld full"><div class="k">Tracking email — {name}, {project}, {carrier}, {tracking} fill themselves in</div>
@@ -8828,7 +8828,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-20";
+const APP_VERSION="2026.11.25-21";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
