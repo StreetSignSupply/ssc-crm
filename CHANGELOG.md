@@ -1,5 +1,10 @@
 # What changed
 
+## 2026.11.25-16 — 2026-10-25
+- Work orders and quotes: pictures from other websites are copied into the PDF instead of being dropped
+- if one can't be copied, the sign's drawing (or its name) shows instead of a blank box
+- codes saved with the size attached (R1-1|30X30) find their picture
+
 ## 2026.11.25-15 — 2026-10-26
 - Quote pictures always match the line: a coded sign (R6-1, W1-2, R2-1…) finds the website sign with the same legend and direction ("left" never shows a right arrow, "Speed Limit 25" shows 25); with no direction given, the right-hand version is used every time
 - A line with no picture anywhere gets a clean drawing that carries its own words; a warning sign is a diamond only when it's square (an 18x24 alligator sign is a yellow rectangle)
