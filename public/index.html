@@ -8606,7 +8606,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-10";
+const APP_VERSION="2026.11.25-11";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -9453,9 +9453,26 @@ function fileCard(kind,id){
     ${more}
   </section>`;
 }
+// a document the agents stored in Google Drive: its file id, or "" when the link isn't a Drive file
+function driveId(u){u=String(u||"");const m=u.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:[^#]*&)?id=)([A-Za-z0-9_-]{15,})/)||u.match(/docs\.google\.com\/(?:document|spreadsheets|presentation)\/d\/([A-Za-z0-9_-]{15,})/);return m?m[1]:""}
+function driveKind(u){const m=String(u||"").match(/docs\.google\.com\/(document|spreadsheets|presentation)\//);return m?m[1]:"file"}
+function drivePreview(u){const id=driveId(u),k=driveKind(u);if(!id)return "";
+  return k==="file"?"https://drive.google.com/file/d/"+id+"/preview":"https://docs.google.com/"+k+"/d/"+id+"/preview"}
+function driveDownload(u){const id=driveId(u),k=driveKind(u);if(!id)return "";
+  return k==="file"?"https://drive.google.com/uc?export=download&id="+id:"https://docs.google.com/"+k+"/d/"+id+"/export?format="+(k==="spreadsheets"?"xlsx":"pdf")}
 function linkHost(u){return ((String(u||"").match(/^https?:\/\/([^\/?#]+)/i)||[])[1]||"link").replace(/^www\./,"")}
 // a file the agents linked (Google Drive and the like): nothing stored here, it opens where it lives
 function linkTile(f,showSrc){
+  if(driveId(f.url)){const ext=((f.name||"").match(/\.([a-z0-9]{2,4})$/i)||[,"PDF"])[1].toUpperCase();
+    return `<div class="ftile" data-view="${esc(f.id)}" style="cursor:pointer"><div class="th" title="View ${esc(f.name)}"><span class="ext">${esc(ext)}</span></div>
+    <div class="meta"><b class="nm" title="${esc(f.name)}">${esc(f.name)}</b>
+      <span class="sub">${esc(f.cat||"Other")} · saved in Google Drive${f.who==="AI"?" · added by the agents":""}</span>
+      ${showSrc&&f._src?`<span class="pill" style="margin-top:3px">${esc(f._src)}</span>`:""}</div>
+    <div class="row" data-stop="1">
+      <button class="btn sm" data-view="${esc(f.id)}">View</button>
+      <a class="btn sm" href="${esc(driveDownload(f.url))}" target="_blank" rel="noopener" style="text-decoration:none" title="Download the file">Download</a>
+      <span style="flex:1"></span>
+      ${S.canUpload?`<button class="btn sm d" data-delfile="${esc(f.id)}">Delete</button>`:""}</div></div>`}
   return `<div class="ftile"><a class="th" href="${esc(f.url)}" target="_blank" rel="noopener" title="Open ${esc(f.name)}" style="text-decoration:none"><span class="ext">LINK</span></a>
     <div class="meta"><b class="nm" title="${esc(f.name)}">${esc(f.name)}</b>
       <span class="sub">${esc(f.cat||"Other")} · ${esc(linkHost(f.url))}${f.who==="AI"?" · added by the agents":""}</span>
@@ -10878,7 +10895,7 @@ function viewFile(fid){
   const f=S.files.get(fid);
   if(!f){toast("That file isn't in the list any more — reload the page.");return}
   if(f.deleted){toast("That file is in the recycle bin.");return}
-  if(f.link){const w=window.open(f.url,"_blank","noopener");if(!w)toast("Your browser blocked the new tab — the link is "+f.url);return}
+  if(f.link&&!driveId(f.url)){const w=window.open(f.url,"_blank","noopener");if(!w)toast("Your browser blocked the new tab — the link is "+f.url);return}
   S.viewerFile=fid;
   render();
 }
@@ -10893,7 +10910,8 @@ function viewerHTML(){
   const p2=f.projectId?S.projects.get(f.projectId):null;
   let stage;
   const isSvg=/svg/i.test(f.type||"")||/\.svg$/i.test(f.name||"");
-  if(isImg)stage=`<img src="${esc(f.url)}" alt="${esc(f.name)}"${isSvg?` style="background:#fff"`:""}>`;
+  if(f.link&&driveId(f.url))stage=`<iframe src="${esc(drivePreview(f.url))}" title="${esc(f.name)}" allow="autoplay"></iframe>`;
+  else if(isImg)stage=`<img src="${esc(f.url)}" alt="${esc(f.name)}"${isSvg?` style="background:#fff"`:""}>`;
   else if(isPdf||isTxt)stage=`<iframe src="${esc(f.url)}" title="${esc(f.name)}"></iframe>`;
   else stage=`<div class="nofit"><b style="display:block;font-size:16px;color:#fff;margin-bottom:8px">${esc(f.name)}</b>
     This type doesn't preview in the browser. Save it, or open it in a tab.</div>`;
@@ -10901,7 +10919,7 @@ function viewerHTML(){
     <header>
       <span class="oi sm oi-file">${ic("file",14)}</span><b>${esc(f.name)}</b>
       <span class="pill">${esc(f.cat||"Other")}</span>
-      <span class="sub" style="color:#9BA1A7">${bytes(f.size)} · ${esc(f.who||"")} · ${esc(f.when||"")}</span>
+      <span class="sub" style="color:#9BA1A7">${f.link?"saved in Google Drive":bytes(f.size)} · ${esc(f.who==="AI"?"agents":f.who||"")} · ${esc(f.when||"")}</span>
       ${p2?`<button class="btn sm" data-vgo="project/${esc(p2.id)}">${esc(p2.name)}</button>`:""}
       ${f.jobId?`<button class="btn sm" data-vgo="job/${esc(f.jobId)}">Work order ${esc(f.jobId)}</button>`:""}
       <span class="sp">
@@ -10918,7 +10936,7 @@ function viewerHTML(){
 }
 async function downloadFile(fid){
   const f=S.files.get(fid);if(!f)return;
-  if(f.link){window.open(f.url,"_blank","noopener");return}            // a link: it's saved where it lives
+  if(f.link){const d=driveDownload(f.url);window.open(d||f.url,"_blank","noopener");return}   // a Drive document downloads as the file; other links open where they live
   toast("Preparing "+f.name+"…");
   try{
     const res=await fetch(f.url);
@@ -14099,7 +14117,7 @@ function bind(){
         else{const a=document.createElement("a");a.href=URL.createObjectURL(d.blob);a.download=d.name;document.body.appendChild(a);a.click();a.remove()}
         toast(d.okMsg||"PDF saved")}catch(e){if(!(e&&e.code==="declined"))toast("Couldn't save it here.")}})();return}
     const nt=t.closest("[data-newtab]");if(nt){const f=S.files.get(nt.dataset.newtab);if(!f)return;
-      (async()=>{try{let u=f.url;if(/^data:/i.test(u)){const bl=await (await fetch(u)).blob();u=URL.createObjectURL(bl)}
+      (async()=>{try{let u=f.link&&driveId(f.url)?"https://drive.google.com/file/d/"+driveId(f.url)+"/view":f.url;if(/^data:/i.test(u)){const bl=await (await fetch(u)).blob();u=URL.createObjectURL(bl)}
         const w2=window.open(u,"_blank","noopener");if(!w2)toast("Your browser blocked the new tab — use Save a copy instead.")}catch(e){toast("Couldn't open it in a tab here — use Save a copy.")}})();return}
     const dlf=t.closest("[data-dl]");if(dlf){downloadFile(dlf.dataset.dl);return}
     const dfx=t.closest("[data-delfile]");

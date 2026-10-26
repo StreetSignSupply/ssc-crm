@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-11 — 2026-10-25
+- Documents the agents save in Google Drive (RFPs, bid forms, W-9s, certificates) now act like real files in the CRM: a PDF tile, View opens the PDF inside the CRM, and Download saves the PDF in one click (Google Docs download as PDF)
+
 ## 2026.11.25-10 — 2026-10-25
 - RFP and bid documents: agents can file RFPs, bid forms, addenda, W-9s, certificates, registrations and contracts as their own file types
 - a file can go on the account itself
