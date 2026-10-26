@@ -1,7 +1,7 @@
 name: CRM worker
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "7,37 * * * *"
   workflow_dispatch: {}
   push:
     branches: [main]
@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       HAS_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' && 'yes' || 'no' }}
-    timeout-minutes: 12
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - name: Google sign-in (keyless, no stored key)
@@ -34,11 +34,17 @@ jobs:
         working-directory: worker
         run: |
           npm install --no-audit --no-fund --loglevel=error 2>&1 | tail -5 || true
-          npx playwright install --with-deps chromium > /tmp/pw.log 2>&1 || { echo "::error::playwright install failed: $(tail -3 /tmp/pw.log | tr '\n' ' ')"; exit 1; }
+          # Google Chrome comes with the runner; only install Playwright's browser if it's missing
+          if ! command -v google-chrome >/dev/null 2>&1; then
+            timeout 420 npx playwright install chromium > /tmp/pw.log 2>&1 || { echo "::error::browser install failed: $(tail -3 /tmp/pw.log | tr '\n' ' ')"; exit 1; }
+          fi
       - name: Run the CRM
         if: ${{ steps.gauth.outcome == 'success' || env.HAS_KEY == 'yes' }}
         working-directory: worker
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           FIREBASE_PROJECT: ssc-crm-a7224
+          # stay open ~28 minutes: the CRM brings in the agents' feed every 15 minutes while it's open,
+          # so with a run every 30 minutes there's no gap even when GitHub starts a run late
+          RUN_MS: "1680000"
         run: node run.mjs || { echo "::error::worker exited with an error (see message above)"; exit 1; }

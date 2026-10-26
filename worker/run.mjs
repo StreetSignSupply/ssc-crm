@@ -47,7 +47,11 @@ async function store() {
 process.on("unhandledRejection", (e) => { console.log("::error::" + String(e && e.message || e).slice(0, 300).replace(/\n/g, " ")); process.exit(1); });
 process.on("uncaughtException", (e) => { console.log("::error::" + String(e && e.message || e).slice(0, 300).replace(/\n/g, " ")); process.exit(1); });
 const st = await store();
-const browser = await chromium.launch();
+// the runner already has Google Chrome: use it (no 10-minute browser install); fall back to Playwright's own
+let browser;
+try { browser = await chromium.launch({ channel: "chrome" }); } catch (e) { browser = await chromium.launch(); }
+// never hang past the job's time limit
+setTimeout(() => { console.log("::warning::watchdog: stopping after " + Math.round(RUN_MS / 60000) + " min"); process.exit(0); }, RUN_MS + 240000).unref();
 const page = await (await browser.newContext()).newPage();
 let errors = 0, writes = 0;
 page.on("pageerror", () => { errors++; });
