@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-19 — 2026-10-25
+- Quote and invoice redesign: light and clean, no black blocks, no bid-item tags, one spec line per sign, code shown quietly beside the name
+- three looks to choose from in Settings (Documents and emails)
+
 ## 2026.11.25-18 — 2026-10-25
 - Files: a Sign pictures gallery shows each quote line's picture with View/Save and a Make the proof for approval button
 - proofs include every line's picture even when no artwork was uploaded
