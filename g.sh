@@ -3,6 +3,15 @@
 PROJECT=ssc-crm-a7224
 REPO=StreetSignSupply/ssc-crm
 SA=firebase-adminsdk-fbsvc@$PROJECT.iam.gserviceaccount.com
+if [ -z "$(gcloud auth list --filter=status:ACTIVE --format='value(account)' 2>/dev/null)" ]; then
+  echo
+  echo "STEP A: Google needs you to sign in once."
+  echo "  1) Click the long link below (Ctrl+click), pick matt@streetsignsupply.com, click Allow."
+  echo "  2) Google shows a code with a Copy button. Copy it."
+  echo "  3) Come back here, click after 'Once finished, enter the verification code', press Ctrl+V, then Enter."
+  echo
+  gcloud auth login --no-launch-browser --update-adc --quiet || { echo "Sign-in didn't finish. Run: bash g.sh"; exit 1; }
+fi
 gcloud config set project $PROJECT >/dev/null 2>&1
 PNUM=$(gcloud projects describe $PROJECT --format='value(projectNumber)')
 echo "Setting up... (about a minute)"
@@ -18,4 +27,4 @@ gcloud iam service-accounts add-iam-policy-binding $SA --role=roles/iam.workload
   --member="principalSet://iam.googleapis.com/projects/$PNUM/locations/global/workloadIdentityPools/github/attribute.repository/$REPO" >/dev/null
 echo
 echo "DONE: projects/$PNUM/locations/global/workloadIdentityPools/github/providers/ssc-crm"
-echo "Send Claude a screenshot of the line above."
+echo "All set. Close this tab and tell Claude done."
