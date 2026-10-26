@@ -1,3 +1,4 @@
+// worker v2 (keyless)
 // CRM cloud worker: runs the real CRM (public/index.html) headless for a few minutes so the
 // agents' feed rows are applied and the CRM's outbound sync runs, even when no one has the CRM open.
 // Storage is the same Firestore the website uses, reached with a service account (GitHub secret
