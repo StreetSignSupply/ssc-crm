@@ -88,8 +88,10 @@ await page.route(/firebase-adapter\.js$/, (r) => r.fulfill({ status: 200, conten
 await page.goto(PAGE);
 await page.evaluate(() => window.__sscResolve && window.__sscResolve(window.__workerCore));
 await page.waitForTimeout(RUN_MS);
+const counts = await page.evaluate(() => { try { return document.title + " / " + (document.querySelector(".main")||document.body).innerText.length + " chars on screen"; } catch (e) { return ""; } }).catch(() => "");
+console.log("::notice::CRM loaded: " + counts);
 const ver = await page.evaluate(() => (document.body.innerText.match(/20\d\d\.\d+\.\d+-\d+/) || [""])[0]).catch(() => "");
-console.log(`CRM worker done: ${Math.round(RUN_MS / 1000)}s, ${writes} writes, ${errors} page errors${ver ? ", build " + ver : ""}`);
+console.log(`::notice::CRM worker done: ${Math.round(RUN_MS / 1000)}s, ${writes} writes, ${errors} page errors${ver ? ", build " + ver : ""}`);
 unsub.forEach((u) => { try { u(); } catch (e) {} });
 await browser.close();
 process.exit(0);
