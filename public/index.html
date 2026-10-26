@@ -8606,7 +8606,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-9";
+const APP_VERSION="2026.11.25-10";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -9437,14 +9437,20 @@ function gateRow(j,k,t,h){
 /* ========== files ========== */
 function fileCard(kind,id){
   const fs=filesOf(kind,id);
-  const scope=kind==="account"?"account-level only — project files live on the project"
+  const scope=kind==="account"?"this account, plus every file on its projects below"
     :kind==="project"?"this project only":"this work order only";
+  let more="";
+  if(kind==="account"){const I=String(id);
+    const sub=live(S.files).filter(f=>f.accountId===I&&(f.projectId||f.jobId)).sort((a,b)=>(b.at||0)-(a.at||0)).map(f=>{
+      const p=f.projectId?proj(f.projectId):null;return Object.assign({},f,{_src:f.jobId?("WO "+f.jobId):(p?("P-"+p.num+(p.name?" "+String(p.name).slice(0,28):"")):"project")})});
+    if(sub.length)more=`<div class="sub" style="padding:8px 14px 0">From this account's projects and work orders (${sub.length})</div><div class="fgal">${sub.map(f=>fileTile(f,true)).join("")}</div>`}
   return `<section class="card flush"><header><span class="oi sm oi-file">${ic("file",14)}</span><h2>Files</h2><span class="n">${fs.length}</span>
     <span class="sub" style="flex:1 1 100%;order:9">${esc(scope)}</span>
     <span class="sp">${S.canUpload?`<button class="btn sm p" data-upload="${kind}:${esc(String(id))}">Upload</button>`:""}</span></header>
-    ${fs.length?`<div class="fgal">${fs.map(fileTile).join("")}</div>`
+    ${fs.length?`<div class="fgal">${fs.map(f=>fileTile(f)).join("")}</div>`
     :`<div class="${S.canUpload?"drop":"empty"}" data-drop="${kind}:${esc(String(id))}">
       ${S.canUpload?"Drop proofs, POs, invoices, or photos here — or use Upload.":"No files. Uploading needs edit access."}</div>`}
+    ${more}
   </section>`;
 }
 function linkHost(u){return ((String(u||"").match(/^https?:\/\/([^\/?#]+)/i)||[])[1]||"link").replace(/^www\./,"")}
@@ -10628,6 +10634,7 @@ function settingsView(){
           with <span class="mono">qty</span> 0 and <span class="mono">on_order</span> N (plus <span class="mono">ref</span>, <span class="mono">expected</span>) they record a purchase order — on order, not on hand — and a later receipt with the same ref (or vendor) brings it down.
           An outgoing <b>email</b> activity row completes the entry the CRM made when that email was opened here — same contact (by <span class="mono">email</span>), within three hours of <span class="mono">when</span>, or the same day when <span class="mono">when</span> is only a date; an optional <span class="mono">at</span> ISO time narrows it. No new columns.
           A quote line may say <span class="mono">"overlaminate": false</span> when the customer declined the clear overlaminate on a printed sign, and <span class="mono">"img": "https://…"</span> for the picture of what the customer wants.
+          <b>file</b> rows take <span class="mono">kind</span> signed_quote, po, artwork, proof, photo, rfp, bid_form, addendum, w9, certificate, registration, contract or other; add <span class="mono">"scope":"account"</span> to file it on the account itself. Project files also show on the account's Files card.
           <b>picture</b> rows (<span class="mono">project</span>; <span class="mono">text</span> = JSON <span class="mono">[{"line":1,"img":"https://…"}]</span>, line by position, or by <span class="mono">code</span>/<span class="mono">desc</span>) put a picture on quote lines without touching prices.
           <b>draft</b> rows carry an email the writer drafted: <span class="mono">project</span> = the project's feed row_id, P-number or quote number; <span class="mono">stage</span> = which one —
           <span class="mono">1</span>, <span class="mono">2</span> or <span class="mono">3</span> (or followup1/2/3) for a planned follow-up, else <span class="mono">proof</span>, <span class="mono">shipping</span>, <span class="mono">invoice</span>, <span class="mono">quote</span> or <span class="mono">thanks</span> for a requested draft;
@@ -12589,7 +12596,9 @@ async function agentWO(p,due,note){
   }
   return {made,why:made.length?"":"the work order didn't save"};
 }
-const AGENT_FILE={signed_quote:"Signed quote",po:"Purchase order",artwork:"Artwork",proof:"Artwork proof",photo:"Photo",other:"Other"};
+const AGENT_FILE={signed_quote:"Signed quote",po:"Purchase order",artwork:"Artwork",proof:"Artwork proof",photo:"Photo",
+  rfp:"RFP / bid documents",bid_form:"Bid form (filled)",addendum:"Bid addendum",w9:"W-9",certificate:"Certificate (insurance / tax)",
+  registration:"Vendor registration",contract:"Contract",other:"Other"};
 function agentMime(name,url){if(/(drive|docs)\.google\.com/i.test(String(url||"")))return "";   // a Drive page, not the file itself
   const e=String(name||"").split("?")[0].split(".").pop().toLowerCase();
   return e==="pdf"?"application/pdf":/^(png|gif|webp)$/.test(e)?"image/"+e:/^jpe?g$/.test(e)?"image/jpeg":e==="svg"?"image/svg+xml":""}
@@ -12784,13 +12793,14 @@ async function pipeImportRows(rows){
         const appr=o.approved===true||/^(true|yes|y|1)$/i.test(String(o.approved==null?"":o.approved));
         const cat=kind==="proof"&&appr?"Signed proof":AGENT_FILE[kind];
         let name=String(o.name||"").trim();if(!name){try{name=decodeURIComponent(url.split(/[?#]/)[0].split("/").pop()||"")}catch(e){}}name=name||"Linked file";
-        const rt=p?"project":"account",ri=p?p.id:aid;
+        const acctLevel=p&&/^account$/i.test(String(o.scope||"").trim());
+        const rt=p&&!acctLevel?"project":"account",ri=p&&!acctLevel?p.id:aid;
         if(!on){await sugg(rt,ri,"attach “"+name+"” ("+cat+") — "+url);done[id]=1;mark(id);continue}
         const dup=filesOf(rt,ri).find(f=>f.url===url&&f.cat===cat);
         const lines=[dup?"Agents linked “"+name+"” again — it's already on file as "+cat+".":"Agents attached “"+name+"” ("+cat+") as a link: "+url];
         if(!dup){const fid=uid("f");
           await setDoc("files/"+fid,{id:fid,assetId:"",url,name,size:0,type:agentMime(name,url),cat,who:"AI",when:stamp(),at:now,deleted:false,
-            accountId:aid||"",projectId:p?p.id:"",jobId:"",link:true,kind,approved:kind==="proof"?appr:false,feedId:id});
+            accountId:aid||"",projectId:p&&!acctLevel?p.id:"",jobId:"",link:true,kind,approved:kind==="proof"?appr:false,feedId:id});
           out.files++}
         if(p&&(kind==="signed_quote"||kind==="po")){
           const up={updatedAt:now};if(kind==="signed_quote"){up.quoteSigned=true;up.quoteSignedAt=now}else{up.poOnFile=true;up.poFileAt=now}
