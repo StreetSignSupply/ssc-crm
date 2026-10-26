@@ -4232,7 +4232,8 @@ function reconcile(p){
     const sc=sched[k];
     rows.push({k,id:o.id||"",code:o.code,size:o.size,grade:o.grade||"",note:o.note||"",desc:o.desc||"",price:o.price||"",
       legend:o.legend||"",legends:o.legends||[],build:o.build||"",sheetKey:o.sheetKey||"",noLam:!!o.noLam,
-      ordered:Number(o.qty)||0,sched:sc?sc.qty:0,wos:sc?sc.wos:[],charge:o.charge||"",cost:o.cost||""});
+      ordered:Number(o.qty)||0,sched:sc?sc.qty:0,wos:sc?sc.wos:[],charge:o.charge||"",cost:o.cost||"",
+      webImg:o.webImg||"",artId:o.artId||"",lineId:o.id||""});   // the line's own picture travels with it
   });
   Object.keys(sched).forEach(k=>{
     if(seen[k])return;
@@ -7067,9 +7068,13 @@ function webcatByWords(nm){nm=String(nm||"").toUpperCase().replace(/\(.*?\)/g,""
 // a plain drawing of the sign's shape for a line with no picture of its own (bid items like "Warning sign 30x30")
 const GENPIC={};
 function genericSignPic(line){if(!line||typeof line!=="object")return null;
-  const cd=String(line.code||"").trim().toUpperCase();const t=(String(line.desc||"")+" "+String(line.title||"")).toUpperCase();
+  const cd=String(line.code||"").trim().toUpperCase();
+  // "3M Diamond Grade" is a sheeting, not a diamond-shaped sign
+  const t=(String(line.desc||"")+" "+String(line.title||"")).toUpperCase().replace(/\bDIAMOND\s+GRADE\b|\bDG3\b/g," ");
   let kind="";
-  if(cd==="R1-1"||/\bSTOP SIGN\b|^STOP\b/.test(t))kind="stop";
+  if(cd==="R1-1")kind="stop";else if(cd==="R1-2")kind="yield";
+  else if(/^W\d/.test(cd))kind="warn";else if(/^R\d/.test(cd))kind="reg";else if(/^[DI]\d/.test(cd))kind="guide";
+  else if(/\bSTOP SIGN\b|^STOP\b/.test(t))kind="stop";
   else if(cd==="R1-2"||/\bYIELD\b/.test(t))kind="yield";
   else if(/^W\d/.test(cd)||/\bWARNING\b|\bDIAMOND\b/.test(t))kind="warn";
   else if(/^R\d/.test(cd)||/\bREGULATORY\b/.test(t))kind="reg";
@@ -7127,11 +7132,30 @@ function lineArt(p,line){if(!p||!line)return null;if(line.artId==="none")return 
   const m=artMatches(p);const ol=line.lineId?orderedLines(p).find(o=>o.id===line.lineId):null;
   return m[(ol&&ol.id)||line.id||olKey(line)]||null}
 function linePic(p,line){const a=lineArt(p,line);if(a&&a.url)return a.url;
-  if(p&&line&&!line.webImg&&line.lineId){const ol=orderedLines(p).find(o=>o.id===line.lineId);if(ol&&ol.webImg)return ol.webImg}
-  return signPic(line)}
+  let web=line&&line.webImg||"";
+  if(!web&&p&&line&&line.lineId){const ol=orderedLines(p).find(o=>o.id===line.lineId);if(ol&&ol.webImg)web=ol.webImg}
+  if(web){web=picFixUrl(web);if(!PICBAD[web]){picProbe(web,p&&p.id);return web}}
+  return signPic(line&&typeof line==="object"?Object.assign({},line,{webImg:""}):line)}
+/* ===== picture links are checked, not trusted =====
+   Every picture link on a line is loaded once in the background. One that doesn't load (a dead link, a
+   size the host refuses) is remembered: the CRM shows the item's own picture instead, the order sync
+   tells the agents "broken", and the project is re-sent so they see it on their next run. */
+const PICBAD={},PICOK={},_picTry={};
+// Wikimedia only serves its standard thumbnail widths; any other width is refused, so ask for 330px.
+function picFixUrl(u){u=String(u||"");
+  return /^https:\/\/upload\.wikimedia\.org\/.+\/thumb\//.test(u)?u.replace(/\/(\d+)px-([^\/]+)$/,(m,w,f)=>"/330px-"+f):u}
+function picProbe(u,pid){if(!u||!/^https?:/i.test(u)||PICOK[u]||PICBAD[u]||_picTry[u]||typeof Image==="undefined")return;
+  _picTry[u]=1;const im=new Image();let done=false;
+  const fin=ok=>{if(done)return;done=true;if(ok)PICOK[u]=1;else{PICBAD[u]=1;
+    try{if(pid&&typeof syncFire==="function")setTimeout(()=>syncFire("projects/"+pid),800)}catch(e){}
+    try{if(typeof render==="function")setTimeout(()=>{const ae=document.activeElement;if(ae&&/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName))return;render()},50)}catch(e){}}};
+  im.onload=()=>fin(im.naturalWidth>1);im.onerror=()=>fin(false);setTimeout(()=>fin(false),12000);im.src=u}
 // what the agents see on the order sync: "photo" (a real picture), "drawing" (only the plain shape) or "none"
 function picStatus(p,line){try{const a=p?lineArt(p,line):null;if(a&&a.url)return "photo";
-  if(p&&line&&line.lineId){const ol=orderedLines(p).find(o=>o.id===line.lineId);if(ol&&ol.webImg)return "photo"}
+  let web=line&&line.webImg||"";
+  if(!web&&p&&line&&line.lineId){const ol=orderedLines(p).find(o=>o.id===line.lineId);if(ol&&ol.webImg)web=ol.webImg}
+  if(web){web=picFixUrl(web);picProbe(web,p&&p.id);if(!PICBAD[web])return "photo";
+    const e2=picEntry(Object.assign({},line,{webImg:""}));return !e2||e2.generic?"broken":"broken_using_library"}
   const e=picEntry(line);return !e?"none":e.generic?"drawing":"photo"}catch(e){return ""}}
 function bulkPicModal(){
   openModal(mshell("Add pictures for lots of items","",
@@ -8606,7 +8630,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-11";
+const APP_VERSION="2026.11.25-12";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}

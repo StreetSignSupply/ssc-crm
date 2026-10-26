@@ -1,5 +1,11 @@
 # What changed
 
+## 2026.11.25-12 — 2026-10-26
+- Quote lines on the project page now show the picture saved on the line (they were falling back to plain drawings)
+- "3M Diamond Grade" sheeting no longer turns a regulatory sign's drawing into a yellow warning diamond; the MUTCD code sets the shape
+- Every picture link is test-loaded once: a link that doesn't load is never shown as an empty box on the quote PDF, the item's website/library picture is used instead, and the order sync reports it as "broken" so the agents replace it
+- Wikimedia thumbnails at a non-standard width (refused by Wikimedia) are asked for at 330px
+
 ## 2026.11.25-11 — 2026-10-25
 - Documents the agents save in Google Drive (RFPs, bid forms, W-9s, certificates) now act like real files in the CRM: a PDF tile, View opens the PDF inside the CRM, and Download saves the PDF in one click (Google Docs download as PDF)
 
