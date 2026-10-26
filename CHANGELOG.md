@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-22 — 2026-10-25
+- Quotes and invoices always show Signs, Shipping (or Delivery), Subtotal, Sales tax and a Total, including bid unit-price quotes
+
 ## 2026.11.25-21 — 2026-10-25
 - Quotes and invoices use the Catalog look by default (Matt's pick)
 

@@ -2866,15 +2866,21 @@ function docHTML(p,kind){
   ${fnote?`<div class="fn"><span style="color:#C8102E">†</span> ${esc(fnote)}</div>`:""}
   <div class="sum">
     <div class="tot">
-    ${unitMode?`<div class="row"><span>Sales tax</span><span>${exempt?"Exempt":rate?rate+"% on the invoice":"On the invoice"}</span></div>
-      <div class="grand note"><span>Order total</span><span>Quantity × price${lines.some(l=>l.src&&isCharge(l.src))?", plus delivery":""}</span></div>`
-    :`${save>0.009?`<div class="row save"><span>You save</span><span>${money2(save)}</span></div>`:""}
+    ${`${save>0.009?`<div class="row save"><span>You save</span><span>${money2(save)}</span></div>`:""}
+      ${(function(){
+        // always: what the signs come to, what shipping comes to, then tax and the total
+        const signs=lines.filter(l=>!(l.src&&isCharge(l.src))).reduce((t,l)=>t+l.qty*l.unit,0);
+        const chg=lines.filter(l=>l.src&&isCharge(l.src));const ship=chg.reduce((t,l)=>t+l.qty*l.unit,0);
+        const shipLbl=chg.length===1?(/deliver/i.test(chg[0].src.desc||"")?"Delivery":"Shipping"):"Shipping and charges";
+        return `<div class="row"><span>${unitMode?"Signs (one of each)":"Signs"}</span><span>${money2(signs)}</span></div>
+        <div class="row"><span>${chg.length?shipLbl:"Shipping"}</span><span>${chg.length?money2(ship):kind==="quote"?"Quoted at order":"—"}</span></div>`})()}
       <div class="row"><span>Subtotal</span><span>${money2(sub)}</span></div>
       <div class="row"><span>${exempt?"Sales tax — exempt"+(a.exemptExp?" (cert. to "+f(new Date(a.exemptExp+"T00:00:00"))+")":""):rate?"Sales tax "+rate+"% (estimate)":"Sales tax (estimate)"}</span>
         <span>${exempt?"$0.00":rate?money2(tax):kind==="quote"?"on the invoice":"—"}</span></div>
       ${!exempt?`<div class="est">Sales tax is an estimate; the final tax is calculated on the invoice.</div>`:""}
       ${dep?`<div class="row"><span>Less deposit received</span><span>−${money2(dep)}</span></div>`:""}
-      <div class="grand"><span>${kind==="quote"?"Total":"Amount due"}</span><span>${money2(total)}</span></div>`}
+      <div class="grand"><span>${kind==="quote"?"Total":"Amount due"}</span><span>${money2(total)}</span></div>
+      ${unitMode?`<div class="est">Annual unit prices: each order is billed at quantity × the price above${lines.some(l=>l.src&&isCharge(l.src))?", plus delivery":""}.</div>`:""}`}
     </div>
   </div>
   ${kind==="quote"?`<div class="why">${docPromises(b).map(x=>`<div class="p">${(DOC_ICONS[x[0]]||"").replace(/#D50101/g,"#C8102E")}<div><b>${esc(x[1])}</b>${esc(x[2])}</div></div>`).join("")}</div>`:""}
@@ -8828,7 +8834,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-21";
+const APP_VERSION="2026.11.25-22";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
