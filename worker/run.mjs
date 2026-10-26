@@ -16,12 +16,17 @@ async function store() {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT || "";
   const adc = process.env.GOOGLE_APPLICATION_CREDENTIALS || "";
   if (!raw.trim() && !adc) { console.log("No Google credentials yet (keyless sign-in or key not set up): nothing to do."); process.exit(0); }
-  const { initializeApp, cert, applicationDefault } = await import("firebase-admin/app");
-  const { getFirestore } = await import("firebase-admin/firestore");
-  initializeApp(raw.trim() ? { credential: cert(JSON.parse(raw)) }
-    : { credential: applicationDefault(), projectId: process.env.FIREBASE_PROJECT || "ssc-crm-a7224" });
-  const fs = getFirestore();
-  fs.settings({ ignoreUndefinedProperties: true });
+  let fs;
+  if (raw.trim()) {
+    const { initializeApp, cert } = await import("firebase-admin/app");
+    const { getFirestore } = await import("firebase-admin/firestore");
+    initializeApp({ credential: cert(JSON.parse(raw)) });
+    fs = getFirestore();
+    fs.settings({ ignoreUndefinedProperties: true });
+  } else {
+    const { Firestore } = await import("@google-cloud/firestore");   // understands the keyless (federated) sign-in
+    fs = new Firestore({ projectId: process.env.FIREBASE_PROJECT || "ssc-crm-a7224", ignoreUndefinedProperties: true });
+  }
   const plain = (v) => JSON.parse(JSON.stringify(v === undefined ? null : v, (k, x) =>
     x && typeof x === "object" && typeof x.toMillis === "function" ? x.toMillis() : x));
   return {
