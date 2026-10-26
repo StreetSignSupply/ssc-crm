@@ -1,5 +1,10 @@
 # What changed
 
+## 2026.11.25-10 — 2026-10-25
+- RFP and bid documents: agents can file RFPs, bid forms, addenda, W-9s, certificates, registrations and contracts as their own file types
+- a file can go on the account itself
+- and every account's Files card now also shows the files on its projects and work orders, labeled by P-number
+
 ## 2026.11.25-9 — 2026-10-25
 - Agents can put a real picture on any quote line: an img link on feed quote lines, or a new picture row that adds pictures without touching prices
 - work orders show the quote line's picture
