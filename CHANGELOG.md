@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-25 — 2026-10-26
+- Custom signs no longer get a made-up box of words as their picture
+- Sign pictures lists every line, and lines without a real picture show No picture yet with an Add picture button (pick the uploaded artwork or upload one)
+
 ## 2026.11.25-24 — 2026-10-26
 - Website catalogue pull fixed on the hosted CRM: it failed every time (the database refuses price tiers stored as nested lists), so website prices and the 1,761 stencils never loaded
 - the catalogue is now saved as text
