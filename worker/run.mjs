@@ -52,7 +52,8 @@ const page = await (await browser.newContext()).newPage();
 let errors = 0, writes = 0;
 page.on("pageerror", () => { errors++; });
 const unsub = [];
-await page.exposeBinding("__wGet", (_, p) => st.get(p));
+let reads = 0;
+await page.exposeBinding("__wGet", (_, p) => { reads++; return st.get(p); });
 await page.exposeBinding("__wSet", async (_, p, d) => { writes++; await st.set(p, d); });
 await page.exposeBinding("__wMerge", async (_, p, d) => { writes++; await st.merge(p, d); });
 await page.exposeBinding("__wDel", async (_, p) => { writes++; await st.del(p); });
@@ -90,6 +91,8 @@ await page.evaluate(() => window.__sscResolve && window.__sscResolve(window.__wo
 await page.waitForTimeout(RUN_MS);
 const counts = await page.evaluate(() => { try { return document.title + " / " + (document.querySelector(".main")||document.body).innerText.length + " chars on screen"; } catch (e) { return ""; } }).catch(() => "");
 console.log("::notice::CRM loaded: " + counts);
+const stats = await page.evaluate(() => { try { const c = (x) => Array.isArray(x) ? x.length : (x && typeof x === "object" ? Object.keys(x).length : 0); const out = []; for (const k of Object.keys(S)) { const n = c(S[k]); if (n > 0 && (Array.isArray(S[k]))) out.push(k + "=" + n); } let pc = {}; try { pc = pipeCfg(); } catch (e) {} return "feed link " + (pc.url ? "set" : "MISSING") + ", auto " + pc.auto + ", last " + (pc.last || "never") + " | " + out.slice(0, 14).join(" "); } catch (e) { return "stats error " + e.message; } }).catch((e) => "stats failed " + e.message);
+console.log("::notice::CRM data: " + reads + " reads | " + stats);
 const ver = await page.evaluate(() => (document.body.innerText.match(/20\d\d\.\d+\.\d+-\d+/) || [""])[0]).catch(() => "");
 console.log(`::notice::CRM worker done: ${Math.round(RUN_MS / 1000)}s, ${writes} writes, ${errors} page errors${ver ? ", build " + ver : ""}`);
 unsub.forEach((u) => { try { u(); } catch (e) {} });
