@@ -1,5 +1,11 @@
 # What changed
 
+## 2026.11.25-15 — 2026-10-26
+- Quote pictures always match the line: a coded sign (R6-1, W1-2, R2-1…) finds the website sign with the same legend and direction ("left" never shows a right arrow, "Speed Limit 25" shows 25); with no direction given, the right-hand version is used every time
+- A line with no picture anywhere gets a clean drawing that carries its own words; a warning sign is a diamond only when it's square (an 18x24 alligator sign is a yellow rectangle)
+- The order sync now says which picture each line shows (picture_name), so the agents check it against the description
+- Bids priced per sign print as a Unit price schedule (Unit / Unit price, no made-up total); set priceMode "total" on a project to force a normal quote
+
 ## 2026.11.25-13 — 2026-10-26
 - Quote and invoice layout: numbered lines, a larger picture in its own box, the sign's name in bold with the spec under it, bid item numbers as a small red tag, and size/grade no longer printed twice
 - A note shared by several lines ("Typical picture; legend per county order") prints once under the table, marked †
