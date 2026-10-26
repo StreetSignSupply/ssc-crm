@@ -1,5 +1,10 @@
 # What changed
 
+## 2026.11.25-23 — 2026-10-26
+- Quotes: shipping is always called Shipping
+- contract (unit-price) quotes say clearly there are no set quantities
+- quotes with quantities show Qty, unit price and amount
+
 ## 2026.11.25-22 — 2026-10-25
 - Quotes and invoices always show Signs, Shipping (or Delivery), Subtotal, Sales tax and a Total, including bid unit-price quotes
 
