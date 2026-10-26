@@ -2497,9 +2497,9 @@ function swatchFor(g){const t=String(g||"").toUpperCase();
   return m?m[1]:""}
 function proofLines(p){
   const ol=orderedLines(p);
-  if(ol.length)return ol.filter(l=>!isCharge(l)).map(l=>({qty:l.qty,name:l.desc||signName(l)||l.code||"Item",sw:swatchFor(l.grade),
+  if(ol.length)return ol.filter(l=>!isCharge(l)).map(l=>({qty:l.qty,name:docTidyName(l.desc||signName(l)||l.code||"Item",l),sw:swatchFor(l.grade),
     swName:((String(l.grade||"").toUpperCase().match(/FLUORESCENT YELLOW GREEN|FYG|WHITE|YELLOW|RED|BLUE|GREEN|ORANGE|BROWN|BLACK|CLEAR/)||[""])[0]).toLowerCase().replace(/^./,c=>c.toUpperCase()),lg:legendsOf(l).map(x=>swatchFor(x.film)).filter(Boolean),
-    spec:[l.code&&(l.desc||signName(l))?l.code:"",l.size?sizeLabel(l.size):"",custMaterial(l.grade),l.note].filter(Boolean).join(" · ")}));
+    spec:[l.code&&(l.desc||signName(l))?String(l.code).split("|")[0]:"",l.size?sizeLabel(l.size):"",docSheeting(l.grade),l.note].filter(Boolean).join(" · ")}));
   const out=[];jobsOf(p.id).forEach(j=>woItems(j).forEach(it=>out.push({qty:it.qty,
     name:it.desc||signName(it)||it.code||"Item",
     spec:[it.code&&(it.desc||signName(it))?it.code:"",it.size?sizeLabel(it.size):"",custMaterial(it.grade),it.legend,it.sub].filter(Boolean).join(" · ")})));
@@ -2507,10 +2507,16 @@ function proofLines(p){
 }
 function addBizDays(d,n){const x=new Date(d);const step=n<0?-1:1;let k=Math.abs(n);
   while(k>0){x.setDate(x.getDate()+step);if(x.getDay()!==0&&x.getDay()!==6)k--}return x}
+// a quote line with no uploaded artwork of its own still has a picture (the website sign, the agents' picture,
+// or the drawing): it goes on the proof and in the project's files so the customer can approve what they'll get
+function proofLineArts(p){if(!p)return [];let m0={};try{m0=artMatches(p)}catch(e){}
+  return orderedLines(p).filter(o=>!isCharge(o)&&Number(o.qty)>0&&!m0[o.id||olKey(o)]&&o.artId!=="none").map(o=>{
+    let u="";try{u=linePic(p,o)}catch(e){}
+    return u?{id:"ln-"+(o.id||olKey(o)),url:u,name:(o.desc||signName(o)||o.code||"Item"),type:"image/png",_line:o}:null}).filter(Boolean)}
 function proofHTML(p,artsIn){
   const a=acct(p.accountId)||{},b=S.brand||DEF_BRAND,rep2=repFor(p);
   const c=(p.contacts||[]).map(x=>S.contacts.get(x)).filter(Boolean)[0]||contactsOf(p.accountId)[0]||null;
-  const arts=artsIn||proofArt(p), lines=proofLines(p);
+  const arts=(artsIn||proofArt(p)).concat(proofLineArts(p)), lines=proofLines(p);
   const rev=(Number(p.proofRev)||0)+1;
   const when=new Date(), f=d=>d.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"});
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Proof P-${p.num}${rev>1?" rev "+rev:""}</title>
@@ -2550,14 +2556,15 @@ function proofHTML(p,artsIn){
       // each picture captioned with the line it belongs to — matched by name or chosen on the line
       const m=artMatches(p),byId={};Object.keys(m).forEach(k=>{byId[m[k].id]=k});
       const ol=orderedLines(p).filter(x=>!isCharge(x));
-      const lineOf=fl=>{const k=byId[fl.id];if(!k)return null;const o=ol.find(x=>(x.id||olKey(x))===k);
-        return o?{name:o.desc||signName(o)||o.code||"Item",spec:[(o.qty?o.qty+" pcs":""),o.code&&(o.desc||signName(o))?o.code:"",o.size?sizeLabel(o.size):"",custMaterial(o.grade)].filter(Boolean).join(" · ")}:null};
-      const sorted=arts.slice().sort((x,y)=>{const a1=byId[x.id]?ol.findIndex(o=>(o.id||olKey(o))===byId[x.id]):999,b1=byId[y.id]?ol.findIndex(o=>(o.id||olKey(o))===byId[y.id]):999;return a1-b1});
+      const lineOf=fl=>{const k=fl._line?(fl._line.id||olKey(fl._line)):byId[fl.id];if(!k)return null;const o=ol.find(x=>(x.id||olKey(x))===k);
+        return o?{name:docTidyName(o.desc||signName(o)||o.code||"Item",o),spec:[(o.qty?o.qty+" pcs":""),o.code&&(o.desc||signName(o))?String(o.code).split("|")[0]:"",o.size?sizeLabel(o.size):"",docSheeting(o.grade)].filter(Boolean).join(" · ")}:null};
+      const pos=x=>{const k=x._line?(x._line.id||olKey(x._line)):byId[x.id];return k?ol.findIndex(o=>(o.id||olKey(o))===k):999};
+      const sorted=arts.slice().sort((x,y)=>pos(x)-pos(y));
       S._proofLineOf=lineOf;return sorted})().map((fl,ix)=>{
       const l=S._proofLineOf(fl);
       return `<figure class="art">
         <div class="artno">${ix+1}</div>
-        <div class="pic"><img src="${esc(fl.url)}" alt="${esc(fl.name)}"></div>
+        <div class="pic"><img src="${esc(fl.url)}" data-fb="${esc(fl._line?picFb(fl._line):"")}" alt="${esc(fl.name)}"></div>
         <figcaption>
           <div class="t">${esc(l?l.name:fl.name.replace(/\.[a-z0-9]+$/i,""))}</div>
           <div class="s">${esc(l?l.spec:(fl.cat||"Proof"))}</div>
@@ -2677,6 +2684,7 @@ async function makeProof(pid){
   const arts=proofArt(p);
   const go2=async()=>{
     const html=proofHTML(p,await inlineArt(arts));
+    arts.push(...proofLineArts(p));
     const rev=(Number(p.proofRev)||0)+1;
     const name="Proof-P-"+p.num+(rev>1?"-rev"+rev:"")+"-"+accName(p.accountId).replace(/[^A-Za-z0-9]+/g,"-").slice(0,24);
     try{
@@ -2687,7 +2695,7 @@ async function makeProof(pid){
       logEvent("project",pid,"Proof sheet made"+(rev>1?" rev "+rev:""));
     }catch(e){toast("Couldn't build the proof here.")}
   };
-  if(!arts.length){
+  if(!arts.length&&!proofLineArts(p).length){
     askConfirm("No artwork attached yet",
       `<p style="margin:0 0 8px">A proof normally shows the artwork. Upload the picture of each sign or decal first — <b>Upload proof</b> on this project.</p>
        <p class="note">You can still make the sheet with the specs and the approval block on it.</p>`,
@@ -8808,7 +8816,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-17";
+const APP_VERSION="2026.11.25-18";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -9245,6 +9253,20 @@ function projectRec(id){
     </section>
 
 
+
+    ${(function(){const la=proofLineArts(p);if(!la.length)return "";
+      return `<section class="card flush"><header><span class="oi sm oi-file">${ic("file",14)}</span><h2>Sign pictures</h2>
+        <span class="n">${la.length}</span>
+        <span class="sub">The picture on each quote line — what goes on the proof for the customer to approve.</span>
+        <span class="sp"><button class="btn sm p" data-proof="${esc(id)}">Make the proof for approval</button></span></header>
+        <div class="fgal">${la.map(x=>{const o=x._line;const web=/^https:/i.test(x.url);
+          const spec=[o.qty?o.qty+" pcs":"",String(o.code||"").split("|")[0],o.size?sizeLabel(o.size):"",custMaterial(o.grade)].filter(Boolean).join(" · ");
+          const fname=(x.name||"sign").replace(/[^A-Za-z0-9]+/g,"-").slice(0,40)+(/^data:image\/svg/i.test(x.url)?".svg":".png");
+          return `<div class="ftile"><div class="th" style="background:#fff">${web?`<a href="${esc(x.url)}" target="_blank" rel="noopener" style="display:contents">`:""}<img src="${esc(x.url)}" alt="${esc(x.name)}" loading="lazy" style="object-fit:contain">${web?"</a>":""}</div>
+            <div class="meta"><b class="nm" title="${esc(x.name)}">${esc(x.name)}</b><span class="sub">${esc(spec)}</span></div>
+            <div class="row">${web?`<a class="btn sm" href="${esc(x.url)}" target="_blank" rel="noopener" style="text-decoration:none">View</a>`:""}
+              <a class="btn sm" href="${esc(x.url)}" download="${esc(fname)}" style="text-decoration:none">Save</a></div></div>`}).join("")}</div>
+      </section>`})()}
 
     <section class="card flush"><header><span class="oi sm oi-file">${ic("file",14)}</span><h2>All files on this project</h2>
       <span class="n">${flsAll.length}</span>

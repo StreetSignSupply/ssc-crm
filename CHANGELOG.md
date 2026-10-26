@@ -1,5 +1,10 @@
 # What changed
 
+## 2026.11.25-18 — 2026-10-25
+- Files: a Sign pictures gallery shows each quote line's picture with View/Save and a Make the proof for approval button
+- proofs include every line's picture even when no artwork was uploaded
+- proof names and sheeting read cleanly
+
 ## 2026.11.25-17 — 2026-10-25
 - New quote and invoice design: branded header with the quote number on a red sign plate, large sign pictures, clean product names with code, size and sheeting chips, a personal note, Why Street Sign Supply strip, bold total, and a 3-step Ready to order block
 - SVG drawings are drawn crisply into the PDF
