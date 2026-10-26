@@ -7263,7 +7263,7 @@ function genericSignPic(line){if(!line||typeof line!=="object")return null;
   else if(/^W\d/.test(cd)||(!cd&&/\bWARNING\b|\bCAUTION\b/.test(t)))kind=square?"warn":"warnrect";
   else if(/^R\d/.test(cd)||(!cd&&/\bREGULATORY\b/.test(t)))kind="reg";
   else if(/^[DI]\d/.test(cd)||(!cd&&/\bGUIDE\b|\bSTREET NAME\b/.test(t)))kind="guide";
-  else kind="plain";
+  else return null;   // a custom sign: never a made-up box of words — it needs its real picture or the designer's proof
   // the words on the drawing: the line's own name, without bid numbers, sizes, materials or "typical"
   let label=raw.split(" — ")[0].replace(/^bid\s+item\s+[a-z0-9.\-]+\s*[:\-–—]\s*/i,"").replace(/\(([^)]*)\)/g,(x,y)=>" "+y.replace(/\b[A-Z]{1,2}\d+-\d+[A-Z]*\b/gi,"").replace(/\btypical\b/gi,"")+" ")
     .replace(/\d+(\.\d+)?\s*["”]?\s*[x×]\s*\d+(\.\d+)?\s*["”]?/gi," ").replace(/\b(regulatory|warning sign|sign|diamond|mutcd)\b/gi," ").replace(/\b[A-Z]{1,2}\d+-\d+[A-Z]*\b/gi," ")
@@ -8834,7 +8834,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-24";
+const APP_VERSION="2026.11.25-25";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -9272,7 +9272,9 @@ function projectRec(id){
 
 
 
-    ${(function(){const la=proofLineArts(p);if(!la.length)return "";
+    ${(function(){const la0=proofLineArts(p);const have=new Set(la0.map(x=>x._line.id||olKey(x._line)));
+      const all=orderedLines(p);const missing=all.map((o,ix)=>({o,ix})).filter(x=>!isCharge(x.o)&&Number(x.o.qty)>0&&!have.has(x.o.id||olKey(x.o)));
+      const la=la0;if(!la.length&&!missing.length)return "";
       return `<section class="card flush"><header><span class="oi sm oi-file">${ic("file",14)}</span><h2>Sign pictures</h2>
         <span class="n">${la.length}</span>
         <span class="sub">The picture on each quote line — what goes on the proof for the customer to approve.</span>
@@ -9283,7 +9285,10 @@ function projectRec(id){
           return `<div class="ftile"><div class="th" style="background:#fff">${web?`<a href="${esc(x.url)}" target="_blank" rel="noopener" style="display:contents">`:""}<img src="${esc(x.url)}" alt="${esc(x.name)}" loading="lazy" style="object-fit:contain">${web?"</a>":""}</div>
             <div class="meta"><b class="nm" title="${esc(x.name)}">${esc(x.name)}</b><span class="sub">${esc(spec)}</span></div>
             <div class="row">${web?`<a class="btn sm" href="${esc(x.url)}" target="_blank" rel="noopener" style="text-decoration:none">View</a>`:""}
-              <a class="btn sm" href="${esc(x.url)}" download="${esc(fname)}" style="text-decoration:none">Save</a></div></div>`}).join("")}</div>
+              <a class="btn sm" href="${esc(x.url)}" download="${esc(fname)}" style="text-decoration:none">Save</a></div></div>`}).join("")}
+          ${missing.map(({o,ix})=>`<div class="ftile"><div class="th" style="background:#fff;flex-direction:column;gap:4px"><span class="sub">No picture yet</span></div>
+            <div class="meta"><b class="nm" title="${esc(o.desc||o.code||"")}">${esc(o.desc||signName(o)||o.code||"Item")}</b><span class="sub">${esc([o.qty?o.qty+" pcs":"",o.size?sizeLabel(o.size):""].filter(Boolean).join(" · "))}</span></div>
+            <div class="row"><button class="btn sm p" data-ordedit="${esc(id)}:${ix}" title="Pick the artwork or upload the picture for this line">Add picture</button></div></div>`).join("")}</div>
       </section>`})()}
 
     <section class="card flush"><header><span class="oi sm oi-file">${ic("file",14)}</span><h2>All files on this project</h2>
