@@ -5234,7 +5234,7 @@ async function webcatSync(auto){
   const chunks=[];let cur=[],size=0;
   list.forEach(p=>{const j=JSON.stringify(p).length;if(size+j>700000&&cur.length){chunks.push(cur);cur=[];size=0}cur.push(p);size+=j});
   if(cur.length)chunks.push(cur);
-  try{for(let i=0;i<chunks.length;i++)await setDoc("settings/webcat_"+i,{products:chunks[i]});
+  try{for(let i=0;i<chunks.length;i++)await setDoc("settings/webcat_"+i,{json:JSON.stringify(chunks[i])});
     await setDoc("settings/webcat_meta",Object.assign({},meta,{chunks:chunks.length}))}
   catch(e){if(!auto)toast("Couldn't save the catalogue — "+(e&&e.message||""));return 0}
   // the price list learns every website price by name + size + grade (your own typed prices are kept)
@@ -5287,7 +5287,7 @@ async function costsheetSync(auto){
 async function webcatLoad(){
   if(!db)return;
   try{const m=await db.doc("settings/webcat_meta").get();if(!(m&&m.exists&&m.data()))return;const meta=m.data();
-    let prods=[];for(let i=0;i<(meta.chunks||0);i++){const c=await db.doc("settings/webcat_"+i).get();if(c&&c.exists&&c.data())prods=prods.concat(c.data().products||[])}
+    let prods=[];for(let i=0;i<(meta.chunks||0);i++){const c=await db.doc("settings/webcat_"+i).get();if(c&&c.exists&&c.data()){const d=c.data();let ps=d.products||[];if(d.json){try{ps=JSON.parse(d.json)}catch(e){ps=[]}}prods=prods.concat(ps)}}
     S.webcat={products:prods};S.webcatMeta=meta;S.webcatIdx=null;if(!typing()&&!S.modal)render()}catch(e){}
 }
 /* ================= LOAD THE WORKBOOK (.xlsx) =================
@@ -8834,7 +8834,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-23";
+const APP_VERSION="2026.11.25-24";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
