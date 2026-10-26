@@ -2338,6 +2338,20 @@ td.amt{font-weight:700}
 thead th{background:#EEF1F4;color:#4A525C;padding:9px 12px;border-bottom:0}
 thead th:first-child{padding-left:10px}thead th:last-child{padding-right:10px}
 tbody td:first-child{padding-left:10px}tbody td:last-child{padding-right:10px}
+/* line items: number, picture, a short bold name with the spec under it */
+td.n,th.n{width:26px;text-align:center;color:#9AA2AC;font-variant-numeric:tabular-nums;padding-left:6px!important;padding-right:0!important}
+tbody td{vertical-align:middle}
+.it{display:flex;gap:12px;align-items:center}
+.it .pic{width:48px;height:48px;flex:none;border:1px solid #E3E6EA;border-radius:4px;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.it .pic img{max-width:42px;max-height:42px;object-fit:contain;display:block}
+.it .tag{display:block;font-size:8.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#D50101;margin-bottom:1px}
+.it .nm{display:block;font-weight:700;font-size:12.5px;color:#15181C;line-height:1.35}
+.it .spec{display:block;color:#5B636D;font-size:11px;line-height:1.45;margin-top:1px}
+.it .sub{display:block;color:#7A828C;font-size:10.5px;margin-top:2px}
+.it sup{color:#D50101;font-weight:800;font-size:9px;margin-left:2px}
+tr.chg td{background:#FAFBFC}
+.fn{font-size:10px;color:#6B737D;margin:7px 0 0 6px}
+td.r.rate{white-space:nowrap}
 @media print{html,body{background:#fff;padding:0;margin:0;font-size:10px;height:auto}
   body>*{page-break-after:avoid}
   .sheet{box-shadow:none;max-width:none;padding:.45in .55in .3in;overflow:hidden}
@@ -2348,7 +2362,9 @@ tbody td:first-child{padding-left:10px}tbody td:last-child{padding-right:10px}
   .dt h1{font-size:30px}
   .meta{margin:18px 0 20px}
   .meta div{padding:11px 14px 12px;font-size:11px;line-height:1.55}
-  tbody td{padding:9px 11px}
+  tbody td{padding:7px 10px}
+  .it .pic{width:42px;height:42px}.it .pic img{max-width:37px;max-height:37px}
+  .it .nm{font-size:11.5px}.it .spec{font-size:10px}
   td.item b{font-size:11.5px}
   td.item .sub{font-size:10px;margin-top:2px}
   .tot div{padding:7px 0}
@@ -2688,6 +2704,19 @@ async function makeProof(pid){
   }
   go2();
 }
+/* how a line reads on the quote and invoice: "Bid Item 1A" as a small tag, the sign's name in bold, the spec
+   ("30" x 30", .080 aluminum, 3M Diamond Grade DG3") under it, and nothing said twice — size or grade already in
+   the words isn't repeated, and a note shared by several lines is printed once under the table (†). */
+function docNorm(t){return String(t||"").toLowerCase().replace(/×/g,"x").replace(/[^a-z0-9]+/g,"")}
+function docFootnote(lines){const c={};lines.forEach(l=>{const n=String((l.src&&!isCharge(l.src)&&l.src.note)||"").trim();if(n)c[n]=(c[n]||0)+1});
+  const best=Object.keys(c).sort((x,y)=>c[y]-c[x])[0];return best&&c[best]>=3?best:""}
+function docItem(l,fnote){let t=String(l.code||"").trim(),tag="",spec="";
+  const m=t.match(/^(bid\s+item\s+[a-z0-9.\-]+)\s*[:\-–—]\s*/i);if(m){tag=m[1].replace(/^bid\s+item/i,"Bid Item");t=t.slice(m[0].length)}
+  const i=t.indexOf(" — ");if(i>0){spec=t.slice(i+3).trim();t=t.slice(0,i).trim()}
+  const said=docNorm(t+" "+spec);let fn=false;
+  const sub=String(l.desc||"").split(" · ").map(x=>x.trim()).filter(x=>{if(!x)return false;
+    if(fnote&&x===fnote){fn=true;return false}return said.indexOf(docNorm(x))<0}).join(" · ");
+  return {tag,name:t,spec,sub,fn}}
 function docHTML(p,kind){
   const a=acct(p.accountId)||{};
   const rep2=repFor(p);
@@ -2710,6 +2739,9 @@ function docHTML(p,kind){
   const due=new Date(when.getTime()+dueDays*86400000);
   const f=d=>d.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"});
   const unpriced=lines.filter(l=>!l.unit).length;
+  const fnote=docFootnote(lines);
+  const qNote=b.quoteNote||("This quote is good for "+qDays+" days from the date above. Prices are per piece and include materials to the stated specification. Freight quoted separately where it applies. Lead time confirmed on order.");
+  const lamLine=kind==="quote"&&!/overlaminate/i.test(qNote)&&lines.some(l=>{try{return l.src&&!isCharge(l.src)&&linePrinted(l.src)}catch(e){return false}});
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${kind==="quote"?"Quote":"Invoice"} ${esc(no)}</title>
   <style>${DOC_CSS}</style></head><body>
   <div class="hint">Press Ctrl-P (or Cmd-P) and choose "Save as PDF" to send it, or print it.</div>
@@ -2732,18 +2764,24 @@ function docHTML(p,kind){
     <div><b>Ship to</b>${esc(p.shipTo||[a.street,a.city,a.state,a.zip].filter(Boolean).join(", ")||"Same as billing")}</div>
     <div><b>Project</b>${esc(p.name)}<br>P-${p.num}${p.po?"<br>P.O. "+esc(p.po):""}</div>
   </div>
-  <table><thead><tr><th>Product / service</th><th style="width:60px" class="r">Qty</th>
-    <th class="r" style="width:96px">Rate</th><th class="r" style="width:108px">Amount</th></tr></thead><tbody>
-    ${lines.length?lines.map(l=>`<tr>
-      <td class="item">${(function(){const pic=l.src&&b.quotePics!==false?linePic(p,l.src):"";
-        return pic?`<img src="${esc(pic)}" alt="" style="float:left;width:34px;height:34px;object-fit:contain;margin:0 9px 0 0;border:1px solid #E3E6EA;border-radius:3px;background:#fff">`:""})()}<b>${esc(l.code)}</b>${l.desc?`<span class="sub">${esc(l.desc)}</span>`:""}${l.src&&l.src.noLam?`<span class="sub" style="font-weight:700">${esc(NOLAM_TXT)}</span>`:""}</td>
+  <table><thead><tr><th class="n">#</th><th>Item</th><th style="width:52px" class="r">Qty</th>
+    <th class="r" style="width:92px">Unit price</th><th class="r" style="width:100px">Amount</th></tr></thead><tbody>
+    ${lines.length?lines.map((l,ix)=>{const it=docItem(l,fnote);const chg=l.src&&isCharge(l.src);
+      const pic=!chg&&l.src&&b.quotePics!==false?linePic(p,l.src):"";
+      return `<tr${chg?' class="chg"':""}>
+      <td class="n">${ix+1}</td>
+      <td class="item"><div class="it">${pic?`<div class="pic"><img src="${esc(pic)}" alt=""></div>`:""}<div>
+        ${it.tag?`<span class="tag">${esc(it.tag)}</span>`:""}<span class="nm">${esc(it.name)}${it.fn?"<sup>†</sup>":""}</span>
+        ${it.spec?`<span class="spec">${esc(it.spec)}</span>`:""}${it.sub?`<span class="sub">${esc(it.sub)}</span>`:""}
+        ${l.src&&l.src.noLam?`<span class="sub" style="font-weight:700">${esc(NOLAM_TXT)}</span>`:""}</div></div></td>
       <td class="r qty">${l.qty}</td>
-      <td class="r">${(function(){if(!l.unit)return "—";
+      <td class="r rate">${(function(){if(!l.unit)return "—";
         const lp=(a.showSavings&&l.src&&!isCharge(l.src))?listPrice(l.src):null;
         return lp&&lp.price>l.unit+0.004?`<span style="text-decoration:line-through;color:#7A828C;font-size:10.5px">${money2(lp.price)}</span><br>${money2(l.unit)}`:money2(l.unit)})()}</td>
-      <td class="r amt">${l.unit?money2(l.qty*l.unit):"—"}</td></tr>`).join("")
-    :`<tr><td colspan="4" style="text-align:center;color:#888;padding:22px">No priced lines on this project yet.</td></tr>`}
+      <td class="r amt">${l.unit?money2(l.qty*l.unit):"—"}</td></tr>`}).join("")
+    :`<tr><td colspan="5" style="text-align:center;color:#888;padding:22px">No priced lines on this project yet.</td></tr>`}
   </tbody></table>
+  ${fnote?`<div class="fn"><b style="color:#D50101">†</b> ${esc(fnote)}</div>`:""}
   <div class="totwrap"><div class="tot">
     ${(function(){if(!a.showSavings)return "";const save=lines.reduce((t,l)=>{if(!l.unit||!l.src||isCharge(l.src))return t;
         const lp=listPrice(l.src);return t+(lp&&lp.price>l.unit?(lp.price-l.unit)*l.qty:0)},0);
@@ -2758,8 +2796,8 @@ function docHTML(p,kind){
   <div class="blocks">
     <div>
       <div class="lbl">${kind==="quote"?"Notes":"Payment"}</div>
-      <div class="notes">${kind==="quote"?esc(b.quoteNote||("This quote is good for "+qDays+" days from the date above. Prices are per piece and include materials to the stated specification. Freight quoted separately where it applies. Lead time confirmed on order.")):esc(b.payNote||"Please reference the invoice number with your payment.")}
-        ${p.scope?`<div style="margin-top:9px"><span class="lbl" style="display:block">Scope</span>${esc(p.scope)}</div>`:""}
+      <div class="notes">${kind==="quote"?esc(qNote):esc(b.payNote||"Please reference the invoice number with your payment.")}
+        ${p.scope?`<div style="margin-top:9px"><span class="lbl" style="display:block">Scope</span>${esc(p.scope).replace(/\n/g,"<br>")}</div>`:""}
         ${rep2?`<div style="margin-top:9px"><span class="lbl" style="display:block">Prepared by</span>${esc(rep2.name)}${b.phone?" · "+esc(fmtPhone(b.phone)):""}${b.email?" · "+esc(b.email):""}</div>`:""}</div>
     </div>
     ${kind==="quote"?`<div>
@@ -2775,7 +2813,7 @@ function docHTML(p,kind){
       <div class="notes" style="margin-top:8px">Sign and return this page, or reply with a PO — we'll confirm the lead time the same day.</div>
     </div>`:""}
   </div>
-  ${kind==="quote"?`<div class="notes" style="margin-top:12px;text-align:center">Printed signs are supplied with a clear protective overlaminate unless marked otherwise.</div>`:""}
+  ${lamLine?`<div class="notes" style="margin-top:12px;text-align:center">Printed signs are supplied with a clear protective overlaminate unless marked otherwise.</div>`:""}
   ${b.docFooter?`<div class="notes" style="margin-top:14px;text-align:center">${esc(b.docFooter)}</div>`:""}
   <div class="foot"><span>${esc(b.name||"Street Sign Supply")}${b.phone?" · "+esc(fmtPhone(b.phone)):""}</span><span>${kind==="quote"?"Quote":"Invoice"} ${esc(no)} · P-${p.num}</span></div>
   </div>
@@ -8630,7 +8668,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-12";
+const APP_VERSION="2026.11.25-13";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}

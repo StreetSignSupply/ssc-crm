@@ -1,5 +1,10 @@
 # What changed
 
+## 2026.11.25-13 — 2026-10-26
+- Quote and invoice layout: numbered lines, a larger picture in its own box, the sign's name in bold with the spec under it, bid item numbers as a small red tag, and size/grade no longer printed twice
+- A note shared by several lines ("Typical picture; legend per county order") prints once under the table, marked †
+- The overlaminate sentence only prints when the quote has printed signs and the notes don't already say it; scope keeps its line breaks
+
 ## 2026.11.25-12 — 2026-10-26
 - Quote lines on the project page now show the picture saved on the line (they were falling back to plain drawings)
 - "3M Diamond Grade" sheeting no longer turns a regulatory sign's drawing into a yellow warning diamond; the MUTCD code sets the shape
