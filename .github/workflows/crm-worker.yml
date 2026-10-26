@@ -32,11 +32,13 @@ jobs:
           node-version: "22"
       - name: Install
         working-directory: worker
-        run: npm install --no-audit --no-fund --silent && npx playwright install --with-deps chromium > /dev/null
+        run: |
+          npm install --no-audit --no-fund --loglevel=error 2>&1 | tail -5 || true
+          npx playwright install --with-deps chromium > /tmp/pw.log 2>&1 || { echo "::error::playwright install failed: $(tail -3 /tmp/pw.log | tr '\n' ' ')"; exit 1; }
       - name: Run the CRM
         if: ${{ steps.gauth.outcome == 'success' || env.HAS_KEY == 'yes' }}
         working-directory: worker
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           FIREBASE_PROJECT: ssc-crm-a7224
-        run: node run.mjs
+        run: node run.mjs || { echo "::error::worker exited with an error (see message above)"; exit 1; }

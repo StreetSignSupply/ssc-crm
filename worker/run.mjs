@@ -39,6 +39,8 @@ async function store() {
   };
 }
 
+process.on("unhandledRejection", (e) => { console.log("::error::" + String(e && e.message || e).slice(0, 300).replace(/\n/g, " ")); process.exit(1); });
+process.on("uncaughtException", (e) => { console.log("::error::" + String(e && e.message || e).slice(0, 300).replace(/\n/g, " ")); process.exit(1); });
 const st = await store();
 const browser = await chromium.launch();
 const page = await (await browser.newContext()).newPage();
