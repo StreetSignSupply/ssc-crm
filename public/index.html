@@ -2811,7 +2811,7 @@ function docHTML(p,kind){
   const row=(l,ix)=>{const it=docItem(l,fnote);const chg=l.src&&isCharge(l.src);
     const pic=!chg&&l.src&&b.quotePics!==false?linePic(p,l.src):"";
     const src=l.src&&!chg?l.src:null;
-    const name=src?docTidyName(it.name,src):it.name;
+    const name=src?docTidyName(it.name,src):(chg&&(l.src.charge==="freight"||/ship|freight|deliver/i.test(it.name))?String(it.name).replace(/^\s*(delivery|freight|shipping)\b\s*(?:[-–—:]\s*)?/i,"Shipping ").replace(/^Shipping\s+(to\b)/i,"Shipping $1").trim():it.name);
     const code=src?String(src.code||"").split("|")[0].trim():"";
     const showCode=code&&/^[A-Z]{1,3}\d/i.test(code)&&docNorm(name).indexOf(docNorm(code))<0;
     // one spec line: size, blank and sheeting — from the agent's wording when it has it, else from the line
@@ -2833,7 +2833,7 @@ function docHTML(p,kind){
         return (lp&&lp.price>l.unit+0.004?`<span style="text-decoration:line-through;color:#9AA1A9;font-size:10px">${money2(lp.price)}</span><br>`:"")+money2(l.unit)+(unitMode?`<span style="color:#9AA1A9;font-weight:400"> ${chg?"per order":"each"}</span>`:"")})()}</td>
       ${unitMode?"":`<td class="r amt">${l.unit?money2(l.qty*l.unit):"—"}</td>`}</tr>`};
   const hello=kind==="quote"&&lines.length?`<div class="hello">${first?`<b>${esc(first)}</b>, thank`:"Thank"} you for the chance to quote ${esc(p.name||"this project")}.
-    Here is our pricing for ${nSigns?nSigns+" sign"+(nSigns===1?"":"s"):"your order"}${lines.some(l=>l.src&&isCharge(l.src))?" with delivery":""}, each one built to order in our shop.</div>`:"";
+    Here is our ${unitMode?"contract pricing for "+lines.filter(l=>!(l.src&&isCharge(l.src))).length+" sign types":"pricing for "+(nSigns?nSigns+" sign"+(nSigns===1?"":"s"):"your order")}${lines.some(l=>l.src&&isCharge(l.src))?" with shipping":""}, each one built to order in our shop.</div>`:"";
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(word)} ${esc(no)}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -2858,7 +2858,7 @@ function docHTML(p,kind){
       ${rep2?`<div class="kv"><i>Contact</i><span>${esc(rep2.name)}</span></div>`:""}</div>
   </div>
   ${hello}
-  ${unitMode?`<div class="ups">Prices are per sign${p.scope&&/minimum/i.test(p.scope)?"; order minimums are in the terms below":""}.</div>`:""}
+  ${unitMode?`<div class="ups">Contract unit prices: no set quantities, so each price is per sign for every order under this contract${p.scope&&/minimum/i.test(p.scope)?"; order minimums are in the terms below":""}.</div>`:""}
   <table class="lines"><thead><tr><th>Item</th>${unitMode?"":`<th style="width:46px" class="r">Qty</th>`}
     <th class="r" style="width:${unitMode?120:84}px">${unitMode?"Price":"Unit price"}</th>${unitMode?"":`<th class="r" style="width:92px">Amount</th>`}</tr></thead><tbody>
     ${lines.length?lines.map(row).join(""):`<tr><td colspan="5" style="text-align:center;color:#888;padding:22px">No priced lines on this project yet.</td></tr>`}
@@ -2871,7 +2871,7 @@ function docHTML(p,kind){
         // always: what the signs come to, what shipping comes to, then tax and the total
         const signs=lines.filter(l=>!(l.src&&isCharge(l.src))).reduce((t,l)=>t+l.qty*l.unit,0);
         const chg=lines.filter(l=>l.src&&isCharge(l.src));const ship=chg.reduce((t,l)=>t+l.qty*l.unit,0);
-        const shipLbl=chg.length===1?(/deliver/i.test(chg[0].src.desc||"")?"Delivery":"Shipping"):"Shipping and charges";
+        const shipLbl=chg.every(l=>l.src.charge==="freight"||/ship|freight|deliver/i.test(l.src.desc||""))?"Shipping":"Shipping and charges";
         return `<div class="row"><span>${unitMode?"Signs (one of each)":"Signs"}</span><span>${money2(signs)}</span></div>
         <div class="row"><span>${chg.length?shipLbl:"Shipping"}</span><span>${chg.length?money2(ship):kind==="quote"?"Quoted at order":"—"}</span></div>`})()}
       <div class="row"><span>Subtotal</span><span>${money2(sub)}</span></div>
@@ -2880,7 +2880,7 @@ function docHTML(p,kind){
       ${!exempt?`<div class="est">Sales tax is an estimate; the final tax is calculated on the invoice.</div>`:""}
       ${dep?`<div class="row"><span>Less deposit received</span><span>−${money2(dep)}</span></div>`:""}
       <div class="grand"><span>${kind==="quote"?"Total":"Amount due"}</span><span>${money2(total)}</span></div>
-      ${unitMode?`<div class="est">Annual unit prices: each order is billed at quantity × the price above${lines.some(l=>l.src&&isCharge(l.src))?", plus delivery":""}.</div>`:""}`}
+      ${unitMode?`<div class="est">Total shown for one of each sign. Each order is billed at the quantity ordered × the price above${lines.some(l=>l.src&&isCharge(l.src))?", plus shipping":""}.</div>`:""}`}
     </div>
   </div>
   ${kind==="quote"?`<div class="why">${docPromises(b).map(x=>`<div class="p">${(DOC_ICONS[x[0]]||"").replace(/#D50101/g,"#C8102E")}<div><b>${esc(x[1])}</b>${esc(x[2])}</div></div>`).join("")}</div>`:""}
@@ -8834,7 +8834,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-22";
+const APP_VERSION="2026.11.25-23";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
