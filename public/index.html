@@ -2351,6 +2351,9 @@ tbody td{vertical-align:middle}
 .it sup{color:#D50101;font-weight:800;font-size:9px;margin-left:2px}
 tr.chg td{background:#FAFBFC}
 .fn{font-size:10px;color:#6B737D;margin:7px 0 0 6px}
+.ups{display:flex;align-items:baseline;gap:12px;margin:0 0 8px}
+.ups b{font-size:13px;letter-spacing:.02em;color:#15181C}.ups span{font-size:11px;color:#6B737D}
+.tot.upt{width:340px}
 td.r.rate{white-space:nowrap}
 @media print{html,body{background:#fff;padding:0;margin:0;font-size:10px;height:auto}
   body>*{page-break-after:avoid}
@@ -2740,6 +2743,9 @@ function docHTML(p,kind){
   const f=d=>d.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"});
   const unpriced=lines.filter(l=>!l.unit).length;
   const fnote=docFootnote(lines);
+  // a bid priced per sign (every line qty 1, "unit price" in the scope): a unit price schedule, no made-up total
+  const unitMode=kind==="quote"&&(p.priceMode==="unit"||(p.priceMode!=="total"&&lines.length>1&&lines.every(l=>Number(l.qty)===1)
+    &&/\bunit\s+prices?\b|\bper\s+sign\b/i.test(String(p.scope||"")+" "+String(p.notes||""))));
   const qNote=b.quoteNote||("This quote is good for "+qDays+" days from the date above. Prices are per piece and include materials to the stated specification. Freight quoted separately where it applies. Lead time confirmed on order.");
   const lamLine=kind==="quote"&&!/overlaminate/i.test(qNote)&&lines.some(l=>{try{return l.src&&!isCharge(l.src)&&linePrinted(l.src)}catch(e){return false}});
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${kind==="quote"?"Quote":"Invoice"} ${esc(no)}</title>
@@ -2764,8 +2770,9 @@ function docHTML(p,kind){
     <div><b>Ship to</b>${esc(p.shipTo||[a.street,a.city,a.state,a.zip].filter(Boolean).join(", ")||"Same as billing")}</div>
     <div><b>Project</b>${esc(p.name)}<br>P-${p.num}${p.po?"<br>P.O. "+esc(p.po):""}</div>
   </div>
-  <table><thead><tr><th class="n">#</th><th>Item</th><th style="width:52px" class="r">Qty</th>
-    <th class="r" style="width:92px">Unit price</th><th class="r" style="width:100px">Amount</th></tr></thead><tbody>
+  ${unitMode?`<div class="ups"><b>Unit price schedule</b><span>Prices are per sign${p.scope&&/minimum/i.test(p.scope)?" — order minimums are in the scope below":""}.</span></div>`:""}
+  <table><thead><tr><th class="n">#</th><th>Item</th>${unitMode?`<th style="width:80px" class="r">Unit</th>`:`<th style="width:52px" class="r">Qty</th>`}
+    <th class="r" style="width:92px">Unit price</th>${unitMode?"":`<th class="r" style="width:100px">Amount</th>`}</tr></thead><tbody>
     ${lines.length?lines.map((l,ix)=>{const it=docItem(l,fnote);const chg=l.src&&isCharge(l.src);
       const pic=!chg&&l.src&&b.quotePics!==false?linePic(p,l.src):"";
       return `<tr${chg?' class="chg"':""}>
@@ -2774,15 +2781,16 @@ function docHTML(p,kind){
         ${it.tag?`<span class="tag">${esc(it.tag)}</span>`:""}<span class="nm">${esc(it.name)}${it.fn?"<sup>†</sup>":""}</span>
         ${it.spec?`<span class="spec">${esc(it.spec)}</span>`:""}${it.sub?`<span class="sub">${esc(it.sub)}</span>`:""}
         ${l.src&&l.src.noLam?`<span class="sub" style="font-weight:700">${esc(NOLAM_TXT)}</span>`:""}</div></div></td>
-      <td class="r qty">${l.qty}</td>
-      <td class="r rate">${(function(){if(!l.unit)return "—";
+      ${unitMode?`<td class="r qty">${chg?"per order":"each"}</td>`:`<td class="r qty">${l.qty}</td>`}
+      <td class="r rate${unitMode?" amt":""}">${(function(){if(!l.unit)return "—";
         const lp=(a.showSavings&&l.src&&!isCharge(l.src))?listPrice(l.src):null;
         return lp&&lp.price>l.unit+0.004?`<span style="text-decoration:line-through;color:#7A828C;font-size:10.5px">${money2(lp.price)}</span><br>${money2(l.unit)}`:money2(l.unit)})()}</td>
-      <td class="r amt">${l.unit?money2(l.qty*l.unit):"—"}</td></tr>`}).join("")
+      ${unitMode?"":`<td class="r amt">${l.unit?money2(l.qty*l.unit):"—"}</td>`}</tr>`}).join("")
     :`<tr><td colspan="5" style="text-align:center;color:#888;padding:22px">No priced lines on this project yet.</td></tr>`}
   </tbody></table>
   ${fnote?`<div class="fn"><b style="color:#D50101">†</b> ${esc(fnote)}</div>`:""}
-  <div class="totwrap"><div class="tot">
+  ${unitMode?`<div class="totwrap"><div class="tot upt"><div><span>Sales tax</span><span>${exempt?"Exempt":rate?rate+"% on the invoice":"On the invoice"}</span></div>
+    <div class="g"><span>Order total</span><span style="font-size:13px;color:#15181C">Quantity × unit price${lines.some(l=>l.src&&isCharge(l.src))?" + delivery":""}</span></div></div></div>`:`<div class="totwrap"><div class="tot">
     ${(function(){if(!a.showSavings)return "";const save=lines.reduce((t,l)=>{if(!l.unit||!l.src||isCharge(l.src))return t;
         const lp=listPrice(l.src);return t+(lp&&lp.price>l.unit?(lp.price-l.unit)*l.qty:0)},0);
       return save>0.009?`<div style="color:#0A7A3E"><span>You save</span><span>${money2(save)}</span></div>`:""})()}
@@ -2792,7 +2800,7 @@ function docHTML(p,kind){
     ${!exempt?`<div class="notes" style="padding:2px 0 0;font-size:10px">Sales tax is an estimate; QuickBooks calculates the final tax on the invoice.</div>`:""}
     ${dep?`<div><span>Less deposit received</span><span>−${money2(dep)}</span></div>`:""}
     <div class="g"><span>${kind==="quote"?"Total":"Amount due"}</span><span>${money2(total)}</span></div>
-  </div></div>
+  </div></div>`}
   <div class="blocks">
     <div>
       <div class="lbl">${kind==="quote"?"Notes":"Payment"}</div>
@@ -7094,6 +7102,8 @@ function picEntry(line){
     [nm,cd,sz].filter(Boolean).join("|"),                  // saved before this changed
     [nm,sz].filter(Boolean).join("|"),
     cd];                                                    // one picture for the whole code
+  for(const k of tries){const e=k&&lib[k];if(e&&e.img&&!e.web)return e}     // a picture uploaded by hand for this item wins
+  {const wb=webBest(line);if(wb)return wb}                                  // the website sign that matches the words, legend and direction
   for(const k of tries){if(k&&lib[k])return lib[k]}
   return webcatPic(line&&line.desc)||webcatPic(line&&line.title)||webcatByWords(cd&&typeof SIGN_NAMES!=="undefined"?SIGN_NAMES[cd]:"")||genericSignPic(line);
 }
@@ -7105,31 +7115,77 @@ function webcatByWords(nm){nm=String(nm||"").toUpperCase().replace(/\(.*?\)/g,""
   return {img:hits[0].img,name:hits[0].name,web:true}}
 // a plain drawing of the sign's shape for a line with no picture of its own (bid items like "Warning sign 30x30")
 const GENPIC={};
+/* ===== the website sign that IS this line =====
+   Matches on the MUTCD code family (R6-1 finds R6-1L and R6-1R), then the words on the line: the legend
+   ("Speed Limit 25" picks the 25 MPH sign) and the direction ("left" never shows a right arrow). A line
+   with no code is matched by its name only (webcatPic). */
+const PIC_STOP=new Set("SIGN SIGNS BID ITEM TYPICAL ALUMINUM ALUM GRADE HIGH INTENSITY PRISMATIC DIAMOND ENGINEER HIP DG3 EG AEGP REFLECTIVE SHEETING MUTCD WITH AND THE FOR PER LEGEND COUNTY ORDER".split(" "));
+function picDir(t){t=" "+String(t||"").toUpperCase().replace(/[^A-Z0-9]+/g," ")+" ";const l=/ LEFT /.test(t),r=/ RIGHT /.test(t);return l&&!r?"L":r&&!l?"R":""}
+function picWords(t){return String(t||"").toUpperCase().replace(/\b[A-Z]{1,3}\d{1,3}[A-Z]?-\d{1,3}[A-Z]*\b/g," ").replace(/\d+(\.\d+)?\s*["”]?\s*[X×]\s*\d+(\.\d+)?\s*["”]?/g," ").replace(/\.\d+/g," ")
+  .split(/[^A-Z0-9]+/).filter(w=>w&&!PIC_STOP.has(w)&&(w.length>=3||/^\d+$/.test(w)))}
+function webBest(line){if(!line||typeof line!=="object")return null;
+  const cd=String(line.code||"").trim().toUpperCase();if(!cd)return null;
+  const base=cd.replace(/(\d)[LR]$/,"$1");
+  const prods=webcatProducts().filter(p=>p.img&&(p.codes||[]).some(c=>c===cd||c.replace(/(\d)[LR]$/,"$1")===base));
+  if(!prods.length)return null;
+  const txt=String(line.desc||"")+" "+String(line.title||"");
+  const want=/(\d)[LR]$/.test(cd)?cd.slice(-1):picDir(txt);
+  const words=picWords(txt).filter(w=>w!==base&&w!==cd.replace(/-/g,""));const nums=words.filter(w=>/^\d+$/.test(w));
+  let best=null,bs=-1e9;
+  prods.forEach(p=>{const pw=picWords(p.name);const codes=p.codes||[];
+    const pdir=codes.map(c=>(c.match(/\d([LR])$/)||[])[1]).find(Boolean)||picDir(p.name);
+    let sc=codes.indexOf(cd)>=0?10:0;
+    if(want&&pdir&&pdir!==want)sc-=1000;else if(want&&pdir===want)sc+=6;
+    words.forEach(w=>{if(pw.indexOf(w)>=0)sc+=/^\d+$/.test(w)?8:3});
+    if(nums.length&&pw.some(w=>/^\d+$/.test(w)&&nums.indexOf(w)<0))sc-=6;   // "Speed Limit 45" when the line says 25
+    if(!want&&pdir==="R")sc+=1;                       // nothing said about direction: show the right-hand version, every time
+    if(!nums.length&&pw.indexOf("25")>=0)sc+=1;       // no legend number given: the common 25
+    sc-=(p.name.indexOf("(")>=0?2:0)+p.name.length/100;
+    if(sc>bs){bs=sc;best=p}});
+  return best&&bs>-500?{img:best.img,name:best.name,web:true,matched:1}:null}
+/* a clean drawing for a line with no picture anywhere: the shape comes from the code and the size (a warning
+   sign is a diamond only when it's square), and it carries the line's own words — it can never show a
+   different sign than the line describes. Agents still replace every drawing with a real picture. */
 function genericSignPic(line){if(!line||typeof line!=="object")return null;
   const cd=String(line.code||"").trim().toUpperCase();
-  // "3M Diamond Grade" is a sheeting, not a diamond-shaped sign
-  const t=(String(line.desc||"")+" "+String(line.title||"")).toUpperCase().replace(/\bDIAMOND\s+GRADE\b|\bDG3\b/g," ");
+  const raw=String(line.desc||line.title||"");
+  const t=(raw+" "+String(line.title||"")).toUpperCase().replace(/\bDIAMOND\s+GRADE\b|\bDG3\b/g," ");
+  const m=String(line.size||raw).match(/(\d+(?:\.\d+)?)\s*["”]?\s*[X×]\s*(\d+(?:\.\d+)?)/i);
+  if(!m&&!cd&&!raw.trim())return null;
+  let w=m?+m[1]:24,h=m?+m[2]:24;const square=Math.abs(w-h)<0.5;
   let kind="";
-  if(cd==="R1-1")kind="stop";else if(cd==="R1-2")kind="yield";
-  else if(/^W\d/.test(cd))kind="warn";else if(/^R\d/.test(cd))kind="reg";else if(/^[DI]\d/.test(cd))kind="guide";
-  else if(/\bSTOP SIGN\b|^STOP\b/.test(t))kind="stop";
-  else if(cd==="R1-2"||/\bYIELD\b/.test(t))kind="yield";
-  else if(/^W\d/.test(cd)||/\bWARNING\b|\bDIAMOND\b/.test(t))kind="warn";
-  else if(/^R\d/.test(cd)||/\bREGULATORY\b/.test(t))kind="reg";
-  else if(/^D\d|^I\d/.test(cd)||/\bGUIDE\b|\bSTREET NAME\b/.test(t))kind="guide";
-  else return null;
-  const m=String(line.size||t).match(/(\d+(?:\.\d+)?)\s*["”]?\s*[X×]\s*(\d+(?:\.\d+)?)/i);
-  let w=m?+m[1]:24,h=m?+m[2]:30;
-  const label=(cd&&typeof SIGN_NAMES!=="undefined"&&SIGN_NAMES[cd])||({stop:"STOP",yield:"YIELD",warn:"",reg:"",guide:""})[kind]||"";
-  const key=kind+"|"+w+"x"+h+"|"+label;if(GENPIC[key])return GENPIC[key];
+  if(cd==="R1-1"||(!cd&&/\bSTOP SIGN\b|^STOP\b/.test(t)))kind="stop";
+  else if(cd==="R1-2"||(!cd&&/\bYIELD\b/.test(t)))kind="yield";
+  else if(/^R6-1/.test(cd)||(!cd&&/\bONE WAY\b/.test(t)))kind="oneway";
+  else if(/^W\d/.test(cd)||(!cd&&/\bWARNING\b|\bCAUTION\b/.test(t)))kind=square?"warn":"warnrect";
+  else if(/^R\d/.test(cd)||(!cd&&/\bREGULATORY\b/.test(t)))kind="reg";
+  else if(/^[DI]\d/.test(cd)||(!cd&&/\bGUIDE\b|\bSTREET NAME\b/.test(t)))kind="guide";
+  else kind="plain";
+  // the words on the drawing: the line's own name, without bid numbers, sizes, materials or "typical"
+  let label=raw.split(" — ")[0].replace(/^bid\s+item\s+[a-z0-9.\-]+\s*[:\-–—]\s*/i,"").replace(/\(([^)]*)\)/g,(x,y)=>" "+y.replace(/\b[A-Z]{1,2}\d+-\d+[A-Z]*\b/gi,"").replace(/\btypical\b/gi,"")+" ")
+    .replace(/\d+(\.\d+)?\s*["”]?\s*[x×]\s*\d+(\.\d+)?\s*["”]?/gi," ").replace(/\b(regulatory|warning sign|sign|diamond|mutcd)\b/gi," ").replace(/\b[A-Z]{1,2}\d+-\d+[A-Z]*\b/gi," ")
+    .replace(/[,:;]+/g," ").replace(/\s+/g," ").trim().toUpperCase();
+  if(!label&&cd&&typeof SIGN_NAMES!=="undefined"&&SIGN_NAMES[cd])label=SIGN_NAMES[cd].toUpperCase();
+  if(kind==="warnrect"&&label&&!/WARNING|CAUTION/.test(label))label="WARNING "+label;
+  const dir=picDir(raw)||((cd.match(/\d([LR])$/)||[])[1])||"R";
+  const key=kind+"|"+w+"x"+h+"|"+label+"|"+dir;if(GENPIC[key])return GENPIC[key];
   const E=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);
+  const wrap=(txt,max,rows)=>{const out=[];let cur="";String(txt).split(" ").forEach(x=>{if(!x)return;if((cur+" "+x).trim().length>max&&cur){out.push(cur);cur=x}else cur=(cur+" "+x).trim()});if(cur)out.push(cur);
+    return out.length>rows?out.slice(0,rows-1).concat([out.slice(rows-1).join(" ").slice(0,max)]):out};
+  const lines=(cx,cy,arr,fs,fill)=>arr.map((l,i)=>'<text x="'+cx+'" y="'+(cy+(i-(arr.length-1)/2)*fs*1.12+fs*0.35).toFixed(1)+'" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="'+fs+'" fill="'+fill+'" text-anchor="middle">'+E(l)+'</text>').join("");
   let svg;
-  if(kind==="stop")svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><polygon points="29,2 71,2 98,29 98,71 71,98 29,98 2,71 2,29" fill="#c8102e" stroke="#fff" stroke-width="4"/><text x="50" y="61" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="28" fill="#fff" text-anchor="middle">STOP</text></svg>';
+  if(kind==="stop")svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><polygon points="29,2 71,2 98,29 98,71 71,98 29,98 2,71 2,29" fill="#c8102e"/><polygon points="31,7 69,7 93,31 93,69 69,93 31,93 7,69 7,31" fill="none" stroke="#fff" stroke-width="3"/><text x="50" y="61" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="28" fill="#fff" text-anchor="middle">STOP</text></svg>';
   else if(kind==="yield")svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 90"><polygon points="2,4 98,4 50,88" fill="#c8102e"/><polygon points="20,14 80,14 50,66" fill="#fff"/><text x="50" y="34" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="13" fill="#c8102e" text-anchor="middle">YIELD</text></svg>';
-  else if(kind==="warn")svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><polygon points="50,2 98,50 50,98 2,50" fill="#ffcc00" stroke="#111" stroke-width="3"/><polygon points="50,9 91,50 50,91 9,50" fill="none" stroke="#111" stroke-width="2"/>'+(label?'<text x="50" y="54" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="11" fill="#111" text-anchor="middle">'+E(label.toUpperCase().slice(0,14))+'</text>':'<text x="50" y="66" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="40" fill="#111" text-anchor="middle">!</text>')+'</svg>';
-  else{const W=100,H=Math.max(30,Math.min(300,Math.round(100*h/w)));const bg=kind==="guide"?"#00843d":"#fff",fg=kind==="guide"?"#fff":"#111";
-    const fs=Math.max(8,Math.min(16,Math.round(Math.min(W,H)/5)));
-    svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' '+H+'"><rect x="2" y="2" width="'+(W-4)+'" height="'+(H-4)+'" rx="6" fill="'+bg+'" stroke="'+fg+'" stroke-width="3"/><rect x="7" y="7" width="'+(W-14)+'" height="'+(H-14)+'" rx="4" fill="none" stroke="'+fg+'" stroke-width="2"/>'+(label?'<text x="50" y="'+(H/2+fs/3)+'" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="'+fs+'" fill="'+fg+'" text-anchor="middle">'+E(label.toUpperCase().slice(0,12))+'</text>':'')+'</svg>'}
+  else if(kind==="oneway"){const L=dir==="L";
+    svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 40"><rect x="1" y="1" width="118" height="38" rx="3" fill="#111" stroke="#fff" stroke-width="1.5"/>'
+      +'<polygon points="'+(L?"8,20 26,7 26,14 112,14 112,26 26,26 26,33":"112,20 94,7 94,14 8,14 8,26 94,26 94,33")+'" fill="#fff"/>'
+      +'<text x="'+(L?66:54)+'" y="23.5" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="10" fill="#111" text-anchor="middle">ONE WAY</text></svg>'}
+  else if(kind==="warn"){const arr=wrap(label||"WARNING",9,3);
+    svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><polygon points="50,2 98,50 50,98 2,50" fill="#ffcc00" stroke="#111" stroke-width="3"/><polygon points="50,9 91,50 50,91 9,50" fill="none" stroke="#111" stroke-width="2"/>'+lines(50,50,arr,arr.length>2?9:11,"#111")+'</svg>'}
+  else{const W=100,H=Math.max(30,Math.min(300,Math.round(100*h/w)));
+    const bg=kind==="guide"?"#00843d":kind==="warnrect"?"#ffcc00":"#fff",fg=kind==="guide"?"#fff":"#111";
+    const arr=wrap(label||"",H>W?10:16,H>W?4:2);const fs=Math.max(8,Math.min(15,Math.round(Math.min(80/(Math.max(5,...arr.map(x=>x.length))*0.68),(H-20)/Math.max(1,arr.length)/1.2))));
+    svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' '+H+'"><rect x="2" y="2" width="'+(W-4)+'" height="'+(H-4)+'" rx="6" fill="'+bg+'" stroke="'+fg+'" stroke-width="3"/><rect x="7" y="7" width="'+(W-14)+'" height="'+(H-14)+'" rx="4" fill="none" stroke="'+fg+'" stroke-width="2"/>'+lines(50,H/2,arr,fs,fg)+'</svg>'}
   return GENPIC[key]={img:"data:image/svg+xml;base64,"+btoa(unescape(encodeURIComponent(svg))),name:label||kind,generic:true}}
 function signPic(line){const e=picEntry(line);return e&&e.img||""}
 /* ===== the proof artwork uploaded to a project finds its own line =====
@@ -7195,6 +7251,12 @@ function picStatus(p,line){try{const a=p?lineArt(p,line):null;if(a&&a.url)return
   if(web){web=picFixUrl(web);picProbe(web,p&&p.id);if(!PICBAD[web])return "photo";
     const e2=picEntry(Object.assign({},line,{webImg:""}));return !e2||e2.generic?"broken":"broken_using_library"}
   const e=picEntry(line);return !e?"none":e.generic?"drawing":"photo"}catch(e){return ""}}
+// the name of the picture a line shows: the file, the link on the line, the website sign or "drawing: …"
+function picName(p,line){const a=p?lineArt(p,line):null;if(a&&a.url)return "file: "+(a.name||"uploaded picture");
+  let web=line&&line.webImg||"";if(!web&&p&&line&&line.lineId){const ol=orderedLines(p).find(o=>o.id===line.lineId);if(ol&&ol.webImg)web=ol.webImg}
+  if(web&&!PICBAD[picFixUrl(web)])return "link on the line";
+  const e=picEntry(Object.assign({},line,{webImg:""}));if(!e)return "";
+  return e.generic?"drawing: "+(e.name||""):(e.web?"website: ":"library: ")+(e.name||"")}
 function bulkPicModal(){
   openModal(mshell("Add pictures for lots of items","",
     `<p class="note" style="margin:10px 15px">Pick as many pictures as you like. Each one is matched to an item by its
@@ -8668,7 +8730,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-13";
+const APP_VERSION="2026.11.25-15";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -13153,7 +13215,7 @@ function syncLine(l,price,p){
     size:l.size?syncTxt(()=>sizeLabel(l.size)):"",material:syncTxt(()=>custMaterial(l.grade)),
     unit_price:up,line_total:syncN(qty*up),charge:l.charge||""};
   if(!l.charge&&(l.noLam||syncTxt(()=>linePrinted(l)?"y":"")))out.overlaminate=!l.noLam;   // printed lines say whether the clear overlaminate goes on
-  if(!l.charge){out.picture=picStatus(p,l);if(l.webImg)out.img=l.webImg}   // the agents fill every "none" and "drawing" with a real picture
+  if(!l.charge){out.picture=picStatus(p,l);if(l.webImg)out.img=l.webImg;out.picture_name=syncTxt(()=>picName(p,l))}   // the agents fill every "none" and "drawing" with a real picture
   return out;
 }
 function syncTax(a,amt){const rate=Number((S.brand||{}).taxRate)||0;return (!isExempt(a)&&rate>0)?syncN(amt*rate/100):0}
