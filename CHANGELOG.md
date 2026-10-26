@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-24 — 2026-10-26
+- Website catalogue pull fixed on the hosted CRM: it failed every time (the database refuses price tiers stored as nested lists), so website prices and the 1,761 stencils never loaded
+- the catalogue is now saved as text
+
 ## 2026.11.25-23 — 2026-10-26
 - Quotes: shipping is always called Shipping
 - contract (unit-price) quotes say clearly there are no set quantities
