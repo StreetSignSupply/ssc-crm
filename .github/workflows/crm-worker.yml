@@ -3,6 +3,9 @@ on:
   schedule:
     - cron: "*/15 * * * *"
   workflow_dispatch: {}
+permissions:
+  contents: read
+  id-token: write
 concurrency:
   group: crm-worker
   cancel-in-progress: false
@@ -12,6 +15,12 @@ jobs:
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
+      - name: Google sign-in (keyless, no stored key)
+        if: ${{ vars.WIF_PROVIDER != '' }}
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: firebase-adminsdk-fbsvc@ssc-crm-a7224.iam.gserviceaccount.com
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -22,4 +31,5 @@ jobs:
         working-directory: worker
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_PROJECT: ssc-crm-a7224
         run: node run.mjs

@@ -13,11 +13,12 @@ const RUN_MS = Number(process.env.RUN_MS || 180000);
 async function store() {
   if (process.env.MOCK_STORE) return (await import(process.env.MOCK_STORE)).default;
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT || "";
-  if (!raw.trim()) { console.log("FIREBASE_SERVICE_ACCOUNT is not set yet: nothing to do."); process.exit(0); }
-  const { initializeApp, cert } = await import("firebase-admin/app");
+  const adc = process.env.GOOGLE_APPLICATION_CREDENTIALS || "";
+  if (!raw.trim() && !adc) { console.log("No Google credentials yet (keyless sign-in or key not set up): nothing to do."); process.exit(0); }
+  const { initializeApp, cert, applicationDefault } = await import("firebase-admin/app");
   const { getFirestore } = await import("firebase-admin/firestore");
-  const sa = JSON.parse(raw);
-  initializeApp({ credential: cert(sa) });
+  initializeApp(raw.trim() ? { credential: cert(JSON.parse(raw)) }
+    : { credential: applicationDefault(), projectId: process.env.FIREBASE_PROJECT || "ssc-crm-a7224" });
   const fs = getFirestore();
   fs.settings({ ignoreUndefinedProperties: true });
   const plain = (v) => JSON.parse(JSON.stringify(v === undefined ? null : v, (k, x) =>
