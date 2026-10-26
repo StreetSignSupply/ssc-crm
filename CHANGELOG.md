@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-21 — 2026-10-25
+- Quotes and invoices use the Catalog look by default (Matt's pick)
+
 ## 2026.11.25-20 — 2026-10-25
 - Quotes: removed 'Made in Washington, Utah' and 'A real person'
 - three promises: MUTCD, 3M sheeting, fast confirmation
