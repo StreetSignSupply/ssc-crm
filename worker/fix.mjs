@@ -24,7 +24,7 @@ const fs = new Firestore({ projectId: process.env.FIREBASE_PROJECT || "ssc-crm-a
 const plain = (v) => JSON.parse(JSON.stringify(v === undefined ? null : v, (k, x) => x && typeof x === "object" && typeof x.toMillis === "function" ? x.toMillis() : x));
 let writes = 0, errors = 0; const errs = [];
 let browser; try { browser = await chromium.launch({ channel: "chrome" }); } catch (e) { browser = await chromium.launch(); }
-setTimeout(() => { console.log("::warning::watchdog"); process.exit(0); }, 15 * 60000).unref();
+setTimeout(() => { console.log("::warning::watchdog"); process.exit(0); }, 40 * 60000).unref();
 const page = await (await browser.newContext()).newPage();
 page.on("pageerror", (e) => { errors++; errs.push(String(e.message || e).slice(0, 120)); });
 await page.exposeBinding("__wGet", async (_, p) => { const s = await fs.doc(p).get(); return { id: s.id, exists: s.exists, data: s.exists ? plain(s.data()) : null }; });

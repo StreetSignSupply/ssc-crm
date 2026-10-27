@@ -1,5 +1,20 @@
 # What changed
 
+## 2026.11.25-27 — 2026-10-27
+- Accounts: Merge into another account
+- list shows 100 at a time
+- Overlaminate: an account can be set to not want it, and its new quote lines start without it
+- Close-out paperwork checks use the file category and flag another customer's document
+- Stock never goes below zero — pulls past the count flag a recount, shown in Inventory
+- Claims of a team record need the owner's OK once the owner has claimed theirs, with an owner prompt
+- typed initials no longer grant access after that
+- Agents' feed no longer comes in by itself and never plans follow-ups
+- Past due uses one rule everywhere
+- On the floor no longer repeats the name
+- Exempt accounts without a certificate date are flagged
+- duplicate warning matches names only in the same state
+- Fixes run through the CRM for P-2008, P-2009, P-2012, P-2018, old work orders, reps, contacts, duplicates and negative stock
+
 ## 2026.11.25-26 — 2026-10-27
 - Calendar: events can belong to an account with no project
 - accounts show a Schedule card and a New event button
