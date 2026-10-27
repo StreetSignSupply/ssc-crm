@@ -1836,6 +1836,21 @@ function syncViewer(){
     S.me=t.initials.toUpperCase();try{localStorage.setItem("sscMe",S.me)}catch(e){}
   }
 }
+function claimBanner(){
+  if(!S.team)return "";
+  if(myAccess()!=="owner")return "";
+  const pend=live(S.team).filter(t=>t.claimPending&&t.claimPending.by);
+  const out=pend.map(t=>`<div class="alert strip"><span><b>${esc(t.claimPending.name||t.claimPending.email||"Someone")}</b> wants to sign in as <b>${esc(t.name)}</b> (${esc((ACCESS[t.access||"owner"]||{}).label||"")} access).</span>
+    <span class="sp"><button class="btn sm p" data-claimok="${esc(t.id)}">Approve</button><button class="btn sm" data-claimno="${esc(t.id)}">Refuse</button></span></div>`).join("");
+  const noOwner=!ownerClaimed()&&viewerId()?`<div class="alert strip"><span>Lock the CRM to your sign-in: anyone not on the team list gets full access until the owner claims their record.</span>
+    <span class="sp"><button class="btn sm p" id="claimbtn3">Sign in as…</button></span></div>`:"";
+  return out+noOwner;
+}
+async function claimDecide(id,ok){const t=S.team.get(id);if(!t||!t.claimPending)return;
+  if(ok)await push("team/"+id,{claudeId:t.claimPending.by,claimPending:null,updatedAt:Date.now()});
+  else await push("team/"+id,{claimPending:null,updatedAt:Date.now()});
+  recordHistory("team",id,[{f:"Sign-in",o:"",n:(ok?"Approved ":"Refused ")+(t.claimPending.name||t.claimPending.email||"a sign-in")+" as "+t.name,ev:1}]);
+  toast(ok?"Approved.":"Refused.")}
 function claimModal(){
   const un=live(S.team).filter(t=>!t.claudeId);
   openModal(mshell("Which one are you?","cont",
@@ -1855,10 +1870,12 @@ function claimModal(){
     const el=document.querySelector("[name=claim]:checked");
     if(!el)return toast("Pick your name.");
     const id=el.value,t=S.team.get(id);
-    if(t&&(t.access||"owner")==="owner"&&ownerClaimed()&&myAccess()!=="owner")
-      return toast("That record has Owner access — the owner has to give it to you from Settings → Our team.");
+    // once the owner has claimed their record, every other claim waits for the owner's OK
+    if(ownerClaimed()&&myAccess()!=="owner"){closeModal();
+      await push("team/"+id,{claimPending:{by:viewerId(),name:viewerName()||"",email:String((S.viewer&&S.viewer.email)||""),at:Date.now()},updatedAt:Date.now()});
+      return toast("Asked the owner to confirm it's you. Until then you have Shop access.")}
     closeModal();
-    await push("team/"+id,{claudeId:viewerId(),updatedAt:Date.now()});
+    await push("team/"+id,{claudeId:viewerId(),claimPending:null,updatedAt:Date.now()});
     if(t&&t.initials){S.me=t.initials.toUpperCase();try{localStorage.setItem("sscMe",S.me)}catch(e){}}
     toast("Signed in as "+((t&&t.name)||"you"));
   };
@@ -2085,7 +2102,9 @@ function txModal(iid,type,jobNum,amount){
     try{
       await setDoc("invtx/"+txid,{id:txid,itemId:iid,type,qty:delta,at:Date.now(),who:me(),
         note,jobId:jid||"",cost,itemName:it.name||"",unit:it.unit||"",unitCost:it.cost||"",deleted:false});
-      const patch={onHand:onHand(it)+delta,updatedAt:Date.now()};
+      const patch={onHand:Math.max(0,onHand(it)+delta),updatedAt:Date.now()};
+      if(onHand(it)+delta<0){patch.needsCount=true;note=(note?note+" — ":"")+"count was "+Math.round(-(onHand(it)+delta)*100)/100+" short"}
+      if(type==="count")patch.needsCount=false;
       if(type==="receive"&&cost)patch.cost=cost;
       await push("items/"+iid,patch);
       recordHistory("item",iid,[{f:"Stock",o:String(onHand(it)),
@@ -4135,7 +4154,12 @@ function closeList(p){
       :projMargin(p)<0?"Costing more than it sold for"
       :projMargin(p)<marginFloor()?projMargin(p).toFixed(0)+"% — under your "+marginFloor()+"% minimum"
       :projMargin(p).toFixed(0)+"% — "+money(projValue(p)-projCost(p)),"proj",projValue(p)<=0);
-  (function(){const fs=projFiles(p.id);const has=re=>fs.some(f=>re.test((f.cat||"")+" "+(f.name||"")));
+  (function(){const others=live(S.accounts).filter(a=>a.id!==p.accountId&&(a.name||"").length>3).map(a=>acctKey(a.name)).filter(k=>k.length>3);
+    const mine=f=>{const n=String(f.name||"").toLowerCase().replace(/[^a-z0-9]/g,"");return !others.some(k=>n.indexOf(k)>=0&&n.indexOf(acctKey(accName(p.accountId)))<0)};
+    const fs=projFiles(p.id).filter(mine);
+    const has=re=>fs.some(f=>re.test(f.cat||"")||(!f.cat&&re.test(f.name||"")));
+    const wrong=projFiles(p.id).filter(f=>!mine(f));
+    if(wrong.length)auto("c_wrongcust","No other customer's documents filed here",false,wrong.map(f=>f.name).join(", ")+" names another customer","file");
     auto("c_qpdf","Quote PDF filed on the project",has(/quote/i),has(/quote/i)?"On file":"Make the quote PDF and file it under Files","file");
     auto("c_po","PO or signed quote filed",has(/\bpo\b|purchase order|signed quote/i),has(/\bpo\b|purchase order|signed quote/i)?"On file":"Nothing filed shows they ordered it","file");
     auto("c_invf","Invoice filed",has(/invoice/i),has(/invoice/i)?"On file":"File the QuickBooks invoice PDF","file");})();
@@ -5584,7 +5608,7 @@ async function chargeSave(pid,ixRaw){
 function ordModal(pid,ix,pre){
   const p=proj(pid);if(!p)return;
   const isNew=(ix==null);
-  const o=isNew?Object.assign({qty:"",code:"",size:"",grade:"",legend:"",note:""},pre||{}):Object.assign({},orderedLines(p)[ix]||{});
+  const o=isNew?Object.assign({qty:"",code:"",size:"",grade:"",legend:"",note:"",noLam:!!(acct(p.accountId)||{}).noLamDefault},pre||{}):Object.assign({},orderedLines(p)[ix]||{});
   S.ordPre=isNew?(pre||null):null;S.ordAid=p.accountId||"";
   openModal(mshell(isNew?"Add a quote line":"Edit quote line","proj",
     `<div style="padding:12px 15px;border-bottom:1px solid var(--line);background:var(--card2);display:flex;gap:12px;align-items:center;flex-wrap:wrap">
@@ -7056,10 +7080,10 @@ async function finishPulls(num,picks,recount){
       await setDoc("invtx/"+txid,{id:txid,itemId:iid,swapFor:pk.swap?pk.r.itemId:"",type:"use",qty:-Math.abs(pk.q),
         at:Date.now(),who:me(),note:pk.swap?"Instead of "+pk.r.name:"From the material plan",jobId:String(num),cost:"",
         itemName:it.name||"",unit:it.unit||"",unitCost:it.cost||"",deleted:false});
-      await push("items/"+iid,Object.assign({onHand:onHand(it)-Math.abs(pk.q),updatedAt:Date.now()},
-        onHand(it)-Math.abs(pk.q)<0?{needsCount:true}:{}));
-      recordHistory("item",iid,[{f:"Stock",o:String(onHand(it)),
-        n:String(onHand(it)-Math.abs(pk.q))+" (used on work order "+num+")"+(onHand(it)-Math.abs(pk.q)<0?" — below zero, needs a recount":"")}]);
+      {const was=onHand(it),want=was-Math.abs(pk.q),nowQ=Math.max(0,Math.round(want*10000)/10000);
+        await push("items/"+iid,Object.assign({onHand:nowQ,updatedAt:Date.now()},want<0?{needsCount:true}:{}));
+        recordHistory("item",iid,[{f:"Stock",o:String(was),
+          n:String(nowQ)+" (used on work order "+num+")"+(want<0?" — the count was "+Math.round(-want*100)/100+" short; needs a recount":"")}]);}
       done++;
     }catch(e){}
   }
@@ -7616,6 +7640,7 @@ function overdueItems(){
     if(d!==null&&d<0)out.push({k:"job",id:String(j.num),label:"Work order "+j.num+" "+(j.desc||""),who:accName(j.accountId),d,date:j.due})});
   return out.sort((a,b)=>a.d-b.d);
 }
+function isLateJob(j){return !!j&&j.status!=="shipped"&&!jobArchived(j)&&!(j.projectId&&isClosed(proj(j.projectId)||{}))&&daysOut(j.due)!==null&&daysOut(j.due)<0}
 function odBreak(od){const w=od.filter(x=>x.k==="job").length,p=od.length-w;
   return [w?w+" work order"+(w===1?"":"s"):"",p?p+" project"+(p===1?"":"s"):""].filter(Boolean).join(" + ")}
 function dueSoonItems(days){
@@ -8080,7 +8105,7 @@ function render(){
   document.querySelectorAll("#viewer,.scrim,.modal").forEach(el=>el.remove());
   const prev=$(".main"),st=prev?prev.scrollTop:0,wy=window.scrollY||0;
   const rkey=(S.route&&S.route.v||"")+"/"+(S.route&&S.route.id||"");
-  $("#root").innerHTML=`<div class="app${railMin()?" rail-min":""}">${rail()}<div class="apage">${gbar()}${signinBar()}${scopeBar()}${S.ready&&db?alertBar():""}<main class="main">${body()}</main></div>${mobileNav()}</div>`;
+  $("#root").innerHTML=`<div class="app${railMin()?" rail-min":""}">${rail()}<div class="apage">${gbar()}${signinBar()}${scopeBar()}${S.ready&&db?claimBanner()+alertBar():""}<main class="main">${body()}</main></div>${mobileNav()}</div>`;
   placeCrumbs();applyRail();
   orderPage();
   setTimeout(()=>{try{linkBackfill()}catch(e){}try{autoPass()}catch(e){}},0);
@@ -8238,9 +8263,13 @@ const ACCESS={owner:{label:"Owner",settings:1,del:1,cost:1,price:1},office:{labe
   sales:{label:"Sales",settings:0,del:0,cost:0,price:1},shop:{label:"Shop",settings:0,del:0,cost:0,price:0}};
 // once an owner has claimed their record, anyone not on the team list (or wearing someone else's initials) gets Shop only
 function ownerClaimed(){return !!(S.team&&live(S.team).some(x=>(x.access||"owner")==="owner"&&x.claudeId))}
-function myAccess(){const t=S.viewerTeam||(S.team&&live(S.team).find(x=>String(x.initials||"").toUpperCase()===String(S.me||"").toUpperCase()));
-  const vid=viewerId();
-  if(t&&!(vid&&t.claudeId&&t.claudeId!==vid))return t.access&&ACCESS[t.access]?t.access:"owner";
+function myAccess(){const vid=viewerId();
+  // a real match: this sign-in claimed the record, or its email is on it
+  const ve=String((S.viewer&&S.viewer.email)||"").toLowerCase();
+  let t=S.team?live(S.team).find(x=>(vid&&x.claudeId===vid)||(ve&&String(x.email||"").toLowerCase()===ve)):null;
+  // typed initials only count before an owner has claimed their record
+  if(!t&&!ownerClaimed())t=S.viewerTeam||(S.team&&live(S.team).find(x=>String(x.initials||"").toUpperCase()===String(S.me||"").toUpperCase()));
+  if(t)return t.access&&ACCESS[t.access]?t.access:"owner";
   return ownerClaimed()?"shop":"owner"}
 function can(what){return !!(ACCESS[myAccess()]||ACCESS.owner)[what]}
 function canCompanyDash(){const t=S.viewerTeam;if(!t)return true;return myAccess()==="owner"||!!t.companyDash}
@@ -8344,7 +8373,7 @@ function tracker(){
   if(S.scope)ps=ps.filter(x=>inScope(x));
   else if(S.mineOnly)ps=ps.filter(x=>{const t=repFor(x);return t&&(t.initials||"").toUpperCase()===myInitials()});
   ps.sort(byDue);
-  const late=openJobs().filter(realJob).filter(j=>daysOut(j.due)!==null&&daysOut(j.due)<0).length;
+  const late=openJobs().filter(realJob).filter(isLateJob).length;
   return `<div class="pad">
     <section class="card flush">
       <header><h2>Live status tracker</h2>
@@ -8353,7 +8382,7 @@ function tracker(){
           <input class="btn" id="lq" placeholder="Filter" value="${esc(S.q)}" style="font-weight:400;width:150px">
           ${myInitials()?`<button class="btn sm ${S.mineOnly?"p":""}" data-mine="1">Mine (${myInitials()})</button>`:""}
           <button class="btn p" data-new="project">New project</button></span></header>
-      ${late?`<div class="warn">${late} work order${late>1?"s":""} past due. Red segments and red chips below.</div>`:""}
+      ${late||overdueItems().length?`<div class="warn">${esc(odBreak(overdueItems()))} past due. Red segments and red chips below.</div>`:""}
       ${ps.length?ps.slice(0,40).map(trackerRow).join("")+(ps.length>40?`<div class="sub" style="padding:10px 14px">Showing 40 of ${ps.length} open projects — filter to narrow.</div>`:"")
         :`<div class="empty"><b>Nothing open</b>Every project is invoiced or closed. Start one from an account.</div>`}
     </section>
@@ -8371,7 +8400,7 @@ function trackerRow(p){
   const inStage=daysSince(lastAt);
   const allOut=(function(){const r=shipRollup(p.id);return r.total>0&&r.shipped===r.total})();
   const dc=dueCls(p.due,allOut);
-  const lateJobs=js.filter(j=>daysOut(j.due)!==null&&daysOut(j.due)<0&&j.status!=="shipped").length;
+  const lateJobs=js.filter(isLateJob).length;
   const health=(dc==="r"||lateJobs)?"is-late":dc==="o"?"is-soon":"is-ok";
   const rp=repFor(p),sr=shipRollup(p.id);
   const stepNo=p.stage==="lost"?0:cur+1;
@@ -8437,7 +8466,7 @@ function home(){
   const fullYTD=invYTD.filter(p2=>billState(p2)!=="deposit");
   const revFull=fullYTD.reduce((t,p2)=>t+projValue(p2),0), costYTD=fullYTD.reduce((t,p2)=>t+projCost(p2),0);
   const pipe=open.reduce((t,p2)=>t+projValue(p2),0);
-  const late=oj.filter(j=>daysOut(j.due)!==null&&daysOut(j.due)<0);
+  const late=oj.filter(isLateJob);
   const dt=oj.filter(j=>daysOut(j.due)===0);
   const toInv=all.filter(p2=>p2.stage==="shipped"&&billState(p2)!=="invoiced"&&billState(p2)!=="paid");
   const billedNotClosed=all.filter(p2=>!isClosed(p2)&&billedEarly(p2));
@@ -8466,7 +8495,7 @@ function home(){
   const tasks=real(live(S.activity)).filter(a=>a.kind==="task"&&!a.done&&!a.deleted)
     .sort((a,b)=>(a.due||"9999").localeCompare(b.due||"9999")).slice(0,8);
   const attn=[];
-  if(late.length)attn.push({t:late.length+" work order"+(late.length===1?"":"s")+" past due",h:"jobs",c:"r"});
+  {const od0=overdueItems();if(od0.length)attn.push({t:odBreak(od0)+" past due",h:"calendar",c:"r"})}
   if(toInv.length)attn.push({t:toInv.length+" project"+(toInv.length===1?"":"s")+" shipped and not invoiced",h:"projects",c:"o"});
   if(pastTerms.length)attn.push({t:pastTerms.length+" invoice"+(pastTerms.length===1?"":"s")+" past terms — "+money(pastTerms.reduce((t,p2)=>t+billedValue(p2),0))+" to chase",h:"projects",c:"r"});
   if(readyClose.length)attn.push({t:readyClose.length+" paid and shipped — ready to close won",h:"projects",c:"g"});
@@ -8554,19 +8583,25 @@ function accountList(){
         S.mineOnly?"Showing "+esc(myInitials())+" only":"Mine ("+esc(myInitials())+")"}</button>`:""}
       <button class="btn" data-csvimport="accounts">${ic("file",14)}Import</button>
       <button class="btn p" data-new="account">New account</button></span></header>
-    ${list.length?`<table><thead><tr><th>Account</th><th>Rep</th><th>Type</th><th>Terms</th><th>Tax exempt</th>
+    ${list.length?(function(){const lim=S.acctShow||100;const cp={},cj={};
+      live(S.projects).forEach(p=>{if(!isClosed(p))cp[p.accountId]=(cp[p.accountId]||0)+1});
+      liveJobs().forEach(j=>{if(j.status!=="shipped")cj[j.accountId]=(cj[j.accountId]||0)+1});
+      const reps=repList();
+      return `<table><thead><tr><th>Account</th><th>Rep</th><th>Type</th><th>Terms</th><th>Tax exempt</th>
       <th>Open projects</th><th>Open WOs</th></tr></thead><tbody>
-      ${list.map(a=>`<tr>
+      ${list.slice(0,lim).map(a=>`<tr>
         <td><button class="lnk" data-go="account/${esc(a.id)}">${esc(a.name)}</button>
           <div class="sub">${esc([a.city,a.state].filter(Boolean).join(", "))}</div></td>
         <td><select data-setrep="${esc(a.id)}" style="padding:4px 6px;border:1px solid ${a.repId?"var(--line)":"var(--red)"};
           border-radius:2px;background:var(--card2);font-size:12px;font-weight:700;max-width:130px">
           <option value="" ${a.repId?"":"selected"}>— none —</option>
-          ${repList().map(t=>`<option value="${esc(t.id)}" ${a.repId===t.id?"selected":""}>${esc(t.name)}</option>`).join("")}
+          ${reps.map(t=>`<option value="${esc(t.id)}" ${a.repId===t.id?"selected":""}>${esc(t.name)}</option>`).join("")}
         </select></td>
         <td>${esc(a.type||"—")}</td><td>${esc(a.terms||"—")}</td><td>${exemptPill(a)}</td>
-        <td class="mono">${projectsOf(a.id).filter(p=>!isClosed(p)).length||"—"}</td>
-        <td class="mono">${jobsOfAcct(a.id).filter(j=>j.status!=="shipped").length||"—"}</td></tr>`).join("")}</tbody></table>`
+        <td class="mono">${cp[a.id]||"—"}</td>
+        <td class="mono">${cj[a.id]||"—"}</td></tr>`).join("")}</tbody></table>
+      ${list.length>lim?`<div style="padding:12px 15px;display:flex;gap:10px;align-items:center"><span class="sub">Showing ${lim} of ${list.length} — search to find one fast.</span>
+        <button class="btn sm" data-acctmore="1">Show ${Math.min(100,list.length-lim)} more</button><button class="btn sm" data-acctmore="all">Show all</button></div>`:""}`})()
     :`<div class="empty"><b>${S.scope?"No accounts assigned to "+esc((scopeTeam()||{}).name||"them"):"No accounts yet"}</b>${
       S.scope?"Clear the filter above to see everyone's.":"An account is a customer organization — an agency, contractor, or reseller."}</div>`}
   </section></div>`;
@@ -8576,15 +8611,15 @@ function acctKey(n){return String(n||"").toLowerCase().replace(/\s[-–—:(].*$
 function dupAccounts(rec){
   const k=acctKey(rec.name),ph=String(rec.phone||"").replace(/\D/g,"").slice(-10),dom=String(rec.website||"").toLowerCase().replace(/^https?:\/\//,"").replace(/^www\./,"").split("/")[0];
   return live(S.accounts).filter(x=>x.id!==rec.id&&(
-    (k&&k.length>2&&acctKey(x.name)===k)||(ph.length===10&&String(x.phone||"").replace(/\D/g,"").slice(-10)===ph)||
+    (k&&k.length>2&&acctKey(x.name)===k&&(!rec.state||!x.state||String(x.state).toUpperCase()===String(rec.state).toUpperCase()))||(ph.length===10&&String(x.phone||"").replace(/\D/g,"").slice(-10)===ph)||
     (dom&&String(x.website||"").toLowerCase().replace(/^https?:\/\//,"").replace(/^www\./,"").split("/")[0]===dom)));
 }
 function isExempt(a){return !!(a&&a.exempt&&(!a.exemptExp||String(a.exemptExp)>=today()))}
 function exemptPill(a){
+  if(a.exempt&&!a.exemptExp)return `<span class="pill y" title="Exempt, but no certificate expiry date is recorded — enter it from the certificate">Exempt · add cert date</span>`;
   if(a.exempt&&!isExempt(a))return `<span class="pill r" title="Certificate expired ${esc(fmtDate(a.exemptExp))}">Expired</span>`;
-  if(a.exempt&&!a.exemptExp)return `<span class="pill y" title="Marked exempt, but no certificate expiry is recorded — file the certificate">Exempt · no cert date</span>`;
   if(a.exempt)return `<span class="pill g">On file</span>`;
-  if(a.type==="Government agency")return `<span class="pill r" title="Taxable until their exemption certificate is filed">Certificate needed</span>`;
+  if(a.type==="Government agency"||a.certNeeded)return `<span class="pill r" title="Taxable until their exemption certificate is filed">Certificate needed</span>`;
   return "—";
 }
 function accountRec(id){
@@ -8601,6 +8636,7 @@ function accountRec(id){
         <button class="btn" data-new="contact:${esc(id)}">New contact</button>
         <button class="btn" data-newev="${esc(today())}::${esc(id)}">New event</button>
         <button class="btn p" data-new="project:${esc(id)}">New project</button>
+        <button class="btn" data-merge="${esc(id)}">Merge…</button>
         <button class="btn d" data-del="account:${esc(id)}">Delete</button></div></div>
       <div class="hl-facts">
         <div><div class="k">Sales rep</div><div class="v" style="font-size:13px;display:flex;
@@ -8610,6 +8646,7 @@ function accountRec(id){
         <div><div class="k">Type</div><div class="v">${esc(a.type||"—")}</div></div>
         <div><div class="k">Terms</div><div class="v">${esc(a.terms||"—")}</div></div>
         <div><div class="k">Tax exempt</div><div class="v">${exemptPill(a)}</div></div>
+        ${a.noLamDefault?`<div><div class="k">Overlaminate</div><div class="v"><span class="pill y">Not wanted</span></div></div>`:""}
         <div><div class="k">Open pipeline</div><div class="v mono">${money(openVal)}</div></div>
         <div><div class="k">Invoiced to date</div><div class="v mono">${money(lifetime)}</div></div>
         <div><div class="k">Open work orders</div><div class="v mono">${js.length}</div></div></div></div>
@@ -8652,6 +8689,28 @@ function accountRec(id){
     ${relJobs(js.filter(j=>!jobArchived(j)),"Open work orders")}
   </div>`;
 }
+async function mergeAccounts(fromId,toId,why){
+  const A=acct(fromId),B=acct(toId);if(!A||!B||fromId===toId)return 0;let k=0;const now=Date.now();
+  for(const c of live(S.contacts).filter(x=>x.accountId===fromId)){await push("contacts/"+c.id,{accountId:toId,updatedAt:now});k++}
+  for(const p of live(S.projects).filter(x=>x.accountId===fromId)){await push("projects/"+p.id,{accountId:toId,updatedAt:now});k++}
+  for(const j of live(S.jobs).filter(x=>x.accountId===fromId)){await push("jobs/"+j.num,{accountId:toId,updatedAt:now});k++}
+  for(const f of live(S.files).filter(x=>x.accountId===fromId)){await push("files/"+f.id,{accountId:toId,updatedAt:now});k++}
+  for(const e of live(S.events).filter(x=>x.accountId===fromId)){await push("events/"+e.id,{accountId:toId,updatedAt:now});k++}
+  for(const a of live(S.activity).filter(x=>x.recType==="account"&&x.recId===fromId)){await push("activity/"+a.id,{recId:toId,updatedAt:now});k++}
+  const fill={};["phone","website","street","city","state","zip","repId","billingContactId"].forEach(f=>{if(!B[f]&&A[f])fill[f]=A[f]});
+  if(A.notes&&String(B.notes||"").indexOf(A.notes)<0)fill.notes=[B.notes,A.notes].filter(Boolean).join("\n");
+  if(Object.keys(fill).length)await push("accounts/"+toId,Object.assign(fill,{updatedAt:now}));
+  await push("accounts/"+fromId,{deleted:true,deletedAt:now,deletedBy:me(),mergedInto:toId,updatedAt:now});
+  recordHistory("account",toId,[{f:"Merged",o:"",n:"Merged in "+A.name+" ("+k+" records moved)"+(why?" — "+why:""),ev:1}]);
+  return k;
+}
+function mergeModal(fromId){const A=acct(fromId);if(!A)return;
+  const d=dupAccounts(A);const accs=(d.length?d:live(S.accounts).filter(x=>x.id!==fromId)).sort((x,y)=>(x.name||"").localeCompare(y.name||""));
+  openModal(mshell("Merge "+A.name+" into…","acct",`<div class="fgrid">${sel("m-into","Keep this account",(d[0]||{}).id||"",accs.map(x=>({v:x.id,l:x.name+(x.city?" · "+x.city:"")+(x.state?" "+x.state:"")})),1)}
+    <p class="note fld full">Contacts, projects, work orders, files and events move over; ${esc(A.name)} goes to the recycle bin.</p></div>`,
+    `<button class="btn" data-close="1">Cancel</button><button class="btn p" id="mgo">Merge</button>`));
+  $("#mgo").onclick=async()=>{const to=$("#m-into").value;if(!to)return toast("Pick the account to keep.");closeModal();
+    const k=await mergeAccounts(fromId,to);toast("Merged — "+k+" records moved");go("account/"+to)}}
 function acctEventsCard(id){
   const evs=eventsOfAcct(id);
   return `<section class="card flush"><header><span class="oi sm">${ic("calendar",14)}</span><h2>Schedule</h2>
@@ -8794,7 +8853,7 @@ function jobTable(js,showAcct,withDel){
     <th>${sortBtn("status","Status",cj,"j")}</th><th>${sortBtn("due","Due",cj,"j")}</th>
     <th style="width:96px;text-align:right">${sortBtn("value","Value",cj,"j")}</th>${withDel?`<th style="width:80px"></th>`:""}</tr></thead>
     <tbody>${js.map(j=>`<tr><td><button class="lnk mono" data-go="job/${j.num}">${j.num}</button></td>
-      <td>${esc(j.desc||"—")}${showAcct?`<div class="sub">${esc(accName(j.accountId))}${projName(j.projectId)?" · "+esc(projName(j.projectId)):""}</div>`:""}</td>
+      <td>${esc(j.desc||"—")}${showAcct?`<div class="sub">${esc(accName(j.accountId))}${projName(j.projectId)&&projName(j.projectId)!==j.desc?" · "+esc(projName(j.projectId)):""}</div>`:""}</td>
       <td><span class="pill ${jobCls(j.status)}">${esc((JS[j.status]||{}).label||"")}</span>${j.rush?` <span class="pill r">Rush</span>`:""}</td>
       <td><span class="pill ${dueCls(j.due,j.status==="shipped")}">${dueTxt(j.due)}</span></td>
       <td class="mono" style="text-align:right">${jobRevenue(j)?money2(jobRevenue(j))
@@ -8927,7 +8986,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-26";
+const APP_VERSION="2026.11.25-27";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -9492,7 +9551,7 @@ function jobListView(){
           ${b.l}<span class="mono" style="margin-left:auto">${l.length}</span></h3>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(266px,1fr));gap:10px">
         ${l.map(j=>{const i=JFLOW.indexOf(j.status),nx=JFLOW[i+1];
-          const late=daysOut(j.due)!==null&&daysOut(j.due)<0;
+          const late=isLateJob(j);
           return `<div class="kc ${j.rush?"rush":late?"late":""}" style="padding:12px">
             <div class="r1"><span class="mono" style="font-size:21px;font-weight:700">${j.num}</span>
               <span class="pill ${dueCls(j.due,false)}" style="margin-left:auto">${dueTxt(j.due)}</span></div>
@@ -10114,7 +10173,7 @@ function itemRows(list){
       <td><button class="lnk" data-go="item/${esc(i.id)}">${esc(i.name)}</button>
         <div class="sub mono">${esc(i.sku||"")}</div></td>
       <td>${esc(i.cat||"—")}</td>
-      <td><span class="pill ${stockCls(i)}">${esc(stockText(i))}</span>${onOrder(i)?`<div class="sub">${esc(onOrderTxt(i))}</div>`:""}</td>
+      <td><span class="pill ${stockCls(i)}">${esc(stockText(i))}</span>${i.needsCount||onHand(i)<0?` <span class="pill r" title="A pull went past the count — count it and enter the real number">Recount</span>`:""}${onOrder(i)?`<div class="sub">${esc(onOrderTxt(i))}</div>`:""}</td>
       <td class="mono">${i.reorderPoint!==""&&i.reorderPoint!=null?esc(String(i.reorderPoint)):"—"}</td>
       <td class="sub">${esc(i.bin||"—")}</td>
       <td class="mono" style="text-align:right">${Number(i.cost)>0?money2(Number(i.cost)):`<span class="sub">—</span>`}${(Number(i.cost)>0&&itemSqft(i)&&/roll|sheet/i.test(i.unit||""))?`<div class="sub">${money2(Number(i.cost)/itemSqft(i))}/sq ft</div>`:""}</td>
@@ -10699,7 +10758,7 @@ async function aiBrief(){
   aiBox("Brief me","What matters today, read off the live data.","Gathering…");
   await new Promise(r=>setTimeout(r,0));
   const open=openProjects(),oj=openJobs();
-  const late=oj.filter(j=>daysOut(j.due)!==null&&daysOut(j.due)<0);
+  const late=oj.filter(isLateJob);
   const facts=[
     "Open projects: "+open.map(p=>"P-"+p.num+" "+p.name+" ("+accName(p.accountId)+") "
       +((SG[p.stage]||{}).label||"")+" "+money(projValue(p))+(p.due?" due "+fmtDate(p.due):"")).join(" | "),
@@ -10977,7 +11036,7 @@ function settingsView(){
     </div></section>
     <section class="card"><header><h2>Sales pipeline feed</h2><span class="sub">The agents' sheet, published to the web as CSV. Accounts, contacts, calls, emails, quotes, invoices, settings and stock come in from it, and the agents move projects along, make work orders, link files and ship work orders — on your own site every 15 minutes, inside Claude from Import pipeline feed on the Projects page.</span></header><div class="body">
       <input id="b-pipeurl" value="${esc(b.pipeUrl||"")}" placeholder="https://docs.google.com/spreadsheets/d/e/…/pub?output=csv" style="width:100%">
-      <div style="margin-top:8px">${ck("b-pipeauto",b.pipeAuto!==false,"Bring the feed in by itself","On your own site")}
+      <div style="margin-top:8px">${ck("b-pipeauto",b.pipeAuto===true,"Bring the feed in by itself","On your own site")}
       ${ck("b-agentctl",b.agentControl!==false,"Agents can move projects, create work orders and attach files","Off: they only leave a note saying what they'd do")}</div>
       <div class="sub" style="margin-top:6px"><b>Keep the CRM open on one shop computer so agent changes land within 15 minutes.</b> The CRM brings the feed in while it's open in a browser on your site — nothing lands while every copy is closed.</div>
       ${b.pipeLast?`<div class="sub" style="margin-top:6px">Last feed row: ${esc(String(b.pipeLast))}</div>`:""}
@@ -11376,6 +11435,7 @@ function accountModal(a,then){
       ${inp("f-city","City",a.city)}${inp("f-state","State",a.state)}
       ${inp("f-zip","ZIP",a.zip)}${inp("f-qb","QuickBooks customer name",a.qb)}
       ${chk("f-ex","Tax exemption certificate on file",a.exempt)}${inp("f-exp","Certificate expires",a.exemptExp,"date")}
+      ${chk("f-nolamdef","Doesn't want the clear overlaminate — their new quote lines start without it (cheaper, no 3M warranty)",!!a.noLamDefault)}
       ${sel("f-rep","Sales rep",a.repId||"",repList().map(t=>({v:t.id,l:t.name+(t.role?" — "+t.role:"")})),1)}
       ${sel("f-plevel","Pricing level",a.priceLevel||"",[{v:"",l:"List price — no discount"}].concat(priceLevels().map(l=>({v:l.id,l:l.name+" — "+l.pct+"% off"}))))}
       ${inp("f-disc","Or their own % off (overrides the level)",a.discountPct==null?"":a.discountPct,"number")}
@@ -11394,6 +11454,7 @@ function accountModal(a,then){
       website:$("#f-web").value.trim(),street:$("#f-street").value.trim(),city:$("#f-city").value.trim(),
       state:$("#f-state").value.trim(),zip:$("#f-zip").value.trim(),qb:$("#f-qb").value.trim(),
       exempt:$("#f-ex").checked,exemptExp:$("#f-exp").value,drive:$("#f-drive").value.trim(),
+      noLamDefault:$("#f-nolamdef")?$("#f-nolamdef").checked:!!a.noLamDefault,
       billingContactId:$("#f-bc")?$("#f-bc").value:(a.billingContactId||""),
       repId:$("#f-rep")?$("#f-rep").value:(a.repId||""),
       priceLevel:$("#f-plevel")?$("#f-plevel").value:(a.priceLevel||""),
@@ -12201,8 +12262,8 @@ async function repullJobStock(num){
     await push("invtx/"+id,{undone:false,qty:t.qtyWas,redoneAt:Date.now(),redoneBy:me()});
     take[t.itemId]=(take[t.itemId]||0)+Math.abs(Number(t.qtyWas)||0);k++}
   for(const id of Object.keys(take)){const it=S.items.get(id);if(!it)continue;
-    const was=onHand(it),now=Math.round((was-take[id])*10000)/10000;
-    await push("items/"+id,{onHand:now,updatedAt:Date.now()});
+    const was=onHand(it),now=Math.max(0,Math.round((was-take[id])*10000)/10000);
+    await push("items/"+id,Object.assign({onHand:now,updatedAt:Date.now()},was-take[id]<0?{needsCount:true}:{}));
     recordHistory("item",id,[{f:"Stock",o:String(was),n:String(now)+" — pulled again: work order "+num+" restored",ev:1}]);}
   await push("jobs/"+num,{stockReturned:[],updatedAt:Date.now()});
   if(k)recordHistory("job",String(num),[{f:"Material",o:"",n:"Restored — its material was taken off the shelf again",ev:1}]);
@@ -12324,7 +12385,7 @@ async function saveBrand(){
     shopAuto:$("#b-shopauto")?!!$("#b-shopauto").checked:((S.brand||{}).shopAuto!==false),
     shopWO:$("#b-shopwo")?!!$("#b-shopwo").checked:((S.brand||{}).shopWO!==false),
     pipeUrl:$("#b-pipeurl")?$("#b-pipeurl").value.trim():((S.brand||{}).pipeUrl||""),
-    pipeAuto:$("#b-pipeauto")?!!$("#b-pipeauto").checked:((S.brand||{}).pipeAuto!==false),
+    pipeAuto:$("#b-pipeauto")?!!$("#b-pipeauto").checked:((S.brand||{}).pipeAuto===true),
     agentControl:$("#b-agentctl")?!!$("#b-agentctl").checked:((S.brand||{}).agentControl!==false),
     webcatAuto:$("#b-webcatauto")?!!$("#b-webcatauto").checked:((S.brand||{}).webcatAuto!==false),webcatLast:(S.brand||{}).webcatLast||0,
     pipeLast:(S.brand||{}).pipeLast||"",
@@ -12846,7 +12907,7 @@ async function webImportOrders(picks){
 }
 
 /* ========== sales pipeline feed — what Claude's sales agents did ========== */
-function pipeCfg(){const b=S.brand||{};return {url:String(b.pipeUrl||"").trim(),auto:b.pipeAuto!==false,last:b.pipeLast||""}}
+function pipeCfg(){const b=S.brand||{};return {url:String(b.pipeUrl||"").trim(),auto:b.pipeAuto===true,last:b.pipeLast||""}}
 function pipeRows(text){
   const parsed=parseCSV(text);if(!parsed.headers.length)return [];
   const key=h=>String(h||"").trim().toLowerCase().replace(/[^a-z0-9]+/g,"_");
@@ -13287,7 +13348,7 @@ async function pipeImportRows(rows){
         source:SRC.indexOf(r.source)>=0?r.source:"Email",invNum:"",shipTo:"",drive:"",notes:r.notes||"",
         stageLog:[{stage,at:now,who:"AI"}],reorderOf:"",contacts:cid?[cid]:[],repId:"",amountAuto:true,billWhen:"after",billStatus:"none",billDate:"",paidDate:"",depositAmt:"",
         orderLines:ol,billingContactId:cid||"",feedId:id,deleted:false,createdAt:now,updatedAt:now,
-        followups:qno&&stage==="quoted"?followPlanList(today()):[],followAuto:false});
+        followups:[],followAuto:false});
       logEvent("project",pid,"Opened by Claude's sales agents"+(ol.length?" — "+ol.length+" quote line"+(ol.length===1?"":"s")+", "+money2(pipeTotal(ol)):(r.amount?" — "+money2(r.amount):"")));out.quotes++;
       if(r.text){const xid=uid("ac");await setDoc("activity/"+xid,{id:xid,recType:"project",recId:pid,kind:"note",type:"note",text:r.text,whoId:"",subject:r.subject||"",contactId:cid||"",direction:"",when:(r.when||today()).slice(0,10),due:"",backOn:r.back_on||"",noBack:!r.back_on,who:"AI",at:now,done:false,deleted:false,feedId:id+":note"})}
     }else if(type!=="account"){
@@ -13330,7 +13391,7 @@ function pipeSummary(o){const parts=[];if(o.locked)return "another copy of the C
   if(o.files)parts.push(o.files+" file"+(o.files===1?"":"s")+" linked");if(o.jobs)parts.push(o.jobs+" work order"+(o.jobs===1?"":"s")+" updated");
   if(o.blocked)parts.push(o.blocked+" agent step"+(o.blocked===1?"":"s")+" blocked (see the project's activity)");
   if(o.suggested)parts.push(o.suggested+" agent suggestion"+(o.suggested===1?"":"s")+" logged (agent control is off)");
-  if(o.bad)parts.push(o.bad+" row"+(o.bad===1?"":"s")+" couldn't be read (left for the agents to fix)");
+  if(o.bad)parts.push(o.bad+" row"+(o.bad===1?"":"s")+" skipped");
   return parts.length?parts.join(", "):"nothing new"+(o.skipped?" ("+o.skipped+" already in)":"")}
 function pipeAny(o){return !!(o.accounts||o.contacts||o.activity||o.quotes||o.invoices||o.inventory||o.settings||o.drafts||o.stages||o.workorders||o.files||o.jobs||o.blocked||o.suggested||o.bad)}
 async function pipeFetch(auto){
@@ -13940,6 +14001,7 @@ function bind(){
   if(meIn)meIn.oninput=e=>{S.me=e.target.value.toUpperCase();try{localStorage.setItem("sscMe",S.me)}catch(_){}};
   const cb2=$("#claimbtn");if(cb2)cb2.onclick=claimModal;
   const cb3=$("#claimbtn2");if(cb3)cb3.onclick=claimModal;
+  const cb4=$("#claimbtn3");if(cb4)cb4.onclick=claimModal;
   const th=$("#tab-home");if(th)th.onclick=()=>{S.scope="";if(S.rpt&&S.rpt.rep)S.rpt=Object.assign({},S.rpt,{rep:""})};
   const gq=$("#gq");
   if(gq)gq.oninput=e=>{S.gsearch=e.target.value;clearTimeout(deb.get("g"));
@@ -14530,6 +14592,10 @@ function bind(){
     const bk=t.closest("[data-backup]");if(bk){backup(bk.dataset.backup);return}
     const lg=t.closest("[data-logo]");if(lg){uploadLogo();return}
     const ne=t.closest("[data-newev]");
+    {const mg=t.closest("[data-merge]");if(mg){mergeModal(mg.dataset.merge);return}}
+    {const am=t.closest("[data-acctmore]");if(am){S.acctShow=am.dataset.acctmore==="all"?100000:(S.acctShow||100)+100;render();return}}
+    {const co=t.closest("[data-claimok]");if(co){claimDecide(co.dataset.claimok,true);return}}
+    {const cn=t.closest("[data-claimno]");if(cn){claimDecide(cn.dataset.claimno,false);return}}
     if(ne){const v=ne.dataset.newev;const parts=v.split(":");
       eventModal(null,parts[0]||today(),parts[1]||"",parts[2]||"");return}
     if(t.closest("[data-stop]")&&!t.closest("[data-view]")&&!t.closest("[data-dl]")
