@@ -1,0 +1,31 @@
+name: CRM fixes (run by hand or when worker/fixes.js changes)
+on:
+  push:
+    branches: [main]
+    paths: ["worker/fixes.js", "worker/fix.mjs", "worker/fix-names.txt", ".github/workflows/crm-fix.yml"]
+  workflow_dispatch:
+    inputs:
+      step: { description: "sync or apply", default: "sync" }
+permissions:
+  contents: read
+  id-token: write
+concurrency: { group: crm-fix, cancel-in-progress: false }
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/741399760463/locations/global/workloadIdentityPools/github/providers/ssc-crm
+          service_account: firebase-adminsdk-fbsvc@ssc-crm-a7224.iam.gserviceaccount.com
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - working-directory: worker
+        run: npm install --no-audit --no-fund --loglevel=error 2>&1 | tail -2
+      - working-directory: worker
+        env:
+          FIREBASE_PROJECT: ssc-crm-a7224
+          FIX_STEP: ${{ github.event.inputs.step || (github.event_name == 'push' && hashFiles('worker/fixes.js') != '' && 'apply') || 'sync' }}
+        run: node fix.mjs
