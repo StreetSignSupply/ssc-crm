@@ -10,7 +10,7 @@ const bump = (k) => (n[k] = (n[k] || 0) + 1);
 const projects = await all("projects"), contacts = await all("contacts"), accounts = await all("accounts"), files = await all("files");
 
 // 1. the Yonkers dry run: lost, follow-ups stopped
-for (const p of projects.filter((p) => !p.deleted && String(p.num) === "2018")) {
+for (const p of projects.filter((p) => !p.deleted && String(p.num) === "2018" && p.stage !== "lost")) {
   const fus = (p.followups || []).map((f) => (f.status === "planned" || f.status === "drafted" ? { ...f, status: "stopped" } : f));
   await p.ref.set({ stage: "lost", lostReason: "Dry run — the bid was never submitted", followups: fus, followStop: "dry run, not submitted",
     followAuto: false, updatedAt: now, fixedBy: who }, { merge: true });
@@ -57,4 +57,11 @@ if (p2009) {
     else { await qf[i].ref.set({ deleted: true, deletedAt: now, deletedBy: "audit fix", updatedAt: now }, { merge: true }); bump("p2009 duplicate to recycle bin"); }
   }
 }
+// what's still left after the fix (the second run should show zeros), as a notice GitHub shows on the run page
+const left = {
+  stillExemptNoCert: (await all("accounts")).filter((a) => !a.deleted && a.exempt === true && !a.exemptExp && a.source).length,
+  autoSendOn: (await all("projects")).filter((p) => !p.deleted && p.followAuto === true).length,
+  p2018Stage: ((await all("projects")).find((p) => !p.deleted && String(p.num) === "2018") || {}).stage || "none",
+};
 console.log("done:", JSON.stringify(n));
+console.log("::notice::changed " + JSON.stringify(n) + " | left " + JSON.stringify(left));
