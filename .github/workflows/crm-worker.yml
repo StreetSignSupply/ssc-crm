@@ -1,7 +1,7 @@
 name: CRM worker
+# Paused 10/27: Matt stopped using the AI agents, so there is no agent feed to bring in.
+# Run it by hand from the Actions tab if it's ever needed again.
 on:
-  schedule:
-    - cron: "7,37 * * * *"
   workflow_dispatch: {}
   push:
     branches: [main]

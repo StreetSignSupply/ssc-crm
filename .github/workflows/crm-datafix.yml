@@ -1,0 +1,26 @@
+name: CRM one-time clean-up
+on:
+  push:
+    branches: [main]
+    paths: ["worker/datafix.mjs", ".github/workflows/crm-datafix.yml"]
+  workflow_dispatch: {}
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/741399760463/locations/global/workloadIdentityPools/github/providers/ssc-crm
+          service_account: firebase-adminsdk-fbsvc@ssc-crm-a7224.iam.gserviceaccount.com
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - working-directory: worker
+        run: npm install --no-audit --no-fund --loglevel=error @google-cloud/firestore@7.11.0 2>&1 | tail -2
+      - working-directory: worker
+        env: { FIREBASE_PROJECT: ssc-crm-a7224 }
+        run: node datafix.mjs
