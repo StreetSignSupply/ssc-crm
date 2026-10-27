@@ -432,6 +432,12 @@ td .btn,th .btn{white-space:nowrap;word-break:normal;overflow-wrap:normal}
 .step.lost{border-top-color:var(--red)}
 .step.lost b{color:var(--danger-ink)}
 .path > details{flex:0 0 auto;margin-left:auto;align-self:center}
+/* work order status steps: the date sits under the name, not run into it */
+.path>button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:6px 12px;text-align:left;line-height:1.15}
+.path>button small{display:block;font-size:11px;font-weight:500;color:var(--ink3)}
+.path>button.done small{color:var(--ink2)}
+.path>button.cur{border-color:var(--brand);box-shadow:inset 0 -2px 0 var(--brand)}
+.path>button.cur small{color:var(--brand-ink);font-weight:600}
 
 .card > header .cz{width:26px;height:26px;padding:0;margin:0 2px 0 -4px;border-radius:50%;cursor:pointer;
   display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;color:var(--ink3);
@@ -1549,7 +1555,8 @@ function termDays(a){return ({"Net 30":30,"Net 45":45,"Net 60":60})[(a&&a.terms)
 function termsGrace(a){return termDays(a)||3}
 function payDueDate(p){const a=acct(p&&p.accountId);const b=p&&p.billDate;if(!b)return "";
   return isoDay(new Date(b+"T12:00:00").getTime()+termDays(a)*86400000)}
-function isPastTerms(p){const a=acct(p&&p.accountId);const b=billedAt(p);return !!(b&&(Date.now()-b)/86400000>termsGrace(a))}
+function isPastTerms(p){const a=acct(p&&p.accountId);if(a&&/prepay|card/i.test(a.terms||""))return false;
+  const b=billedAt(p);return !!(b&&(Date.now()-b)/86400000>termsGrace(a))}
 // "$52.10" or "1,050.43" typed into a price box is still a price
 function tidyLine(l){if(!l||typeof l!=="object")return l;const t=v=>{if(typeof v!=="string"||!/[$,\s]/.test(v))return v;const n=csvNum(v);return n===""?v:String(n)};
   const o=Object.assign({},l);o.price=t(o.price);if(o.cost!==undefined)o.cost=t(o.cost);if(typeof o.qty==="string")o.qty=t(o.qty);return o}
@@ -1575,6 +1582,8 @@ const deletedAll=()=>[["account",S.accounts],["contact",S.contacts],["project",S
 function jobBlockers(j,to){
   const g=j.gates||{},o=[];
   if(to==="released"){
+    try{const nop=(j.items||[]).filter(it=>!isCharge(it)&&!(priceOfLine(j,it)>0));
+      if(nop.length)o.push(nop.length+" line"+(nop.length===1?" has":"s have")+" no price — link "+(nop.length===1?"it":"them")+" to a priced quote line first")}catch(e){}
     try{prepOpen(j).forEach(r=>o.push(r.label))}catch(e){
       if(!g.specs)o.push("Specs verified");
       if(!g.payment)o.push("Payment path set");
@@ -1590,6 +1599,15 @@ function jobBlockers(j,to){
   return o;
 }
 const EVTYPE=["Install","Delivery","Site visit","Proof review","Production start","Meeting","Call","Deadline","Other"];
+// an event belongs to an account directly, or through its project
+function eventAcct(e){if(!e)return "";if(e.accountId)return String(e.accountId);
+  const p=e.projectId?S.projects.get(e.projectId):null;return p&&!p.deleted?String(p.accountId||""):""}
+const eventsOfAcct=aid=>live(S.events).filter(e=>{if(eventAcct(e)!==String(aid))return false;
+    const p=e.projectId?S.projects.get(e.projectId):null;return !(e.projectId&&(!p||p.deleted))})
+  .sort((a,b)=>(a.startDate+(a.startTime||"")).localeCompare(b.startDate+(b.startTime||"")));
+function evWhose(e){const p=e.projectId?proj(e.projectId):null;
+  if(p)return "Project P-"+p.num+" — "+p.name+" ("+accName(p.accountId)+")";
+  const a=eventAcct(e);return a?"Account: "+accName(a):""}
 const eventsOf=pid=>live(S.events).filter(e=>e.projectId===String(pid))
   .sort((a,b)=>(a.startDate+(a.startTime||"")).localeCompare(b.startDate+(b.startTime||"")));
 function evTime(e){
@@ -1612,7 +1630,7 @@ function gcalLink(e){
   const sd=e.allDay?d(e.startDate):d(e.startDate)+"T"+t(e.startTime);
   const ed=e.allDay?icsPlus(e.endDate||e.startDate,1):d(e.endDate||e.startDate)+"T"+t(e.endTime||e.startTime);
   const emails=evGuests(e).map(c=>c.email).filter(Boolean);
-  const det=[e.details||"",p?("Project P-"+p.num+" — "+p.name+" ("+accName(p.accountId)+")"):""].filter(Boolean).join("\n\n");
+  const det=[e.details||"",evWhose(e)].filter(Boolean).join("\n\n");
   let u="https://calendar.google.com/calendar/render?action=TEMPLATE"
     +"&text="+encodeURIComponent(e.title||"")
     +"&dates="+encodeURIComponent(sd+"/"+ed)
@@ -1631,7 +1649,7 @@ async function eventICS(e){
     e.allDay?("DTSTART;VALUE=DATE:"+d(e.startDate)):("DTSTART:"+d(e.startDate)+"T"+t(e.startTime)),
     e.allDay?("DTEND;VALUE=DATE:"+icsPlus(e.endDate||e.startDate,1)):("DTEND:"+d(e.endDate||e.startDate)+"T"+t(e.endTime||e.startTime)),
     "SUMMARY:"+icsEscape(e.title||""),
-    "DESCRIPTION:"+icsEscape((e.details||"")+(p?("\n\nProject P-"+p.num+" — "+p.name):"")),
+    "DESCRIPTION:"+icsEscape((e.details||"")+(evWhose(e)?"\n\n"+evWhose(e):"")),
     e.location?"LOCATION:"+icsEscape(e.location):"",
     ...evGuests(e).filter(c=>c.email).map(c=>"ATTENDEE;CN="+icsEscape(c.name)+":mailto:"+c.email),
     "BEGIN:VALARM","ACTION:DISPLAY","TRIGGER:-PT60M","DESCRIPTION:"+icsEscape(e.title||""),"END:VALARM",
@@ -1650,23 +1668,28 @@ function inviteMail(e){
   const p=e.projectId?proj(e.projectId):null;
   const when=fmtDate(e.startDate)+(e.allDay?"":" at "+evTime(e));
   const L=[e.title||"","",when,e.location?"Where: "+e.location:"",
-    p?"Project: P-"+p.num+" — "+p.name:"","",e.details||"","",
+    evWhose(e),"",e.details||"","",
     "Calendar invite attached separately, or add it here: "+gcalLink(e)].filter(Boolean);
   mailOpen(gs.map(c=>c.email).join(","),e.title||"Scheduled",L.join("\n"));
 }
-function eventModal(ev,dateISO,pid){
+function eventModal(ev,dateISO,pid,aid){
   ev=ev||{};
-  const ps=live(S.projects).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))
-    .map(x=>({v:x.id,l:"P-"+x.num+" · "+x.name+" ("+accName(x.accountId)+")"}));
-  const chosen=ev.projectId||pid||(ps[0]||{}).v||"";
+  // pick the account first; the project is optional (a site visit or sales call needs no project)
+  const chosen=ev.projectId||pid||"";
   const chosenP=chosen?proj(chosen):null;
-  const cs=chosenP?contactsOf(chosenP.accountId):[];
+  const chosenA=String((chosenP&&chosenP.accountId)||ev.accountId||aid||"");
+  const accs=live(S.accounts).sort((x,y)=>(x.name||"").localeCompare(y.name||"")).map(x=>({v:x.id,l:x.name}));
+  const ps=live(S.projects).filter(x=>!chosenA||String(x.accountId)===chosenA)
+    .sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))
+    .map(x=>({v:x.id,l:"P-"+x.num+" · "+x.name+(chosenA?"":" ("+accName(x.accountId)+")")}));
+  const cs=chosenA?contactsOf(chosenA):[];
   const g=ev.guests||[];
   openModal(mshell(ev.id?"Edit event":"New calendar event","proj",
     `<div class="fgrid">
       ${inp("f-title","What is it",ev.title||"","text",1)}
       ${sel("f-type","Type",ev.type||EVTYPE[0],EVTYPE)}
-      ${sel("f-proj","Project",chosen,withNew(ps,"Add a new project…"),1)}
+      ${sel("f-acct","Account (customer)",chosenA,withNew(accs,"Add a new account…"),1)}
+      ${sel("f-proj","Project (optional)",chosen,withNew(ps,"Add a new project…"),1).replace('<option value="">—</option>','<option value="">No project — just the account</option>')}
       ${inp("f-sd","Start date",ev.startDate||dateISO||today(),"date")}
       ${inp("f-st","Start time",ev.startTime||"09:00","time")}
       ${inp("f-ed","End / due date",ev.endDate||ev.startDate||dateISO||today(),"date")}
@@ -1686,17 +1709,28 @@ function eventModal(ev,dateISO,pid){
         ${cs.map(c=>`<label style="display:flex;gap:6px;align-items:center;font-size:13px">
           <input type="checkbox" data-guest="${esc(c.id)}" ${g.indexOf(c.id)>=0?"checked":""}
             style="width:17px;height:17px;accent-color:var(--brand)">${esc(c.name)}${c.email?"":" (no email)"}</label>`).join("")}
-        </div></div>`:`<div class="fld full sub">No contacts on that account yet — add one to invite the customer.</div>`}
-      ${chk("f-sync","Also set this project's start and due dates from this event",!ev.id)}
+        </div></div>`:`<div class="fld full sub">${chosenA?"No contacts on that account yet — add one to invite the customer.":"Pick the account to invite the customer."}</div>`}
+      ${chosen?chk("f-sync","Also set this project's start and due dates from this event",!ev.id):""}
     </div>`,
     `${ev.id?`<button class="btn d" data-delev="${esc(ev.id)}" style="margin-right:auto">Delete</button>`:""}
      <button class="btn" data-close="1">Cancel</button><button class="btn p" id="save">Save event</button>`));
-  const pr=$("#f-proj");
+  const pr=$("#f-proj"),ac=$("#f-acct");
+  if(ac)ac.onchange=()=>{
+    const cur=Object.assign({},ev,collectEvent(ev));cur.guests=[];
+    if(ac.value===NEWOPT){closeModal();
+      accountModal(null,newId=>{cur.accountId=newId;cur.projectId="";eventModal(cur,dateISO,"",newId)});return}
+    cur.accountId=ac.value;
+    const cp=cur.projectId?proj(cur.projectId):null;
+    if(cp&&String(cp.accountId)!==String(ac.value))cur.projectId="";
+    eventModal(cur,dateISO,cur.projectId,ac.value)};
   if(pr)pr.onchange=()=>{
     const cur=Object.assign({},ev,collectEvent(ev));
     if(pr.value===NEWOPT){closeModal();
-      projectModal(null,"",newId=>{cur.projectId=newId;cur.guests=[];eventModal(cur,dateISO,newId)});return}
-    cur.projectId=pr.value;cur.guests=[];eventModal(cur,dateISO,pr.value)};
+      projectModal(null,cur.accountId||"",newId=>{cur.projectId=newId;cur.guests=[];eventModal(cur,dateISO,newId)});return}
+    cur.projectId=pr.value;
+    const np=pr.value?proj(pr.value):null;
+    if(np&&String(np.accountId)!==String(cur.accountId||"")){cur.accountId=np.accountId;cur.guests=[]}
+    eventModal(cur,dateISO,pr.value,cur.accountId)};
   $("#save").onclick=async()=>{
     const rec=collectEvent(ev);
     if(!rec.title)return toast("Give the event a name.");
@@ -1716,6 +1750,10 @@ function eventModal(ev,dateISO,pid){
         recordHistory("project",rec.projectId,[{f:"Calendar",o:"",
           n:(ev.id?"Event updated: ":"Event scheduled: ")+rec.title+" — "+fmtDate(rec.startDate)
             +(rec.allDay?"":" "+evTime(rec))+(sync?" (project dates updated)":""),ev:1}]);
+      }else if(rec.accountId){
+        recordHistory("account",rec.accountId,[{f:"Calendar",o:"",
+          n:(ev.id?"Event updated: ":"Event scheduled: ")+rec.title+" — "+fmtDate(rec.startDate)
+            +(rec.allDay?"":" "+evTime(rec)),ev:1}]);
       }
       toast("Event saved");
     }catch(err){toast("That didn't save.")}
@@ -1726,7 +1764,9 @@ function collectEvent(ev){
   const gsel=[...document.querySelectorAll("[data-guest]")].filter(x=>x.checked).map(x=>x.dataset.guest);
   return {title:$("#f-title")?$("#f-title").value.trim():(ev.title||""),
     type:$("#f-type")?$("#f-type").value:(ev.type||""),
-    projectId:$("#f-proj")?$("#f-proj").value:(ev.projectId||""),
+    projectId:$("#f-proj")?($("#f-proj").value===NEWOPT?"":$("#f-proj").value):(ev.projectId||""),
+    accountId:(function(){const pv=$("#f-proj")?$("#f-proj").value:(ev.projectId||"");const pp=pv&&pv!==NEWOPT?proj(pv):null;
+      if(pp)return String(pp.accountId||"");const av=$("#f-acct")?$("#f-acct").value:(ev.accountId||"");return av===NEWOPT?"":av})(),
     startDate:$("#f-sd")?$("#f-sd").value:(ev.startDate||""),
     startTime:$("#f-st")?$("#f-st").value:(ev.startTime||""),
     endDate:$("#f-ed")?$("#f-ed").value:(ev.endDate||""),
@@ -1741,6 +1781,7 @@ async function deleteEvent(id){
   closeModal();
   await push("events/"+id,{deleted:true,deletedAt:Date.now(),deletedBy:me()});
   if(e&&e.projectId)recordHistory("project",e.projectId,[{f:"Calendar",o:"",n:"Event removed: "+(e.title||""),ev:1}]);
+  else if(e&&e.accountId)recordHistory("account",e.accountId,[{f:"Calendar",o:"",n:"Event removed: "+(e.title||""),ev:1}]);
   toast("Event removed");
 }
 const vendorList=()=>live(S.vendors).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
@@ -1814,6 +1855,8 @@ function claimModal(){
     const el=document.querySelector("[name=claim]:checked");
     if(!el)return toast("Pick your name.");
     const id=el.value,t=S.team.get(id);
+    if(t&&(t.access||"owner")==="owner"&&ownerClaimed()&&myAccess()!=="owner")
+      return toast("That record has Owner access — the owner has to give it to you from Settings → Our team.");
     closeModal();
     await push("team/"+id,{claudeId:viewerId(),updatedAt:Date.now()});
     if(t&&t.initials){S.me=t.initials.toUpperCase();try{localStorage.setItem("sscMe",S.me)}catch(e){}}
@@ -4085,12 +4128,17 @@ function closeList(p){
     billState(p)==="paid"?("Paid"+(p.paidDate?" "+fmtDate(p.paidDate):""))
       :billState(p)==="invoiced"?"Invoiced"+(p.billDate?" "+fmtDate(p.billDate):"")+" — not collected yet"
       :"Still showing "+billLabel(p),"bill");
-  auto("c_margin","Margin looks right",
-    projValue(p)>0&&(projMargin(p)==null||projMargin(p)>=0),
+  auto("c_margin","Margin at or above your "+marginFloor()+"% minimum",
+    projValue(p)>0&&(projMargin(p)==null||projMargin(p)>=marginFloor()),
     projValue(p)<=0?"No value on the project"
       :projMargin(p)==null?"No cost recorded yet"
       :projMargin(p)<0?"Costing more than it sold for"
+      :projMargin(p)<marginFloor()?projMargin(p).toFixed(0)+"% — under your "+marginFloor()+"% minimum"
       :projMargin(p).toFixed(0)+"% — "+money(projValue(p)-projCost(p)),"proj",projValue(p)<=0);
+  (function(){const fs=projFiles(p.id);const has=re=>fs.some(f=>re.test((f.cat||"")+" "+(f.name||"")));
+    auto("c_qpdf","Quote PDF filed on the project",has(/quote/i),has(/quote/i)?"On file":"Make the quote PDF and file it under Files","file");
+    auto("c_po","PO or signed quote filed",has(/\bpo\b|purchase order|signed quote/i),has(/\bpo\b|purchase order|signed quote/i)?"On file":"Nothing filed shows they ordered it","file");
+    auto("c_invf","Invoice filed",has(/invoice/i),has(/invoice/i)?"On file":"File the QuickBooks invoice PDF","file");})();
 
   man("c_told","Customer knows it's done","They've had the tracking, the delivery, or the call");
   man("c_files","Everything filed","Proof, PO, packing slip, install photos — on the record, not in somebody's inbox");
@@ -6981,8 +7029,19 @@ async function planIssue(num){
     if(plan[ix]&&q>0)picks.push({r:plan[ix],q,swap:swap&&swap!=="__custom"?swap:"",custom});
   });
   if(picks.some(p=>p.custom&&!p.custom.name))return;
+  if(!picks.length){closeModal();return toast("Nothing checked.")}
+  const short=picks.filter(pk=>!pk.custom).map(pk=>{const it=S.items.get(pk.swap||pk.r.itemId);
+    return it&&onHand(it)-Math.abs(pk.q)<-0.0001?{it,q:Math.abs(pk.q)}:null}).filter(Boolean);
+  if(short.length){
+    askConfirm("Not that much on the shelf",
+      `<p style="margin:0 0 8px">${short.map(x=>`<b>${esc(x.it.name)}</b>: pulling ${esc(String(Math.round(x.q*100)/100))} ${esc(x.it.unit||"")}, the count says ${esc(String(Math.round(onHand(x.it)*100)/100))}`).join("<br>")}</p>
+       <p class="note">If it's really there, the count is wrong. Pulling anyway marks ${short.length===1?"it":"them"} "needs a recount" instead of leaving a negative number unexplained.</p>`,
+      "Pull it anyway",false,()=>finishPulls(num,picks,true));
+    return}
   closeModal();
-  if(!picks.length)return toast("Nothing checked.");
+  return finishPulls(num,picks,false);
+}
+async function finishPulls(num,picks,recount){
   let done=0;
   for(const pk of picks){
     const txid=uid("tx");
@@ -6997,9 +7056,10 @@ async function planIssue(num){
       await setDoc("invtx/"+txid,{id:txid,itemId:iid,swapFor:pk.swap?pk.r.itemId:"",type:"use",qty:-Math.abs(pk.q),
         at:Date.now(),who:me(),note:pk.swap?"Instead of "+pk.r.name:"From the material plan",jobId:String(num),cost:"",
         itemName:it.name||"",unit:it.unit||"",unitCost:it.cost||"",deleted:false});
-      await push("items/"+iid,{onHand:onHand(it)-Math.abs(pk.q),updatedAt:Date.now()});
+      await push("items/"+iid,Object.assign({onHand:onHand(it)-Math.abs(pk.q),updatedAt:Date.now()},
+        onHand(it)-Math.abs(pk.q)<0?{needsCount:true}:{}));
       recordHistory("item",iid,[{f:"Stock",o:String(onHand(it)),
-        n:String(onHand(it)-Math.abs(pk.q))+" (used on work order "+num+")"}]);
+        n:String(onHand(it)-Math.abs(pk.q))+" (used on work order "+num+")"+(onHand(it)-Math.abs(pk.q)<0?" — below zero, needs a recount":"")}]);
       done++;
     }catch(e){}
   }
@@ -7552,10 +7612,12 @@ function overdueItems(){
   const out=[];
   real(openProjects()).filter(stillDue).forEach(p=>{const d=daysOut(p.due);
     if(d!==null&&d<0)out.push({k:"project",id:p.id,label:"P-"+p.num+" "+p.name,who:accName(p.accountId),d,date:p.due})});
-  openJobs().filter(realJob).forEach(j=>{const d=daysOut(j.due);
+  openJobs().filter(realJob).filter(j=>!jobArchived(j)&&!(j.projectId&&isClosed(proj(j.projectId)||{}))).forEach(j=>{const d=daysOut(j.due);
     if(d!==null&&d<0)out.push({k:"job",id:String(j.num),label:"Work order "+j.num+" "+(j.desc||""),who:accName(j.accountId),d,date:j.due})});
   return out.sort((a,b)=>a.d-b.d);
 }
+function odBreak(od){const w=od.filter(x=>x.k==="job").length,p=od.length-w;
+  return [w?w+" work order"+(w===1?"":"s"):"",p?p+" project"+(p===1?"":"s"):""].filter(Boolean).join(" + ")}
 function dueSoonItems(days){
   const out=[];
   real(openProjects()).filter(stillDue).forEach(p=>{const d=daysOut(p.due);
@@ -8174,8 +8236,12 @@ const NAVG=[
    (Kept in the page — it tidies what each person sees; the database itself is protected by sign-in.) */
 const ACCESS={owner:{label:"Owner",settings:1,del:1,cost:1,price:1},office:{label:"Office",settings:0,del:1,cost:1,price:1},
   sales:{label:"Sales",settings:0,del:0,cost:0,price:1},shop:{label:"Shop",settings:0,del:0,cost:0,price:0}};
+// once an owner has claimed their record, anyone not on the team list (or wearing someone else's initials) gets Shop only
+function ownerClaimed(){return !!(S.team&&live(S.team).some(x=>(x.access||"owner")==="owner"&&x.claudeId))}
 function myAccess(){const t=S.viewerTeam||(S.team&&live(S.team).find(x=>String(x.initials||"").toUpperCase()===String(S.me||"").toUpperCase()));
-  const lv=t&&t.access&&ACCESS[t.access]?t.access:"owner";return lv}
+  const vid=viewerId();
+  if(t&&!(vid&&t.claudeId&&t.claudeId!==vid))return t.access&&ACCESS[t.access]?t.access:"owner";
+  return ownerClaimed()?"shop":"owner"}
 function can(what){return !!(ACCESS[myAccess()]||ACCESS.owner)[what]}
 function canCompanyDash(){const t=S.viewerTeam;if(!t)return true;return myAccess()==="owner"||!!t.companyDash}
 function dashFirst(){const t=S.viewerTeam;const nm=t?String(t.name||"").trim().split(/\s+/)[0]:"";return nm||"My"}
@@ -8505,11 +8571,20 @@ function accountList(){
       S.scope?"Clear the filter above to see everyone's.":"An account is a customer organization — an agency, contractor, or reseller."}</div>`}
   </section></div>`;
 }
+// likely duplicates: same phone, same email domain, or the same name once "City of", "Inc", punctuation and a " - Dept" tail are dropped
+function acctKey(n){return String(n||"").toLowerCase().replace(/\s[-–—:(].*$/,"").replace(/\b(city|county|town|of|the|inc|llc|co|company|corp|corporation|ltd)\b/g,"").replace(/[^a-z0-9]/g,"")}
+function dupAccounts(rec){
+  const k=acctKey(rec.name),ph=String(rec.phone||"").replace(/\D/g,"").slice(-10),dom=String(rec.website||"").toLowerCase().replace(/^https?:\/\//,"").replace(/^www\./,"").split("/")[0];
+  return live(S.accounts).filter(x=>x.id!==rec.id&&(
+    (k&&k.length>2&&acctKey(x.name)===k)||(ph.length===10&&String(x.phone||"").replace(/\D/g,"").slice(-10)===ph)||
+    (dom&&String(x.website||"").toLowerCase().replace(/^https?:\/\//,"").replace(/^www\./,"").split("/")[0]===dom)));
+}
 function isExempt(a){return !!(a&&a.exempt&&(!a.exemptExp||String(a.exemptExp)>=today()))}
 function exemptPill(a){
   if(a.exempt&&!isExempt(a))return `<span class="pill r" title="Certificate expired ${esc(fmtDate(a.exemptExp))}">Expired</span>`;
+  if(a.exempt&&!a.exemptExp)return `<span class="pill y" title="Marked exempt, but no certificate expiry is recorded — file the certificate">Exempt · no cert date</span>`;
   if(a.exempt)return `<span class="pill g">On file</span>`;
-  if(a.type==="Government agency")return `<span class="pill r">Missing</span>`;
+  if(a.type==="Government agency")return `<span class="pill r" title="Taxable until their exemption certificate is filed">Certificate needed</span>`;
   return "—";
 }
 function accountRec(id){
@@ -8524,6 +8599,7 @@ function accountRec(id){
       <div class="tt"><div class="kicker">Account</div><h1>${esc(a.name)}</h1></div>
       <div class="acts"><button class="btn" data-edit="account:${esc(id)}">Edit</button>
         <button class="btn" data-new="contact:${esc(id)}">New contact</button>
+        <button class="btn" data-newev="${esc(today())}::${esc(id)}">New event</button>
         <button class="btn p" data-new="project:${esc(id)}">New project</button>
         <button class="btn d" data-del="account:${esc(id)}">Delete</button></div></div>
       <div class="hl-facts">
@@ -8567,6 +8643,7 @@ function accountRec(id){
           ${fld("Created",fmtTs(a.createdAt))}
           ${fldFull("Notes",a.notes)}</div></section>
       ${relContacts(cs,id)}
+      ${acctEventsCard(id)}
       </div>
       <div>${fileCard("account",id)}${activityCard("account",id)}${historyCard("account",id)}</div>
     </div>
@@ -8574,6 +8651,22 @@ function accountRec(id){
     ${relProjects(ps,id)}
     ${relJobs(js.filter(j=>!jobArchived(j)),"Open work orders")}
   </div>`;
+}
+function acctEventsCard(id){
+  const evs=eventsOfAcct(id);
+  return `<section class="card flush"><header><span class="oi sm">${ic("calendar",14)}</span><h2>Schedule</h2>
+    <span class="n">${evs.length}</span>
+    <span class="sp"><button class="btn sm p" data-newev="${esc(today())}::${esc(id)}">Add event</button></span></header>
+    ${evs.length?`<table><tbody>${evs.map(e=>{const past=daysOut(e.endDate||e.startDate)<0;const p=e.projectId?proj(e.projectId):null;
+      return `<tr style="${past?"opacity:.7":""}">
+        <td style="width:120px"><b>${esc(fmtDate(e.startDate))}</b><div class="sub">${esc(evTime(e))}</div></td>
+        <td><button class="lnk" data-openev="${esc(e.id)}">${esc(e.title)}</button>
+          <div class="sub">${esc(e.type||"")}${p?` · <button class="lnk" data-go="project/${esc(p.id)}">P-${esc(p.num)}</button>`:""}${e.location?" · "+esc(e.location):""}</div></td>
+        <td style="text-align:right;white-space:nowrap">
+          <a class="btn sm" href="${esc(gcalLink(e))}" target="_blank" rel="noopener">Google</a>
+          ${evGuests(e).filter(c=>c.email).length?`<button class="btn sm" data-evinvite="${esc(e.id)}">Invite</button>`:""}</td></tr>`}).join("")}</tbody></table>`
+    :`<div class="empty"><b>Nothing scheduled</b>Add a site visit, sales call or meeting with this customer — no project needed.</div>`}
+  </section>`;
 }
 function crumbBar(parts){
   if(!parts||!parts.length)return "";
@@ -8834,7 +8927,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-25";
+const APP_VERSION="2026.11.25-26";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -9865,7 +9958,8 @@ function calendarView(){
   live(S.events).forEach(e=>{
     const p2=e.projectId?S.projects.get(e.projectId):null;
     if(e.projectId&&(!p2||p2.deleted))return;
-    add(e.startDate,{c:"ev",t:(e.allDay?"":evTime(e)+" ")+e.title,h:"",eid:e.id});
+    const ea=eventAcct(e);
+    add(e.startDate,{c:"ev",t:(e.allDay?"":evTime(e)+" ")+e.title+(ea&&!e.projectId?" · "+accName(ea):""),h:"",eid:e.id});
     if(e.endDate&&e.endDate!==e.startDate)
       add(e.endDate,{c:"due",t:"Ends · "+e.title,h:"",eid:e.id});
   });
@@ -9908,8 +10002,8 @@ function calendarView(){
       </div>
     </section>
     <div class="cols">
-      ${(function(){const orphan=live(S.events).filter(e=>!e.projectId);
-        return orphan.length?`<section class="card flush"><header><h2>Not tied to a project</h2>
+      ${(function(){const orphan=live(S.events).filter(e=>!e.projectId&&!eventAcct(e));
+        return orphan.length?`<section class="card flush"><header><h2>Not tied to an account or project</h2>
           <span class="n">${orphan.length}</span></header>
           <table><tbody>${orphan.slice(0,10).map(e=>`<tr>
             <td><button class="lnk" data-openev="${esc(e.id)}">${esc(e.title)}</button>
@@ -9943,7 +10037,7 @@ function alertBar(){
   const od=overdueItems();
   if(!od.length||S.alertOff)return "";
   const top=od.slice(0,2).map(x=>x.label+" ("+Math.abs(x.d)+"d)").join(", ");
-  return `<div class="alert strip"><span>${od.length} past due — ${esc(top)}${od.length>2?" and "+(od.length-2)+" more":""}</span>
+  return `<div class="alert strip"><span>${esc(odBreak(od))} past due — ${esc(top)}${od.length>2?" and "+(od.length-2)+" more":""}</span>
     <span class="sp"><button class="btn sm" data-go="calendar">See all</button>
       <button class="btn sm" data-remind="1">Email the list</button>
       <button class="btn sm" data-alertoff="1">Dismiss</button></span></div>`;
@@ -11307,6 +11401,17 @@ function accountModal(a,then){
       showSavings:$("#f-savings")?$("#f-savings").checked:!!a.showSavings,
       notes:$("#f-notes").value.trim(),deleted:false,
       createdAt:a.createdAt||Date.now(),updatedAt:Date.now()};
+    if(rec.exempt&&!a.exempt&&!rec.exemptExp){$("#f-exp").focus();return toast("Put in the certificate's expiry date — exempt needs a certificate on file.")}
+    if(rec.exempt)rec.certNeeded=false;
+    // a new account that looks like one we already have
+    if(!a.id&&!window.__dupOk){const d=dupAccounts(rec);
+      if(d.length){window.__dupPending=rec;
+        askConfirm("This account may already exist",
+          `<p style="margin:0 0 8px">${d.slice(0,5).map(x=>`<b>${esc(x.name)}</b>${x.phone?" · "+esc(fmtPhone(x.phone)):""}${x.city?" · "+esc(x.city):""}`).join("<br>")}</p>
+           <p class="note">Open that one instead, or create a new account anyway.</p>`,
+          "Create it anyway",false,()=>{window.__dupOk=1;accountModal(Object.assign({},window.__dupPending,{id:""}))});
+        return}}
+    window.__dupOk=0;
     const diffs=diffFields("account",a.id?a:null,rec);
     if(a.id&&a.exempt&&!rec.exempt){
       askConfirm("Turn off tax exemption?",
@@ -11351,6 +11456,9 @@ function contactModal(c,aid){
   $("#save").onclick=async()=>{
     const name=$("#f-name").value.trim();if(!name){$("#f-name").focus();return toast("Name is required.")}
     if($("#f-acct").value===NEWOPT)return toast("Pick an account, or add a new one.");
+    if(/@/.test(name)){$("#f-name").focus();return toast("Put the person's name here and the address in Email.")}
+    {const em=$("#f-email").value.trim();if(em&&!/^[^\s@,;]+@[^\s@,;]+\.[a-z]{2,}$/i.test(em)){$("#f-email").focus();
+      return toast("That email doesn't look right — one address, like name@company.com.")}}
     const id=c.id||uid("ct");
     const rec={id,name,accountId:$("#f-acct").value,role:$("#f-role").value,title:$("#f-title").value.trim(),
       email:$("#f-email").value.trim(),phone:$("#f-phone").value.trim(),mobile:$("#f-mobile").value.trim(),
@@ -11827,14 +11935,18 @@ function askConfirm(title,bodyHTML,okLabel,danger,fn){
      <button class="btn ${danger?"":"p"}" id="confirmok"
        ${danger?`style="background:var(--red);border-color:var(--red);color:#fff"`:""}>${esc(okLabel)}</button>`));
   const b=$("#confirmok");
-  if(b)b.onclick=()=>{const f=_confirmFn;_confirmFn=null;closeModal();if(f)f();};
+  if(b)b.onclick=()=>{
+    const vals={};let missing=null;
+    document.querySelectorAll("[data-cin]").forEach(el=>{vals[el.dataset.cin]=el.value.trim();if(el.dataset.req&&!vals[el.dataset.cin]&&!missing)missing=el});
+    if(missing){missing.focus();toast(missing.dataset.req);return}
+    const f=_confirmFn;_confirmFn=null;closeModal();if(f)f(vals);};
 }
 function depCounts(type,id){
   if(type==="account"){
     const ps=projectsOf(id),cs=contactsOf(id);
     const js=jobsOfAcct(id);
     const fs=live(S.files).filter(f=>f.accountId===String(id)).length;
-    const evs=live(S.events).filter(e=>{const pr=S.projects.get(e.projectId);return pr&&pr.accountId===String(id)}).length;
+    const evs=live(S.events).filter(e=>eventAcct(e)===String(id)).length;
     return {projects:ps.length,contacts:cs.length,jobs:js.length,files:fs,events:evs};
   }
   if(type==="project"){
@@ -12152,7 +12264,7 @@ async function backup(kind){
       [a.terms,a.exempt?"tax exempt":"taxable",contactName(a.billingContactId)&&("bills to "+contactName(a.billingContactId))].filter(Boolean).join(" · ")]));
     live(S.contacts).forEach(c=>rows.push(["Contact","",c.name,accName(c.accountId),c.role||"","","","","","",
       [c.email,fmtPhone(c.phone)].filter(Boolean).join(" · ")]));
-    live(S.events).forEach(e=>rows.push(["Event","",e.title||"",accName((proj(e.projectId)||{}).accountId),
+    live(S.events).forEach(e=>rows.push(["Event","",e.title||"",accName(eventAcct(e)),
       e.type||"","","",e.startDate||"","","",
       [evTime(e),e.location,projName(e.projectId)].filter(Boolean).join(" · ")]));
     data=rows.map(r=>r.map(v=>{const s=String(v==null?"":v);
@@ -13151,7 +13263,7 @@ async function pipeImportRows(rows){
       const gov=at==="Government agency";
       await setDoc("accounts/"+aid,{id:aid,name:r.account||r.email,type:at,terms:gov?"Net 30":"Prepay",
         phone:r.phone||"",website:r.website||"",street:r.street||"",city:r.city||"",state:r.state||"",zip:r.zip||"",
-        qb:r.account||"",exempt:gov,exemptExp:"",drive:"",billingContactId:"",repId:"",
+        qb:r.account||"",exempt:false,certNeeded:gov,exemptExp:"",drive:"",billingContactId:"",repId:"",
         notes:r.notes||"",feedId:type==="account"?id:"",source:r.source||"Email",deleted:false,createdAt:now,updatedAt:now});
       logEvent("account",aid,"Account created by Claude's sales agents");newA[String(r.account||r.email).toLowerCase()]=aid;out.accounts++;}
     else if(m.acct&&!m.acct.phone&&r.phone){try{await push("accounts/"+aid,{phone:r.phone})}catch(e){}}
@@ -13370,7 +13482,7 @@ function syncBuild(key,rec){
     if(!lines.length)jobsOf(p.id).forEach(j=>woItems(j).forEach(it=>{if(Number(it.qty)>0)lines.push(syncLine(it,priceOfLine(j,it),p))}));
     const shipping=syncN(lines.filter(l=>l.charge==="freight").reduce((t,l)=>t+l.line_total,0));
     const subtotal=syncN(lines.filter(l=>l.charge!=="freight").reduce((t,l)=>t+l.line_total,0));
-    const tax=syncTax(a,subtotal+shipping);const rep2=repFor(p);
+    const tax=syncTax(a,subtotal);const rep2=repFor(p);
     const rate=Number((S.brand||{}).taxRate)||0;
     const taxNote=isExempt(a)?"Tax exempt — no sales tax on the invoice":rate>0?"Estimate at "+rate+"% — QuickBooks calculates the final sales tax":"No tax rate set in the CRM — QuickBooks calculates the final sales tax";
     // shipped when the project's log says so, else when its newest work order shipped
@@ -13500,9 +13612,9 @@ async function syncTest(){
 }
 async function syncAll(){
   const url=syncUrlNow();if(!/^https:\/\//i.test(url))return toast("Put the Apps Script web app link in first.");
-  const open=live(S.projects).filter(p=>["closed","lost"].indexOf(p.stage)<0&&(p.quote||(p.orderLines||[]).length||(p.stage||"inquiry")!=="inquiry"));
-  const openIds=new Set(open.map(p=>p.id));
-  const jobs=live(S.jobs).filter(j=>j.status!=="shipped"||openIds.has(j.projectId));
+  // every project and every work order, closed and shipped ones included, so the sheet matches the CRM
+  const open=live(S.projects).filter(p=>p.quote||(p.orderLines||[]).length||(p.stage||"inquiry")!=="inquiry");
+  const jobs=live(S.jobs);
   const list=open.map(p=>"projects/"+p.id).concat(jobs.map(j=>"jobs/"+j.num))
     .concat(live(S.accounts).map(a=>"accounts/"+a.id)).concat(live(S.contacts).map(c=>"contacts/"+c.id));
   if(!list.length)return toast("Nothing to send yet.");
@@ -13553,8 +13665,11 @@ function linesSummary(p){return orderedLines(p).filter(l=>l&&!isCharge(l)&&(Numb
 // plan the three touches the first time a project has a quote number — not if it's past quoting or was stopped
 async function followPlan(pid,fromIso){
   const p=proj(pid);if(!p||(p.followups||[]).length||p.followStop||(p.stage!=="quoted"&&p.stage!=="inquiry"))return null;
+  if(!quoteState(p).ok)return null;           // no follow-ups on a quote with no prices
+  {const fc=followContact(p);if(!fc||!fc.email)return null}   // nobody to send them to
+  if(/dry ?run|do not submit/i.test((p.name||"")+" "+(p.scope||"")+" "+(p.notes||"")))return null;
   const fus=followPlanList(fromIso||p.quoteDate||today());
-  const patch={followups:fus,followAuto:p.followAuto===true,updatedAt:Date.now()};
+  const patch={followups:fus,followAuto:false,updatedAt:Date.now()};
   Object.assign(p,patch);await push("projects/"+pid,patch);
   logEvent("project",pid,"Three follow-ups planned — "+fus.map(f=>fmtDate(f.due)).join(", "));
   return fus;
@@ -13605,14 +13720,12 @@ function followCard(p){
       :f.status==="drafted"?`<span class="pill ${late?"r":"b"}">drafted${late?" — due "+esc(dueTxt(f.due)):""}</span>`
       :`<span class="pill ${late?"r":"y"}">${late?"due "+esc(dueTxt(f.due)):"planned"}</span>`};
   return `<section class="card flush"><header><h2>Follow-ups</h2><span class="n">${fus.filter(f=>f.status==="sent").length}/${fus.length||3}</span>
-      <span class="sub">${open?"Three touches after the quote. The agents write each one; you read it and press Send — or let them send."
+      <span class="sub">${open?"Three reminders after the quote: day 3, 7 and 14. Write each one and press Send."
         :p.followStop?"Stopped — "+esc(p.followStop)+".":fus.length?"Finished.":"Not planned yet."}</span>
       <span class="sp">${open?`<button class="btn sm" data-fustop="${esc(id)}">Stop follow-ups</button>`
         :(!fus.length||p.followStop)&&(p.stage==="quoted"||p.stage==="inquiry")&&p.quote?`<button class="btn sm p" data-fuplan="${esc(id)}">Plan follow-ups</button>`:""}</span></header>
     ${fus.length?`<div style="padding:9px 15px;border-bottom:1px solid var(--line2);display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-      <label style="display:flex;gap:8px;align-items:center;font-weight:600;font-size:13px;cursor:pointer">
-        <input type="checkbox" data-followauto="${esc(id)}" ${p.followAuto?"checked":""} ${open?"":"disabled"} style="width:17px;height:17px;accent-color:var(--brand)">Agents send these automatically</label>
-      <span class="sub">${p.followAuto?"They go out on their due date without waiting for you.":"I send each one — a Send button appears once it's drafted."}</span>
+      <span class="sub">Nothing goes out by itself — write each one and press Send.</span>
       <span class="sub" style="margin-left:auto">To: ${c?esc(c.name)+(c.email?" · "+esc(c.email):" · no email"):"<b>no contact</b>"}</span></div>`:""}
     ${fus.map(f=>{const canAct=open&&(f.status==="planned"||f.status==="drafted");const editing=S.fuEdit===f.id;
       return `<div class="rrow ${f.status==="skipped"||f.status==="stopped"?"off":""}"><span class="rr-n">#${f.n}</span>
@@ -13886,8 +13999,9 @@ function bind(){
       const ps=archivedProjects().filter(pick),js=archivedJobs().filter(pick).filter(j=>!ps.some(p2=>p2.id===j.projectId));
       askConfirm("Delete "+(ps.length+js.length)+" archived record"+(ps.length+js.length===1?"":"s")+"?",
         `<p style="margin:0">${ps.length} project${ps.length===1?"":"s"}${ps.length?" (with their work orders)":""} and ${js.length} other work order${js.length===1?"":"s"} go to the recycle bin.
-          Nothing is gone for good — restore any of them from Admin → Settings → Recycle bin. Material pulled for a work order that never shipped goes back on the shelf.</p>`,
-        "Delete them",true,async()=>{let k=0;
+          Nothing is gone for good — restore any of them from Admin → Settings → Recycle bin. Material pulled for a work order that never shipped goes back on the shelf.</p>
+          <p class="note" style="margin:10px 0 4px">Type <b>delete</b> to confirm.</p><input data-cin="ok" data-req="Type delete to confirm." style="width:100%">`,
+        "Delete them",true,async v=>{if(String((v&&v.ok)||"").toLowerCase()!=="delete")return toast("Not deleted — type delete to confirm.");let k=0;
           for(const p2 of ps){for(const j of jobsOf(p2.id).concat(archivedJobs().filter(x=>x.projectId===p2.id)).filter((x,i,a)=>a.indexOf(x)===i)){
               if(j.status!=="shipped")await returnJobStock(j.num,"archive cleared");
               await push("jobs/"+j.num,{deleted:true,deletedAt:Date.now(),deletedBy:me(),deletedWith:"project:"+p2.id})}
@@ -14346,6 +14460,16 @@ function bind(){
           if(billState(p8)==="none"||billState(p8)==="deposit")await setBill(id2,"invoiced",true);
           if(!(p8.invNum||"").trim())toast("Invoiced — add the invoice number under Billing");
         };
+        const unsched8=p8?((reconStatus(p8).rows)||[]).filter(r=>!r.charge&&!r.extra&&r.sched<r.ordered):[];
+        if(unsched8.length){
+          askConfirm("Some quote lines aren't on a work order",
+            `<p style="margin:0 0 8px">${unsched8.length} line${unsched8.length===1?" is":"s are"} on the quote but not on any work order, so the shop may never make ${unsched8.length===1?"it":"them"}:</p>
+             <p style="margin:0 0 10px">${unsched8.slice(0,8).map(r=>esc((r.ordered-r.sched)+" × "+(r.label||r.desc||r.code||"line"))).join("<br>")}</p>
+             <p class="note">Best: press Create work order first. To invoice anyway, say why — it goes in the history.</p>
+             <input data-cin="why" data-req="Say why you're invoicing before those lines are on a work order." placeholder="e.g. already made and delivered by hand" style="width:100%;margin-top:6px">`,
+            "Invoice anyway",false,async v=>{
+              recordHistory("project",id2,[{f:"Billing",o:"",n:"Invoiced with "+unsched8.length+" quote line(s) not on a work order — "+((v&&v.why)||""),ev:1}]);
+              await go8()});return}
         if(open8.length){
           askConfirm("Not everything has shipped",
             `<p style="margin:0 0 8px">${open8.map(j=>`<b class="mono">${j.num}</b> ${esc(j.desc||"")} — ${esc((JS[j.status]||{}).label||j.status)}`).join("<br>")}</p>
@@ -14407,7 +14531,7 @@ function bind(){
     const lg=t.closest("[data-logo]");if(lg){uploadLogo();return}
     const ne=t.closest("[data-newev]");
     if(ne){const v=ne.dataset.newev;const parts=v.split(":");
-      eventModal(null,parts[0]||today(),parts[1]||"");return}
+      eventModal(null,parts[0]||today(),parts[1]||"",parts[2]||"");return}
     if(t.closest("[data-stop]")&&!t.closest("[data-view]")&&!t.closest("[data-dl]")
       &&!t.closest("[data-delfile]")){/* let links inside act normally */}
     const da=t.closest("[data-dayall]");

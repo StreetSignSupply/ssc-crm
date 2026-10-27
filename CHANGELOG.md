@@ -1,5 +1,25 @@
 # What changed
 
+## 2026.11.25-26 — 2026-10-27
+- Calendar: events can belong to an account with no project
+- accounts show a Schedule card and a New event button
+- Tax exempt: accounts the agents created are no longer exempt without a certificate, and ticking exempt needs the expiry date
+- Invoicing while quote lines are on no work order asks why and records it
+- A work order can't be released with unpriced lines
+- Close-out checks margin against your minimum and looks for the quote PDF, PO and invoice
+- Follow-ups only on a priced quote with someone to email, and nothing sends by itself
+- Material pulls that would go below zero ask first and flag a recount
+- Sign-ins not on the team list get Shop access once the owner has claimed their record
+- Order sync sends closed projects and every work order
+- sheet tax leaves out freight
+- Prepaid and card orders never show past terms
+- Past-due counts leave out archived and closed work and show the breakdown
+- Duplicate-account warning, contact name and email checks
+- Archive mass delete needs delete typed
+- Work order status steps spaced out
+- Agent feed worker paused
+- one-time record clean-up
+
 ## 2026.11.25-25 — 2026-10-26
 - Custom signs no longer get a made-up box of words as their picture
 - Sign pictures lists every line, and lines without a real picture show No picture yet with an Add picture button (pick the uploaded artwork or upload one)
