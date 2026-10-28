@@ -1,5 +1,11 @@
 # What changed
 
+## 2026.11.25-29 — 2026-10-27
+- Work order status shown as one progress bar: done steps checked, the current step red, the rest grey
+- Items to make fits the screen — size and code under the name, grade and substrate together, short overlaminate note
+- No laminate wording no longer repeated
+- work order details say no laminate when declined
+
 ## 2026.11.25-28 — 2026-10-27
 - Work order: one-click No laminate (customer declined) on the Production route, and Put the laminate back
 - the overlay checklist item stops nagging when declined
