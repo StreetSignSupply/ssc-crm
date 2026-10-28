@@ -1,5 +1,11 @@
 # What changed
 
+## 2026.11.25-33 — 2026-10-28
+- Rebuilt on 2026.11.25-32 — today's -31 push had replaced -32 on the website with an older build
+- everything in -32 is back
+- The sheet feed never brings back an account, project or note that was archived on purpose
+- Data clean-up (Matt 10/28): 620 accounts that were never contacted, and their 90 contacts, moved to Archive — they stay on the SSS Pipeline sheet Prospects tab and can be restored from Archive
+
 ## 2026.11.25-32 — 2026-10-28
 - Invoiced projects use the sales tax QuickBooks actually charged (recorded on the project) instead of the estimate — P-2008 and P-2009 had no tax on their QuickBooks invoices
 
