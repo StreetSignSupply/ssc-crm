@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-35 — 2026-10-28
+- File cards: the buttons wrap onto a second line so Delete is never cut off (Delete still asks first and moves the file to the bin)
+- PDF files show a picture of their first page instead of the word PDF
+
 ## 2026.11.25-34 — 2026-10-28
 - Fixed: the website could stay on the Sign in screen even when you were already signed in (the sign-in finished a moment after the page loaded). It now keeps checking for a few seconds and opens by itself
 

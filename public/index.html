@@ -791,7 +791,8 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
 .ftile .th .ext{font-family:"Overpass Mono",monospace;font-weight:700;font-size:15px;color:var(--ink3)}
 .ftile .meta{padding:8px 10px;min-width:0}
 .ftile .meta b{display:block;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ftile .row{display:flex;gap:5px;padding:0 10px 10px;align-items:center}
+.ftile .row{display:flex;flex-wrap:wrap;gap:5px;padding:0 10px 10px;align-items:center}
+.ftile .row .btn.d{margin-left:auto}
 .ftile .nm{display:block;width:100%;font-size:12.5px;font-weight:700;overflow:hidden;
   text-overflow:ellipsis;white-space:nowrap;color:var(--ink)}
 .ftile:hover{border-color:var(--brand)}
@@ -8199,7 +8200,7 @@ function render(){
     <p style="margin:0 0 12px">Checking your Google work sign-in… If you're already signed in, this opens by itself in a few seconds.</p>
     <button class="btn p" onclick="location.reload()">Sign in</button></div></section></div>`;return}
   $("#root").innerHTML=`<div class="app${railMin()?" rail-min":""}">${rail()}<div class="apage">${gbar()}${signinBar()}${scopeBar()}${S.ready&&db?claimBanner()+alertBar():""}<main class="main">${body()}</main></div>${mobileNav()}</div>`;
-  placeCrumbs();applyRail();
+  placeCrumbs();applyRail();setTimeout(pdfThumbs,0);
   orderPage();
   setTimeout(()=>{try{linkBackfill()}catch(e){}try{autoPass()}catch(e){}},0);
   document.querySelectorAll(".main .cols.flow").forEach(w=>w.classList.add("placed"));
@@ -9090,7 +9091,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-34";
+const APP_VERSION="2026.11.25-35";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -9991,10 +9992,12 @@ function linkTile(f,showSrc){
 function fileTile(f,showSrc){
   if(f.link)return linkTile(f,showSrc);
   const isImg=(f.type||"").indexOf("image/")===0;
+  const isPdf=!isImg&&((f.type||"")==="application/pdf"||/\.pdf$/i.test(f.name||""));
   const ext=(f.name||"").split(".").pop().slice(0,4).toUpperCase();
+  const pth=isPdf?PDFTH.cache[f.id]:"";
   return `<div class="ftile" data-view="${esc(f.id)}" style="cursor:pointer">
-    <div class="th" title="Open ${esc(f.name)}">
-      ${isImg?`<img src="${esc(f.url)}" alt="${esc(f.name)}" loading="lazy"${/svg/i.test(f.type||"")||/\.svg$/i.test(f.name||"")?` style="background:#fff"`:""}>`:`<span class="ext">${esc(ext||"FILE")}</span>`}</div>
+    <div class="th" title="Open ${esc(f.name)}"${isPdf?` data-pdfth="${esc(f.id)}"`:""}>
+      ${pth?`<img src="${pth}" alt="${esc(f.name)}" style="object-fit:cover;object-position:top;background:#fff">`:isImg?`<img src="${esc(f.url)}" alt="${esc(f.name)}" loading="lazy"${/svg/i.test(f.type||"")||/\.svg$/i.test(f.name||"")?` style="background:#fff"`:""}>`:`<span class="ext">${esc(ext||"FILE")}</span>`}</div>
     <div class="meta"><b class="nm" title="${esc(f.name)}">${esc(f.name)}</b>
       <span class="sub">${esc(f.cat||"Other")} · ${bytes(f.size)}</span>
       ${showSrc&&f._src?`<span class="pill" style="margin-top:3px">${esc(f._src)}</span>`:""}</div>
@@ -10006,6 +10009,28 @@ function fileTile(f,showSrc){
       <span style="flex:1"></span>
       ${S.canUpload?`<button class="btn sm d" data-delfile="${esc(f.id)}">Delete</button>`:""}</div></div>`;
 }
+// PDF tiles show their first page: drawn once with pdf.js, kept for the session
+const PDFTH={cache:{},busy:false,failed:{}};
+const PDFJS="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+async function pdfThumbs(){
+  if(PDFTH.busy||/jsdom/i.test(navigator.userAgent||""))return;
+  const todo=[...document.querySelectorAll("[data-pdfth]")].map(el=>el.dataset.pdfth).filter(id=>!PDFTH.cache[id]&&!PDFTH.failed[id]);
+  if(!todo.length)return;
+  PDFTH.busy=true;
+  try{await loadScriptOnce(PDFJS);const lib=window.pdfjsLib;if(!lib)throw new Error("no pdf.js");
+    lib.GlobalWorkerOptions.workerSrc=PDFJS.replace("pdf.min.js","pdf.worker.min.js");
+    for(const id of [...new Set(todo)]){const f=S.files.get(id);if(!f||!f.url){PDFTH.failed[id]=1;continue}
+      try{const buf=await (await fetch(f.url)).arrayBuffer();
+        const doc=await lib.getDocument({data:new Uint8Array(buf)}).promise;const pg=await doc.getPage(1);
+        const v0=pg.getViewport({scale:1});const vp=pg.getViewport({scale:320/v0.width});
+        const c=document.createElement("canvas");c.width=vp.width;c.height=vp.height;
+        await pg.render({canvasContext:c.getContext("2d"),viewport:vp}).promise;
+        PDFTH.cache[id]=c.toDataURL("image/jpeg",0.8);try{doc.destroy()}catch(e){}
+        document.querySelectorAll('[data-pdfth="'+id+'"]').forEach(el=>{el.innerHTML=`<img src="${PDFTH.cache[id]}" alt="" style="object-fit:cover;object-position:top;background:#fff">`});
+      }catch(e){PDFTH.failed[id]=1}}
+  }catch(e){todo.forEach(id=>PDFTH.failed[id]=1)}
+  finally{PDFTH.busy=false}
+  if([...document.querySelectorAll("[data-pdfth]")].some(el=>!PDFTH.cache[el.dataset.pdfth]&&!PDFTH.failed[el.dataset.pdfth]))pdfThumbs()}
 function fileList(){
   const q=S.q.trim().toLowerCase();
   let fs=live(S.files);
