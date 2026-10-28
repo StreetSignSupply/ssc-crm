@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-36 — 2026-10-28
+- PDF previews: when the CRM can't read a stored PDF directly, the card shows the PDF the way the file viewer does (the browser's own view of page 1)
+
 ## 2026.11.25-35 — 2026-10-28
 - File cards: the buttons wrap onto a second line so Delete is never cut off (Delete still asks first and moves the file to the bin)
 - PDF files show a picture of their first page instead of the word PDF
