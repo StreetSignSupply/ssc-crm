@@ -432,12 +432,19 @@ td .btn,th .btn{white-space:nowrap;word-break:normal;overflow-wrap:normal}
 .step.lost{border-top-color:var(--red)}
 .step.lost b{color:var(--danger-ink)}
 .path > details{flex:0 0 auto;margin-left:auto;align-self:center}
-/* work order status steps: the date sits under the name, not run into it */
-.path>button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:6px 12px;text-align:left;line-height:1.15}
-.path>button small{display:block;font-size:11px;font-weight:500;color:var(--ink3)}
+/* work order status: one progress bar — finished steps dark with a check, the current one red, what's next grey */
+.path{gap:6px;padding:14px 20px 12px}
+.path>button{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:3px;
+  background:none;border:0;border-top:5px solid var(--line);border-radius:0;box-shadow:none;
+  padding:9px 4px 2px 0;text-align:left;line-height:1.15;font-size:13px;font-weight:700;color:var(--ink3);cursor:pointer}
+.path>button small{display:block;font-size:11.5px;font-weight:500;color:var(--ink3)}
+.path>button:hover{border-top-color:var(--ink3);background:none}
+.path>button.done{border-top-color:var(--ink);color:var(--ink)}
+.path>button .ck{color:var(--green,#1f8a4c);font-weight:800}
 .path>button.done small{color:var(--ink2)}
-.path>button.cur{border-color:var(--brand);box-shadow:inset 0 -2px 0 var(--brand)}
-.path>button.cur small{color:var(--brand-ink);font-weight:600}
+.path>button.cur{border-top-color:var(--brand);color:var(--ink)}
+.path>button.cur small{color:var(--brand-ink);font-weight:700}
+.path>button:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
 
 .card > header .cz{width:26px;height:26px;padding:0;margin:0 2px 0 -4px;border-radius:50%;cursor:pointer;
   display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;color:var(--ink3);
@@ -6523,7 +6530,7 @@ function decalCost(line){
 function finishText(j){
   const pd=prodOf(j),pr=buildOfLine(j)==="print";
   const nl=pr?noLamState(j):"none";
-  if(pd==="sign")return pr?(nl==="all"?"printed face — no overlaminate (customer declined)":"1170C clear overlay required"):"legend cut and applied";
+  if(pd==="sign")return pr?(nl==="all"?"":"1170C clear overlay required"):"legend cut and applied";
   if(pd==="decal"||pd==="letter"){if(!pr)return "cut vinyl — weed, transfer tape";
     if(nl==="all")return "printed, no laminate (customer declined), contour cut";
     const it=matchItem((woItems(j)[0]||{}).grade);const lam=laminateFor(it,j,true);
@@ -8991,7 +8998,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-28";
+const APP_VERSION="2026.11.25-29";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -9674,14 +9681,14 @@ function jobRec(num){
         const prior=(sl.filter(x=>JFLOW.indexOf(x.status)>=0).pop()||{}).status;
         const ref=at>=0?at:JFLOW.indexOf(prior);
         return `<button class="${j.status===s2?"cur":(ref>k?"done":"")}" data-adv="${j.num}:${s2}">
-          ${esc(JS[s2].label)}<small>${hit?fmtDate(isoDay(hit.at)).replace(/, \d{4}$/,""):"—"}</small></button>`}).join("")}</div>
+          <span>${j.status!==s2&&ref>k?`<span class="ck">✓</span> `:""}${esc(JS[s2].label)}</span><small>${hit?fmtDate(isoDay(hit.at)).replace(/, \d{4}$/,""):"—"}</small></button>`}).join("")}</div>
       ${(function(){const pq=j.projectId?proj(j.projectId):null;if(!pq)return "";const q=quoteState(pq);if(q.ok)return "";
         return `<div class="qstate"><span class="qdot"></span><div><b>The quote for this work order isn't finished</b> — ${esc(q.why)} on P-${pq.num}. The shop can carry on; price the quote so the job's value and margin are right.</div>
           <span class="sp"><button class="btn sm" data-ptabgo="${esc(pq.id)}">Go to the quote</button></span></div>`})()}
       <div class="hl-facts">
         <div><div class="k">How it's made</div><div class="v">
           <span class="pill ${buildOfLine(j)==="print"?"o":"s"}">${esc(buildLabel(j))}</span>
-          ${noLamState(j)==="all"?`<span class="pill r" title="${esc(NOLAM_TXT)}">No overlaminate (customer's choice)</span>`:noLamState(j)==="some"?`<span class="pill o" title="${esc(noLamItems(j).join("; "))}">No overlaminate on ${noLamItems(j).length} line${noLamItems(j).length===1?"":"s"}</span>`:""}
+          ${noLamState(j)==="all"?`<span class="pill y" title="${esc(NOLAM_TXT)}">No laminate — customer declined</span>`:noLamState(j)==="some"?`<span class="pill o" title="${esc(noLamItems(j).join("; "))}">No overlaminate on ${noLamItems(j).length} line${noLamItems(j).length===1?"":"s"}</span>`:""}
           <div class="sub">${esc(finishText(j))}</div>
           ${(function(){const fromMat=buildFromMaterial(j);const pr=j.projectId?proj(j.projectId):null;
             if(fromMat)return `<div class="sub" style="margin-top:4px">Set by the material on ${pr?`<button class="lnk" data-go="project/${esc(pr.id)}">P-${pr.num}</button>`:"the project"} — change it there</div>`;
@@ -9719,7 +9726,7 @@ function jobRec(num){
             const sq=it.reduce((t,x)=>{const m=String(x.size||"").match(/(\d+(?:\.\d+)?)\s*[x×]\s*(\d+(?:\.\d+)?)/);return t+(m?(+m[1])*(+m[2])/144*(Number(x.qty)||0):0)},0);
             return fld("Customer",a.name||"")+fld("Pieces",pcs?pcs+" pcs"+(sq?" · "+Math.round(sq)+" sq ft of face":""):"no lines yet")
               +fld("Sizes",sizes||"—")+fld(prodOf(j)==="sign"?"Sheeting":"Material",grades||(prodOf(j)==="stencil"?stenLabel(j):"—"))
-              +(prodOf(j)==="sign"?fld("Substrate",subs||"—")+fld("Legend / overlay",legs||(j.method==="print"?"printed with the face, 1170C clear overlay":"—"))
+              +(prodOf(j)==="sign"?fld("Substrate",subs||"—")+fld("Legend / overlay",legs||(j.method==="print"?(noLamState(j)==="all"?"printed with the face, no laminate (customer declined)":"printed with the face, 1170C clear overlay"):"—"))
                 :fld("Finish",finishText(j)||"—"))
               +fld("Ship to",(p&&p.shipTo)||[a.street,a.city,a.state].filter(Boolean).join(", ")||"—")
               +fld("Ship by",fmtDate(j.due))
@@ -9766,9 +9773,9 @@ function jobRec(num){
           <button class="btn sm p" data-lineadd="${j.num}">Add line</button></span></header>
     ${(function(){const nb=nextStep("job",j);return nb?`<div style="padding:12px 15px 0">${nb}</div>`:""})()}
         ${woItems(j).length?`<table><thead><tr><th style="width:56px;text-align:right">Qty</th>
-          <th>Item</th><th>Size</th>
-          <th>${prodOf(j)==="sign"?"Grade":"Material"}</th><th>${prodOf(j)==="sign"?"Substrate":"Notes"}</th>
-          ${["sign","decal","magnet"].indexOf(prodOf(j))>=0?`<th>${prodOf(j)==="sign"?"Legend / overlay":"Finish"}</th>`:""}
+          <th>Item</th>
+          <th>${prodOf(j)==="sign"?"Sheeting":"Material"}</th>
+          ${["sign","decal","magnet"].indexOf(prodOf(j))>=0?`<th>${prodOf(j)==="sign"?"Face":"Finish"}</th>`:""}
           <th style="width:94px;text-align:right">Price ea</th><th style="width:96px;text-align:right">Line $</th>
           <th style="width:58px"></th></tr></thead>
           <tbody>${woItems(j).map((it,ix)=>`<tr>
@@ -9776,12 +9783,10 @@ function jobRec(num){
             <td><div style="display:flex;gap:10px;align-items:center">
               ${linePic(j.projectId?proj(j.projectId):null,it)?`<img src="${esc(linePic(j.projectId?proj(j.projectId):null,it))}" alt="" data-signpic="${esc(picKey(it))}" data-picfall="1" style="width:44px;height:44px;object-fit:contain;border:1px solid var(--line);border-radius:4px;background:#fff;cursor:pointer" title="Change this item's picture">`
                 :((it.code||it.desc)?`<button class="btn sm" data-signpic="${esc(picKey(it))}" title="Add a picture for this item" style="width:44px;height:44px;padding:0;font-size:10px;line-height:1.1">＋<br>picture</button>`:"")}
-              <div><b>${esc(it.desc||signName(it)||it.code||"—")}</b>${(it.desc||signName(it))&&it.code?`<div class="sub">${esc(it.code)}${it.desc&&signName(it)?" · "+esc(signName(it)):""}</div>`:""}</div></div></td>
-            <td>${esc(it.size?sizeLabel(it.size):"—")}</td>
-            <td>${esc(it.grade||"—")}</td>
-            <td class="sub">${esc(it.sub||"—")}</td>
+              <div><b>${esc(it.desc||signName(it)||it.code||"—")}</b><div class="sub">${[it.size?esc(sizeLabel(it.size)):"",(it.desc||signName(it))&&it.code?esc(String(it.code).split("|")[0]):""].filter(Boolean).join(" · ")}</div></div></div></td>
+            <td>${esc(it.grade||"—")}${it.sub?`<div class="sub">${esc(it.sub)}</div>`:""}</td>
             ${["sign","decal","magnet"].indexOf(prodOf(j))>=0?`<td>${buildOfLine(j)==="print"
-              ? `<span class="pill o">printed</span> <span class="sub">${it.noLam?"no overlaminate — customer declined":prodOf(j)==="sign"?"1170C clear":"laminated"}</span>`
+              ? `<span class="pill o">printed</span><div class="sub">${it.noLam?"no laminate":prodOf(j)==="sign"?"1170C clear":"laminated"}</div>`
               : it.legend?`<span class="pill s">cut</span> <span class="sub">${esc(it.legend)}</span>`
                 :prodOf(j)==="sign"?`<span class="pill r">no legend film</span>`:`<span class="sub">cut from the ${esc(it.grade||"vinyl")}</span>`}</td>`:""}
 
@@ -9789,7 +9794,7 @@ function jobRec(num){
             <td class="mono" style="text-align:right;font-weight:700">${lineSell(j,it)?money2(lineSell(j,it)):"—"}</td>
             <td style="text-align:right"><button class="btn sm" data-lineedit="${j.num}:${ix}">Edit</button></td>
           </tr>`).join("")}
-          <tr style="background:var(--card2)"><td colspan="${["sign","decal","magnet"].indexOf(prodOf(j))>=0?7:6}" style="text-align:right;font-weight:800;
+          <tr style="background:var(--card2)"><td colspan="${["sign","decal","magnet"].indexOf(prodOf(j))>=0?5:4}" style="text-align:right;font-weight:800;
             font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2)">Work order total</td>
             <td class="mono" style="text-align:right;font-weight:800;font-size:15px">${money2(jobRevenue(j))}</td>
             <td></td></tr></tbody></table>`
