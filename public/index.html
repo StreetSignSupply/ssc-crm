@@ -2930,7 +2930,8 @@ function docHTML(p,kind){
   const sub=lines.reduce((t,l)=>t+l.qty*l.unit,0);
   const rate=Number(b.taxRate)||0;
   const exempt=isExempt(a);
-  const tax=(!exempt&&rate>0)?sub*rate/100:0;
+  // once invoiced, the tax is what QuickBooks actually charged (invTax), not the estimate
+  const tax=invTaxOf(p)!==null?invTaxOf(p):(!exempt&&rate>0)?sub*rate/100:0;
   const dep=(billWhen(p)==="deposit"&&Number(p.depositAmt)>0&&kind==="invoice"&&billState(p)!=="none")?Number(p.depositAmt):0;
   const total=sub+tax-dep;
   const no=kind==="quote"?(p.quote||""):(p.invNum||"");
@@ -9083,7 +9084,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-31";
+const APP_VERSION="2026.11.25-32";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -13627,6 +13628,8 @@ function syncLine(l,price,p){
   if(!l.charge){out.picture=picStatus(p,l);if(l.webImg)out.img=l.webImg;out.picture_name=syncTxt(()=>picName(p,l))}   // the agents fill every "none" and "drawing" with a real picture
   return out;
 }
+// the sales tax on the QuickBooks invoice, when it's been recorded (0 counts); null = not recorded, use the estimate
+function invTaxOf(p){const v=p&&p.invTax;return v===""||v===null||v===undefined||!isFinite(Number(v))?null:Number(v)}
 function syncTax(a,amt){const rate=Number((S.brand||{}).taxRate)||0;return (!isExempt(a)&&rate>0)?syncN(amt*rate/100):0}
 // the Order sync script on the sheet writes a fixed set of columns; everything else the CRM knows rides along at the
 // end of Notes as one "CRM fields:" line so rep, billing, invoice, paid, tracking and value reach the sheet too
@@ -13667,7 +13670,7 @@ function syncBuild0(key,rec){
     if(!lines.length)jobsOf(p.id).forEach(j=>woItems(j).forEach(it=>{if(Number(it.qty)>0)lines.push(syncLine(it,priceOfLine(j,it),p))}));
     const shipping=syncN(lines.filter(l=>l.charge==="freight").reduce((t,l)=>t+l.line_total,0));
     const subtotal=syncN(lines.filter(l=>l.charge!=="freight").reduce((t,l)=>t+l.line_total,0));
-    const tax=syncTax(a,subtotal);const rep2=repFor(p);
+    const tax=invTaxOf(p)!==null?invTaxOf(p):syncTax(a,subtotal);const rep2=repFor(p);
     const rate=Number((S.brand||{}).taxRate)||0;
     const taxNote=isExempt(a)?"Tax exempt — no sales tax on the invoice":rate>0?"Estimate at "+rate+"% — QuickBooks calculates the final sales tax":"No tax rate set in the CRM — QuickBooks calculates the final sales tax";
     // shipped when the project's log says so, else when its newest work order shipped
