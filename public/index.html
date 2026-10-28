@@ -9091,7 +9091,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-35";
+const APP_VERSION="2026.11.25-36";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -10011,24 +10011,30 @@ function fileTile(f,showSrc){
 }
 // PDF tiles show their first page: drawn once with pdf.js, kept for the session
 const PDFTH={cache:{},busy:false,failed:{}};
+function pdfFrame(f){return `<iframe src="${esc(f.url)}#page=1&toolbar=0&navpanes=0&scrollbar=0&view=FitH" title="" tabindex="-1" loading="lazy"
+  style="border:0;width:100%;height:100%;pointer-events:none;background:#fff;overflow:hidden"></iframe>`}
+function pdfFallback(id){PDFTH.failed[id]=1;const f=S.files.get(id);if(!f||!f.url)return;
+  document.querySelectorAll('[data-pdfth="'+id+'"]').forEach(el=>{if(!el.querySelector("img,iframe"))el.innerHTML=pdfFrame(f)})}
 const PDFJS="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
 async function pdfThumbs(){
   if(PDFTH.busy||/jsdom/i.test(navigator.userAgent||""))return;
+  // ones that failed before: put the browser's view straight back after each redraw
+  document.querySelectorAll("[data-pdfth]").forEach(el=>{if(PDFTH.failed[el.dataset.pdfth])pdfFallback(el.dataset.pdfth)});
   const todo=[...document.querySelectorAll("[data-pdfth]")].map(el=>el.dataset.pdfth).filter(id=>!PDFTH.cache[id]&&!PDFTH.failed[id]);
   if(!todo.length)return;
   PDFTH.busy=true;
   try{await loadScriptOnce(PDFJS);const lib=window.pdfjsLib;if(!lib)throw new Error("no pdf.js");
     lib.GlobalWorkerOptions.workerSrc=PDFJS.replace("pdf.min.js","pdf.worker.min.js");
     for(const id of [...new Set(todo)]){const f=S.files.get(id);if(!f||!f.url){PDFTH.failed[id]=1;continue}
-      try{const buf=await (await fetch(f.url)).arrayBuffer();
+      try{const res=await fetch(f.url);if(!res.ok)throw new Error("fetch");const buf=await res.arrayBuffer();
         const doc=await lib.getDocument({data:new Uint8Array(buf)}).promise;const pg=await doc.getPage(1);
         const v0=pg.getViewport({scale:1});const vp=pg.getViewport({scale:320/v0.width});
         const c=document.createElement("canvas");c.width=vp.width;c.height=vp.height;
         await pg.render({canvasContext:c.getContext("2d"),viewport:vp}).promise;
         PDFTH.cache[id]=c.toDataURL("image/jpeg",0.8);try{doc.destroy()}catch(e){}
         document.querySelectorAll('[data-pdfth="'+id+'"]').forEach(el=>{el.innerHTML=`<img src="${PDFTH.cache[id]}" alt="" style="object-fit:cover;object-position:top;background:#fff">`});
-      }catch(e){PDFTH.failed[id]=1}}
-  }catch(e){todo.forEach(id=>PDFTH.failed[id]=1)}
+      }catch(e){pdfFallback(id)}}
+  }catch(e){todo.forEach(pdfFallback)}
   finally{PDFTH.busy=false}
   if([...document.querySelectorAll("[data-pdfth]")].some(el=>!PDFTH.cache[el.dataset.pdfth]&&!PDFTH.failed[el.dataset.pdfth]))pdfThumbs()}
 function fileList(){
