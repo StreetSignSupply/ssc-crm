@@ -5159,6 +5159,11 @@ function linePrinted(l,j){if(!l)return false;if(l.build==="print")return true;if
 // the clear overlaminate the customer declined: "none" of a work order's printed items, "some" or "all"
 function noLamState(j){const pr=woItems(j).filter(x=>Number(x.qty)>0&&buildOfLine(Object.assign({},j,{items:[x]}))==="print");
   if(!pr.length)return "none";const n=pr.filter(x=>x.noLam).length;return n===0?"none":n===pr.length?"all":"some"}
+async function setJobNoLam(num,on){const j=job(num);if(!j)return;
+  const items=(j.items||[]).map(it=>{const pr=buildOfLine(Object.assign({},j,{items:[it]}))==="print";return pr?Object.assign({},it,{noLam:!!on}):it});
+  await push("jobs/"+num,{items,updatedAt:Date.now()});
+  recordHistory("job",String(num),[{f:"Overlaminate",o:on?"yes":"no",n:on?"Customer declined the clear overlaminate — laminate step removed":"Laminate put back",ev:1}]);
+  toast(on?"Laminate removed from this work order. The quote price isn't changed — lower it on the project if they shouldn't pay for it.":"Laminate is back on this work order.")}
 function noLamItems(j){return woItems(j).filter(x=>x.noLam).map(x=>(x.qty?x.qty+" × ":"")+(x.desc||x.code||(x.size?sizeLabel(x.size):"line")))}
 const NOLAM_TXT="No clear overlaminate (customer declined; no 3M warranty)";
 function noLamBox(id,on){return `<div class="fld full" style="border-bottom:0"><label style="display:flex;gap:8px;align-items:center;cursor:pointer;font-weight:600">
@@ -5786,7 +5791,7 @@ function prepList(j){
       noLeg?noLeg+" line"+(noLeg===1?"":"s")+" with no legend film — the material and the price will be short":
       "Every line says what the legend is cut from","line");
   }
-  if(pd==="sign"&&j.method==="print")
+  if(pd==="sign"&&j.method==="print"&&noLamState(j)!=="all")
     auto("a_overlay","1170C clear overlay in the plan",
       planFor(j,j.wastePct).some(r=>String((S.items.get(r.itemId)||{}).sku||"").indexOf("EC-1170C")===0),
       "Printed faces need it or the 3M MCS traffic warranty doesn't attach","plan");
@@ -8986,7 +8991,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-27";
+const APP_VERSION="2026.11.25-28";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -9805,7 +9810,9 @@ function jobRec(num){
         const done=steps.filter(r=>routeTick(j,r.id).on).length;
         return `<section class="card flush"><header><h2>Production route</h2>
           <span class="n">${done} of ${steps.length}</span>
-          <span class="sp"><button class="btn sm" data-edit="job:${j.num}">Change route</button></span></header>
+          <span class="sp">${noLamState(j)!=="none"||steps.some(r=>r.id==="lam"||/laminat/i.test(r.label||""))
+            ?`<button class="btn sm${noLamState(j)==="all"?" p":""}" data-jobnolam="${j.num}:${noLamState(j)==="all"?"0":"1"}" title="The customer doesn't want to pay for the clear overlaminate">${noLamState(j)==="all"?"Put the laminate back":"No laminate (customer declined)"}</button>`:""}
+            <button class="btn sm" data-edit="job:${j.num}">Edit work order</button></span></header>
         ${note.kind==="warn"?`<div class="warn">${esc(note.t)}</div>`
           :note.t?`<div style="padding:9px 15px;border-bottom:1px solid var(--line2)" class="sub">${esc(note.t)}</div>`:""}
         ${(pd==="sign"&&j.blankSrc==="vendor")?`<div class="warn">Blanks are on order. Don't release this to the floor until they're received and counted.</div>`:""}
@@ -12139,7 +12146,7 @@ async function toggleGate(num,k,on){
   const L={specs:"Specs verified",payment:"Payment path set",proof:"Proof approved",material:"Material staged",qc:"QC passed"};
   await push("jobs/"+num,{gates:{[k]:on},updatedAt:Date.now()});
   recordHistory("job",String(num),[{f:k==="qc"?"Quality check":"Prep",o:"",
-    n:(on?"✓ ":"undone: ")+L[k],ev:1}]);
+    n:(on?"✓ ":"undone: ")+(L[k]||(function(){try{const it=prepList(job(num)).find(x=>x.key===k);return it&&it.label}catch(e){return ""}})()||String(k).replace(/^[a-z]_/,"").replace(/_/g," ")),ev:1}]);
 }
 async function toggleRoute(num,k,on){
   if(!needMe(()=>toggleRoute(num,k,on)))return;
@@ -14593,6 +14600,7 @@ function bind(){
     const lg=t.closest("[data-logo]");if(lg){uploadLogo();return}
     const ne=t.closest("[data-newev]");
     {const mg=t.closest("[data-merge]");if(mg){mergeModal(mg.dataset.merge);return}}
+    {const nl=t.closest("[data-jobnolam]");if(nl){const [nn,on]=nl.dataset.jobnolam.split(":");setJobNoLam(nn,on==="1");return}}
     {const am=t.closest("[data-acctmore]");if(am){S.acctShow=am.dataset.acctmore==="all"?100000:(S.acctShow||100)+100;render();return}}
     {const co=t.closest("[data-claimok]");if(co){claimDecide(co.dataset.claimok,true);return}}
     {const cn=t.closest("[data-claimno]");if(cn){claimDecide(cn.dataset.claimno,false);return}}

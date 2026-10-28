@@ -1,5 +1,11 @@
 # What changed
 
+## 2026.11.25-28 — 2026-10-27
+- Work order: one-click No laminate (customer declined) on the Production route, and Put the laminate back
+- the overlay checklist item stops nagging when declined
+- Change route renamed Edit work order
+- work order history names every checklist item (no more undefined)
+
 ## 2026.11.25-27 — 2026-10-27
 - Accounts: Merge into another account
 - list shows 100 at a time
