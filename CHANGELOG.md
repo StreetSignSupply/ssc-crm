@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-34 — 2026-10-28
+- Fixed: the website could stay on the Sign in screen even when you were already signed in (the sign-in finished a moment after the page loaded). It now keeps checking for a few seconds and opens by itself
+
 ## 2026.11.25-33 — 2026-10-28
 - Rebuilt on 2026.11.25-32 — today's -31 push had replaced -32 on the website with an older build
 - everything in -32 is back

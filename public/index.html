@@ -1889,7 +1889,7 @@ function repChip(t,inherited){
   return `<span style="font-weight:700">${esc(t.name)}</span>${inherited?"":` <span class="pill">project override</span>`}`;
 }
 function myInitials(){return (S.me||"").toUpperCase()}
-function viewerId(){return S.viewer&&S.viewer.id?S.viewer.id:""}
+function viewerId(){const v=S.viewer;return v?String(v.id||v.uid||""):""}
 function viewerName(){return (S.viewer&&S.viewer.name)||""}
 // one person can sign in from more than one place (inside Claude and on crm.streetsignsupply.com), so a record keeps every sign-in it was linked to
 function signIns(x){return [x&&x.claudeId].concat((x&&x.claudeIds)||[]).filter(Boolean)}
@@ -8194,9 +8194,9 @@ function render(){
   document.querySelectorAll("#viewer,.scrim,.modal").forEach(el=>el.remove());
   const prev=$(".main"),st=prev?prev.scrollTop:0,wy=window.scrollY||0;
   const rkey=(S.route&&S.route.v||"")+"/"+(S.route&&S.route.id||"");
-  if(needSignIn()){$("#root").innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:16px">
+  if(needSignIn()){waitForSignIn();$("#root").innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:16px">
     <section class="card" style="max-width:420px;width:100%"><header><h2>Sign in to the CRM</h2></header><div class="body">
-    <p style="margin:0 0 12px">This CRM needs your Google work sign-in. Nothing shows until you're signed in.</p>
+    <p style="margin:0 0 12px">Checking your Google work sign-in… If you're already signed in, this opens by itself in a few seconds.</p>
     <button class="btn p" onclick="location.reload()">Sign in</button></div></section></div>`;return}
   $("#root").innerHTML=`<div class="app${railMin()?" rail-min":""}">${rail()}<div class="apage">${gbar()}${signinBar()}${scopeBar()}${S.ready&&db?claimBanner()+alertBar():""}<main class="main">${body()}</main></div>${mobileNav()}</div>`;
   placeCrumbs();applyRail();
@@ -8367,6 +8367,12 @@ function myAccess(){const vid=viewerId();
   if(t)return t.access&&ACCESS[t.access]?t.access:"owner";
   return ownerClaimed()?"shop":"owner"}
 // the hosted site with no Google sign-in: show the sign-in screen only
+// the sign-in can finish a moment after the page starts: keep asking for it, and open the CRM as soon as it's there
+let signWait=0;
+function waitForSignIn(){if(signWait||!userCap)return;let n=0;
+  signWait=setInterval(async()=>{n++;
+    try{const v=await userCap.me();if(v&&(v.id||v.uid||v.email)){S.viewer=v;clearInterval(signWait);signWait=0;try{syncViewer()}catch(e){}render();return}}catch(e){}
+    if(n>=60){clearInterval(signWait);signWait=0}},1000)}
 function needSignIn(){return isHosted()&&!window.sscWorker&&S.ready&&!(S.viewer&&(viewerId()||S.viewer.email))}
 function can(what){return !!(ACCESS[myAccess()]||ACCESS.owner)[what]}
 function canCompanyDash(){const t=S.viewerTeam;if(!t)return true;return myAccess()==="owner"||!!t.companyDash}
@@ -9084,7 +9090,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-33";
+const APP_VERSION="2026.11.25-34";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
