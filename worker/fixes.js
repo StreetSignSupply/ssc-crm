@@ -10,10 +10,10 @@
     if (!m) return l;
     const kind = /mile marker|directional/.test(d) ? "marker" : /extruded/.test(d) ? "extruded" : /diamond/.test(d) ? "diamond" : /rectangle/.test(d) ? "rect" : "";
     if (!kind) return l;
-    k++; return Object.assign({}, l, { webImg: BASE + kind + "-" + m[1] + "x" + m[2] + ".png" });
+    k++; return Object.assign({}, l, { webImg: BASE + kind + "-" + m[1] + "x" + m[2] + "-v2.png" });
   });
   await T.push("projects/" + p.id, { orderLines: lines, updatedAt: now });
-  await T.recordHistory("project", p.id, [{ f: "Pictures", o: "", n: k + " blank lines got a to-scale drawing of the blank", ev: 1 }]);
+  await T.recordHistory("project", p.id, [{ f: "Pictures", o: "", n: k + " blank lines got a clearer drawing of the blank", ev: 1 }]);
   n.pictures = k; n.lines = lines.length;
   return n;
 })
