@@ -1,5 +1,17 @@
 # What changed
 
+## 2026.11.25-31 — 2026-10-27
+- Sign-in: with no sign-in, the CRM never falls back to owner access — the website shows only the sign-in screen, and typed initials no longer grant anything once the owner has claimed their record
+- Tax: an account marked exempt with no certificate expiry date now bills taxable (shown as Taxable · add cert date) until the date is entered
+- Work order progress bar: QC is checked only when QC was actually signed off — otherwise it reads "not signed off"
+- Shipped work orders show the ship date instead of "late"
+- Vendors list fits the screen (long terms and contacts wrap)
+- an unnamed vendor shows "Unnamed vendor — add a name"
+- Automatic tasks (chase the proof, quote follow-up) go to the project's rep, else the account's rep, else the owner — never unassigned
+- Order sync: Send all also marks deleted and merged accounts, contacts, projects and work orders as deleted on the sheet
+- rep, billing status, invoice and paid dates, tracking, project value and the other CRM fields ride along on a "CRM fields:" line in Notes
+- Fix runs: start by hand only (never on a push), never run the same fix twice, a run the watchdog stops is reported as failed with what finished, and every fix edit is tagged "Fix run" in Field history
+
 ## 2026.11.25-30 — 2026-10-27
 - Items can have more than one vendor: the existing Vendor stays as the preferred one (gets the reorder email)
 - add others with their cost, part #, last bought date and where the price came from (invoice or quote)
