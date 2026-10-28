@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-32 — 2026-10-28
+- Invoiced projects use the sales tax QuickBooks actually charged (recorded on the project) instead of the estimate — P-2008 and P-2009 had no tax on their QuickBooks invoices
+
 ## 2026.11.25-31 — 2026-10-27
 - Sign-in: with no sign-in, the CRM never falls back to owner access — the website shows only the sign-in screen, and typed initials no longer grant anything once the owner has claimed their record
 - Tax: an account marked exempt with no certificate expiry date now bills taxable (shown as Taxable · add cert date) until the date is entered
