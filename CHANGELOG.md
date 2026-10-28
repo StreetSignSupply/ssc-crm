@@ -1,5 +1,17 @@
 # What changed
 
+## 2026.11.25-30 — 2026-10-27
+- Items can have more than one vendor: the existing Vendor stays as the preferred one (gets the reorder email)
+- add others with their cost, part #, last bought date and where the price came from (invoice or quote)
+- Item page: new Vendors table with Cost, Part #, Last bought, Source, Make preferred and Edit, and a Lowest cost tag
+- Vendor page: What we buy from them lists every linked item with that vendor's cost, plus Link an existing item (search and pick)
+- Vendors list and the vendor Items count include every linked item
+- Changes go to Field history on the item and the vendor
+- Costs and the edit buttons stay hidden for Sales and Shop
+- Fixed: prices and costs showing as — on the hosted site — a sign-in that isn't linked to a team record now gets a Limited view banner with Link my sign-in, one person can link more than one sign-in (inside Claude and on the website), and a site with no sign-in no longer locks everyone to Shop
+- Costs typed as $1,234.50 now read as numbers
+- No Firestore rules change — new fields only, existing records unchanged
+
 ## 2026.11.25-29 — 2026-10-27
 - Work order status shown as one progress bar: done steps checked, the current step red, the rest grey
 - Items to make fits the screen — size and code under the name, grade and substrate together, short overlaminate note

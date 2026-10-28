@@ -1795,6 +1795,66 @@ const vendorList=()=>live(S.vendors).sort((a,b)=>(a.name||"").localeCompare(b.na
 const itemList=()=>live(S.items).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
 const vendName=id=>{const v=S.vendors.get(id);return v?(v.name+(v.deleted?" (deleted)":"")):"—"};
 const itemsOf=vid=>itemList().filter(i=>i.vendorId===vid);
+// every vendor an item can come from: the preferred one (vendorId, cost) first, then the others with their own price
+function itemVendors(i){const out=[];
+  if(i&&i.vendorId)out.push({vendorId:i.vendorId,cost:i.cost||"",part:i.vendorPart||"",lead:i.vendorLead||"",lastBought:i.vendorLast||"",source:i.vendorSource||"",preferred:true});
+  ((i&&i.vendors)||[]).forEach(v=>{if(v&&v.vendorId&&v.vendorId!==i.vendorId&&!out.some(o=>o.vendorId===v.vendorId))out.push(Object.assign({preferred:false},v))});
+  // costs typed as "$1,234.50" still count as numbers
+  out.forEach(o=>{if(typeof o.cost==="string"&&/[$,]/.test(o.cost)){const n=Number(o.cost.replace(/[$,\s]/g,""));if(!isNaN(n))o.cost=n}});
+  return out.filter(o=>{const v=S.vendors.get(o.vendorId);return v&&!v.deleted})}
+const altItemsOf=vid=>itemList().filter(i=>i.vendorId!==vid&&(i.vendors||[]).some(v=>v.vendorId===vid));
+async function itemVendSave(iid,list){const i=S.items.get(iid);if(!i)return;
+  const pref=list.find(v=>v.preferred)||list[0]||null;
+  const patch={vendors:list.filter(v=>!pref||v.vendorId!==pref.vendorId).map(v=>({vendorId:v.vendorId,cost:v.cost||"",part:v.part||"",lead:v.lead||"",lastBought:v.lastBought||"",source:v.source||""})),
+    vendorId:pref?pref.vendorId:"",cost:pref?(pref.cost||i.cost||""):i.cost||"",vendorPart:pref?pref.part||"":"",vendorLead:pref?pref.lead||"":"",
+    vendorLast:pref?pref.lastBought||"":"",vendorSource:pref?pref.source||"":"",updatedAt:Date.now()};
+  await push("items/"+iid,patch)}
+function itemVendModal(iid,vid,preVid){const i=S.items.get(iid);if(!i)return;
+  const cur=itemVendors(i).find(v=>v.vendorId===vid)||{};
+  const vs=live(S.vendors).sort((a,b)=>(a.name||"").localeCompare(b.name||"")).map(v=>({v:v.id,l:v.name}));
+  openModal(mshell(vid?"Change "+vendName(vid)+" for this item":"Add a vendor for "+i.name,"file",
+    `<div class="fgrid">${vid?`<input type="hidden" id="iv-v" value="${esc(vid)}">`:sel("iv-v","Vendor",preVid||"",vs,1)}
+      ${inp("iv-cost","Their price per "+(i.unit||"unit"),cur.cost||"","number")}${inp("iv-part","Their part number",cur.part||"")}
+      ${inp("iv-last","Last bought from them",cur.lastBought||"","date")}${inp("iv-lead","Their lead time",cur.lead||"")}
+      ${inp("iv-src","Where the price came from (invoice or quote number and date)",cur.source||"").replace('<div class="fld">','<div class="fld full">')}
+      ${chk("iv-pref","Preferred — the one we normally order from (its price becomes the item's cost)",!!cur.preferred||!itemVendors(i).length)}</div>`,
+    `${vid?`<button class="btn d" id="iv-del" style="margin-right:auto">Remove this vendor</button>`:""}<button class="btn" data-close="1">Cancel</button><button class="btn p" id="iv-save">Save</button>`));
+  $("#iv-save").onclick=async()=>{const v=$("#iv-v").value;if(!v)return toast("Pick the vendor.");
+    let list=itemVendors(i).filter(x=>x.vendorId!==v);const rec={vendorId:v,cost:$("#iv-cost").value,part:$("#iv-part").value.trim(),lead:$("#iv-lead").value.trim(),lastBought:$("#iv-last").value,source:$("#iv-src").value.trim(),preferred:$("#iv-pref").checked};
+    if(rec.preferred)list=list.map(x=>Object.assign({},x,{preferred:false}));
+    list=rec.preferred?[rec].concat(list):list.concat([rec]);if(!list.some(x=>x.preferred))list[0].preferred=true;
+    closeModal();await itemVendSave(iid,list);
+    recordHistory("item",iid,[{f:"Vendors",o:vid&&cur.cost?vendName(v)+" "+money2(Number(cur.cost)):"",n:(vid?"":"Added ")+vendName(v)+(rec.cost?" "+money2(Number(rec.cost)):"")+(rec.source?" ("+rec.source+")":"")+(rec.preferred?" — preferred":""),ev:1}]);
+    if(!vid)recordHistory("vendor",v,[{f:"Items",o:"",n:"Linked "+i.name+(rec.cost?" at "+money2(Number(rec.cost)):""),ev:1}]);
+    toast("Saved");if(S.ivBack){const b=S.ivBack;S.ivBack=null;go(b)}};
+  const dl=$("#iv-del");if(dl)dl.onclick=async()=>{let list=itemVendors(i).filter(x=>x.vendorId!==vid);if(list.length&&!list.some(x=>x.preferred))list[0].preferred=true;
+    closeModal();await itemVendSave(iid,list);recordHistory("item",iid,[{f:"Vendors",o:"",n:"Removed "+vendName(vid),ev:1}]);toast("Removed")};
+}
+function itemLinkModal(vid){
+  const its=itemList().filter(i=>!itemVendors(i).some(x=>x.vendorId===vid)).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
+  openModal(mshell("Link an item to "+vendName(vid),"file",`<div class="fgrid"><div class="fld full"><div class="k">Find the item — type part of its name or SKU</div>
+    <input id="il-q" list="il-list" autocomplete="off" placeholder="e.g. HIP 3931 30in"><datalist id="il-list">${its.map(i=>`<option value="${esc(i.name+(i.sku?" · "+i.sku:""))}"></option>`).join("")}</datalist></div></div>`,
+    `<button class="btn" data-close="1">Cancel</button><button class="btn p" id="il-go">Next</button>`));
+  focusFirst("il-q");
+  $("#il-go").onclick=()=>{const q=$("#il-q").value.trim().toLowerCase();
+    const it=its.find(i=>(i.name+(i.sku?" · "+i.sku:"")).toLowerCase()===q)||its.find(i=>(i.name||"").toLowerCase()===q||(i.sku||"").toLowerCase()===q)
+      ||(its.filter(i=>((i.name||"")+" "+(i.sku||"")).toLowerCase().includes(q)).length===1?its.find(i=>((i.name||"")+" "+(i.sku||"")).toLowerCase().includes(q)):null);
+    if(!it)return toast("Pick one item from the list.");
+    closeModal();S.ivBack="vendor/"+vid;
+    // open the vendor form for that item with this vendor already chosen
+    itemVendModal(it.id,"",vid)}}
+function itemVendCard(i){const L=itemVendors(i);const best=L.filter(v=>Number(v.cost)>0).sort((a,b)=>Number(a.cost)-Number(b.cost))[0];
+  return `<section class="card flush wide"><header><h2>Vendors</h2><span class="n">${L.length}</span>
+    <span class="sub" style="flex:1 1 100%;order:9">Everyone you can buy this from. The preferred one gets the reorder email; the others are there to compare and fall back on.</span>
+    <span class="sp">${can("cost")?`<button class="btn sm p" data-ivadd="${esc(i.id)}">Add a vendor</button>`:""}</span></header>
+    ${L.length?`<table><thead><tr><th>Vendor</th><th style="width:110px;text-align:right">Cost</th><th>Part #</th><th>Last bought</th><th>Source</th><th style="width:150px"></th></tr></thead><tbody>
+      ${L.map(v=>`<tr><td><button class="lnk" data-go="vendor/${esc(v.vendorId)}">${esc(vendName(v.vendorId))}</button>
+        ${v.preferred?` <span class="pill g">Preferred</span>`:""}${best&&best.vendorId===v.vendorId&&L.length>1?` <span class="pill b">Lowest cost</span>`:""}</td>
+        <td class="mono" style="text-align:right;white-space:nowrap">${Number(v.cost)>0?money2(Number(v.cost)):"—"}</td><td class="sub mono">${esc(v.part||"—")}</td>
+        <td class="sub">${v.lastBought?esc(fmtDate(v.lastBought)):"—"}</td><td class="sub">${esc(v.source||"—")}</td>
+        <td style="text-align:right;white-space:nowrap">${can("cost")?`${v.preferred?"":`<button class="btn sm" data-ivpref="${esc(i.id)}:${esc(v.vendorId)}">Make preferred</button>`}
+          <button class="btn sm" data-ivedit="${esc(i.id)}:${esc(v.vendorId)}">Edit</button>`:""}</td></tr>`).join("")}</tbody></table>`
+    :`<div class="empty"><b>No vendor yet</b>Add who you buy this from — add a second one to compare prices.</div>`}</section>`}
 const txOf=iid=>live(S.invtx).filter(t=>t.itemId===iid).sort((a,b)=>(b.at||0)-(a.at||0));
 const txOfJob=jid=>live(S.invtx).filter(t=>t.jobId===String(jid)&&!t.undone).sort((a,b)=>(b.at||0)-(a.at||0));
 const onHand=i=>Number(i.onHand||0);
@@ -1827,9 +1887,14 @@ function repChip(t,inherited){
 function myInitials(){return (S.me||"").toUpperCase()}
 function viewerId(){return S.viewer&&S.viewer.id?S.viewer.id:""}
 function viewerName(){return (S.viewer&&S.viewer.name)||""}
+// one person can sign in from more than one place (inside Claude and on crm.streetsignsupply.com), so a record keeps every sign-in it was linked to
+function signIns(x){return [x&&x.claudeId].concat((x&&x.claudeIds)||[]).filter(Boolean)}
+function isMyRec(x,vid,ve){return !!x&&((vid&&signIns(x).indexOf(vid)>=0)||(ve&&String(x.email||"").toLowerCase()===ve))}
+function unmatchedSignIn(){const vid=viewerId(),ve=String((S.viewer&&S.viewer.email)||"").toLowerCase();
+  return !!(S.team&&ownerClaimed()&&(vid||ve)&&!live(S.team).some(x=>isMyRec(x,vid,ve)))}
 function myTeam(){
   const vid=viewerId();
-  if(vid){const t=live(S.team).find(x=>x.claudeId===vid);if(t)return t}
+  if(vid){const t=live(S.team).find(x=>signIns(x).indexOf(vid)>=0);if(t)return t}
   const ve=String((S.viewer&&S.viewer.email)||"").toLowerCase();
   if(ve){const t=live(S.team).find(x=>String(x.email||"").toLowerCase()===ve);if(t)return t}
   const mi=myInitials();
@@ -1845,6 +1910,9 @@ function syncViewer(){
 }
 function claimBanner(){
   if(!S.team)return "";
+  if(unmatchedSignIn()){const vid=viewerId();const pend=live(S.team).some(t=>t.claimPending&&t.claimPending.by===vid);
+    return `<div class="alert strip"><span><b>Limited view.</b> Prices and costs show as — because this sign-in${viewerName()?" ("+esc(viewerName())+")":""} isn't linked to anyone on the team list${pend?" — waiting for the owner to approve it":""}.</span>
+      ${pend?"":`<span class="sp"><button class="btn sm p" id="claimbtn4">Link my sign-in…</button></span>`}</div>`}
   if(myAccess()!=="owner")return "";
   const pend=live(S.team).filter(t=>t.claimPending&&t.claimPending.by);
   const out=pend.map(t=>`<div class="alert strip"><span><b>${esc(t.claimPending.name||t.claimPending.email||"Someone")}</b> wants to sign in as <b>${esc(t.name)}</b> (${esc((ACCESS[t.access||"owner"]||{}).label||"")} access).</span>
@@ -1854,12 +1922,14 @@ function claimBanner(){
   return out+noOwner;
 }
 async function claimDecide(id,ok){const t=S.team.get(id);if(!t||!t.claimPending)return;
-  if(ok)await push("team/"+id,{claudeId:t.claimPending.by,claimPending:null,updatedAt:Date.now()});
+  if(ok){const by=t.claimPending.by;
+    await push("team/"+id,t.claudeId&&t.claudeId!==by?{claudeIds:[...new Set([...(t.claudeIds||[]),by])],claimPending:null,updatedAt:Date.now()}
+      :{claudeId:by,claimPending:null,updatedAt:Date.now()})}
   else await push("team/"+id,{claimPending:null,updatedAt:Date.now()});
   recordHistory("team",id,[{f:"Sign-in",o:"",n:(ok?"Approved ":"Refused ")+(t.claimPending.name||t.claimPending.email||"a sign-in")+" as "+t.name,ev:1}]);
   toast(ok?"Approved.":"Refused.")}
 function claimModal(){
-  const un=live(S.team).filter(t=>!t.claudeId);
+  const un=live(S.team).filter(t=>signIns(t).indexOf(viewerId())<0);
   openModal(mshell("Which one are you?","cont",
     `<div style="padding:14px 18px 6px">
       <p style="margin:0 0 10px">You're signed in as <b>${esc(viewerName()||"this account")}</b>.
@@ -1868,7 +1938,7 @@ function claimModal(){
     <div style="padding:2px 0">${un.length?un.map(t=>`<label class="gate" style="cursor:pointer">
       <input type="radio" name="claim" value="${esc(t.id)}" style="width:18px;height:18px;accent-color:var(--brand)">
       <div><div class="t">${esc(t.name)} <span class="pill">${esc(t.initials||"")}</span></div>
-        <div class="h">${esc(t.role||"")}${t.isRep?" · sales rep":""}</div></div></label>`).join("")
+        <div class="h">${esc(t.role||"")}${t.isRep?" · sales rep":""}${t.claudeId?" · already linked on another sign-in — this adds one":""}</div></div></label>`).join("")
       :`<p class="note" style="margin:10px 18px">Everyone on the team list is already claimed. Add yourself in Settings first.</p>`}</div>`,
     `<button class="btn" data-close="1">Not now</button>
      <button class="btn p" id="claimsave">That's me</button>`));
@@ -1882,7 +1952,8 @@ function claimModal(){
       await push("team/"+id,{claimPending:{by:viewerId(),name:viewerName()||"",email:String((S.viewer&&S.viewer.email)||""),at:Date.now()},updatedAt:Date.now()});
       return toast("Asked the owner to confirm it's you. Until then you have Shop access.")}
     closeModal();
-    await push("team/"+id,{claudeId:viewerId(),claimPending:null,updatedAt:Date.now()});
+    await push("team/"+id,t&&t.claudeId&&t.claudeId!==viewerId()?{claudeIds:[...new Set([...(t.claudeIds||[]),viewerId()])],claimPending:null,updatedAt:Date.now()}
+      :{claudeId:viewerId(),claimPending:null,updatedAt:Date.now()});
     if(t&&t.initials){S.me=t.initials.toUpperCase();try{localStorage.setItem("sscMe",S.me)}catch(e){}}
     toast("Signed in as "+((t&&t.name)||"you"));
   };
@@ -1964,7 +2035,7 @@ function itemModal(it,vid){
           <summary style="cursor:pointer;font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--ink2);padding:6px 0">
             Buying and reordering — optional</summary>
           <div class="fgrid" style="margin-top:4px">
-            ${sel("i-vend","Vendor — who you buy it from",it.vendorId||vid||"",withNew(vs,"Add a new vendor…"),1)}
+            ${sel("i-vend","Preferred vendor — add others on the item page",it.vendorId||vid||"",withNew(vs,"Add a new vendor…"),1)}
             ${sel("i-ship","Ships as",it.shipClass||"parcel",SHIPCLASS.map(x=>({v:x.id,l:x.label})))}
             ${inp("i-rp","Reorder when on hand hits — "+(it.unit||"unit")+"s",it.reorderPoint,"number")}
             ${inp("i-rq","Reorder quantity — "+(it.unit||"unit")+"s",it.reorderQty,"number")}
@@ -8278,11 +8349,11 @@ function ownerClaimed(){return !!(S.team&&live(S.team).some(x=>(x.access||"owner
 function myAccess(){const vid=viewerId();
   // a real match: this sign-in claimed the record, or its email is on it
   const ve=String((S.viewer&&S.viewer.email)||"").toLowerCase();
-  let t=S.team?live(S.team).find(x=>(vid&&x.claudeId===vid)||(ve&&String(x.email||"").toLowerCase()===ve)):null;
-  // typed initials only count before an owner has claimed their record
-  if(!t&&!ownerClaimed())t=S.viewerTeam||(S.team&&live(S.team).find(x=>String(x.initials||"").toUpperCase()===String(S.me||"").toUpperCase()));
+  let t=S.team?live(S.team).find(x=>isMyRec(x,vid,ve)):null;
+  // typed initials only count before an owner has claimed their record — or where the site gives no sign-in to check at all
+  if(!t&&(!ownerClaimed()||(!vid&&!ve)))t=S.viewerTeam||(S.team&&live(S.team).find(x=>String(x.initials||"").toUpperCase()===String(S.me||"").toUpperCase()));
   if(t)return t.access&&ACCESS[t.access]?t.access:"owner";
-  return ownerClaimed()?"shop":"owner"}
+  return ownerClaimed()&&(vid||ve)?"shop":"owner"}
 function can(what){return !!(ACCESS[myAccess()]||ACCESS.owner)[what]}
 function canCompanyDash(){const t=S.viewerTeam;if(!t)return true;return myAccess()==="owner"||!!t.companyDash}
 function dashFirst(){const t=S.viewerTeam;const nm=t?String(t.name||"").trim().split(/\s+/)[0]:"";return nm||"My"}
@@ -8998,7 +9069,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-29";
+const APP_VERSION="2026.11.25-30";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -10133,7 +10204,7 @@ function vendorListView(){
         <td>${esc(v.type||"—")}</td>
         <td>${esc(v.contact||"—")}<div class="sub">${esc(fmtPhone(v.phone)||"")}</div></td>
         <td>${esc(v.terms||"—")}</td><td>${esc(v.leadTime||"—")}</td>
-        <td class="mono">${itemsOf(v.id).length||"—"}</td></tr>`).join("")}</tbody></table>`
+        <td class="mono">${(itemsOf(v.id).length+altItemsOf(v.id).length)||"—"}</td></tr>`).join("")}</tbody></table>`
     :`<div class="empty"><b>No vendors yet</b>Add who you buy sheeting, substrate, film, and hardware from.</div>`}
   </section></div>`;
 }
@@ -10156,7 +10227,7 @@ function vendorRec(id){
         <div><div class="k">Terms</div><div class="v">${esc(v.terms||"—")}</div></div>
         <div><div class="k">Lead time</div><div class="v">${esc(v.leadTime||"—")}</div></div>
         <div><div class="k">Account #</div><div class="v mono">${esc(v.acct||"—")}</div></div>
-        <div><div class="k">Items</div><div class="v mono">${its.length}</div></div>
+        <div><div class="k">Items</div><div class="v mono">${its.length+altItemsOf(id).length}</div></div>
         <div><div class="k">Below reorder</div><div class="v mono" style="${low.length?"color:var(--red)":""}">${low.length||"—"}</div></div>
       </div></div>
     <div class="cols">
@@ -10169,10 +10240,19 @@ function vendorRec(id){
           ${fld("Account number",v.acct)}${fldFull("Notes",v.notes)}</div></section>
       <div>${fileCard("vendor",id)}${activityCard("vendor",id)}</div>
     </div>
-    <section class="card flush"><header><h2>What we buy from them</h2><span class="n">${its.length}</span>
-      <span class="sp"><button class="btn sm p" data-newitem="${esc(id)}">New item</button></span></header>
-      ${its.length?itemRows(its):`<div class="empty">No inventory items linked to this vendor yet.</div>`}
-    </section>
+    ${(function(){const all=itemList().filter(i=>itemVendors(i).some(x=>x.vendorId===id)).sort((x,y)=>(x.name||"").localeCompare(y.name||""));
+      return `<section class="card flush wide"><header><h2>What we buy from them</h2><span class="n">${all.length}</span>
+      <span class="sub" style="flex:1 1 100%;order:9">Every item we've bought or can buy from ${esc(v.name)}, with their cost. Preferred means they get the reorder email.</span>
+      <span class="sp">${can("cost")?`<button class="btn sm" data-ivlink="${esc(id)}">Link an existing item</button>`:""}<button class="btn sm p" data-newitem="${esc(id)}">New item</button></span></header>
+      ${all.length?`<table><thead><tr><th>Item</th><th style="width:100px">On hand</th><th style="width:110px;text-align:right">Their cost</th><th>Part #</th><th>Last bought</th><th>Source</th><th style="width:150px"></th></tr></thead><tbody>
+        ${all.map(i=>{const L=itemVendors(i).find(x=>x.vendorId===id)||{};return `<tr>
+          <td><button class="lnk" data-go="item/${esc(i.id)}">${esc(i.name)}</button><div class="sub mono">${esc(i.sku||"")}</div></td>
+          <td><span class="pill ${stockCls(i)}">${esc(stockText(i))}</span></td>
+          <td class="mono" style="text-align:right;white-space:nowrap">${Number(L.cost)>0?money2(Number(L.cost)):"—"}</td>
+          <td class="sub mono">${esc(L.part||"—")}</td><td class="sub">${L.lastBought?esc(fmtDate(L.lastBought)):"—"}</td><td class="sub">${esc(L.source||"—")}</td>
+          <td style="text-align:right;white-space:nowrap">${L.preferred?`<span class="pill g">Preferred</span>`:`<span class="sub">also from ${esc(vendName(i.vendorId)||"—")}</span>`}
+            ${can("cost")?` <button class="btn sm" data-ivedit="${esc(i.id)}:${esc(id)}">Edit</button>`:""}</td></tr>`}).join("")}</tbody></table>`
+      :`<div class="empty">No items linked yet — link one you already stock, or add a new item.</div>`}</section>`})()}
     ${historyCard("vendor",id)}
   </div>`;
 }
@@ -10270,10 +10350,11 @@ function itemRec(id){
         <div class="fgrid">${fld("SKU",i.sku)}${fld("Category",i.cat)}
           ${fld("Unit",i.unit)}${fld("Location",i.bin)}
           ${fld("Ships as",(SHIPCLASS.find(x=>x.id===(i.shipClass||"parcel"))||{}).label)}<div class="fld"></div>
-          ${fld("Vendor",i.vendorId?vendName(i.vendorId):"")}${fld("Unit cost",i.cost?money(i.cost):"")}
+          ${fld("Preferred vendor",i.vendorId?vendName(i.vendorId)+(itemVendors(i).length>1?" (+"+(itemVendors(i).length-1)+" more)":""):"")}${fld("Unit cost",i.cost?money(i.cost):"")}
           ${fldFull("Notes",i.notes)}</div></section>
       ${historyCard("item",id)}
     </div>
+    ${itemVendCard(i)}
     <section class="card flush"><header><h2>Stock movement</h2><span class="n">${tx.length}</span>
       <span class="sp"><button class="btn sm p" data-tx="${esc(id)}:receive">Receive</button>
         <button class="btn sm" data-tx="${esc(id)}:use">Use</button>
@@ -14014,6 +14095,7 @@ function bind(){
   const cb2=$("#claimbtn");if(cb2)cb2.onclick=claimModal;
   const cb3=$("#claimbtn2");if(cb3)cb3.onclick=claimModal;
   const cb4=$("#claimbtn3");if(cb4)cb4.onclick=claimModal;
+  const cb5=$("#claimbtn4");if(cb5)cb5.onclick=claimModal;
   const th=$("#tab-home");if(th)th.onclick=()=>{S.scope="";if(S.rpt&&S.rpt.rep)S.rpt=Object.assign({},S.rpt,{rep:""})};
   const gq=$("#gq");
   if(gq)gq.oninput=e=>{S.gsearch=e.target.value;clearTimeout(deb.get("g"));
@@ -14605,6 +14687,12 @@ function bind(){
     const lg=t.closest("[data-logo]");if(lg){uploadLogo();return}
     const ne=t.closest("[data-newev]");
     {const mg=t.closest("[data-merge]");if(mg){mergeModal(mg.dataset.merge);return}}
+    {const a1=t.closest("[data-ivadd]");if(a1){itemVendModal(a1.dataset.ivadd,"");return}}
+    {const l1=t.closest("[data-ivlink]");if(l1){itemLinkModal(l1.dataset.ivlink);return}}
+    {const e1=t.closest("[data-ivedit]");if(e1){const [ii,vv]=e1.dataset.ivedit.split(":");itemVendModal(ii,vv);return}}
+    {const p1=t.closest("[data-ivpref]");if(p1){const [ii,vv]=p1.dataset.ivpref.split(":");const it=S.items.get(ii);
+      const list=itemVendors(it).map(x=>Object.assign({},x,{preferred:x.vendorId===vv}));list.sort((a,b)=>(b.preferred?1:0)-(a.preferred?1:0));
+      itemVendSave(ii,list).then(()=>{recordHistory("item",ii,[{f:"Vendors",o:vendName(it.vendorId),n:vendName(vv)+" is now preferred",ev:1}]);toast(vendName(vv)+" is now the preferred vendor")});return}}
     {const nl=t.closest("[data-jobnolam]");if(nl){const [nn,on]=nl.dataset.jobnolam.split(":");setJobNoLam(nn,on==="1");return}}
     {const am=t.closest("[data-acctmore]");if(am){S.acctShow=am.dataset.acctmore==="all"?100000:(S.acctShow||100)+100;render();return}}
     {const co=t.closest("[data-claimok]");if(co){claimDecide(co.dataset.claimok,true);return}}
