@@ -1,1 +1,1 @@
-setBill quickWOGo mergeAccounts dupAccounts acctKey live liveJobs contactsOf jobsOf filesOf projFiles onHand isClosed orderedLines woItems normKey accName returnJobStock archivedJobs repFor olKey itKey isCharge
+setBill quickWOGo mergeAccounts dupAccounts acctKey live liveJobs contactsOf jobsOf filesOf projFiles onHand isClosed orderedLines woItems normKey accName returnJobStock archivedJobs repFor olKey itKey isCharge advance
