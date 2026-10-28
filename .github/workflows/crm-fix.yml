@@ -1,8 +1,6 @@
-name: CRM fixes (run by hand or when worker/fixes.js changes)
+name: CRM fixes (run by hand only)
+# Never runs on a push: a fix runs once, when it's started on purpose. A fixes.js that already ran is skipped.
 on:
-  push:
-    branches: [main]
-    paths: ["worker/fixes.js", "worker/fix.mjs", "worker/fix-names.txt", ".github/workflows/crm-fix.yml"]
   workflow_dispatch:
     inputs:
       step: { description: "sync or apply", default: "sync" }
@@ -13,7 +11,7 @@ concurrency: { group: crm-fix, cancel-in-progress: false }
 jobs:
   fix:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v4
       - uses: google-github-actions/auth@v2
@@ -27,5 +25,5 @@ jobs:
       - working-directory: worker
         env:
           FIREBASE_PROJECT: ssc-crm-a7224
-          FIX_STEP: ${{ github.event.inputs.step || (github.event_name == 'push' && hashFiles('worker/fixes.js') != '' && 'apply') || 'sync' }}
+          FIX_STEP: ${{ github.event.inputs.step || 'sync' }}
         run: node fix.mjs

@@ -5,7 +5,7 @@ on:
   workflow_dispatch: {}
   push:
     branches: [main]
-    paths: [".github/workflows/crm-worker.yml", "worker/**"]
+    paths: [".github/workflows/crm-worker.yml", "worker/run.mjs"]
 permissions:
   contents: read
   id-token: write

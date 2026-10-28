@@ -1408,6 +1408,10 @@ function dueTxt(iso){const d=daysOut(iso);if(d===null)return "—";
   return new Date(iso+"T00:00:00").toLocaleDateString(undefined,{month:"short",day:"numeric"})}
 function dueCls(iso,closed){if(closed)return "";const d=daysOut(iso);if(d===null)return "";
   return d<0?"r":d===0?"o":d<=2?"y":""}
+// a shipped work order shows when it shipped, never "late"
+function jobDuePill(j){if(j.status!=="shipped")return `<span class="pill ${dueCls(j.due,false)}">${dueTxt(j.due)}</span>`;
+  const sh=((j.statusLog||[]).filter(x=>x&&x.status==="shipped").slice(-1)[0]||{}).at;
+  return `<span class="pill" title="Due ${esc(fmtDate(j.due))}">${sh?"Shipped "+esc(fmtDate(isoDay(sh)).replace(/, \d{4}$/,"")):"Shipped"}</span>`}
 function fmtDate(iso){if(!iso)return "—";const d=new Date(iso+"T00:00:00");
   return isNaN(d)?"—":d.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"})}
 function fmtTs(ms){if(!ms)return "—";return new Date(ms).toLocaleString(undefined,{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}
@@ -5060,7 +5064,8 @@ function autoPass(){
   // follow-up tasks: a quote with no answer, a proof not signed
   if(b.autoFollow!==false){
     const mk=(p,key,text,dueIn)=>{const id="auto-"+key+"-"+p.id;if(done.has(id)||S.activity.get(id))return;done.set(id,1);
-      const rep=repFor(p);const now=Date.now();
+      // nobody on the project → the account's rep → the owner, so an automatic task is never left unassigned
+      const rep=repFor(p)||(acct(p.accountId)&&acct(p.accountId).repId?S.team.get(acct(p.accountId).repId):null)||live(S.team).find(t=>(t.access||"owner")==="owner")||null;const now=Date.now();
       setDoc("activity/"+id,{id,recType:"project",recId:p.id,kind:"task",type:"task",text,due:todayS,
         assigneeId:rep?rep.id:"",assigneeName:rep?rep.name:"",assignedById:"",assignedByName:"the CRM",assignedAt:now,
         whoId:"",who:"auto",at:now,done:false,doneAt:0,doneById:"",doneByName:"",deleted:false,auto:true});};
@@ -8188,6 +8193,10 @@ function render(){
   document.querySelectorAll("#viewer,.scrim,.modal").forEach(el=>el.remove());
   const prev=$(".main"),st=prev?prev.scrollTop:0,wy=window.scrollY||0;
   const rkey=(S.route&&S.route.v||"")+"/"+(S.route&&S.route.id||"");
+  if(needSignIn()){$("#root").innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:16px">
+    <section class="card" style="max-width:420px;width:100%"><header><h2>Sign in to the CRM</h2></header><div class="body">
+    <p style="margin:0 0 12px">This CRM needs your Google work sign-in. Nothing shows until you're signed in.</p>
+    <button class="btn p" onclick="location.reload()">Sign in</button></div></section></div>`;return}
   $("#root").innerHTML=`<div class="app${railMin()?" rail-min":""}">${rail()}<div class="apage">${gbar()}${signinBar()}${scopeBar()}${S.ready&&db?claimBanner()+alertBar():""}<main class="main">${body()}</main></div>${mobileNav()}</div>`;
   placeCrumbs();applyRail();
   orderPage();
@@ -8351,9 +8360,13 @@ function myAccess(){const vid=viewerId();
   const ve=String((S.viewer&&S.viewer.email)||"").toLowerCase();
   let t=S.team?live(S.team).find(x=>isMyRec(x,vid,ve)):null;
   // typed initials only count before an owner has claimed their record — or where the site gives no sign-in to check at all
-  if(!t&&(!ownerClaimed()||(!vid&&!ve)))t=S.viewerTeam||(S.team&&live(S.team).find(x=>String(x.initials||"").toUpperCase()===String(S.me||"").toUpperCase()));
+  // typed initials count only before an owner has claimed their record (first-time setup). With no sign-in at all
+  // there's nobody to check, so it never falls back to owner once the owner has claimed — the hosted site shows the sign-in screen instead.
+  if(!t&&!ownerClaimed())t=S.viewerTeam||(S.team&&live(S.team).find(x=>String(x.initials||"").toUpperCase()===String(S.me||"").toUpperCase()));
   if(t)return t.access&&ACCESS[t.access]?t.access:"owner";
-  return ownerClaimed()&&(vid||ve)?"shop":"owner"}
+  return ownerClaimed()?"shop":"owner"}
+// the hosted site with no Google sign-in: show the sign-in screen only
+function needSignIn(){return isHosted()&&!window.sscWorker&&S.ready&&!(S.viewer&&(viewerId()||S.viewer.email))}
 function can(what){return !!(ACCESS[myAccess()]||ACCESS.owner)[what]}
 function canCompanyDash(){const t=S.viewerTeam;if(!t)return true;return myAccess()==="owner"||!!t.companyDash}
 function dashFirst(){const t=S.viewerTeam;const nm=t?String(t.name||"").trim().split(/\s+/)[0]:"";return nm||"My"}
@@ -8697,9 +8710,10 @@ function dupAccounts(rec){
     (k&&k.length>2&&acctKey(x.name)===k&&(!rec.state||!x.state||String(x.state).toUpperCase()===String(rec.state).toUpperCase()))||(ph.length===10&&String(x.phone||"").replace(/\D/g,"").slice(-10)===ph)||
     (dom&&String(x.website||"").toLowerCase().replace(/^https?:\/\//,"").replace(/^www\./,"").split("/")[0]===dom)));
 }
-function isExempt(a){return !!(a&&a.exempt&&(!a.exemptExp||String(a.exemptExp)>=today()))}
+// exempt only with a certificate on file that hasn't expired — no expiry date recorded means taxable until it's entered
+function isExempt(a){return !!(a&&a.exempt&&a.exemptExp&&String(a.exemptExp)>=today())}
 function exemptPill(a){
-  if(a.exempt&&!a.exemptExp)return `<span class="pill y" title="Exempt, but no certificate expiry date is recorded — enter it from the certificate">Exempt · add cert date</span>`;
+  if(a.exempt&&!a.exemptExp)return `<span class="pill y" title="Marked exempt, but no certificate expiry date is recorded — it bills taxable until you enter it from the certificate">Taxable · add cert date</span>`;
   if(a.exempt&&!isExempt(a))return `<span class="pill r" title="Certificate expired ${esc(fmtDate(a.exemptExp))}">Expired</span>`;
   if(a.exempt)return `<span class="pill g">On file</span>`;
   if(a.type==="Government agency"||a.certNeeded)return `<span class="pill r" title="Taxable until their exemption certificate is filed">Certificate needed</span>`;
@@ -8938,7 +8952,7 @@ function jobTable(js,showAcct,withDel){
     <tbody>${js.map(j=>`<tr><td><button class="lnk mono" data-go="job/${j.num}">${j.num}</button></td>
       <td>${esc(j.desc||"—")}${showAcct?`<div class="sub">${esc(accName(j.accountId))}${projName(j.projectId)&&projName(j.projectId)!==j.desc?" · "+esc(projName(j.projectId)):""}</div>`:""}</td>
       <td><span class="pill ${jobCls(j.status)}">${esc((JS[j.status]||{}).label||"")}</span>${j.rush?` <span class="pill r">Rush</span>`:""}</td>
-      <td><span class="pill ${dueCls(j.due,j.status==="shipped")}">${dueTxt(j.due)}</span></td>
+      <td>${jobDuePill(j)}</td>
       <td class="mono" style="text-align:right">${jobRevenue(j)?money2(jobRevenue(j))
         :`<span class="pill" title="No unit prices on the lines">no price</span>`}</td>${withDel?`<td style="text-align:right"><button class="btn sm d" data-del="job:${j.num}">Delete</button></td>`:""}</tr>`).join("")}</tbody></table>`;
 }
@@ -9069,7 +9083,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-30";
+const APP_VERSION="2026.11.25-31";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -9394,7 +9408,7 @@ function projectRec(id){
             const rep=repOfAccount(a);const prim=contactsOf(a.id).find(c=>c.primary)||contactsOf(a.id)[0];
             const addr=[a.street,[a.city,a.state].filter(Boolean).join(", "),a.zip].filter(Boolean).join(" ");
             return `<div style="padding:12px 15px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--line2)">
-                ${a.type?`<span class="pill b">${esc(a.type)}</span>`:""}${isExempt(a)?`<span class="pill g" title="Exemption certificate on file">Tax exempt</span>`:a.exempt?`<span class="pill r" title="The exemption certificate has expired — get a new one">Cert expired</span>`:""}
+                ${a.type?`<span class="pill b">${esc(a.type)}</span>`:""}${isExempt(a)?`<span class="pill g" title="Exemption certificate on file">Tax exempt</span>`:a.exempt?(a.exemptExp?`<span class="pill r" title="The exemption certificate has expired — get a new one">Cert expired</span>`:`<span class="pill y" title="Bills taxable until the certificate expiry date is entered">Add cert date</span>`):""}
                 ${rep?`<span class="sub">Rep: <b style="color:var(--ink)">${esc(rep.name)}</b></span>`:""}
                 ${since!==Infinity?`<span class="sub" style="margin-left:auto">Customer since ${esc(new Date(since).toLocaleDateString(undefined,{month:"short",year:"numeric"}))}</span>`:""}</div>
               <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-bottom:1px solid var(--line2)">
@@ -9485,7 +9499,7 @@ function projectRec(id){
                 <span>${esc(x.desc||signName(x)||x.code||"item")}${x.size?" · "+esc(sizeLabel(x.size)):""}${x.grade?" · "+esc(x.grade):""}</span></div>`).join("")}
             </div>`:""}</td>
           <td><span class="pill ${jobCls(j.status)}">${esc((JS[j.status]||{}).label||"")}</span></td>
-          <td><span class="pill ${dueCls(j.due,j.status==="shipped")}">${dueTxt(j.due)}</span></td>
+          <td>${jobDuePill(j)}</td>
           <td><span class="pill">${esc(prodLabel(j))}</span>
             <div class="sub" style="margin-top:6px">${esc(buildLabel(j))}${(prodOf(j)==="sign"&&j.blankSrc==="vendor")?" · blanks on order"
               :(prodOf(j)==="sign"&&j.blankSrc==="cut")?" · cut in-house":""}</div></td>
@@ -9751,8 +9765,11 @@ function jobRec(num){
         const hit=sl.filter(x=>x.status===s2).pop();const at=JFLOW.indexOf(j.status);
         const prior=(sl.filter(x=>JFLOW.indexOf(x.status)>=0).pop()||{}).status;
         const ref=at>=0?at:JFLOW.indexOf(prior);
-        return `<button class="${j.status===s2?"cur":(ref>k?"done":"")}" data-adv="${j.num}:${s2}">
-          <span>${j.status!==s2&&ref>k?`<span class="ck">✓</span> `:""}${esc(JS[s2].label)}</span><small>${hit?fmtDate(isoDay(hit.at)).replace(/, \d{4}$/,""):"—"}</small></button>`}).join("")}</div>
+        // QC only counts as done once it's actually signed off — moving past it doesn't pass it
+        const qcMiss=s2==="qc"&&!(j.gates||{}).qc;
+        const done=j.status!==s2&&ref>k&&!qcMiss;
+        return `<button class="${j.status===s2?"cur":(done?"done":"")}" data-adv="${j.num}:${s2}">
+          <span>${done?`<span class="ck">✓</span> `:""}${esc(JS[s2].label)}</span><small${qcMiss&&ref>k?' style="color:var(--danger-ink)"':""}>${qcMiss&&ref>k?"not signed off":hit?fmtDate(isoDay(hit.at)).replace(/, \d{4}$/,""):"—"}</small></button>`}).join("")}</div>
       ${(function(){const pq=j.projectId?proj(j.projectId):null;if(!pq)return "";const q=quoteState(pq);if(q.ok)return "";
         return `<div class="qstate"><span class="qdot"></span><div><b>The quote for this work order isn't finished</b> — ${esc(q.why)} on P-${pq.num}. The shop can carry on; price the quote so the job's value and margin are right.</div>
           <span class="sp"><button class="btn sm" data-ptabgo="${esc(pq.id)}">Go to the quote</button></span></div>`})()}
@@ -10196,15 +10213,15 @@ function vendorListView(){
       <span class="sp"><input class="btn" id="lq" placeholder="Filter" value="${esc(S.q)}" style="font-weight:400;width:150px">
       <button class="btn" data-csvimport="vendors">${ic("file",14)}Import</button>
       <button class="btn p" data-newvend="1">New vendor</button></span></header>
-    ${list.length?`<table><thead><tr><th>Vendor</th><th>Supplies</th><th>Contact</th><th>Terms</th>
+    ${list.length?`<div style="overflow-x:auto"><table style="table-layout:auto;width:100%"><thead><tr><th>Vendor</th><th>Supplies</th><th>Contact</th><th>Terms</th>
       <th>Lead time</th><th>Items</th></tr></thead><tbody>
       ${list.map(v=>`<tr>
-        <td><button class="lnk" data-go="vendor/${esc(v.id)}">${esc(v.name)}</button>
+        <td><button class="lnk" data-go="vendor/${esc(v.id)}">${esc(v.name||"Unnamed vendor — add a name")}</button>
           <div class="sub">${esc([v.city,v.state].filter(Boolean).join(", "))}</div></td>
         <td>${esc(v.type||"—")}</td>
-        <td>${esc(v.contact||"—")}<div class="sub">${esc(fmtPhone(v.phone)||"")}</div></td>
-        <td>${esc(v.terms||"—")}</td><td>${esc(v.leadTime||"—")}</td>
-        <td class="mono">${(itemsOf(v.id).length+altItemsOf(v.id).length)||"—"}</td></tr>`).join("")}</tbody></table>`
+        <td style="max-width:240px;white-space:normal;overflow-wrap:anywhere">${esc(v.contact||"—")}<div class="sub">${esc(fmtPhone(v.phone)||"")}</div></td>
+        <td style="max-width:260px;white-space:normal;overflow-wrap:anywhere">${esc(v.terms||"—")}</td><td style="max-width:140px;white-space:normal">${esc(v.leadTime||"—")}</td>
+        <td class="mono">${(itemsOf(v.id).length+altItemsOf(v.id).length)||"—"}</td></tr>`).join("")}</tbody></table></div>`
     :`<div class="empty"><b>No vendors yet</b>Add who you buy sheeting, substrate, film, and hardware from.</div>`}
   </section></div>`;
 }
@@ -13611,7 +13628,21 @@ function syncLine(l,price,p){
   return out;
 }
 function syncTax(a,amt){const rate=Number((S.brand||{}).taxRate)||0;return (!isExempt(a)&&rate>0)?syncN(amt*rate/100):0}
-function syncBuild(key,rec){
+// the Order sync script on the sheet writes a fixed set of columns; everything else the CRM knows rides along at the
+// end of Notes as one "CRM fields:" line so rep, billing, invoice, paid, tracking and value reach the sheet too
+function syncExtras(o){
+  const skip={received_at:1,event:1,type:1,id:1,number:1,status:1,customer:1,contact:1,email:1,phone:1,po_number:1,project:1,ship_to:1,
+    terms:1,subtotal:1,shipping:1,tax:1,total:1,due_date:1,ship_date:1,lines:1,notes:1,updated:1,deleted:1,work_orders:1,crm_fields:1,name:1};
+  const bits=[];
+  Object.keys(o).forEach(k=>{if(skip[k])return;const v=o[k];if(v===""||v===null||v===undefined||v===false||v===0||(k==="billing_address"&&!/,/.test(String(v)))||(Array.isArray(v)&&!v.length))return;
+    bits.push(k+"="+(typeof v==="object"?JSON.stringify(v):String(v)).replace(/[;\n]+/g," "))});
+  if(Array.isArray(o.work_orders)&&o.work_orders.length)bits.push("work_orders="+o.work_orders.map(w=>w.number+" "+w.status).join(", "));
+  if(!bits.length)return o;
+  o.crm_fields=bits.join("; ");
+  o.notes=[o.notes,"CRM fields: "+o.crm_fields].filter(x=>x&&String(x).trim()).join("\n");
+  return o}
+function syncBuild(key,rec){return syncExtras(syncBuild0(key,rec))}
+function syncBuild0(key,rec){
   const [coll]=key.split("/");
   // accounts and contacts: small records the sheet upserts by type + id, so the agents have the current name,
   // terms and addresses to log against — nothing else on the Orders tab changes
@@ -13652,7 +13683,7 @@ function syncBuild(key,rec){
       customer_type:a.type||"",tax_exempt:isExempt(a),billing_email:(bc&&bc.email)||(pc&&pc.email)||cc.email||"",
       billing_address:[a.street,a.city,a.state,a.zip].filter(Boolean).join(", "),ship_to:p.shipTo||"",
       po_number:p.po||"",project:p.name||"",rep:rep2?(rep2.name||rep2.initials||""):"",source:p.source||"",
-      lines,subtotal,shipping,tax,tax_note:taxNote,total:syncN(subtotal+shipping+tax),deposit:syncN(p.depositAmt),
+      lines,subtotal,shipping,tax,tax_note:taxNote,total:syncN(subtotal+shipping+tax),deposit:syncN(p.depositAmt),project_value:subtotal,
       terms:a.terms||"",due_date:p.due||"",ship_date:shipAt?isoDay(shipAt):"",
       notes:[p.scope,p.notes].filter(x=>x&&String(x).trim()).join("\n"),
       work_orders:jobsOf(p.id).map(j=>({number:String(j.num),status:j.status||"new",due:j.due||""})),
@@ -13769,11 +13800,15 @@ async function syncAll(){
   // every project and every work order, closed and shipped ones included, so the sheet matches the CRM
   const open=live(S.projects).filter(p=>p.quote||(p.orderLines||[]).length||(p.stage||"inquiry")!=="inquiry");
   const jobs=live(S.jobs);
+  const gone=(m,pre,k)=>[...m.values()].filter(x=>x&&x.deleted).map(x=>pre+(k?x[k]:x.id));
   const list=open.map(p=>"projects/"+p.id).concat(jobs.map(j=>"jobs/"+j.num))
-    .concat(live(S.accounts).map(a=>"accounts/"+a.id)).concat(live(S.contacts).map(c=>"contacts/"+c.id));
+    .concat(live(S.accounts).map(a=>"accounts/"+a.id)).concat(live(S.contacts).map(c=>"contacts/"+c.id))
+    // deleted and merged records go too, so their sheet rows read "deleted" instead of staying active
+    .concat(gone(S.accounts,"accounts/")).concat(gone(S.contacts,"contacts/")).concat(gone(S.projects,"projects/")).concat(gone(S.jobs,"jobs/","num"));
   if(!list.length)return toast("Nothing to send yet.");
   toast("Sending "+list.length+" quotes, work orders, accounts and contacts…");let ok=0,bad=0;
-  for(const key of list){
+  const prog=window.__syncProg={total:list.length,done:0,bad:0,extra:0,finished:false};
+  for(const key of list){prog.done=ok;prog.bad=bad;
     try{const [cl,kid]=key.split("/");const rec=({projects:S.projects,jobs:S.jobs,accounts:S.accounts,contacts:S.contacts})[cl].get(kid);if(!rec)continue;
       const r=syncBuild(key,rec);
       if(await syncPost(key,{event:"backfill",sent_at:new Date().toISOString(),crm_version:APP_VERSION,record:r},url))ok++;else bad++;
@@ -13790,6 +13825,7 @@ async function syncAll(){
       if(await syncPost("draft_request/"+d.id,{event:"backfill",sent_at:new Date().toISOString(),crm_version:APP_VERSION,record:draftReqRec(p,d)},url))extra++;
       await new Promise(r=>setTimeout(r,250))}}
   }catch(e){}
+  Object.assign(prog,{done:ok,bad,extra,finished:true});
   toast("Order sync: "+ok+" sent"+(extra?" + "+extra+" follow-ups, drafts and reminders":"")+(bad?", "+bad+" waiting to retry":""));
 }
 
