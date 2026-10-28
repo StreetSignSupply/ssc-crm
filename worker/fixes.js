@@ -1,64 +1,26 @@
-// Runs inside the live CRM (through its own functions, so history and the order sync happen). Counts only in the output.
+// Second pass after the 6 PM recheck. Runs inside the live CRM; counts only in the output.
+// send all
 (async (T) => {
   const S = T.S, now = Date.now(), n = {};
   const bump = (k, v = 1) => (n[k] = (n[k] || 0) + v);
-  const P = (num) => T.live(S.projects).find((p) => String(p.num) === String(num));
   const note = (rt, id, txt) => T.recordHistory(rt, id, [{ f: "Fix", o: "", n: txt + " (CRM recheck fix 10/27)", ev: 1 }]);
-
-  // 0. agents are gone: the feed no longer comes in by itself
-  await T.push("settings/brand", { pipeAuto: false, updatedAt: now }); bump("feed auto off");
-
-  // 1. P-2018: the lost reason in the right fields
-  { const p = P(2018); if (p) { await T.push("projects/" + p.id, { lostWhy: "other", lostNote: "Dry run — the bid was never submitted", updatedAt: now }); bump("p2018 reason"); } }
-
-  // 2. P-2009 Toquerville: QuickBooks invoice 1013 ($620.14, 10/13), contact, tidy quote file name
-  { const p = P(2009); if (p) {
-      await T.push("projects/" + p.id, { invNum: "1013", billDate: p.billDate || "2026-10-13", updatedAt: now }); await note("project", p.id, "Invoice number 1013 from QuickBooks");
-      const cs = T.contactsOf(p.accountId); const jd = cs.find((c) => /^jd\b|jd adams/i.test(c.name || "")) || cs.find((c) => /adams/i.test(c.name || ""));
-      if (jd && !(p.contacts || []).includes(jd.id)) { await T.push("projects/" + p.id, { contacts: (p.contacts || []).concat([jd.id]), updatedAt: now }); bump("p2009 contact"); }
-      const a = T.acct(p.accountId); const jadee = cs.find((c) => /jadee|invoices@/i.test((c.name || "") + " " + (c.email || "")));
-      if (a && !a.billingContactId && jadee) { await T.push("accounts/" + a.id, { billingContactId: jadee.id, updatedAt: now }); bump("p2009 billing contact"); }
-      for (const f of T.projFiles(p.id)) if (/quote/i.test(f.name || "") && /ouot|=Q-|10072026/i.test(f.name || "")) { await T.push("files/" + f.id, { name: "Quote Q-1005 - City of Toquerville.pdf", cat: "Quote", updatedAt: now }); bump("p2009 file renamed"); }
-      bump("p2009 invoice 1013");
-  } }
-
-  // 3. P-2008 Signature Striping inventory order: quote lines from QuickBooks invoice 1004 (paid $17,625), WO lines linked, BGRV file out
-  { const p = P(2008); if (p) {
-      const L = [
-        { id: "ql1004a", qty: 75, code: "R1-1", size: "30x30", grade: "DG3", desc: "30x30 Stop Sign R1-1 Diamond Grade .080 DG3", price: 98 },
-        { id: "ql1004b", qty: 25, code: "R1-1", size: "36x36", grade: "DG3", desc: "36x36 Stop Sign R1-1 Diamond Grade .080 DG3", price: 130 },
-        { id: "ql1004c", qty: 50, code: "R1-5b", size: "30x30", grade: "DG3", desc: "30x30 Stop Here For Pedestrians R1-5b Diamond Grade .080 DG3", price: 98 },
-        { id: "ql1004d", qty: 50, code: "R7-8", size: "12x18", grade: "EG", desc: "12x18 Handicap R7-8 Engineer Grade .063", price: 17 },
-        { id: "ql1004e", qty: 25, code: "R7-8", size: "12x18", grade: "EG", desc: "12x18 Handicap Van Accessible Engineer Grade .063", price: 17 },
-        { id: "ql1004f", qty: 50, code: "R7-1", size: "12x18", grade: "EG", desc: "12x18 No Parking Fire Lane Engineer Grade .063", price: 17 }];
-      if (!T.orderedLines(p).length) {
-        await T.push("projects/" + p.id, { orderLines: L, quote: p.quote || "Q-1004", amountAuto: true, invNum: "1004", billStatus: "paid", billDate: p.billDate || "2026-09-21", paidDate: p.paidDate || "2026-09-21", updatedAt: now });
-        await note("project", p.id, "Quote lines rebuilt from QuickBooks invoice 1004 ($17,625, paid). The invoice bills 50 handicap, 25 van and 50 fire lane; work order 1012 has 20 of each");
-        bump("p2008 lines rebuilt");
-      }
-      const pick = (it) => { const d = String((it.desc || "") + " " + (it.code || "")).toLowerCase(), sz = String(it.size || "").replace(/[^0-9x]/gi, "").toLowerCase();
-        if (/pedestrian/.test(d)) return "ql1004c"; if (/van/.test(d)) return "ql1004e"; if (/fire/.test(d)) return "ql1004f"; if (/handicap/.test(d)) return "ql1004d";
-        if (/stop/.test(d) && /36/.test(sz + d)) return "ql1004b"; if (/stop/.test(d)) return "ql1004a"; return ""; };
-      for (const j of T.jobsOf(p.id)) { const items = (j.items || []).map((it) => Object.assign({}, it, it.lineId ? {} : { lineId: pick(it) }));
-        await T.push("jobs/" + j.num, { items, updatedAt: now }); await note("job", String(j.num), "Lines linked to the rebuilt quote lines, so they carry prices"); bump("wo1012 linked"); }
-      for (const f of T.projFiles(p.id)) if (/bgrv/i.test(f.name || "")) { await T.push("files/" + f.id, { deleted: true, deletedAt: now, deletedBy: "recheck fix", updatedAt: now }); bump("p2008 BGRV file to recycle bin"); }
-  } }
-
-  // 4. P-2012 Walmart (Signature Striping): its QuickBooks invoice is 1015 ($6,346.72) — the filed "Invoice 1015.pdf" is the right one
-  { const p = P(2012); if (p && !p.invNum) { await T.push("projects/" + p.id, { invNum: "1015", updatedAt: now }); await note("project", p.id, "QuickBooks invoice 1015 is this order's invoice (not sent yet)"); bump("p2012 invoice 1015"); } }
-
-  // 5. leftover work orders: WO 1014 (closed, paid P-2010) and Matt's own test website orders 1004, 1006, 1007, 1008
-  for (const num of ["1014", "1004", "1006", "1007", "1008"]) { const j = S.jobs.get(num); if (j && !j.deleted && j.status !== "shipped") {
-      await T.push("jobs/" + num, { deleted: true, deletedAt: now, deletedBy: "recheck fix", updatedAt: now }); bump("old WOs to recycle bin"); } }
-
-  // 6. the 25-day-old task about Q-1002
-  for (const a of T.live(S.activity).filter((x) => x.kind === "task" && !x.done && /Q-1002/.test(x.text || ""))) { await T.push("activity/" + a.id, { done: true, doneAt: now, updatedAt: now }); bump("old task closed"); }
-
-  // 7. reps: everything unassigned goes to the owner (the only rep)
-  { const owner = T.live(S.team).find((t) => (t.access || "owner") === "owner" && /^mj$/i.test(t.initials || "")) || T.live(S.team).find((t) => (t.access || "owner") === "owner");
-    if (owner) { for (const a of T.live(S.accounts).filter((a) => !a.repId)) { await T.push("accounts/" + a.id, { repId: owner.id, updatedAt: now }); bump("accounts given a rep"); }
-    } }
-
+  // follow-ups planned to a contact with no email can never go out: stop them (P-2014 Yavapai and any others)
+  for (const p of T.live(S.projects)) {
+    const open = (p.followups || []).some((f) => f.status === "planned" || f.status === "drafted");
+    if (!open || p.followStop) continue;
+    const on = (p.contacts || []).map((x) => S.contacts.get(x)).filter((c) => c && !c.deleted);
+    const c = on.find((c) => c.email) || T.contactsOf(p.accountId).find((c) => c.email);
+    if (!c) { const fus = p.followups.map((f) => (f.status === "planned" || f.status === "drafted") ? Object.assign({}, f, { status: "stopped" }) : f);
+      await T.push("projects/" + p.id, { followups: fus, followStop: "no contact with an email", updatedAt: now });
+      await T.recordHistory("project", p.id, [{ f: "Follow-ups", o: "", n: "Stopped — nobody on the account has an email to send them to", ev: 1 }]); bump("follow-ups stopped (no email)"); }
+  }
+  // open tasks with nobody on them go to the owner
+  const owner = T.live(S.team).find((t) => (t.access || "owner") === "owner" && /^mj$/i.test(t.initials || "")) || T.live(S.team).find((t) => (t.access || "owner") === "owner");
+  if (owner) for (const a of T.live(S.activity).filter((x) => x.kind === "task" && !x.done && !x.whoId)) {
+    await T.push("activity/" + a.id, { whoId: owner.id, who: owner.initials || "", updatedAt: now }); bump("tasks given an owner"); }
+  // accounts still without a rep
+  if (owner) { const L = T.live(S.accounts).filter((a) => !a.repId);
+    for (let i = 0; i < L.length; i += 25) { await Promise.all(L.slice(i, i + 25).map((a) => T.push("accounts/" + a.id, { repId: owner.id, updatedAt: now }))); bump("accounts given a rep", Math.min(25, L.length - i)); } }
   // 8. contacts: an email used as the name, and notes in parentheses
   for (const c of T.live(S.contacts)) { const nm = String(c.name || "").trim(); const patch = {};
     if (/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(nm)) { patch.name = "General inbox"; if (!c.email) patch.email = nm.toLowerCase(); }
@@ -87,5 +49,19 @@
   for (const it of T.live(S.items).filter((i) => T.onHand(i) < 0)) { await T.push("items/" + it.id, { onHand: 0, needsCount: true, updatedAt: now });
     await note("item", it.id, "Was " + T.onHand(it) + " — set to 0 and flagged for a physical count"); bump("negative stock reset"); }
 
+  // WO 1012: link every line to the rebuilt quote lines (its old links pointed at lines that no longer exist)
+  { const p = T.live(S.projects).find((x) => String(x.num) === "2008"); if (p) {
+      const ids = new Set(T.orderedLines(p).map((l) => l.id));
+      const pick = (it) => { const d = String((it.desc || "") + " " + (it.code || "")).toLowerCase(), sz = String(it.size || "").toLowerCase();
+        if (/pedestrian/.test(d)) return "ql1004c"; if (/van/.test(d)) return "ql1004e"; if (/fire/.test(d)) return "ql1004f"; if (/handicap/.test(d)) return "ql1004d";
+        if (/stop/.test(d) && /36/.test(sz + d)) return "ql1004b"; if (/stop/.test(d)) return "ql1004a"; return ""; };
+      for (const j of T.jobsOf(p.id)) { const items = (j.items || []).map((it) => ids.has(it.lineId) ? it : Object.assign({}, it, { lineId: pick(it) }));
+        await T.push("jobs/" + j.num, { items, updatedAt: now }); bump("wo1012 relinked"); } } }
+  // contacts whose account was merged away follow it to the account it was merged into
+  for (const c of T.live(S.contacts)) { const a = S.accounts.get(c.accountId);
+    if (a && a.deleted && a.mergedInto) { await T.push("contacts/" + c.id, { accountId: a.mergedInto, updatedAt: now }); bump("contacts moved to merged account"); }
+    else if (a && a.deleted) bump("contacts on a deleted account (left alone)"); }
+  n.leftNoRep = T.live(S.accounts).filter((a) => !a.repId).length;
+  n.leftNegative = T.live(S.items).filter((i) => T.onHand(i) < 0).length;
   return n;
 })

@@ -8,6 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const STEP = process.env.FIX_STEP || "sync";
+process.on("unhandledRejection", (e) => { console.log("::error::fix stopped: " + String(e && e.message || e).slice(0, 200).replace(/\n/g, " ")); process.exit(1); });
 // expose the CRM's functions to this script (the app keeps them inside one closure)
 let html = fsys.readFileSync(path.resolve(here, "../public/index.html"), "utf8");
 const cut = html.lastIndexOf("\n})();\n</script>");
@@ -71,8 +72,10 @@ if (STEP === "apply") {
   await page.waitForTimeout(15000);
 }
 // Send all to the CRM Orders sheet (the toast text tells how many went)
-const sent = await page.evaluate(async () => { try { await window.__T.syncAll(); return "ok"; } catch (e) { return "sync error " + String(e).slice(0, 100); } });
-await page.waitForTimeout(90000);
+// changed records reach the sheet by themselves (the CRM sends each change); a full Send all only when asked
+const wantAll = STEP !== "apply" || /\/\/ send all/.test(fsys.readFileSync(path.resolve(here, "fixes.js"), "utf8"));
+const sent = wantAll ? await page.evaluate(async () => { try { await window.__T.syncAll(); return "ok"; } catch (e) { return "sync error " + String(e).slice(0, 100); } }) : "changes only";
+await page.waitForTimeout(wantAll ? 90000 : 60000);
 const toast = await page.evaluate(() => [...document.querySelectorAll(".toast,[class*=toast]")].map((x) => x.innerText).join(" | ").slice(0, 200)).catch(() => "");
 console.log("::notice::fix step " + STEP + ": " + JSON.stringify(result).slice(0, 900) + " | sync " + sent + " | " + writes + " writes, " + errors + " page errors " + JSON.stringify(errs.slice(0, 3)) + " | " + toast);
 await browser.close(); process.exit(0);
