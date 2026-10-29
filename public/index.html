@@ -1050,6 +1050,14 @@ tr.archdiv td{background:var(--card2)!important;font-size:12px;font-weight:700;c
 tr.archdiv .ic{vertical-align:-2px;margin-right:4px}
 tr.archrow td{color:var(--ink2)}
 tr.archrow .lnk{color:var(--ink2);font-weight:600}
+/* ===== files: first 2, the rest folded ===== */
+.fmore > summary{list-style:none;cursor:pointer;padding:6px 14px 12px;font-size:12.5px;font-weight:700;color:var(--blue)}
+.fmore > summary::-webkit-details-marker{display:none}
+.fmore > summary:hover{text-decoration:underline}
+.fm-show::after{content:" ▾"}.fm-hide::after{content:" ▴"}
+.fm-hide{display:none}.fmore[open] .fm-show{display:none}.fmore[open] .fm-hide{display:inline}
+.fmore[open] > summary{order:2}
+.fmore[open]{display:flex;flex-direction:column}
 /* ===== folded notes ===== */
 .ntd > summary{list-style:none;cursor:pointer}
 .ntd > summary::-webkit-details-marker{display:none}
@@ -8361,6 +8369,10 @@ function render(){
   decoratePics();
   decorateCells();
   decorateFiles();
+  document.querySelectorAll(".main .fgal.fold2").forEach(g=>{const t=[...g.children];if(t.length<=2)return;
+    const d=document.createElement("details");d.className="fmore";const rest=t.slice(2);
+    d.innerHTML=`<summary><span class="fm-show">Show ${rest.length} more</span><span class="fm-hide">Show fewer</span></summary>`;
+    const g2=document.createElement("div");g2.className="fgal";rest.forEach(x=>g2.appendChild(x));d.appendChild(g2);g.insertAdjacentElement("afterend",d)});
   decorateHelp();
   if(S.saveFail&&S.saveFail.length&&!document.querySelector(".savefail")){const m=document.querySelector(".main");if(m)m.insertAdjacentHTML("afterbegin",
     `<div class="alert savefail" style="margin:10px 16px">${S.saveFail.map(f=>esc(f.what)+" ("+esc(f.why)+")").join("<br>")}<span class="sp"><button class="btn sm" data-conntest="1">Check the database</button><button class="btn sm" data-savefailok="1">Dismiss</button></span></div>`)}
@@ -9262,7 +9274,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-49";
+const APP_VERSION="2026.11.25-50";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -9707,7 +9719,7 @@ function projectRec(id){
         <span class="n">${la.length}</span>
         <span class="sub">The picture on each quote line — what goes on the proof for the customer to approve.</span>
         <span class="sp"><button class="btn sm p" data-proof="${esc(id)}">Make the proof for approval</button></span></header>
-        <div class="fgal">${la.map(x=>{const o=x._line;const web=/^https:/i.test(x.url);
+        <div class="fgal fold2">${la.map(x=>{const o=x._line;const web=/^https:/i.test(x.url);
           const spec=[o.qty?o.qty+" pcs":"",String(o.code||"").split("|")[0],o.size?sizeLabel(o.size):"",custMaterial(o.grade)].filter(Boolean).join(" · ");
           const fname=(x.name||"sign").replace(/[^A-Za-z0-9]+/g,"-").slice(0,40)+(/^data:image\/svg/i.test(x.url)?".svg":".png");
           return `<div class="ftile"><div class="th" style="background:#fff">${web?`<a href="${esc(x.url)}" target="_blank" rel="noopener" style="display:contents">`:""}<img src="${esc(x.url)}" alt="${esc(x.name)}" loading="lazy" style="object-fit:contain">${web?"</a>":""}</div>
@@ -9723,7 +9735,7 @@ function projectRec(id){
       <span class="n">${flsAll.length}</span>
       <span class="sub">Project files plus every file on its work orders.</span>
       <span class="sp">${S.canUpload?`<button class="btn sm p" data-upload="project:${esc(id)}">Upload</button>`:""}</span></header>
-      ${flsAll.length?`${fileFilterBar(flsAll)}<div class="fgal">${fls.map(f=>fileTile(f,1)).join("")}</div>`
+      ${flsAll.length?`${fileFilterBar(flsAll)}<div class="fgal fold2">${fls.map(f=>fileTile(f,1)).join("")}</div>`
       :`<div class="${S.canUpload?"drop":"empty"}" data-drop="project:${esc(id)}">
         ${S.canUpload?"Drop proofs, POs, invoices, artwork, or photos here.":"No files. Uploading needs edit access."}</div>`}
     </section>
@@ -10112,6 +10124,9 @@ function gateRow(j,k,t,h){
 }
 
 /* ========== files ========== */
+// a file gallery shows the newest 2; the rest fold behind "Show N more files" (closed every time the page opens)
+function galFold(list,tile){if(!list.length)return "";const head=list.slice(0,2),rest=list.slice(2);
+  return `<div class="fgal">${head.map(tile).join("")}</div>`+(rest.length?`<details class="fmore"><summary><span class="fm-show">Show ${rest.length} more file${rest.length===1?"":"s"}</span><span class="fm-hide">Show fewer</span></summary><div class="fgal">${rest.map(tile).join("")}</div></details>`:"")}
 function fileCard(kind,id){
   const fs=filesOf(kind,id);
   const scope=kind==="account"?"this account, plus every file on its projects below"
@@ -10120,11 +10135,11 @@ function fileCard(kind,id){
   if(kind==="account"){const I=String(id);
     const sub=live(S.files).filter(f=>f.accountId===I&&(f.projectId||f.jobId)).sort((a,b)=>(b.at||0)-(a.at||0)).map(f=>{
       const p=f.projectId?proj(f.projectId):null;return Object.assign({},f,{_src:f.jobId?("WO "+f.jobId):(p?("P-"+p.num+(p.name?" "+String(p.name).slice(0,28):"")):"project")})});
-    if(sub.length)more=`<div class="sub" style="padding:8px 14px 0">From this account's projects and work orders (${sub.length})</div><div class="fgal">${sub.map(f=>fileTile(f,true)).join("")}</div>`}
+    if(sub.length)more=`<div class="sub" style="padding:8px 14px 0">From this account's projects and work orders (${sub.length})</div>${galFold(sub,f=>fileTile(f,true))}`}
   return `<section class="card flush"><header><span class="oi sm oi-file">${ic("file",14)}</span><h2>Files</h2><span class="n">${fs.length}</span>
     <span class="sub" style="flex:1 1 100%;order:9">${esc(scope)}</span>
     <span class="sp">${S.canUpload?`<button class="btn sm p" data-upload="${kind}:${esc(String(id))}">Upload</button>`:""}</span></header>
-    ${fs.length?`<div class="fgal">${fs.map(f=>fileTile(f)).join("")}</div>`
+    ${fs.length?galFold(fs,f=>fileTile(f))
     :`<div class="${S.canUpload?"drop":"empty"}" data-drop="${kind}:${esc(String(id))}">
       ${S.canUpload?"Drop proofs, POs, invoices, or photos here — or use Upload.":"No files. Uploading needs edit access."}</div>`}
     ${more}
