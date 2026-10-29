@@ -5775,7 +5775,7 @@ function stcExportRows(){const head=["SKU","Price list code","Stencil","Category
     const mg=(r.cost!=null&&pr)?Math.round((pr-r.cost)/pr*1000)/10:"";
     rows.push([s.sku,s.stn||"",s.n,s.cat||"",s.w&&s.h?s.w+" x "+s.h:"",s.pc||1,g.label,r.mat?r.mat.name:"",Math.round(stcSq(s)*100)/100,
       stcSq(s)?Math.round(stcSq(s)*c.waste*100)/100:"",r.rate?Math.round(r.rate*1000)/1000:"",r.cost!=null?r.matCost:"",r.cost!=null?r.labor:"",r.cost!=null?r.cost:"",pr,stcPd(s),mg,
-      r.flags.concat(fl.filter(x=>/Not on the 25 Oct/.test(x))).join("; ")])})});
+      r.flags.concat(fl.filter(x=>/^Held/.test(x))).join("; ")])})});
   return rows}
 async function stcCsv(){await stcLoad();if(!S.stc)return toast(S.stcErr||"The stencil catalog isn't loaded.");
   const data=stcExportRows().map(r=>r.map(v=>{const x=String(v==null?"":v);return /[",\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x}).join(",")).join("\r\n");
