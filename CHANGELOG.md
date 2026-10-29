@@ -1,5 +1,11 @@
 # What changed
 
+## 2026.11.25-68
+- Tighter database rules, ready to apply from Settings → Data ("Apply the updated rules"): people change only their own team record (never its level), the shop key moves to a record only owners and office can read, change history can't be cut short, the shop can't change quote prices, billing or stage fields, and only owners and office change what items cost. Updated rules only go live when the owner applies them, and fall back by themselves if the CRM doesn't confirm.
+- The shop (WooCommerce) key is saved in settings/secrets instead of the general settings everyone reads.
+- Background jobs' copies of the CRM no longer send reminders (each job run was sending its own copy — the Q-1011 proof reminder went 5 times).
+- QuickBooks check: never sets a paid date to today (the invoice copy has no payment date); every change it makes is tagged "Fix run" with its run number and the values it replaced; projects whose total is far from the invoice are only flagged.
+
 ## 2026.11.25-67
 - Inventory → Purchase orders: every order placed with a vendor (yours and the Material Planner's, e.g. PR-20261026-1), open / received / late, with "New purchase order" (vendor, items, qty, price, expected date; optional email to the vendor) and "Receive" on each line — stock goes up, "on order" comes down, what was paid is recorded, and "Last bought" fills in for that vendor.
 - Stencils list: material item, material cost and CNC cost columns for the grade picked; the CSV adds CNC minutes. Flags now also catch a grade with no sheet in inventory or a sheet with no cost, and a stencil with no sq ft.

@@ -30,5 +30,19 @@
   }
   const hw = items.find((i) => String(i.sku || "").toUpperCase() === "HW-BRKANCH-48");
   out.hwBrkanch48 = hw ? { cost: Number(hw.cost) || 0, vendors: T.itemVendors(hw).length, onHand: Number(hw.onHand) || 0, moves: T.live(S.invtx).filter((x) => x.itemId === hw.id).length } : "not found";
+  // an HTML code that leaked into a city name on import ("#3BSt. George")
+  let cities = 0;
+  for (const a of T.live(S.accounts)) { const c = String(a.city || ""); const fixed = c.replace(/&?#(x?3[bB]|59);?/g, "").replace(/&amp;/g, "&").trim();
+    if (fixed !== c) { await T.fix("accounts/" + a.id, { city: fixed, updatedAt: now }, "City had an HTML code in it from an import"); cities++; } }
+  out.citiesCleaned = cities;
+  // P-2012: QuickBooks invoice 1015 bills Cross Traffic Does Not Stop at 23, the CRM had 24 — QuickBooks is the source of truth
+  const p = T.live(S.projects).find((x) => String(x.num) === "2012");
+  if (p) { let n = 0; const lines = (p.orderLines || []).map((l) => { if (l && /cross traffic/i.test(String(l.desc || "") + " " + String(l.title || "")) && Number(l.qty) === 24) { n++; return Object.assign({}, l, { qty: "23" }); } return l; });
+    if (n === 1) { await T.push("projects/" + p.id, { orderLines: lines, updatedAt: now });
+      await T.recordHistory("project", p.id, [{ f: "Fix run", o: "Cross Traffic qty 24", n: "23 — to match QuickBooks invoice 1015", ev: 1 }]);
+      const ln = lines.find((l) => /cross traffic/i.test(String(l.desc || "") + " " + String(l.title || "")));
+      for (const j of T.live(S.jobs).filter((j) => j.projectId === p.id)) { let m = 0; const items = (j.items || []).map((x) => { if (((ln.id && x.lineId === ln.id) || /cross traffic/i.test(String(x.desc || ""))) && Number(x.qty) === 24) { m++; return Object.assign({}, x, { qty: "23" }); } return x; });
+        if (m) { await T.push("jobs/" + j.num, { items, updatedAt: now }); await T.recordHistory("job", String(j.num), [{ f: "Fix run", o: "Cross Traffic qty 24", n: "23 — to match QuickBooks invoice 1015", ev: 1 }]); out.p2012_woLinesFixed = (out.p2012_woLinesFixed || 0) + m; } } }
+    out.p2012_linesFixed = n; out.p2012_total = Math.round(((T.projValue(Object.assign({}, p, { orderLines: lines })) || 0) + (T.invTaxOf(p) || 0)) * 100) / 100; }
   return out;
 })

@@ -135,7 +135,7 @@ if (STEP === "qb") {
     const rows = got.values || []; const H = (rows[0] || []).map((h) => String(h).trim().toLowerCase());
     const inv = rows.slice(1).filter((r) => r && r.length).map((r) => { const o = {}; H.forEach((h, i) => o[h] = r[i] == null ? "" : String(r[i])); return o; }).filter((o) => o.doc_number);
     if (!inv.length) throw new Error("the QB Invoices tab is empty");
-    const res = await page.evaluate(async (inv) => {
+    const res = await page.evaluate(async ([inv, RUN]) => {
       const T = window.__T, S = T.S, today = T.today();
       const num = (v) => { const n = Number(String(v || "").replace(/[$,\s]/g, "")); return isFinite(n) ? n : 0; };
       const norm = (s) => String(s || "").toLowerCase().replace(/\(deleted\)/g, "").replace(/[^a-z0-9]/g, "");
@@ -165,9 +165,10 @@ if (STEP === "qb") {
         const paid = total > 0 && bal <= 0.004;
         const want = paid ? "paid" : (T.billState(p) === "deposit" && bal < total ? "deposit" : "invoiced");
         if (T.billState(p) !== want) { patch.billStatus = want; notes.push(want === "paid" ? "paid in full" : want); }
-        if (paid && !p.paidDate) { patch.paidDate = today; notes.push("paid date " + today); }
+        // the invoice copy has no payment date, so the CRM's paid date is left as it is (never set to today)
+        if (paid && !p.paidDate && q.paid_date && /^\d{4}-\d{2}-\d{2}$/.test(q.paid_date)) { patch.paidDate = q.paid_date; notes.push("paid on " + q.paid_date); }
         if (Object.keys(patch).length) { patch.updatedAt = Date.now(); await T.push("projects/" + p.id, patch);
-          await T.recordHistory("project", p.id, [{ f: "QuickBooks", o: "", n: "Matched QuickBooks invoice " + doc + ": " + notes.join(", "), ev: 1 }]); changed++; }
+          await T.recordHistory("project", p.id, [{ f: "Fix run", o: "", n: "QuickBooks check " + RUN + ": matched invoice " + doc + " — " + notes.join(", ") + " (before: " + Object.keys(patch).filter((k) => k !== "updatedAt").map((k) => k + " " + JSON.stringify(p[k] === undefined ? "" : p[k])).join(", ") + ")", ev: 1 }]); changed++; }
         const crmTotal = Math.round(((T.projValue(Object.assign({}, p, patch)) || 0) + tax) * 100) / 100;
         const diff = Math.abs(crmTotal - total) > 1.01;
         if (diff) flagged++;
@@ -175,7 +176,7 @@ if (STEP === "qb") {
           (diff ? "QuickBooks " + total.toFixed(2) + " vs CRM " + crmTotal.toFixed(2) + " — check the quote lines against the invoice. " : "") + (notes.length ? "CRM set to QuickBooks: " + notes.join(", ") : "") + " (matched by " + how + ")"]);
       }
       return { out, changed, matched, flagged, total: inv.length };
-    }, inv);
+    }, [inv, "run " + (process.env.GITHUB_RUN_ID || "local")]);
     const head = [["Invoice", "Date", "Customer (QuickBooks)", "QuickBooks total", "CRM project", "CRM total", "Result", "What happened", "", "Checked " + new Date().toISOString().replace("T", " ").slice(0, 16) + " UTC"]];
     const meta = await api("?fields=sheets.properties.title", "GET");
     if (!(meta.sheets || []).some((x) => x.properties.title === "QB Check")) await api(":batchUpdate", "POST", { requests: [{ addSheet: { properties: { title: "QB Check" } } }] });

@@ -9769,7 +9769,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-67";
+const APP_VERSION="2026.11.25-68";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -11863,7 +11863,7 @@ function settingsView(){
     <section class="card"><header><h2>Website orders</h2><span class="sub">streetsignsupply.com sends paid orders in. On your own site the CRM checks every 15 minutes.</span></header><div class="body">
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <input id="b-shopurl" value="${esc(b.shopUrl||"")}" placeholder="https://streetsignsupply.com" style="flex:2;min-width:220px">
-        <input id="b-shoptoken" value="${esc(b.shopToken||"")}" placeholder="Key from WordPress → WooCommerce → CRM orders" class="mono" style="flex:1;min-width:180px"></div>
+        <input id="b-shoptoken" value="${esc((S.secrets&&S.secrets.shopToken)||b.shopToken||"")}" placeholder="Key from WordPress → WooCommerce → CRM orders" class="mono" style="flex:1;min-width:180px"></div>
       <div style="margin-top:8px">${ck("b-shopauto",b.shopAuto!==false,"Bring new orders in by themselves","On your own site")}
       ${ck("b-shopwo",b.shopWO!==false,"Make the work orders straight away")}</div>
       ${b.shopLast?`<div class="sub" style="margin-top:6px">Last order seen: ${esc(String(b.shopLast))}</div>`:""}
@@ -13225,7 +13225,7 @@ async function saveBrand(){
     marginOverride:!!($("#b-mover")&&$("#b-mover").checked),
     legendPct:Number($("#b-legend")&&$("#b-legend").value)||25,
     shopUrl:$("#b-shopurl")?$("#b-shopurl").value.trim():((S.brand||{}).shopUrl||""),
-    shopToken:$("#b-shoptoken")?$("#b-shoptoken").value.trim():((S.brand||{}).shopToken||""),
+    shopToken:"",
     shopLast:(S.brand||{}).shopLast||"",
     shopAuto:$("#b-shopauto")?!!$("#b-shopauto").checked:((S.brand||{}).shopAuto!==false),
     shopWO:$("#b-shopwo")?!!$("#b-shopwo").checked:((S.brand||{}).shopWO!==false),
@@ -13248,6 +13248,8 @@ async function saveBrand(){
     brand2:$("#b-brand2x").value.trim()||DEF_BRAND.brand2,
     accent:$("#b-accentx").value.trim()||DEF_BRAND.accent,
     logo:(S.brand||{}).logo||""};
+  {const tk=$("#b-shoptoken")?$("#b-shoptoken").value.trim():null;
+    if(tk!==null&&tk!==shopCfg().token){try{await setDoc("settings/secrets",Object.assign({},S.secrets||{},{shopToken:tk}));S.secrets=Object.assign({},S.secrets||{},{shopToken:tk})}catch(e){}}}
   try{await setDoc("settings/brand",b);S.brand=b;applyBrand();render();toast("Settings saved")}
   catch(e){toast("Couldn't save the settings.")}
 }
@@ -13451,7 +13453,8 @@ function buildWO(num){
 // shipping and fees as charges, and the payment recorded. An order already in the CRM is never
 // brought in twice.
 const WEB_SKIP=["cancelled","refunded","failed","trash","checkout-draft"];
-function shopCfg(){const b=S.brand||{};return {url:String(b.shopUrl||"").trim().replace(/\/+$/,""),token:String(b.shopToken||"").trim(),last:b.shopLast||""}}
+// the shop key is kept in settings/secrets, which only owners and office can read
+function shopCfg(){const b=S.brand||{};return {url:String(b.shopUrl||"").trim().replace(/\/+$/,""),token:String((S.secrets&&S.secrets.shopToken)||b.shopToken||"").trim(),last:b.shopLast||""}}
 function webProj(id){return live(S.projects).concat([...S.projects.values()].filter(p=>p&&p.deleted)).find(p=>p&&p.webOrder&&String(p.webOrder.id)===String(id))}
 function webMeta(li){const m={};Object.defineProperty(m,"_lab",{value:{},enumerable:false});(li.meta_data||li.meta||[]).forEach(x=>{if(!x)return;
   const k=String(x.display_key||x.key||"").replace(/^pa_/,"").replace(/[_-]+/g," ").trim().toLowerCase();
@@ -13544,8 +13547,9 @@ async function webSaveAndCheck(){
   if(!/^https?:\/\//i.test(url))return toast("Put in the website address, starting https://");
   if(!key)return toast("Put in the key from WordPress → WooCommerce → CRM orders.");
   const cur=S.brand||{};
-  if(cur.shopUrl!==url||cur.shopToken!==key){
-    const b=Object.assign({},cur,{shopUrl:url,shopToken:key});
+  if(cur.shopUrl!==url||shopCfg().token!==key){
+    try{await setDoc("settings/secrets",Object.assign({},S.secrets||{},{shopToken:key}));S.secrets=Object.assign({},S.secrets||{},{shopToken:key})}catch(e){}
+    const b=Object.assign({},cur,{shopUrl:url,shopToken:""});
     try{await setDoc("settings/brand",b);S.brand=b}catch(e){S.brand=b;toast("Couldn't save the key for everyone — checking with it anyway.")}
   }
   if(!isHosted()){const box=$("#wo-list");if(box)box.innerHTML=`<div class="warn" style="margin:12px 15px"><b>Saved.</b> Inside Claude the CRM can't reach your website —
@@ -14756,6 +14760,7 @@ function remSyncRec(t,r){
     record:r.route,url:(location.origin||"")+(location.pathname||"")+"#/"+r.route,due:r.due||"",channel:cfg.channel||"email",mode:cfg.mode||"digest",
     snoozed_until:m.snoozedUntil||"",customer:accName(r.acct),project_number:p&&p.num?"P-"+p.num:"",deleted:false}}
 function remDeliver(url,force){
+  if(window.sscWorker)return 0;   // background jobs open their own copy of the CRM — only people's copies send reminders
   const u=String(url||syncCfg().url||"").trim();if(!/^https:\/\//i.test(u))return 0;
   const all=remAll();const sent=syncSent();const td=today();let n=0;
   // each reminder is emailed or texted to ONE person: the rep it belongs to, or the owner when it has none.
@@ -14781,9 +14786,13 @@ function dbLockCard(){const d=S.dbLock||{};const want=d.want||"off",st=d.state||
     <p style="margin:0 0 10px">When it's on, the database itself only lets people on your team list in, and enforces their level: only owners change levels,
       owners and office change settings and permanently delete, and nobody but an owner can erase change history.</p>
     <p class="sub" style="margin:0 0 10px">After it's turned on, keep this page open for a few minutes: it confirms everything still opens. If nothing confirms within 20 minutes, the old rules come back by themselves. ${esc(d.note||"")}${d.error?" — last problem: "+esc(d.error):""}</p>
-    <div class="setrow">${want==="on"?`<button class="btn" data-dblock="off">Turn the lock off</button>`:`<button class="btn p" data-dblock="on">Turn the lock on</button>`}</div></div></section>`}
+    ${want==="on"&&st==="on"&&d.available&&d.available!==d.liveHash?`<div class="warn" style="margin:0 0 10px"><b>Tighter rules are ready.</b> People can only change their own team record, the shop key is hidden from everyone but owners and office,
+      change history can't be cut short, the shop can't change quote prices or billing, and only owners and office change what items cost. Press Apply, then keep this page open a few minutes so it can confirm.</div>`:""}
+    <div class="setrow">${want==="on"?`${st==="on"&&d.available&&d.available!==d.liveHash?`<button class="btn p" data-dblock="apply">Apply the updated rules</button>`:""}<button class="btn" data-dblock="off">Turn the lock off</button>`:`<button class="btn p" data-dblock="on">Turn the lock on</button>`}</div></div></section>`}
+async function dbLockApply(){try{await push("settings/dbLock",{apply:(S.dbLock||{}).available,askedAt:Date.now(),askedBy:me(),error:""});toast("The updated rules go on within 10 minutes — keep the CRM open so it can confirm")}catch(e){toast("That didn't save.")}}
 async function dbLockSet(want){try{await setDoc("settings/dbLock",Object.assign({},S.dbLock||{},{want,askedAt:Date.now(),askedBy:me(),error:""}));toast(want==="on"?"The lock turns on within 10 minutes — keep the CRM open so it can confirm":"The lock turns off within 10 minutes")}catch(e){toast("That didn't save.")}}
 // while the lock is being checked, any owner or office copy of the CRM that can still read and write says so
+function secretsWatch(){try{db.doc("settings/secrets").onSnapshot(sn=>{const d=sn&&sn.exists?(typeof sn.data==="function"?sn.data():sn.data):null;S.secrets=d||{}},()=>{})}catch(e){}}
 function dbLockWatch(){try{db.doc("settings/dbLock").onSnapshot(sn=>{const d=sn&&sn.exists?(typeof sn.data==="function"?sn.data():sn.data):null;S.dbLock=d||{};
     if(d&&d.state==="pending"&&can("settings")&&!(Number(d.seenAt)>Number(d.deployedAt)))push("settings/dbLock",{seenAt:Date.now(),seenBy:me()}).catch(()=>{});
     if(S.route&&S.route.v==="settings"&&!typing())render()},()=>{})}catch(e){}}
@@ -15567,7 +15576,7 @@ function bind(){
     {const x=t.closest("[data-ponew]");if(x){S.poLines=null;poModal();return}}
     {const x=t.closest("[data-poemail]");if(x){poEmail(x.dataset.poemail);return}}
     {const x=t.closest("[data-porecv]");if(x){const[a,b]=x.dataset.porecv.split("|");txModal(a,"receive","","",b);return}}
-    {const x=t.closest("[data-dblock]");if(x){const w=x.dataset.dblock;if(w==="on"){askConfirm("Turn the database lock on?","Only the people on your team list will be able to open the CRM. Keep this page open for a few minutes after — it confirms everything still works, and if it can't, the old rules come back by themselves within 20 minutes.","Turn it on",false,()=>dbLockSet("on"))}else dbLockSet("off");return}}
+    {const x=t.closest("[data-dblock]");if(x){const w=x.dataset.dblock;if(w==="apply"){dbLockApply();return}if(w==="on"){askConfirm("Turn the database lock on?","Only the people on your team list will be able to open the CRM. Keep this page open for a few minutes after — it confirms everything still works, and if it can't, the old rules come back by themselves within 20 minutes.","Turn it on",false,()=>dbLockSet("on"))}else dbLockSet("off");return}}
     {const x=t.closest("[data-stcrel]");if(x){const[sku,on]=x.dataset.stcrel.split(":");const r=Object.assign({},stcCfg().release);if(on==="1")r[sku]=true;else delete r[sku];
       stcCfgSave({release:r}).then(()=>{toast(on==="1"?"Released — it's on the quote picker now":"Held");closeModal();stcViewModal(sku);render()}).catch(()=>toast("That didn't save."));return}}
     {const x=t.closest("[data-stcfloor]");if(x){const sku=x.dataset.stcfloor;const st=stcBySku(sku);if(!st)return;
@@ -15805,7 +15814,7 @@ async function boot(){
   sub("accounts","accounts");sub("contacts","contacts");sub("projects","projects");
   sub("jobs","jobs",true);sub("files","files");sub("activity","activity");sub("history","history");
   sub("events","events");sub("team","team");
-  sub("vendors","vendors");sub("items","items");sub("invtx","invtx");sub("notifications","notifications");sub("reminders","remarks");sub("access","access");dbLockWatch();
+  sub("vendors","vendors");sub("items","items");sub("invtx","invtx");sub("notifications","notifications");sub("reminders","remarks");sub("access","access");dbLockWatch();secretsWatch();
   syncSentLoad();
   db.doc("settings/prodtypes").onSnapshot(s=>{if(s&&s.exists&&s.data())S.prodtypes=s.data();if(!typing()&&!S.modal)render()},()=>{});
   db.doc("settings/pricelist").onSnapshot(s=>{if(s&&s.exists&&s.data())S.pricelist=s.data();if(!typing()&&!S.modal)render()},()=>{});
