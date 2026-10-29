@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-63
+- Settings → Data → Database lock (owners, on crm.streetsignsupply.com): "Turn the lock on" puts the team-only database rules live within 10 minutes (tested first). The CRM confirms it still opens; if nothing confirms within 20 minutes the old rules come back by themselves. "Turn the lock off" puts the old rules back.
+- Settings → Data notes the automatic nightly backup.
+
 ## 2026.11.25-62
 - Stencils: the SKU shows under each stencil in "Browse the price list", and searching by SKU works with or without the dashes (SSS-FAA-108-01, FAA108).
 - Aluminum .080 stencils are costed from the full aluminum sheets in inventory (any full sheet that says .080 aluminum — small sign blanks aren't used); the cheapest per sq ft is picked unless you choose one.
