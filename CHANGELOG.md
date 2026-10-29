@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-55 — 2026-10-28
+- Fixed: closing Show more on a file list left the page scrolled past the first 2 files (hidden under the pinned bar) — the list now closes with the first 2 files in view
+
 ## 2026.11.25-54 — 2026-10-28
 - Lists read in three clear levels: small grey capital column labels, larger bold names, and a dark band for sections like Archived
 
