@@ -1899,34 +1899,41 @@ const vendName=id=>{const v=S.vendors.get(id);return v?(v.name+(v.deleted?" (del
 const itemsOf=vid=>itemList().filter(i=>i.vendorId===vid);
 // every vendor an item can come from: the preferred one (vendorId, cost) first, then the others with their own price
 function itemVendors(i){const out=[];
-  if(i&&i.vendorId)out.push({vendorId:i.vendorId,cost:i.cost||"",part:i.vendorPart||"",lead:i.vendorLead||"",lastBought:i.vendorLast||"",source:i.vendorSource||"",preferred:true});
+  if(i&&i.vendorId)out.push({vendorId:i.vendorId,cost:(i.vendorPrice!==undefined&&i.vendorPrice!=="")?i.vendorPrice:(i.cost||""),freight:i.vendorFreight||"",
+    part:i.vendorPart||"",lead:i.vendorLead||"",lastBought:i.vendorLast||"",source:i.vendorSource||"",preferred:true});
   ((i&&i.vendors)||[]).forEach(v=>{if(v&&v.vendorId&&v.vendorId!==i.vendorId&&!out.some(o=>o.vendorId===v.vendorId))out.push(Object.assign({preferred:false},v))});
   // costs typed as "$1,234.50" still count as numbers
-  out.forEach(o=>{if(typeof o.cost==="string"&&/[$,]/.test(o.cost)){const n=Number(o.cost.replace(/[$,\s]/g,""));if(!isNaN(n))o.cost=n}});
-  return out.filter(o=>{const v=S.vendors.get(o.vendorId);return v&&!v.deleted})}
+  out.forEach(o=>["cost","freight"].forEach(k=>{if(typeof o[k]==="string"&&/[$,]/.test(o[k])){const n=Number(o[k].replace(/[$,\s]/g,""));if(!isNaN(n))o[k]=n}}));
+  // a row whose vendor is missing or deleted still shows — flagged — so it can be fixed instead of vanishing
+  return out.map(o=>{const v=S.vendors.get(o.vendorId);return (!v||v.deleted||!String(v.name||"").trim())?Object.assign({},o,{missing:true}):o})}
+// what one unit really costs from a vendor: their price plus the freight per unit
+function landed(v){return Math.round(((Number(v&&v.cost)||0)+(Number(v&&v.freight)||0))*10000)/10000}
 const altItemsOf=vid=>itemList().filter(i=>i.vendorId!==vid&&(i.vendors||[]).some(v=>v.vendorId===vid));
 async function itemVendSave(iid,list){const i=S.items.get(iid);if(!i)return;
   const pref=list.find(v=>v.preferred)||list[0]||null;
-  const patch={vendors:list.filter(v=>!pref||v.vendorId!==pref.vendorId).map(v=>({vendorId:v.vendorId,cost:v.cost||"",part:v.part||"",lead:v.lead||"",lastBought:v.lastBought||"",source:v.source||""})),
-    vendorId:pref?pref.vendorId:"",cost:pref?(pref.cost||i.cost||""):i.cost||"",vendorPart:pref?pref.part||"":"",vendorLead:pref?pref.lead||"":"",
+  // the item's cost (what quotes and work orders use) = the preferred vendor's price + freight, and nothing else sets it
+  const patch={vendors:list.filter(v=>!pref||v.vendorId!==pref.vendorId).map(v=>({vendorId:v.vendorId,cost:v.cost||"",freight:v.freight||"",part:v.part||"",lead:v.lead||"",lastBought:v.lastBought||"",source:v.source||""})),
+    vendorId:pref?pref.vendorId:"",vendorPrice:pref?(pref.cost||""):"",vendorFreight:pref?(pref.freight||""):"",
+    cost:pref&&Number(pref.cost)>0?String(landed(pref)):(i.cost||""),vendorPart:pref?pref.part||"":"",vendorLead:pref?pref.lead||"":"",
     vendorLast:pref?pref.lastBought||"":"",vendorSource:pref?pref.source||"":"",updatedAt:Date.now()};
   await push("items/"+iid,patch)}
 function itemVendModal(iid,vid,preVid){const i=S.items.get(iid);if(!i)return;
   const cur=itemVendors(i).find(v=>v.vendorId===vid)||{};
   const vs=live(S.vendors).sort((a,b)=>(a.name||"").localeCompare(b.name||"")).map(v=>({v:v.id,l:v.name}));
   openModal(mshell(vid?"Change "+vendName(vid)+" for this item":"Add a vendor for "+i.name,"file",
-    `<div class="fgrid">${vid?`<input type="hidden" id="iv-v" value="${esc(vid)}">`:sel("iv-v","Vendor",preVid||"",vs,1)}
-      ${inp("iv-cost","Their price per "+(i.unit||"unit"),cur.cost||"","number")}${inp("iv-part","Their part number",cur.part||"")}
+    `<div class="fgrid">${vid&&!cur.missing?`<input type="hidden" id="iv-v" value="${esc(vid)}">`:sel("iv-v",cur.missing?"Vendor — this price's vendor is missing, pick it":"Vendor",preVid||"",vs,1)}
+      ${inp("iv-cost","Their price per "+(i.unit||"unit"),cur.cost||"","number")}${inp("iv-fr","Freight per "+(i.unit||"unit")+" (0 if delivered free)",cur.freight||"0","number")}
+      ${inp("iv-part","Their part number",cur.part||"")}
       ${inp("iv-last","Last bought from them",cur.lastBought||"","date")}${inp("iv-lead","Their lead time",cur.lead||"")}
       ${inp("iv-src","Where the price came from (invoice or quote number and date)",cur.source||"").replace('<div class="fld">','<div class="fld full">')}
-      ${chk("iv-pref","Preferred — the one we normally order from (its price becomes the item's cost)",!!cur.preferred||!itemVendors(i).length)}</div>`,
+      ${chk("iv-pref","Preferred — the one we normally order from (its price + freight becomes the item's cost)",!!cur.preferred||!itemVendors(i).length)}</div>`,
     `${vid?`<button class="btn d" id="iv-del" style="margin-right:auto">Remove this vendor</button>`:""}<button class="btn" data-close="1">Cancel</button><button class="btn p" id="iv-save">Save</button>`));
   $("#iv-save").onclick=async()=>{const v=$("#iv-v").value;if(!v)return toast("Pick the vendor.");
-    let list=itemVendors(i).filter(x=>x.vendorId!==v);const rec={vendorId:v,cost:$("#iv-cost").value,part:$("#iv-part").value.trim(),lead:$("#iv-lead").value.trim(),lastBought:$("#iv-last").value,source:$("#iv-src").value.trim(),preferred:$("#iv-pref").checked};
+    let list=itemVendors(i).filter(x=>x.vendorId!==v&&x.vendorId!==vid);const rec={vendorId:v,cost:$("#iv-cost").value,freight:$("#iv-fr")?$("#iv-fr").value:"",part:$("#iv-part").value.trim(),lead:$("#iv-lead").value.trim(),lastBought:$("#iv-last").value,source:$("#iv-src").value.trim(),preferred:$("#iv-pref").checked};
     if(rec.preferred)list=list.map(x=>Object.assign({},x,{preferred:false}));
     list=rec.preferred?[rec].concat(list):list.concat([rec]);if(!list.some(x=>x.preferred))list[0].preferred=true;
     closeModal();await itemVendSave(iid,list);
-    recordHistory("item",iid,[{f:"Vendors",o:vid&&cur.cost?vendName(v)+" "+money2(Number(cur.cost)):"",n:(vid?"":"Added ")+vendName(v)+(rec.cost?" "+money2(Number(rec.cost)):"")+(rec.source?" ("+rec.source+")":"")+(rec.preferred?" — preferred":""),ev:1}]);
+    recordHistory("item",iid,[{f:"Vendors",o:vid&&cur.cost?vendName(v)+" "+money2(Number(cur.cost)):"",n:(vid?"":"Added ")+vendName(v)+(rec.cost?" "+money2(Number(rec.cost)):"")+(Number(rec.freight)>0?" + "+money2(Number(rec.freight))+" freight":"")+(rec.source?" ("+rec.source+")":"")+(rec.preferred?" — preferred":""),ev:1}]);
     if(!vid)recordHistory("vendor",v,[{f:"Items",o:"",n:"Linked "+i.name+(rec.cost?" at "+money2(Number(rec.cost)):""),ev:1}]);
     toast("Saved");if(S.ivBack){const b=S.ivBack;S.ivBack=null;go(b)}};
   const dl=$("#iv-del");if(dl)dl.onclick=async()=>{let list=itemVendors(i).filter(x=>x.vendorId!==vid);if(list.length&&!list.some(x=>x.preferred))list[0].preferred=true;
@@ -1945,14 +1952,17 @@ function itemLinkModal(vid){
     closeModal();S.ivBack="vendor/"+vid;
     // open the vendor form for that item with this vendor already chosen
     itemVendModal(it.id,"",vid)}}
-function itemVendCard(i){const L=itemVendors(i);const best=L.filter(v=>Number(v.cost)>0).sort((a,b)=>Number(a.cost)-Number(b.cost))[0];
+function itemVendCard(i){const L=itemVendors(i);const best=L.filter(v=>!v.missing&&Number(v.cost)>0).sort((a,b)=>landed(a)-landed(b))[0];
   return `<section class="card flush wide"><header><h2>Vendors</h2><span class="n">${L.length}</span>
     <span class="sub" style="flex:1 1 100%;order:9">Everyone you can buy this from. The preferred one gets the reorder email; the others are there to compare and fall back on.</span>
     <span class="sp">${can("cost")?`<button class="btn sm p" data-ivadd="${esc(i.id)}">Add a vendor</button>`:""}</span></header>
-    ${L.length?`<table><thead><tr><th>Vendor</th><th style="width:110px;text-align:right">Cost</th><th>Part #</th><th>Last bought</th><th>Source</th><th style="width:150px"></th></tr></thead><tbody>
-      ${L.map(v=>`<tr><td><button class="lnk" data-go="vendor/${esc(v.vendorId)}">${esc(vendName(v.vendorId))}</button>
+    ${L.length?`<table><thead><tr><th>Vendor</th><th style="width:90px;text-align:right">Price</th><th style="width:80px;text-align:right">Freight</th><th style="width:100px;text-align:right">Landed</th><th>Part #</th><th>Last bought</th><th>Source</th><th style="width:150px"></th></tr></thead><tbody>
+      ${L.map(v=>`<tr><td>${v.missing?`<span class="pill r" title="This price is linked to a vendor that's missing or has no name — Edit to pick the vendor, or remove it">Vendor missing</span>`
+          :`<button class="lnk" data-go="vendor/${esc(v.vendorId)}">${esc(vendName(v.vendorId))}</button>`}
         ${v.preferred?` <span class="pill g">Preferred</span>`:""}${best&&best.vendorId===v.vendorId&&L.length>1?` <span class="pill b">Lowest cost</span>`:""}</td>
-        <td class="mono" style="text-align:right;white-space:nowrap">${Number(v.cost)>0?money2(Number(v.cost)):"—"}</td><td class="sub mono">${esc(v.part||"—")}</td>
+        <td class="mono" style="text-align:right;white-space:nowrap">${Number(v.cost)>0?money2(Number(v.cost)):"—"}</td>
+        <td class="mono" style="text-align:right;white-space:nowrap">${Number(v.freight)>0?money2(Number(v.freight)):"—"}</td>
+        <td class="mono" style="text-align:right;white-space:nowrap;font-weight:700">${Number(v.cost)>0?money2(landed(v)):"—"}</td><td class="sub mono">${esc(v.part||"—")}</td>
         <td class="sub">${v.lastBought?esc(fmtDate(v.lastBought)):"—"}</td><td class="sub">${esc(v.source||"—")}</td>
         <td style="text-align:right;white-space:nowrap">${can("cost")?`${v.preferred?"":`<button class="btn sm" data-ivpref="${esc(i.id)}:${esc(v.vendorId)}">Make preferred</button>`}
           <button class="btn sm" data-ivedit="${esc(i.id)}:${esc(v.vendorId)}">Edit</button>`:""}</td></tr>`).join("")}</tbody></table>`
@@ -2176,7 +2186,9 @@ function itemModal(it,vid){
       ${sel("i-unit","Unit",it.unit||UNITS[0],UNITS)}${inp("i-bin","Location / bin",it.bin)}
       ${inp("i-sqft","Square feet per unit — a 48 x 96 sheet is 32",it.sqftPer||"","number")}
       ${inp("i-sell","What we charge per unit — leave blank to price at "+Math.round(targetMargin())+"% margin",it.sell||"","number")}
-      ${inp("i-cost","Cost per "+(it.unit||"unit"),it.cost,"number")}
+      ${it.id&&it.vendorId&&itemVendors(it).some(v=>v.preferred&&!v.missing)
+        ?`<div class="fld"><div class="k">Cost per ${esc(it.unit||"unit")}</div><input id="i-cost" type="hidden" value="${esc(it.cost||"")}"><div class="v">${it.cost?money2(Number(it.cost)):"—"} <span class="sub">— the preferred vendor's price + freight; change it under Vendors on the item page</span></div></div>`
+        :inp("i-cost","Cost per "+(it.unit||"unit"),it.cost,"number")}
       ${it.id?"":inp("i-oh2","","","hidden")}
       <div class="fld full" style="border-bottom:0;padding-bottom:0">
         <details${(it.vendorId||it.reorderPoint||it.reorderQty)?" open":""}>
@@ -2308,7 +2320,10 @@ function txModal(iid,type,jobNum,amount){
           ${(!area&&per>0&&/roll|sheet/i.test(it.unit||""))?`<div class="sub" style="margin-top:4px">Counted in ${esc(it.unit)}s — one ${esc(it.unit)} is ${per} sq ft. Cutting and counting are asked in square feet.</div>`:""}
           ${area?`<div class="sub" style="margin-top:4px">One ${esc(it.unit)} is ${per} sq ft. ${type==="receive"?"Type the square feet you took in — a full "+esc(it.unit)+" is "+per+".":type==="count"?"Count the "+esc(it.unit)+"s and part-"+esc(it.unit)+"s, then type the square feet they come to.":"Type the square feet you cut and it takes that much off, not a whole "+esc(it.unit)+"."}</div>`:""}</div>`})()}
       ${type==="use"?sel("x-job","Work order",jobNum||"",wos,1):""}
-      ${type==="receive"?inp("x-cost","Unit cost on this receipt",it.cost,"number"):""}
+      ${type==="receive"?(function(){const pv=itemVendors(it).find(v=>v.preferred)||{};
+        return inp("x-cost","Price paid per "+(it.unit||"unit")+" on this receipt",pv.cost||it.cost||"","number")+inp("x-fr","Freight per "+(it.unit||"unit")+" on this receipt",pv.freight||"0","number")
+          +sel("x-vend","From vendor",pv.vendorId||it.vendorId||"",vendorList().map(v=>({v:v.id,l:v.name})))
+          +`<div class="fld full sub">Recorded as what you paid. The item's cost for quotes stays the preferred vendor's price + freight — change that under Vendors.</div>`})():""}
       ${ta("x-note",type==="receive"?"PO number, packing slip, anything worth knowing":"Note","")}</div>`,
     `<button class="btn" data-close="1">Cancel</button><button class="btn p" id="save">Save</button>`));
   $("#save").onclick=async()=>{
@@ -2323,15 +2338,18 @@ function txModal(iid,type,jobNum,amount){
       note=(note?note+" — ":"")+"counted "+(perU?Math.round(typed)+" sq ft ("+raw+" "+(it.unit||"")+")":raw)+", was "+Math.round(onHand(it)*1000)/1000}
     const jid=$("#x-job")?$("#x-job").value:"";
     const cost=$("#x-cost")?$("#x-cost").value.trim():"";
+    const frt=$("#x-fr")?$("#x-fr").value.trim():"";const rvend=$("#x-vend")?$("#x-vend").value:"";
     const txid=uid("tx");
     closeModal();
     try{
       await setDoc("invtx/"+txid,{id:txid,itemId:iid,type,qty:delta,at:Date.now(),who:me(),
-        note,jobId:jid||"",cost,itemName:it.name||"",unit:it.unit||"",unitCost:it.cost||"",deleted:false});
+        note,jobId:jid||"",cost,freight:type==="receive"?frt:"",vendorId:type==="receive"?rvend:"",itemName:it.name||"",unit:it.unit||"",unitCost:it.cost||"",deleted:false});
       const patch={onHand:Math.max(0,onHand(it)+delta),updatedAt:Date.now()};
       if(onHand(it)+delta<0){patch.needsCount=true;note=(note?note+" — ":"")+"count was "+Math.round(-(onHand(it)+delta)*100)/100+" short"}
       if(type==="count")patch.needsCount=false;
-      if(type==="receive"&&cost)patch.cost=cost;
+      // receiving never changes the item's cost — it records what was paid (receipt history on the movement, last paid on the item)
+      if(type==="receive"&&cost)patch.lastPaid={price:Number(cost)||0,freight:Number(frt)||0,landed:Math.round(((Number(cost)||0)+(Number(frt)||0))*10000)/10000,
+        at:Date.now(),vendorId:rvend||"",vendor:rvend?vendName(rvend):"",qty:delta};
       await push("items/"+iid,patch);
       recordHistory("item",iid,[{f:"Stock",o:String(onHand(it)),
         n:String(onHand(it)+delta)+" ("+(TXT[type]||type)+(jid?", work order "+jid:"")+")"}]);
@@ -2473,12 +2491,36 @@ function priceOfLine(j,it){
     if(ol&&Number(ol.price)>0)return Number(ol.price)||0;}
   return Number(it.price)||0;
 }
-// what a quoted line costs us: the cost sheet first, then the material it's cut from
-function quoteLineCost(line){
+/* ===== material cost is locked on each job =====
+   When a project is quoted (and on every project past that), each quote line keeps a copy of what it cost
+   that day (costLock), with a key of what the line is made of. Margins use the copy, so changing an item's
+   cost later never moves an old job's margin. Edit what a line is made of and its copy is retaken; an open
+   quote has Refresh costs to retake them all. */
+function costKey(l){return [l.code,l.size,l.grade,l.build,l.noLam?1:0,l.sub,l.legend,(l.legends||[]).join("+")].map(x=>String(x==null?"":x)).join("|")}
+function lockedCostOf(l){return l&&l.costLock!==undefined&&l.costLock!==""&&l.costKey===costKey(l)?Number(l.costLock):null}
+function quoteLineCost(line){const k=lockedCostOf(line);
+  if(k!==null)return {cost:k,src:"locked",why:"cost locked "+(line.costAt?fmtDate(isoDay(line.costAt)):"when quoted")+(line.costWhy?" — "+line.costWhy:"")};
+  return quoteLineCostLive(line)}
+const LOCK_STAGES=["quoted","won","production","shipped","invoiced","closed"];
+async function lockLineCosts(pid,force){const p=S.projects.get(pid);if(!p||p.deleted||!Array.isArray(p.orderLines))return 0;let n=0;
+  const out=p.orderLines.map(l=>{if(!l||isCharge(l))return l;if(!force&&lockedCostOf(l)!==null)return l;
+    let r=null;try{r=quoteLineCostLive(l)}catch(e){}if(!r||!(Number(r.cost)>0))return l;
+    n++;return Object.assign({},l,{costLock:Math.round(r.cost*100)/100,costKey:costKey(l),costAt:Date.now(),costWhy:String(r.why||"").slice(0,160)})});
+  if(n){await push("projects/"+pid,{orderLines:out,updatedAt:Date.now()});
+    recordHistory("project",pid,[{f:"Costs",o:"",n:(force?"Costs refreshed":"Costs locked")+" on "+n+" line"+(n===1?"":"s"),ev:1}])}
+  return n}
+// any project quoted or further along with a line whose cost isn't locked gets it locked (once per session per project)
+function lockPass(){S._lockDone=S._lockDone||{};
+  live(S.projects).filter(p=>LOCK_STAGES.indexOf(p.stage)>=0&&(p.orderLines||[]).some(l=>l&&!isCharge(l)&&lockedCostOf(l)===null))
+    .slice(0,5).forEach(p=>{const k=p.id+"|"+(p.updatedAt||0);if(S._lockDone[k])return;S._lockDone[k]=1;lockLineCosts(p.id).catch(()=>{})})}
+// what a quoted line costs us today: the cost sheet first, then the material it's cut from
+function quoteLineCostLive(line){
   if(isCharge(line))return {cost:Number(line.cost)||0,why:Number(line.cost)>0?"what this charge costs you":"nothing out of pocket",src:"charge"};
   const uc=lineUnitCost(line.build==="print"?{method:"print"}:null,{code:line.code,size:line.size,grade:line.grade,sheetKey:line.sheetKey,
     legend:line.legend||"",legends:line.legends||[],build:line.build||""});
-  // the cost sheet wins; anything else is worked out from the material, which knows about laminate
+  // signs: the materials they're made of, at the CRM's item costs (preferred price + freight), when every part has a cost
+  if(lineProd(line)==="sign"&&parseSize(line.size)){const m=signMatCost(line);if(m)return m}
+  // otherwise the cost sheet, then anything else worked out from the material, which knows about laminate
   if(uc&&uc.cost&&uc.src==="sheet"){const off=(line.noLam&&linePrinted(line))?lamCostFor(line):0;
     return {cost:Math.round((uc.cost-off)*100)/100,why:(uc.why||"from the cost sheet")+(off?" less the declined overlaminate $"+off.toFixed(2):""),src:"sheet"}}
   const lp=lineProd(line);
@@ -2514,13 +2556,30 @@ function quoteLineCost(line){
   if(uc&&uc.cost)return {cost:uc.cost,why:uc.why||"worked out from roll prices",src:uc.src||"est"};
   return {cost:0,why:"",src:""};
 }
+// one sign's materials (blank, sheeting or print media, legend film, overlay or laminate) at item cost — null if any part has no cost
+function signMatCost(line,j){
+  const one={qty:"1",code:line.code||"",desc:line.desc||"",size:line.size,grade:line.grade||"",sub:line.sub||"",
+    legend:line.legend||"",legends:line.legends||[],build:line.build||"",noLam:!!line.noLam};
+  const printed=line.build==="print"||(j&&jobIsPrinted(j));
+  let rows=[];try{rows=planFor({prod:"sign",method:printed?"print":"film",blankSrc:"stock",items:[one]},null)}catch(e){return null}
+  if(!rows.length)return null;let tot=0;const parts=[];
+  for(const r of rows){const it2=r.itemId?S.items.get(r.itemId):null;if(!it2||!(Number(it2.cost)>0))return null;
+    const per2=rollSqft(it2)||itemSqft(it2),sqX=r.sqRaw||r.sq;
+    const c=(sqX&&per2&&/roll|sheet/i.test(it2.unit||""))?sqX/per2*Number(it2.cost):(Number(r.qty)||0)*Number(it2.cost);
+    tot+=c;parts.push(it2.name.split("—")[0].replace(/^3M\s+/,"").trim()+" $"+c.toFixed(2))}
+  if(!(tot>0))return null;
+  return {cost:Math.round(tot*100)/100,src:"material",why:"Item costs (preferred vendor + freight): "+parts.join(" + ")+" (includes "+WASTE_DEFAULT+"% waste on film)"}}
+// cut film for a decal: the CRM item's cost per sq ft when the item has one, else the workbook's tab 11 rate
+function filmRateFor(grade,fallback){const it=matchItem(grade);const per=it?itemSqft(it):0;
+  return it&&per&&Number(it.cost)>0?{rate:Number(it.cost)/per,what:it.name.split("—")[0].trim()}:{rate:Number(fallback)||0,what:"7125 (tab 11 rate)"}}
 function lineSell(j,it){return (Number(it.qty)||0)*priceOfLine(j,it)}
 function jobRevenue(j){return woItems(j).reduce((t,it)=>t+lineSell(j,it),0)}
 function jobMatCost(j){
   if(!j)return 0;
   return txOfJob(j.num).filter(t=>t.type==="use").reduce((t,x)=>{
+    // the cost recorded on the pull (that day's cost) — never today's cost, so old jobs keep their margin
     const it=S.items.get(x.itemId);
-    const c=it&&!it.deleted?it.cost:x.unitCost;
+    const c=(x.unitCost!==undefined&&x.unitCost!==""&&Number(x.unitCost)>0)?x.unitCost:(it&&!it.deleted?it.cost:0);
     return t+Math.abs(Number(x.qty)||0)*(Number(c)||0)},0);
 }
 function jobOther(j){return Number((j&&j.otherCost)||0)||0}
@@ -4712,7 +4771,8 @@ function reconCard(p){
       <span class="sub">${(p.stage==="inquiry"||p.stage==="quoted")
         ?"One line per item. The quote PDF and, once it's won, the work orders come off these lines."
         :"The master list of what they ordered. Each line shows the work order it's on."}</span>
-      <span class="sp"><button class="btn sm" data-chadd="${esc(p.id)}" title="Design time, setup, installation, freight">Add a charge</button>
+      <span class="sp">${p.stage==="quoted"&&can("cost")&&(p.orderLines||[]).some(l=>lockedCostOf(l)!==null)?`<button class="btn sm" data-costrefresh="${esc(p.id)}" title="Retake every line's cost at today's material costs — only while the quote is open">Refresh costs</button>`:""}
+        <button class="btn sm" data-chadd="${esc(p.id)}" title="Design time, setup, installation, freight">Add a charge</button>
         ${ord.filter(l=>!isCharge(l)&&!(Number(l.price)>0)&&fillPriceFor(p,l)).length?`<button class="btn sm" data-fillprices="${esc(p.id)}" title="Puts the default price on every line that has none — you can change any of them after">Fill in ${ord.filter(l=>!isCharge(l)&&!(Number(l.price)>0)&&fillPriceFor(p,l)).length} missing price${ord.filter(l=>!isCharge(l)&&!(Number(l.price)>0)&&fillPriceFor(p,l)).length===1?"":"s"}</button>`:""}
         ${(function(){const hasDecal=ord.some(l=>!isCharge(l)&&isDecalLine(l));const hasSetup=ord.some(l=>isCharge(l)&&(l.charge==="setup"||/setup/i.test(l.desc||"")));
           const c=decalCfg();return hasDecal&&!hasSetup&&Number(c.runSetup)>0?`<button class="btn sm" data-decalsetup="${esc(p.id)}" title="One setup fee for the decal run">Add decal setup ${money2(c.runSetup)}</button>`:""})()}
@@ -5076,7 +5136,7 @@ function costAudit(){
       if(!(Number(l.price)>0))out.unpriced.push(nm);
       const uc=quoteLineCost(l);
       if(!uc.cost)out.noCost.push(nm+(l.grade?" ("+l.grade+")":""));
-      else if(uc.src!=="sheet")out.estimated.push(nm);
+      else if(["sheet","material","locked"].indexOf(uc.src)<0)out.estimated.push(nm);
     });
     jobsOf(p.id).forEach(j=>{
       woItems(j).forEach(it=>{
@@ -5165,6 +5225,7 @@ function autoPass(){
   // Settings → Automations → Catch up — so nothing moves by surprise the first time.
   // never before your settings have loaded — writing then would overwrite them with the defaults
   if(!S.brandLoaded)return;
+  try{if(can("cost"))lockPass()}catch(e){}
   if(!b.autoSince){if(!S._autoSinceSet){S._autoSinceSet=1;const at=Date.now();
     push("settings/brand",{autoSince:at}).then(()=>{S.brand=Object.assign({},S.brand||{},{autoSince:at})})
       .catch(()=>{const b2=Object.assign({},S.brand||{},{autoSince:at});setDoc("settings/brand",b2).then(()=>{S.brand=b2}).catch(()=>{})})}return}
@@ -6621,6 +6682,7 @@ function sheetChoices(line){
 function lineUnitCost(j,line){
   const pd=prodOf(j);
   if(pd==="sign"){
+    const m=parseSize(line.size)?signMatCost(line,j):null;if(m)return m;
     const r=sheetFind(line,true);
     if(r)return {cost:r.cost,src:"sheet",row:r,why:"Tab 04 — "+(r.typical?"typical "+sizeLabel(r.size)+" "+String(r.base).split(" ")[0]+" sign":r.name)+(r.estimate?" (ON ESTIMATE in the sheet)":"")};
     const est=lineMatCostEst(j,line);
@@ -6631,8 +6693,9 @@ function lineUnitCost(j,line){
     if(v&&d){
       const sq=d.w*d.h/144;
       const pr0=line.build==="print"||(line.build!=="film"&&j&&jobIsPrinted(j));
-      const c=sq*(Number(v.filmSqft)*Number(v.waste)+(pr0?0:Number(v.tapeSqft)*Number(v.tapeOverlap)))+Number(v.packPiece);
-      return {cost:c,src:"sheet",why:"Tab 11 — "+sq.toFixed(2)+" sq ft × (7125 at $"+Number(v.filmSqft).toFixed(4)
+      const fr=filmRateFor(line.grade,v.filmSqft);
+      const c=sq*(fr.rate*Number(v.waste)+(pr0?0:Number(v.tapeSqft)*Number(v.tapeOverlap)))+Number(v.packPiece);
+      return {cost:c,src:"sheet",why:"Tab 11 — "+sq.toFixed(2)+" sq ft × ("+fr.what+" at $"+fr.rate.toFixed(4)
         +" × "+v.waste+" waste + tape) + $"+Number(v.packPiece).toFixed(2)+" packaging"};
     }
   }
@@ -6646,7 +6709,9 @@ function lineUnitCost(j,line){
   return {cost:est,src:est?"estimate":"none",why:est?"Worked out from roll and sheet prices":"Nothing to cost this against"};
 }
 function jobSheetCost(j){
-  return woItems(j).reduce((t,it)=>t+(Number(it.qty)||0)*lineUnitCost(j,it).cost,0);
+  // a work order line uses the cost locked on its quote line when there is one
+  return woItems(j).reduce((t,it)=>{const ol=projLineFor(j,it);const k=ol?lockedCostOf(ol):null;
+    return t+(Number(it.qty)||0)*(k!==null?k:lineUnitCost(j,it).cost)},0);
 }
 function jobCostBasis(j){
   const lines=woItems(j).filter(x=>Number(x.qty)>0);
@@ -6698,9 +6763,9 @@ function tab11Cost(line){
   const sq=d.w*d.h/144,q=Math.max(1,Number(line.qty||line.ordered)||1);
   const printed=line.build==="print"||/40C|IJ35|PRINT/i.test(line.grade||"");
   const it=matchItem(line.grade);
-  // 7125 uses the workbook's film rate; any other media its own roll price
+  // film at the CRM item's cost (preferred price + freight) when it has one — 7125 included; the tab 11 rate only fills a gap
   let film=N("filmSqft"),filmWhat="7125 at $"+N("filmSqft").toFixed(4)+"/sq ft (tab 11)";
-  if(it&&!/7125/.test(it.name||"")){const per=itemSqft(it);if(per&&Number(it.cost)){film=Number(it.cost)/per;filmWhat=it.name.split("—")[0].trim()+" at $"+film.toFixed(4)+"/sq ft"}}
+  if(it){const per=itemSqft(it);if(per&&Number(it.cost)){film=Number(it.cost)/per;filmWhat=it.name.split("—")[0].trim()+" at $"+film.toFixed(4)+"/sq ft"}}
   // transfer tape only goes on cut vinyl — a printed decal is laminated and contour cut instead
   let matSq=film*N("waste")+(printed?0:N("tapeSqft")*N("tapeOverlap"));
   let lamTxt="";
@@ -9300,7 +9365,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-56";
+const APP_VERSION="2026.11.25-57";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -10263,7 +10328,7 @@ function fileList(){
         <div class="sub">${bytes(f.size)}</div></td>
         <td><span class="pill">${esc(f.cat||"Other")}</span></td><td>${fileOwner(f)}
           ${f.jobId&&f.projectId?`<div class="sub">${esc(projName(f.projectId))}</div>`:""}</td>
-        <td class="sub">${esc(accName(f.accountId))}</td>
+        <td class="sub">${f.accountId?esc(accName(f.accountId)):f.vendorId?esc(vendName(f.vendorId))+" (vendor)":"—"}</td>
         <td class="sub">${esc(f.when||"")} · ${esc(f.who||"")}</td>
         <td style="text-align:right;white-space:nowrap">
           <button class="btn sm" data-view="${esc(f.id)}">Open</button>
@@ -10275,6 +10340,8 @@ function fileOwner(f){
   if(f.jobId)return `<button class="lnk mono" data-go="job/${esc(f.jobId)}">Work order ${esc(f.jobId)}</button>`;
   if(f.projectId){const p=S.projects.get(f.projectId);return `<button class="lnk" data-go="project/${esc(f.projectId)}">${esc(p?p.name:"Project")}</button>`}
   if(f.accountId)return `<button class="lnk" data-go="account/${esc(f.accountId)}">${esc(accName(f.accountId))}</button>`;
+  if(f.vendorId)return `<button class="lnk" data-go="vendor/${esc(f.vendorId)}">Vendor · ${esc(vendName(f.vendorId))}</button>`;
+  if(f.itemId){const it=S.items.get(f.itemId);return `<button class="lnk" data-go="item/${esc(f.itemId)}">Item · ${esc(it?it.name:"item")}</button>`}
   return "—";
 }
 
@@ -10590,6 +10657,10 @@ function itemRec(id){
         ${i.vendorId?"Vendor: "+esc(vendName(i.vendorId))+".":"No vendor set on this item."}</span>
       <span class="sp"><button class="btn sm" data-tx="${esc(id)}:receive">Receive stock</button>
         ${i.vendorId?`<button class="btn sm" data-go="vendor/${esc(i.vendorId)}">Open vendor</button>`:""}</span></div>`:""}
+    ${(function(){const lp=i.lastPaid,c=Number(i.cost)||0;if(!lp||!Number(lp.landed)||!c)return "";
+      const d=(Number(lp.landed)-c)/c*100;if(Math.abs(d)<=2)return "";
+      return `<div class="alert amber" style="margin-bottom:16px"><span><b>Last paid ${money2(Number(lp.landed))}</b>${lp.vendor?" from "+esc(lp.vendor):""} on ${esc(fmtDate(isoDay(lp.at)))} — ${Math.abs(d).toFixed(1)}% ${d>0?"more":"less"} than the cost quotes use (${money2(c)}, the preferred vendor's price + freight). Update the preferred vendor's price if it has changed.</span>
+        <span class="sp"><button class="btn sm" data-ivedit="${esc(i.id)}:${esc(i.vendorId||"")}">Update the price</button></span></div>`})()}
     <div class="hl"><div class="hl-top"><span class="oi lg oi-job">${ic("job",18)}</span>
       <div class="tt"><div class="kicker">Inventory item</div><h1>${esc(i.name)}</h1>
         <div class="sub mono">${esc(i.sku||"")}${i.vendorId?" · ":""}${i.vendorId?`<button class="lnk" data-go="vendor/${esc(i.vendorId)}">${esc(vendName(i.vendorId))}</button>`:""}</div></div>
@@ -10604,7 +10675,8 @@ function itemRec(id){
         ${onOrder(i)?`<div><div class="k">On order</div><div class="v">${esc(onOrderTxt(i))}</div></div>`:""}
         <div><div class="k">Reorder at</div><div class="v mono">${i.reorderPoint!==""&&i.reorderPoint!=null?esc(String(i.reorderPoint)):"—"}</div></div>
         <div><div class="k">Quantity</div><div class="v mono">${esc(String(i.reorderQty||"—"))}</div></div>
-        <div><div class="k">Unit cost</div><div class="v mono">${i.cost?money(i.cost):"—"}</div></div>
+        <div><div class="k">Unit cost</div><div class="v mono">${i.cost?money2(Number(i.cost)):"—"}</div></div>
+        ${i.lastPaid&&Number(i.lastPaid.landed)?`<div><div class="k">Last paid</div><div class="v mono">${money2(Number(i.lastPaid.landed))}<div class="sub">${esc(fmtDate(isoDay(i.lastPaid.at)))}${i.lastPaid.vendor?" · "+esc(i.lastPaid.vendor):""}</div></div></div>`:""}
         <div><div class="k">Value</div><div class="v mono">${money(onHand(i)*(Number(i.cost)||0))}</div></div>
         <div><div class="k">Used, 30 days</div><div class="v mono">${used30||"—"}</div></div>
         <div><div class="k">Location</div><div class="v">${esc(i.bin||"—")}</div></div>
@@ -10618,7 +10690,7 @@ function itemRec(id){
         <div class="fgrid">${fld("SKU",i.sku)}${fld("Category",i.cat)}
           ${fld("Unit",i.unit)}${fld("Location",i.bin)}
           ${fld("Ships as",(SHIPCLASS.find(x=>x.id===(i.shipClass||"parcel"))||{}).label)}<div class="fld"></div>
-          ${fld("Preferred vendor",i.vendorId?vendName(i.vendorId)+(itemVendors(i).length>1?" (+"+(itemVendors(i).length-1)+" more)":""):"")}${fld("Unit cost",i.cost?money(i.cost):"")}
+          ${fld("Preferred vendor",i.vendorId?vendName(i.vendorId)+(itemVendors(i).length>1?" (+"+(itemVendors(i).length-1)+" more)":""):"")}${fld("Unit cost — used on quotes",i.cost?money2(Number(i.cost))+(i.vendorId&&Number(i.vendorFreight)>0?" ("+money2(Number(i.vendorPrice||0))+" + "+money2(Number(i.vendorFreight))+" freight)":""):"")}
           ${fldFull("Notes",i.notes)}</div></section>
       ${historyCard("item",id)}
     </div>
@@ -12493,6 +12565,7 @@ async function setStage(id,stage,why){
   await push("projects/"+id,Object.assign({stage,stageLog:sl,updatedAt:Date.now()},unBill?{billStatus:(Number(p.depositAmt)>0&&p.billWhen==="deposit")?"deposit":"none",billDate:""}:{}));
   recordHistory("project",id,[{f:"Stage",o:(SG[p.stage]||{}).label||p.stage,
     n:((SG[stage]||{}).label||stage)+(why?" ("+why+")":"")}]);
+  if(LOCK_STAGES.indexOf(stage)>=0){try{const cur0=S.projects.get(id);if(cur0)cur0.stage=stage;await lockLineCosts(id)}catch(e){}}
   // follow-ups start when it's quoted and stop the moment it's won, lost or further along
   try{const cur=S.projects.get(id);if(cur)cur.stage=stage;
     if(stage==="quoted")await followPlan(id,(p.quoteDate||today()));
@@ -13508,9 +13581,11 @@ async function pipeImportRows(rows){
             await push("items/"+it.id,{onOrder:nw,orders:ords,updatedAt:now});it.onOrder=nw;it.orders=ords;
             recordHistory("item",it.id,[{f:"On order",o:String(was),n:String(nw)+" (received against "+(m.ref||m.vendor||"the order")+")"}])}}
         await setDoc("invtx/"+txid,{id:txid,itemId:it.id,type:"receive",qty,at,who:"AI",
-          note:["Received",o.vendor?"from "+o.vendor:"",o.ref?"— "+o.ref:""].filter(Boolean).join(" "),jobId:"",cost,
+          note:["Received",o.vendor?"from "+o.vendor:"",o.ref?"— "+o.ref:""].filter(Boolean).join(" "),jobId:"",cost,freight:fr!==""&&qty>0?String(Math.round(fr/qty*10000)/10000):"",vendor:String(o.vendor||""),
           itemName:it.name||"",unit:it.unit||"",unitCost:it.cost||"",deleted:false,feedId:id});
-        const patch={onHand:onHand(it)+qty,updatedAt:now};if(cost)patch.cost=cost;if(o.vendor&&!it.vendor)patch.vendor=String(o.vendor);
+        const patch={onHand:onHand(it)+qty,updatedAt:now};if(o.vendor&&!it.vendor)patch.vendor=String(o.vendor);
+        // what was paid is recorded; the item's cost (preferred price + freight) is left alone
+        if(cost)patch.lastPaid={price:uc===""?0:Number(uc),freight:fr!==""&&qty>0?Math.round(fr/qty*10000)/10000:0,landed:Number(cost),at,vendorId:"",vendor:String(o.vendor||""),qty,ref};
         await push("items/"+it.id,patch);
         recordHistory("item",it.id,[{f:"Stock",o:String(onHand(it)),n:String(onHand(it)+qty)+" (received — agents' feed"+(o.ref?", "+o.ref:"")+")"}])}
       out.inventory++;done[id]=1;mark(id);continue}
@@ -15035,6 +15110,7 @@ function bind(){
     const nv=t.closest("[data-newvend]");if(nv){vendorModal(null);return}
     const evd=t.closest("[data-editvend]");if(evd){vendorModal(S.vendors.get(evd.dataset.editvend));return}
     {const x=t.closest("[data-vpadd]");if(x){vendPersonModal(x.dataset.vpadd,"");return}}
+    {const x=t.closest("[data-costrefresh]");if(x){const pid=x.dataset.costrefresh;lockLineCosts(pid,true).then(n=>toast(n?"Costs refreshed on "+n+" line"+(n===1?"":"s"):"Costs are already current"));return}}
     {const x=t.closest("[data-vpview]");if(x){const[a,b]=x.dataset.vpview.split("|");vendPersonView(a,b);return}}
     {const x=t.closest("[data-vpedit]");if(x){const[a,b]=x.dataset.vpedit.split("|");vendPersonModal(a,b);return}}
     {const x=t.closest("[data-vpdel]");if(x){const[a,b]=x.dataset.vpdel.split("|");vendPersonDel(a,b);return}}
