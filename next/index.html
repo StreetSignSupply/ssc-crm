@@ -197,7 +197,7 @@ a{color:var(--blue);text-underline-offset:2px}
 .crumbs .back:hover{border-color:var(--ink3)}
 .crumbs a,.crumbs button.c{background:none;border:0;padding:2px 0;color:var(--ink2);
   font-size:12.5px;font-weight:600;text-decoration:none;text-align:left;white-space:normal}
-.crumbs button.c:hover{color:var(--brand-ink);text-decoration:underline;text-underline-offset:3px}
+.crumbs button.c:hover{color:var(--act);text-decoration:underline;text-underline-offset:3px}
 .crumbs .sep{color:var(--ink3);font-size:12px;flex:0 0 auto}
 .crumbs .here{color:var(--ink);font-weight:700;font-size:12.5px}
 @media (max-width:640px){.crumbs a,.crumbs button.c{max-width:120px}.crumbs .here{max-width:150px}}
@@ -222,7 +222,7 @@ a{color:var(--blue);text-underline-offset:2px}
 .oi.sm .ic{width:14px;height:14px}
 .oi.lg{width:44px;height:44px;border-radius:11px;font-size:18px}
 .oi.lg .ic{width:22px;height:22px;stroke-width:1.9}
-.oi-acct{--t1:#C8201E;--t2:#B1221F}
+.oi-acct{--t1:#2E5C99;--t2:#244C82}
 .oi-cont{--t1:#2C68AE;--t2:#2A5F9E}
 .oi-proj{--t1:#4B525B;--t2:#3B4149}
 .oi-job{--t1:#A85F10;--t2:#9A5A12}
@@ -284,11 +284,11 @@ tbody tr:hover td{background:var(--card2)}
 td.mono,th.mono{font-variant-numeric:tabular-nums}
 .lnk{background:none;border:0;padding:0;color:var(--ink);font-weight:700;text-align:left;font-size:13.5px;
   line-height:1.3;text-decoration:none;cursor:pointer}
-.lnk:hover,.lnk:focus-visible{color:var(--brand-ink);text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1.5px}
+.lnk:hover,.lnk:focus-visible{color:var(--act);text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1.5px}
 /* list rows: the whole row opens the record */
 tbody tr.rowgo{cursor:pointer;transition:background .12s}
 tbody tr.rowgo:hover td{background:var(--card2)}
-tbody tr.rowgo:hover .lnk{color:var(--brand-ink)}
+tbody tr.rowgo:hover .lnk{color:var(--act)}
 /* reference lines under a name read as text, not code */
 .sub.mono{font-family:inherit;letter-spacing:0;font-variant-numeric:tabular-nums}
 .empty{padding:28px 18px;text-align:center;color:var(--ink2);background:var(--card2);min-height:96px}
@@ -392,7 +392,7 @@ td .btn,th .btn{white-space:nowrap;word-break:normal;overflow-wrap:normal}
 .hl-top{display:flex;gap:14px;align-items:flex-start;padding:18px 20px 16px;flex-wrap:wrap;
   background:var(--plate);color:#fff;position:relative}
 .hl-top .tt{min-width:200px;flex:1}
-.hl-top .kicker{font-size:12.5px;font-weight:700;color:#FF8A8A;letter-spacing:.12em;text-transform:uppercase;line-height:1.2}
+.hl-top .kicker{font-size:12.5px;font-weight:700;color:#B9C9E6;letter-spacing:.12em;text-transform:uppercase;line-height:1.2}
 .hl-top h1{margin:4px 0 0;font-size:28px;font-weight:800;letter-spacing:-.01em;line-height:1.1;
   overflow-wrap:anywhere;color:#fff;text-transform:uppercase}
 @media (max-width:700px){.hl-top h1{font-size:22px}.hl-top .kicker{font-size:12px}}
@@ -433,7 +433,7 @@ td .btn,th .btn{white-space:nowrap;word-break:normal;overflow-wrap:normal}
 .step.done b{color:var(--ink)}
 .step.cur{border-top-color:var(--act)}
 .step.cur b{color:var(--ink)}
-.step.cur small{color:var(--brand-ink);font-weight:600}
+.step.cur small{color:var(--act);font-weight:600}
 .step.lost{border-top-color:var(--red)}
 .step.lost b{color:var(--danger-ink)}
 .path > details{flex:0 0 auto;margin-left:auto;align-self:center}
@@ -448,7 +448,7 @@ td .btn,th .btn{white-space:nowrap;word-break:normal;overflow-wrap:normal}
 .path>button .ck{color:var(--green,#1f8a4c);font-weight:800}
 .path>button.done small{color:var(--ink2)}
 .path>button.cur{border-top-color:var(--act);color:var(--ink)}
-.path>button.cur small{color:var(--brand-ink);font-weight:700}
+.path>button.cur small{color:var(--act);font-weight:700}
 .path>button:focus-visible{outline:2px solid var(--act);outline-offset:3px}
 
 .card > header .cz{width:26px;height:26px;padding:0;margin:0 2px 0 -4px;border-radius:50%;cursor:pointer;
@@ -483,7 +483,7 @@ td.mono[style*="text-align:right"],th[style*="text-align:right"]{white-space:now
 .addropt.on,.addropt:hover{background:var(--card2)}
 .addrfoot{font-size:12px;color:var(--ink3);text-align:right;padding:4px 10px}
 .stepno{width:22px;height:22px;border-radius:50%;flex:0 0 auto;display:inline-flex;align-items:center;
-  justify-content:center;font-size:12px;font-weight:800;color:#fff;margin-right:2px;background:var(--brand);
+  justify-content:center;font-size:12px;font-weight:800;color:#fff;margin-right:2px;background:var(--act);
   font-family:Overpass,Arial,sans-serif;font-variant-numeric:tabular-nums}
 /* the Activity card's log row: one plain row of outline buttons */
 .actbar{border-bottom:1px solid var(--line2);background:none;padding:10px 16px}
@@ -674,7 +674,7 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
   .trk-ph-stage .bar i.done{background:var(--ink3)}
   .trk-ph-stage .bar i.cur{background:var(--act)}
   .trk-ph-stage .lbl{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;font-size:13px}
-  .trk-ph-stage .lbl b{font-size:14px;color:var(--brand-ink);text-transform:uppercase;letter-spacing:.04em}
+  .trk-ph-stage .lbl b{font-size:14px;color:var(--act);text-transform:uppercase;letter-spacing:.04em}
   .trk-ph-stage .lbl span{color:var(--ink2);font-size:12px}
   .trk-ph-facts{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line2);
     border:1px solid var(--line2);border-radius:4px;overflow:hidden;margin-bottom:10px}
@@ -761,7 +761,7 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
 .day.off .dnum{color:var(--ink3)}
 .cal .day.today{box-shadow:inset 0 0 0 2px var(--act)}
 .dnum{font-size:12px;font-weight:800;color:var(--ink2);font-family:"Overpass Mono",monospace}
-.cal .day.today .dnum{color:var(--brand-ink)}
+.cal .day.today .dnum{color:var(--act)}
 .ev{display:block;width:100%;text-align:left;border:0;border-radius:2px;padding:5px 7px;font-size:12px;
   font-weight:700;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   background:var(--card2);color:var(--ink);border-left:3px solid var(--slate);cursor:pointer;min-height:24px}
@@ -1098,7 +1098,7 @@ th .sortb.on{color:var(--ink2);border-bottom-color:var(--act)}
 .dhead{display:flex;align-items:center;gap:6px;min-height:24px}
 .dnum{font-family:inherit;font-size:13px;font-weight:700;min-width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%}
 .cal .day.istoday .dnum{background:var(--act);color:#fff}
-.dtoday{font-size:12px;font-weight:700;color:var(--brand-ink)}
+.dtoday{font-size:12px;font-weight:700;color:var(--act)}
 .ev{display:flex!important;flex-direction:column;align-items:stretch;gap:1px;-webkit-line-clamp:unset;white-space:normal!important;
   border-radius:5px;padding:4px 7px 5px;min-height:0;font-size:12px;font-weight:600;line-height:1.3;border-left-width:3px;overflow:visible}
 .ev .evk{font-size:12px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:var(--ink2);line-height:1.2}
@@ -1148,7 +1148,7 @@ th{font-size:12px}
 .rail-ext{flex:0 0 auto!important;font-size:12px;color:var(--ink3);margin-left:auto}
 .app.rail-min .rail-ext{display:none}
 /* ===== 29 Oct visual review: readable sizes, visible fields, numbers that never wrap ===== */
-:root{--ink2:#55524C;--ink3:#66625B;--border-input:#8C877E;--focus:#1D4E8F;--orange-text:#8F4405;--act:#1F5FAD;--act2:#174A88}
+:root{--ink2:#4A4741;--ink3:#5A564F;--border-input:#8C877E;--focus:#1D4E8F;--orange-text:#8F4405;--act:#1F5FAD;--act2:#174A88}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink2:#B3AFA7;--ink3:#9A968E;--border-input:#6A665F;--focus:#7FB0E6;--orange-text:#F0A35E;--act:#2F6FC4;--act2:#3D7FD6}}
 :root[data-theme="dark"]{--ink2:#B3AFA7;--ink3:#9A968E;--border-input:#6A665F;--focus:#7FB0E6;--orange-text:#F0A35E;--act:#2F6FC4;--act2:#3D7FD6}
 /* red is kept for danger and alerts; everyday "do this next" buttons and the current place you're at are blue */
@@ -1173,6 +1173,25 @@ th,.k,.fld .k,.hl-facts .k{font-size:12px}
 /* column names stay in view on long lists (tables that aren't inside their own side-scroller) */
 table.stickyhead > thead > tr > th{position:sticky;top:0;z-index:3;box-shadow:inset 0 -1px 0 var(--line)}
 @media (min-width:701px){.card:has(> table.stickyhead){overflow:clip}}
+/* quote "Add a line" form */
+.ofind{position:relative}
+.ofind-res{display:flex;flex-direction:column;margin-top:4px;border-radius:var(--r);overflow:hidden}
+.ofind-res:not(:empty){border:1px solid var(--line)}
+.ofr{display:flex;gap:10px;align-items:center;text-align:left;border:0;border-bottom:1px solid var(--line2);background:var(--card);padding:8px 10px;cursor:pointer;color:var(--ink);font:inherit;min-height:44px}
+.ofr:last-child{border-bottom:0}.ofr:hover,.ofr:focus-visible{background:var(--card2)}
+.ofr img{width:32px;height:32px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:3px;flex:0 0 auto}
+.ofr-t{display:flex;flex-direction:column;flex:1;min-width:0}.ofr-t b{overflow:hidden;text-overflow:ellipsis}
+.ofr-p{font-weight:700;white-space:nowrap}
+.ocost{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 10px;background:var(--card2);border-radius:var(--r)}
+.ocost-t{flex:1 1 auto}
+.odet-sum{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+details.omore>summary{cursor:pointer;font-weight:700;padding:6px 0;color:var(--act)}
+@media (max-width:700px){
+  .olform .fgrid{grid-template-columns:1fr!important}
+  .olform .fld{grid-column:1/-1}
+  .olform input,.olform select,.olform textarea{font-size:16px!important;width:100%}
+  .mbox>.foot{position:sticky;bottom:0;background:var(--card);z-index:2}
+}
 /* -69 visual recheck */
 .rail-sub{height:30px;margin-left:26px;font-size:13px}.rail-sub svg{width:15px;height:15px}
 .app.rail-min .rail-sub{margin-left:12px}
@@ -1661,8 +1680,13 @@ function recordHistory(type,id,entries){
   const list=histBase(key).concat(add).slice(-400);
   HLOCAL.set(key,list);
   const prev=WQ.get(path)||Promise.resolve();
+  // history is add-only in the database: if someone else added to this record meanwhile, the write is refused,
+  // so read the latest list, put ours on the end and try again
   const next=prev.catch(()=>{}).then(()=>setDoc(path,
-    {recType:type,recId:String(id),entries:HLOCAL.get(key)||list,updatedAt:Date.now()})).catch(()=>{});
+    {recType:type,recId:String(id),entries:HLOCAL.get(key)||list,updatedAt:Date.now()})).catch(async()=>{
+      try{const d=await db.doc(path).get();const ok=d&&(typeof d.exists==="function"?d.exists():d.exists);
+        const cur=ok?((d.data()||{}).entries||[]):[];const l2=cur.concat(add).slice(-400);HLOCAL.set(key,l2);
+        await setDoc(path,{recType:type,recId:String(id),entries:l2,updatedAt:Date.now()})}catch(e){}});
   WQ.set(path,next);
   return next;
 }
@@ -4927,6 +4951,8 @@ function reconCard(p){
         ${ord.filter(l=>!isCharge(l)).length>1?`<button class="btn sm" data-allgrade="${esc(p.id)}" title="Put the same sheeting or material on every line">Change grade on every line</button>`:""}
         <button class="btn sm p" data-ordadd="${esc(p.id)}">Add a line</button>
         ${!ord.length&&rows.length?`<button class="btn sm" data-ordfill="${esc(p.id)}">Make these the quote lines</button>`:""}</span></header>
+    ${(function(){if(!can("cost"))return "";const neg=rows.filter(r=>{if(r.charge)return false;const pr=Number(r.price)||0,c=quoteLineCost(r).cost;return pr>0&&c>0&&pr<c});
+      return neg.length?`<div class="warn" style="margin:10px 14px">⚠ ${neg.length} line${neg.length===1?" sells":"s sell"} for less than ${neg.length===1?"it costs":"they cost"} us: ${neg.map(r=>esc(r.desc||r.code||"line")+" ("+money2(r.price)+" vs "+money2(quoteLineCost(r).cost)+" cost)").join(", ")}. Check the price or the cost before this goes out.</div>`:""})()}
     ${rows.length?`<table><thead><tr><th>Item</th><th>Size</th><th>Grade</th><th style="text-align:right">Qty</th>
       <th style="text-align:right">Costs us</th><th style="text-align:right">Price ea</th><th style="text-align:right">Line</th><th style="text-align:right">Margin</th>
       <th>On work order</th><th style="width:110px"></th></tr></thead><tbody>
@@ -4949,6 +4975,7 @@ function reconCard(p){
             <td class="mono" style="text-align:right">${pr?(Math.round(pr)===pr?money(pr):money2(pr)):`<span class="sub">—</span>`}</td>
             <td class="mono" style="text-align:right;font-weight:800">${pr?money(pr*qn):""}</td>
             <td style="text-align:right">${mg==null?`<span class="sub">—</span>`
+              :mg<0?`<span class="pill r" title="This line sells for less than it costs us (${esc(money2(uc.cost))} each)">⚠ ${Math.round(mg)}%</span><div class="sub" style="color:var(--danger-ink);white-space:nowrap">below cost</div>`
               :`<span class="pill ${mg>=35?"g":mg>=20?"o":"r"}">${Math.round(mg)}%</span>`}</td>`})()}
         <td>${status}</td>
         <td style="text-align:right;white-space:nowrap">${r.extra?"":`${(function(){
@@ -6265,89 +6292,172 @@ async function chargeSave(pid,ixRaw){
   recordHistory("project",pid,[{f:"Quote lines",o:"",n:(ixRaw==="new"?"Added":"Changed")+" charge — "+rec.desc,ev:1}]);
   toast("Saved");
 }
+/* ===== the quote "Add a line" form =====
+   Five things up front: find the item, quantity, what to call it, price each, and one line saying what it costs
+   and the margin with a single suggested price. The code, size and material sit behind "Change details";
+   everything rarer (how it's made, legend colours, overlaminate, the account's own price, note, picture) under "More options". */
+// one entry per code — "R1-1", "r1-1 " and "R1-1 30x30" are the same code; the sizes are sizes
+function codeNorm(c){return String(c||"").toUpperCase().replace(/\s+/g,"").replace(/[-_ ]?\d+(\.\d+)?X\d+(\.\d+)?$/,"")}
+function codeList(){const m=new Map();
+  allCodes().forEach(e=>{const k=codeNorm(e.code);if(!m.has(k))m.set(k,{code:e.code,name:e.name,sizes:new Set(e.sizes)});else e.sizes.forEach(z=>m.get(k).sizes.add(z))});
+  sheetRows().forEach(r=>{const raw=r.code||r.mutcd;if(!raw)return;const k=codeNorm(raw);if(!k)return;
+    if(!m.has(k))m.set(k,{code:String(raw).trim().replace(/[-_ ]?\d+(\.\d+)?[xX]\d+(\.\d+)?$/,""),name:String(r.title||r.name||"").replace(/^\d+x\d+\s*/,"").replace(/\s+—\s+\w+$/,""),sizes:new Set()});
+    if(r.size)m.get(k).sizes.add(r.size)});
+  return [...m.values()].map(x=>Object.assign(x,{sizes:[...x.sizes]})).sort((a,b)=>a.code.localeCompare(b.code,undefined,{numeric:true}))}
+function codeKnown(c){const k=codeNorm(c);if(!k)return true;if(codeList().some(x=>codeNorm(x.code)===k))return true;
+  if(S.stc&&stcList().some(st=>String(st.sku).toUpperCase()===k))return true;
+  return ["DECAL","STENCIL","BANNER"].indexOf(k)>=0}
+// what goes on a quote line as the face: sign sheeting, vinyl, films, banner and magnet stock — not inks, heads, tape or stencil sheet
+function quoteMaterials(){const v=new Map();
+  sheetingList().forEach(x=>v.set(x.name.toLowerCase(),{v:x.name,l:x.long}));
+  itemList().filter(i=>i&&!i.deleted&&/sheeting|vinyl|film|banner|magnet/i.test((i.cat||"")+" "+(i.name||""))
+    &&!/\bink\b|printhead|print head|application tape|transfer tape|premask|hdpe|ldpe|blank|laminate|cleaner/i.test((i.cat||"")+" "+(i.name||"")))
+    .forEach(i=>{if(!v.has(String(i.name).toLowerCase()))v.set(String(i.name).toLowerCase(),{v:i.name,l:i.name})});
+  return [...v.values()].sort((a,b)=>a.v.localeCompare(b.v,undefined,{numeric:true}))}
+function ordSizeOpts(code){const seen=new Set(),out=[];sizeGroups(code).forEach(g=>g.opts.forEach(o=>{const k=normSize(o.v)||o.v;if(seen.has(k))return;seen.add(k);out.push(o)}));return out}
+// the "Find an item" results: codes, your workbook signs, the website, stencils, inventory — eight at a time
+function ordFindRows(q){const t=String(q||"").trim();if(!t)return [];
+  const out=[];const cq=codeNorm(t);
+  codeList().filter(e=>codeNorm(e.code).indexOf(cq)===0||(t.length>2&&String(e.name).toLowerCase().indexOf(t.toLowerCase())>=0)).slice(0,4)
+    .forEach(e=>out.push({key:"code:"+e.code,title:e.code+" — "+e.name,sub:e.sizes.length?"sizes "+e.sizes.slice(0,4).map(sizeLabel).join(", "):"MUTCD code",sell:null}));
+  catRows(t,"").slice(0,12).forEach(r=>out.push({key:r.key,title:r.title,sub:[r.size?sizeLabel(r.size):"",r.kind==="sign"||r.kind==="stc"||r.kind==="web"?r.grade:"",
+    r.kind==="web"?"website":r.kind==="stc"?"stencil":r.kind==="sign"?"workbook":r.byArea?"priced by size":""].filter(Boolean).join(" · "),sell:r.sell,img:r.img||""}));
+  const seen=new Set();return out.filter(x=>{if(seen.has(x.key))return false;seen.add(x.key);return true}).slice(0,8)}
+// what picking a catalog row puts on the line (the same as the price list browser)
+function catalogPre(key){const r=catRows("").find(x=>x.key===key);if(!r)return null;
+  if(r.kind==="stc")return {code:r.sku,size:r.size,grade:r.grade,price:r.sell?Number(r.sell).toFixed(2):"",title:r.title,desc:r.title,legend:"",webImg:r.img||""};
+  if(r.kind==="web")return {code:"",size:r.size,grade:r.grade,price:r.sell?Number(r.sell).toFixed(2):"",title:r.title,desc:r.title,legend:"",webImg:r.img||"",webId:r.pid,webVar:Number(key.split(":")[2])||0};
+  if(r.byArea)return {code:r.code||"",size:"",grade:r.grade,price:"",title:r.title,desc:(r.kind==="vinyl"?"Decal":r.kind==="stencil"?"Stencil":r.kind==="banner"?"Banner":r.title),needSize:true};
+  const wbc=[r.colour,r.third].map(x=>{try{return ecNameFor(x)}catch(e){return ""}}).filter(Boolean);
+  return {code:r.code||"",size:r.size,grade:r.grade,price:r.sell?Number(r.sell).toFixed(2):"",sheetKey:r.kind==="sign"?r.key:"",title:r.title,
+    legend:r.kind==="sign"&&wbc.length?[...new Set(wbc)].join(" + "):"",desc:r.kind==="sign"?r.title:r.title}}
 function ordModal(pid,ix,pre){
   const p=proj(pid);if(!p)return;
   const isNew=(ix==null);
-  const o=isNew?Object.assign({qty:"",code:"",size:"",grade:"",legend:"",note:"",noLam:!!(acct(p.accountId)||{}).noLamDefault},pre||{}):Object.assign({},orderedLines(p)[ix]||{});
-  S.ordPre=isNew?(pre||null):null;S.ordAid=p.accountId||"";
+  const o=isNew?Object.assign({qty:"1",code:"",size:"",grade:"",legend:"",note:"",noLam:!!(acct(p.accountId)||{}).noLamDefault},pre||{}):Object.assign({},orderedLines(p)[ix]||{});
+  if(isNew&&!String(o.qty||"").trim())o.qty="1";
+  S.ordPre=isNew?(pre||null):null;S.ordAid=p.accountId||"";S.ordFind="";
+  const cl=codeList();
+  const det=[o.code,o.size?sizeLabel(o.size):"",o.grade].filter(Boolean).join(" · ");
   openModal(mshell(isNew?"Add a quote line":"Edit quote line","proj",
-    `<div style="padding:12px 15px;border-bottom:1px solid var(--line);background:var(--card2);display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-      <div style="flex:1;min-width:220px"><b>Don't know the code?</b>
-        <div class="sub">Search your own price list — every sign you sell, with its size, grade and price.</div></div>
-      <button class="btn p" data-catalog="ord:${esc(pid)}">${ic("search",14)}Browse the price list</button></div>
-     <p class="note" style="margin:10px 15px">Or type it straight off the PO or the email.</p>
-     <div class="fgrid">
+    `<div class="olform"><div class="fgrid">
+      <div class="fld full ofind"><div class="k">Find an item</div>
+        <input id="o-find" autocomplete="off" placeholder="Code, name or size — R1-1, stop, school 36…" aria-label="Find an item">
+        <div id="o-find-res" class="ofind-res" role="listbox"></div>
+        <div class="sub"><button type="button" class="lnk" data-catalog="ord:${esc(pid)}">Browse the whole price list</button></div></div>
       ${inp("o-qty","Quantity",o.qty,"number")}
+      ${inp("o-price","Price each",o.price||"","number")}
       ${inp("o-desc","What to call it on the quote",o.desc||"","text",1)}
-      ${inp("o-price","Price each — what they pay",o.price||"","number")}
-      <div class="fld" id="o-price-why" style="border-bottom:0;align-self:end"></div>
       <div class="fld full" id="o-cost-help" style="border-bottom:0"></div>
-      ${withPick(inp("o-code","Code or item — pick or type",o.code),"o-code","code","Pick a code…")}
-      ${withPick(inp("o-size","Size — inches, or say ft",o.size),"o-size","size","Pick a size…")}
-      ${withPick(inp("o-grade","Grade or material — pick or type",o.grade),"o-grade","grade","Pick a material…")}
+      <div class="fld full odet-sum" style="border-bottom:0"><span class="sub" id="o-det-txt">${det?esc(det):"No code, size or material yet"}</span>
+        <button type="button" class="lnk" id="o-det-tog" aria-expanded="false">Change details</button></div>
+      <div class="fld full odet" id="o-det" hidden style="padding:0;border-bottom:0"><div class="fgrid" style="padding:0">
+        <div class="fld"><div class="k">Code</div><input id="o-code" list="dl-o-code2" autocomplete="off" value="${esc(o.code||"")}" placeholder="Type to search">
+          <datalist id="dl-o-code2">${cl.map(e=>`<option value="${esc(e.code)}" label="${esc(e.code+" — "+e.name)}">${esc(e.name)}</option>`).join("")}</datalist>
+          <div class="sub" id="o-code-hint"></div></div>
+        <div class="fld"><div class="k">Size — inches, or say ft</div><input id="o-size" list="dl-o-size2" autocomplete="off" value="${esc(o.size||"")}" placeholder="e.g. 30x30">
+          <datalist id="dl-o-size2">${ordSizeOpts(o.code).map(x=>`<option value="${esc(x.v)}">${esc(x.l)}</option>`).join("")}</datalist></div>
+        <div class="fld full"><div class="k">Material</div><input id="o-grade" list="dl-o-grade2" autocomplete="off" value="${esc(o.grade||"")}" placeholder="Sheeting, vinyl or film — type to search">
+          <datalist id="dl-o-grade2">${quoteMaterials().map(x=>`<option value="${esc(x.v)}">${esc(x.l)}</option>`).join("")}</datalist></div>
+      </div></div>
+      <details class="fld full omore"${(o.build||o.note||(legendsOf(o).length&&!isNew)||o.noLam)?" open":""}><summary>More options</summary><div class="fgrid" style="padding:0">
       ${sel("o-build","How it's made",o.build||"",[{v:"",l:"Work it out from the material"},{v:"film",l:"Cut film / cut vinyl"},{v:"print",l:"Printed"}])}
       <div id="o-nolam-wrap" class="fld full" style="display:none;border-bottom:0;padding:0">${noLamBox("o-nolam",!!o.noLam)}</div>
       ${legendEditor("o",o,legendPctDefault())}
+      ${acct(p.accountId)?`<div class="fld full" id="o-contract-wrap"><label style="display:flex;gap:8px;align-items:center;cursor:pointer">
+        <input type="checkbox" id="o-contract" style="width:17px;height:17px">Save this price for ${esc(acct(p.accountId).name)}</label>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap"><span class="sub">Good until</span><input type="date" id="o-contract-until" style="width:170px"><span class="sub">blank = no end date</span></div></div>`:""}
       ${inp("o-note","Note",o.note,"text",1)}
-      ${acct(p.accountId)?`<div class="fld full" id="o-contract-wrap" style="display:none"><label style="display:flex;gap:8px;align-items:center;cursor:pointer">
-        <input type="checkbox" id="o-contract" style="width:17px;height:17px">Save this price as ${esc(acct(p.accountId).name)}'s price for this item</label>
-        <div style="display:flex;gap:8px;align-items:center;margin-top:6px"><span class="sub">Good until</span><input type="date" id="o-contract-until" style="width:170px"><span class="sub">blank = no end date</span></div>
-        <div class="sub">Next time you quote them this item — same code or name, size and grade — it comes up at this price.</div></div>`:""}
       ${(function(){const files=projArtFiles(p);if(!files.length)return "";
         const cur=isNew?null:lineArt(p,o);
-        return `<div class="fld full"><div class="k">Picture — from the artwork uploaded to this project</div>
-          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-            ${cur?`<img src="${esc(cur.url)}" alt="" style="width:54px;height:54px;object-fit:contain;border:1px solid var(--line);border-radius:4px;background:#fff">`:""}
-            <select id="o-art" style="flex:1;min-width:220px">
+        return `<div class="fld full"><div class="k">Picture — from the artwork on this project</div>
+            <select id="o-art" style="width:100%">
               <option value="" ${!o.artId?"selected":""}>Match by name${cur&&!o.artId?" — "+esc(cur.name):" — nothing matches yet"}</option>
               ${files.map(f=>`<option value="${esc(f.id)}" ${o.artId===f.id?"selected":""}>${esc(f.name)}</option>`).join("")}
-              <option value="none" ${o.artId==="none"?"selected":""}>No picture for this line</option></select></div>
-          <div class="sub">It goes on the work order and its traveller. Name the files like the lines — "Logo Lockup.png" — and they match themselves.</div></div>`})()}
-     </div>`,
+              <option value="none" ${o.artId==="none"?"selected":""}>No picture for this line</option></select></div>`})()}
+      </div></details>
+     </div></div>`,
     `${isNew?"":`<button class="btn d" data-orddel="${esc(pid)}:${ix}" style="margin-right:auto">Remove</button>`}
      <button class="btn" data-close="1">Cancel</button>
      <button class="btn p" data-ordsave="${esc(pid)}:${isNew?"new":ix}">${isNew?"Add":"Save"}</button>`));
   const pe=$("#o-price");if(pe){pe.dataset.auto=(o.price&&String(o.price).trim())?"0":"1";
     pe.addEventListener("input",()=>{pe.dataset.auto=pe.value.trim()?"0":"1"})}
+  const de=$("#o-desc");if(de){de.dataset.auto=String(o.desc||"").trim()?"0":"1";de.addEventListener("input",()=>{if(!S._ordFill)de.dataset.auto=de.value.trim()?"0":"1"})}
+  const tog=$("#o-det-tog"),dbox=$("#o-det");
+  if(tog&&dbox)tog.onclick=()=>{dbox.hidden=!dbox.hidden;tog.setAttribute("aria-expanded",String(!dbox.hidden));tog.textContent=dbox.hidden?"Change details":"Hide details";if(!dbox.hidden)$("#o-code").focus()};
+  // the find box: results under it; picking one fills the line in place
+  const fi=$("#o-find"),fr=$("#o-find-res");
+  const showRes=()=>{const L=ordFindRows(fi.value);fr.innerHTML=L.length?L.map((x,i)=>`<button type="button" class="ofr" data-ofind="${esc(x.key)}" role="option">
+      ${x.img?`<img src="${esc(x.img)}" alt="" loading="lazy">`:""}<span class="ofr-t"><b>${esc(x.title)}</b><span class="sub">${esc(x.sub||"")}</span></span>
+      ${x.sell?`<span class="mono ofr-p">${money2(x.sell)}</span>`:""}</button>`).join(""):(fi.value.trim()?`<div class="sub" style="padding:8px 10px">Nothing matched — type the name below and set the details yourself.</div>`:"")};
+  if(fi){let tm=null;fi.addEventListener("input",()=>{clearTimeout(tm);tm=setTimeout(showRes,120)});
+    fi.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();const b=fr.querySelector(".ofr");if(b)b.click()}})}
+  if(fr)fr.addEventListener("click",e=>{const b=e.target.closest("[data-ofind]");if(!b)return;ordPickFill(b.dataset.ofind);fi.value="";fr.innerHTML=""});
   ordCostHelp();
-["o-qty","o-code","o-size","o-grade","o-price","o-build","o-legs","o-nolam"].forEach(id=>{const e=$("#"+id);if(e){e.addEventListener("input",ordCostHelp);e.addEventListener("change",ordCostHelp)}});
-  focusFirst("o-qty");
+  ["o-qty","o-code","o-size","o-grade","o-price","o-build","o-legs","o-nolam","o-desc"].forEach(id=>{const e=$("#"+id);if(e){e.addEventListener("input",ordCostHelp);e.addEventListener("change",ordCostHelp)}});
+  // typing a code does what picking it does: fills the name and the usual size, and the sizes list follows the code
+  ["o-code","o-size","o-grade"].forEach(id=>{const e=$("#"+id);if(e)e.addEventListener("input",()=>{if(S._ordFill)return;
+    if(S.ordPre){["sheetKey","webId","webVar","webImg"].forEach(k=>delete S.ordPre[k])}   // no longer the item that was picked
+    if(id==="o-code")ordCodeTyped()})});
+  ordCodeTyped(true);
+  focusFirst(isNew&&!pre?"o-find":"o-qty");
 }
+function ordCodeTyped(quiet){const ce=$("#o-code");if(!ce)return;const v=ce.value.trim();const h=$("#o-code-hint");
+  const e=v?codeList().find(x=>codeNorm(x.code)===codeNorm(v)):null;
+  const dl=$("#dl-o-size2");if(dl)dl.innerHTML=ordSizeOpts(e?e.code:v).map(x=>`<option value="${esc(x.v)}">${esc(x.l)}</option>`).join("");
+  if(h)h.innerHTML=!v?"":e?`${esc(e.code)} is <b>${esc(e.name)}</b>`:codeKnown(v)?"":`<span style="color:var(--danger-ink);font-weight:700">⚠ Not a code we know</span> — check it, or say what it is in the name`;
+  if(quiet||!e)return;
+  const de=$("#o-desc"),sz=$("#o-size");
+  if(de&&(de.dataset.auto==="1"||!de.value.trim())&&e.name){de.value=e.name;de.dataset.auto="1"}
+  if(sz&&!sz.value.trim()&&e.sizes.length)sz.value=e.sizes[0];
+  ordDetText();ordCostHelp()}
+function ordDetText(){const t=$("#o-det-txt");if(!t)return;const v=[$("#o-code").value.trim(),$("#o-size").value.trim()?sizeLabel($("#o-size").value.trim()):"",$("#o-grade").value.trim()].filter(Boolean).join(" · ");
+  t.textContent=v||"No code, size or material yet"}
+function ordPickFill(key){
+  let pre=null;
+  if(/^code:/.test(key)){const e=codeList().find(x=>x.code===key.slice(5));if(!e)return;pre={code:e.code,size:e.sizes[0]||"",desc:e.name,price:""}}
+  else pre=catalogPre(key);
+  if(!pre)return;
+  S._ordFill=true;
+  try{S.ordPre=Object.assign({},pre);
+    $("#o-code").value=pre.code||"";$("#o-size").value=pre.size||"";if(pre.grade)$("#o-grade").value=pre.grade;
+    const de=$("#o-desc");if(de){de.value=pre.desc||pre.title||de.value;de.dataset.auto="1"}
+    const pe=$("#o-price");if(pe){pe.dataset.auto="1";pe.value=""}
+    if(pre.legend){const lr=document.querySelector('[data-legrows="o"] .legrow .leg-film');if(lr&&!lr.value){lr.value=pre.legend;const sl=lr.parentNode.querySelector(".leg-pick");if(sl){if([...sl.options].some(x=>x.value===pre.legend))sl.value=pre.legend;else{sl.value="__other";lr.style.display=""}}}}
+  }finally{S._ordFill=false}
+  ordCodeTyped(true);ordDetText();ordCostHelp();
+  if(pre.needSize){const d=$("#o-det");if(d){d.hidden=false;$("#o-det-tog").textContent="Hide details"}const sz=$("#o-size");if(sz)sz.focus();toast("Now type the size — it's priced by the square foot.")}
+  else{const q=$("#o-qty");if(q){q.focus();q.select()}}
+}
+// the one suggested price: the account's own price, else your price list / workbook / website (never under the
+// quote floor), else what it costs at the target margin. Shown as one number with one button.
+function ordSuggest(line){const dp=defaultPrice(line,S.ordAid);if(dp)return dp;
+  const pp=S.ordPre&&Number(S.ordPre.price);if(pp>0)return {price:pp,why:"the item you picked"};return null}
 function ordCostHelp(){
   const box=$("#o-cost-help");if(!box)return;
   const lg=readLegends("o")||{legend:"",legends:[]};
   const line={code:$("#o-code").value,size:$("#o-size").value,grade:$("#o-grade").value,sub:"",qty:$("#o-qty")?$("#o-qty").value:"",
-    desc:$("#o-desc")?$("#o-desc").value:"",build:$("#o-build")?$("#o-build").value:"",legend:lg.legend,legends:lg.legends};
-  const pe=$("#o-price"),why=$("#o-price-why");
+    desc:$("#o-desc")?$("#o-desc").value:"",build:$("#o-build")?$("#o-build").value:"",legend:lg.legend||(S.ordPre&&S.ordPre.legend)||"",legends:lg.legends,
+    sheetKey:(S.ordPre&&S.ordPre.sheetKey)||"",webId:(S.ordPre&&S.ordPre.webId)||"",webVar:(S.ordPre&&S.ordPre.webVar)||0};
+  const pe=$("#o-price");
   const lb=$("#o-legs");if(lb){const lp0=lineProd(line);lb.style.display=(lp0==="sign"&&line.build!=="print")?"":"none"}
-  // the overlaminate question only comes up on a printed line
   {const nw=$("#o-nolam-wrap"),nl=$("#o-nolam");const pr1=linePrinted(line);if(nw)nw.style.display=pr1?"":"none";line.noLam=!!(pr1&&nl&&nl.checked)}
-  const dp=defaultPrice(Object.assign({},line,{qty:$("#o-qty")?$("#o-qty").value:"",desc:$("#o-desc")?$("#o-desc").value:"",sheetKey:(S.ordPre&&S.ordPre.sheetKey)||""}),S.ordAid);
+  const sg=ordSuggest(line);
+  if(pe&&pe.dataset.auto==="1"){pe.value=sg?Number(sg.price).toFixed(2):""}
   {const cw=$("#o-contract-wrap");if(cw){const a0=acct(S.ordAid);const pv=Number(pe&&pe.value)||0;
-    const cur=a0?contractPrice(a0,Object.assign({},line,{desc:$("#o-desc")?$("#o-desc").value:""})):null;
-    cw.style.display=(a0&&pv>0&&!(cur&&Math.abs(Number(cur.price)-pv)<0.005))?"":"none";}}
-  if(pe&&pe.dataset.auto==="1"){pe.value=dp?dp.price.toFixed(2):""}
-  if(why)why.innerHTML=!dp?`<div class="sub">Put in a size and a material and the price fills in.</div>`
-    :pe&&pe.dataset.auto==="1"?`<div class="sub"><span class="pill g">default</span> from ${esc(dp.why)} — type over it to change it</div>`
-    :Math.abs((Number(pe&&pe.value)||0)-dp.price)<0.005?`<div class="sub"><span class="pill g">default</span> ${esc(dp.why)}</div>`
-    :`<div class="sub"><span class="pill o">your price</span> the default would be ${money2(dp.price)} <button class="lnk" data-ordprice="${dp.price.toFixed(2)}">use it</button></div>`;
-  const q=Number($("#o-qty").value)||0, pr=Number($("#o-price").value)||0;
-  const uc=quoteLineCost(line);
-  if(why&&belowFloor(pr,uc&&uc.cost))why.insertAdjacentHTML("beforeend",`<div class="sub" style="color:var(--red,#C00);font-weight:700;margin-top:4px">
-    Below your ${marginFloor()}% margin floor — ${Math.round((pr-uc.cost)/pr*100)}% on a cost of ${money2(uc.cost)}</div>`);
-  if(!uc.cost){box.innerHTML=`<div class="sub">Put in a size and a material and it'll work out what this costs you.</div>`;return}
-  const it0=matchItem(line.grade)||matchItem(line.sub);
-  const ap=it0?catAreaPrice(it0,line.size):null;
-  const sug=(ap&&ap.mine&&ap.sell)?ap.sell:(it0&&Number(it0.sell)&&!parseSize(line.size)?Number(it0.sell):suggestPrice(uc.cost));
-  const mg=pr>0?((pr-uc.cost)/pr*100):null;
-  box.innerHTML=`<div class="k">What it costs you
-      <span class="pill ${uc.src==="locked"?"b":uc.src==="sheet"?"g":"o"}" style="margin-left:6px">${uc.src==="locked"?"locked "+(line.costAt?esc(fmtDate(isoDay(line.costAt))):"when quoted"):uc.src==="sheet"?"from the cost sheet":uc.src==="material"?"from your item costs":uc.src==="stcflag"?"can't be costed":"worked out from the material"}</span></div>
-    <div class="v"><span class="mono" style="font-weight:700">${money2(uc.cost)}</span> each${q?` — <span class="mono">${money2(uc.cost*q)}</span> for ${q}`:""}</div>
-    <div class="sub" style="margin-top:3px">${esc(uc.why||"")}</div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px">
-      <button class="btn sm p" data-ordprice="${sug}">Use ${money2(sug)} each</button>
-      <span class="sub">${(ap&&ap.mine)||(it0&&Number(it0.sell))?"your price for "+esc(it0.name.split("—")[0].trim()):Math.round(targetMargin())+"% margin — the target from the workbook"}</span>
-      ${mg==null?"":`<span class="pill ${mg>=35?"g":mg>=20?"o":"r"}">you're at ${Math.round(mg)}%</span>`}</div>`;
+    const cur=a0?contractPrice(a0,line):null;cw.style.display=(a0&&pv>0&&!(cur&&Math.abs(Number(cur.price)-pv)<0.005))?"":"none"}}
+  ordDetText();
+  const pr=Number(pe&&pe.value)||0;
+  let uc=null;try{uc=quoteLineCost(line)}catch(e){}
+  const showCost=can("cost");
+  const cost=uc&&uc.cost>0?uc.cost:0,mg=pr>0&&cost?((pr-cost)/pr*100):null;
+  const same=sg&&Math.abs(pr-Number(sg.price))<0.005;
+  const parts=[];
+  if(showCost)parts.push(uc&&uc.src==="stcflag"?`<span class="pill r" title="${esc(uc.why||"")}">can't be costed yet</span>`:cost?`Cost <b class="mono">${money2(cost)}</b>${uc.src==="locked"?" "+ic("lock",11):""}`:`<span class="sub">Cost — add the size and material</span>`);
+  if(showCost&&mg!=null)parts.push(`margin <span class="pill ${mg<0?"r":mg>=35?"g":mg>=20?"o":"r"}">${mg<0?"⚠ ":""}${Math.round(mg)}%</span>${mg<0?` <b style="color:var(--danger-ink)">below cost</b>`:belowFloor(pr,cost)?` <span class="sub" style="color:var(--danger-ink)">under your ${marginFloor()}% floor</span>`:""}`);
+  box.innerHTML=`<div class="ocost"><span class="ocost-t">${parts.join(" · ")||""}</span>
+    ${sg&&!same?`<button type="button" class="btn sm" data-ordprice="${Number(sg.price).toFixed(2)}" title="${esc(sg.why||"")}">Use suggested price ${money2(sg.price)}</button>`
+      :sg?`<span class="sub" title="${esc(sg.why||"")}">suggested price</span>`:""}</div>`;
 }
 async function ordSave(pid,ixRaw){
   const p=proj(pid);if(!p)return;
@@ -6359,8 +6469,10 @@ async function ordSave(pid,ixRaw){
   if(keep){["sheetKey","title","webImg","webId","webVar"].forEach(k=>{if(keep[k]&&rec[k]==null)rec[k]=keep[k]})}
   Object.assign(rec,tidyLine(rec));
   rec.noLam=!!($("#o-nolam")&&$("#o-nolam").checked&&linePrinted(rec));
-  if(!rec.qty&&!rec.code&&!rec.desc)return toast("Give it a quantity, a code or a name.");
-  if(!String(rec.price||"").trim()){const dp=defaultPrice(Object.assign({},rec,{sheetKey:rec.sheetKey||(S.ordPre&&S.ordPre.sheetKey)||""}),p.accountId);if(dp)rec.price=dp.price.toFixed(2)}
+  if(ixRaw==="new"?!(Number(rec.qty)>0):!String(rec.qty).trim()){toast("Put in a quantity — 1 or more.");const qe=$("#o-qty");if(qe)qe.focus();return}
+  if(!rec.code&&!rec.desc)return toast("Give it a name or a code.");
+  if(!lg.legend&&S.ordPre&&S.ordPre.legend&&!old0){rec.legend=S.ordPre.legend}
+  if(!String(rec.price||"").trim()){const sg=ordSuggest(Object.assign({},rec,{sheetKey:rec.sheetKey||(S.ordPre&&S.ordPre.sheetKey)||""}));if(sg)rec.price=Number(sg.price).toFixed(2)}
   if($("#o-contract")&&$("#o-contract").checked&&Number(rec.price)>0&&acct(p.accountId)){
     const a1=acct(p.accountId);const k=contractKey(rec);
     const cp=Object.assign({},a1.contractPrices||{});cp[k]={price:Number(rec.price).toFixed(2),until:$("#o-contract-until")?$("#o-contract-until").value:"",code:rec.code||"",desc:rec.desc||"",size:rec.size||"",grade:rec.grade||"",label:[rec.desc||rec.code,rec.size?sizeLabel(rec.size):"",rec.grade?custMaterial(rec.grade):""].filter(Boolean).join(" · "),at:Date.now(),by:me()};
@@ -8732,7 +8844,7 @@ function orderPage(){
 }
 // Phones read tables as stacked rows: each cell carries its column's heading.
 const SECTION_HUE=[
-  [/^(project details|details|what this)/,"#B8231C"],[/^(contacts)/,"#255CA3"],[/^(billing|money)/,"#1F7A42"],
+  [/^(project details|details|what this)/,"#3E4A5A"],[/^(contacts)/,"#255CA3"],[/^(billing|money)/,"#1F7A42"],
   [/^(activity)/,"#2B5F8A"],[/^(schedule)/,"#A94E07"],[/^(close-out|pre-production|quality check)/,"#7A3E9D"],
   [/^(order lines|items to make|work orders|open work orders|projects)/,"#8A4A08"],[/^(material)/,"#526E7C"],
   [/^(production route|shipping)/,"#35635B"],[/^(notes|working notes)/,"#9A7B0A"],[/^(all files|files|paperwork)/,"#4F5964"],
@@ -8741,7 +8853,7 @@ function decorateHeaders(){
   document.querySelectorAll(".main section.card").forEach(c=>{
     const h=c.querySelector(":scope > header h2");if(!h)return;
     const t=h.textContent.replace(/\s+/g," ").trim().toLowerCase();
-    let hue=c.querySelector(":scope > header .oi-acct")?"#B8231C":"";
+    let hue=c.querySelector(":scope > header .oi-acct")?"#2E5C99":"";
     if(!hue){const m=SECTION_HUE.find(([re])=>re.test(t));if(m)hue=m[1]}
     if(hue){c.style.setProperty("--hc",hue);c.classList.add("hued")}
   });
@@ -9485,6 +9597,51 @@ async function mergeAccounts(fromId,toId,why){
   recordHistory("account",toId,[{f:"Merged",o:"",n:"Merged in "+A.name+" ("+k+" records moved)"+(why?" — "+why:""),ev:1}]);
   return k;
 }
+// contacts that look like the same person: same name on the same account, the same email, or the same phone
+function contactKey(n){return String(n||"").toLowerCase().replace(/\(.*?\)/g,"").replace(/[^a-z]/g,"")}
+function dupContacts(c){
+  const k=contactKey(c.name),em=String(c.email||"").trim().toLowerCase(),ph=String(c.phone||c.mobile||"").replace(/\D/g,"").slice(-10);
+  return live(S.contacts).filter(x=>x.id!==c.id&&(
+    (k.length>3&&contactKey(x.name)===k)||(em&&String(x.email||"").trim().toLowerCase()===em)||
+    (ph.length===10&&String(x.phone||x.mobile||"").replace(/\D/g,"").slice(-10)===ph)));
+}
+function dupContactPairs(){const seen=new Set(),out=[];
+  live(S.contacts).forEach(c=>dupContacts(c).forEach(d=>{const key=[c.id,d.id].sort().join("|");if(seen.has(key))return;seen.add(key);
+    const sameEmail=c.email&&String(c.email).trim().toLowerCase()===String(d.email||"").trim().toLowerCase();
+    const sameName=contactKey(c.name)===contactKey(d.name);
+    out.push({a:c,b:d,why:sameName&&sameEmail?"same name and email":sameName?"same name":sameEmail?"same email, different names — check which one it really belongs to":"same phone"})}));
+  return out}
+// fold one contact into another: activity, projects, events, billing contact and the other's details move over
+async function mergeContacts(fromId,toId,why){
+  const A=S.contacts.get(fromId),B=S.contacts.get(toId);if(!A||!B||fromId===toId)return 0;let k=0;const now=Date.now();
+  for(const a of live(S.activity).filter(x=>x.contactId===fromId)){await push("activity/"+a.id,{contactId:toId,updatedAt:now});k++}
+  for(const p of live(S.projects).filter(x=>(x.contacts||[]).indexOf(fromId)>=0)){
+    const cs=[...new Set((p.contacts||[]).map(x=>x===fromId?toId:x))];await push("projects/"+p.id,{contacts:cs,updatedAt:now});k++}
+  for(const e of live(S.events).filter(x=>(x.guests||[]).indexOf(fromId)>=0)){
+    await push("events/"+e.id,{guests:[...new Set((e.guests||[]).map(x=>x===fromId?toId:x))],updatedAt:now});k++}
+  for(const a of live(S.accounts).filter(x=>x.billingContactId===fromId)){await push("accounts/"+a.id,{billingContactId:toId,updatedAt:now});k++}
+  const fill={};["email","phone","mobile","title","role"].forEach(f=>{if(!B[f]&&A[f])fill[f]=A[f]});
+  if(A.email&&B.email&&String(A.email).toLowerCase()!==String(B.email).toLowerCase())fill.notes=[B.notes,"Also used: "+A.email].filter(Boolean).join("\n");
+  if(A.notes&&String(B.notes||"").indexOf(A.notes)<0)fill.notes=[fill.notes||B.notes,A.notes].filter(Boolean).join("\n");
+  if(Object.keys(fill).length)await push("contacts/"+toId,Object.assign(fill,{updatedAt:now}));
+  await push("contacts/"+fromId,{deleted:true,deletedAt:now,deletedBy:me(),mergedInto:toId,updatedAt:now});
+  recordHistory("contact",toId,[{f:"Merged",o:"",n:"Merged in "+(A.name||"")+(A.email?" ("+A.email+")":"")+" — "+k+" records moved"+(why?" — "+why:""),ev:1}]);
+  return k;
+}
+function contactMergeModal(fromId,toId){const A=S.contacts.get(fromId);if(!A)return;
+  const d=dupContacts(A);const cs=(d.length?d:live(S.contacts).filter(x=>x.id!==fromId)).sort((x,y)=>(x.name||"").localeCompare(y.name||""));
+  openModal(mshell("Merge "+A.name+" into…","contact",`<div class="fgrid">${sel("cm-into","Keep this contact",toId||(d[0]||{}).id||"",cs.map(x=>({v:x.id,l:x.name+" · "+accName(x.accountId)+(x.email?" · "+x.email:"")})),1)}
+    <p class="note fld full">Calls, emails and notes, project links and events move to the contact you keep, and any phone or email it's missing is copied over. ${esc(A.name)} goes to the recycle bin.</p></div>`,
+    `<button class="btn" data-close="1">Cancel</button><button class="btn p" id="cmgo">Merge</button>`));
+  $("#cmgo").onclick=async()=>{const to=$("#cm-into").value;if(!to)return toast("Pick the contact to keep.");closeModal();
+    const k=await mergeContacts(fromId,to);toast("Merged — "+k+" records moved");go("contact/"+to)}}
+function dupContactsCard(){const L=dupContactPairs();if(!L.length)return "";
+  return `<section class="card flush"><header><span class="oi oi-cont">${ic("contact",14)}</span><h2>Possible duplicates</h2><span class="n">${L.length}</span>
+    <span class="sub">Same person entered twice? Merge keeps one and moves everything over.</span></header>
+    <table><tbody>${L.map(x=>`<tr><td><button class="lnk" data-go="contact/${esc(x.a.id)}">${esc(x.a.name)}</button><div class="sub">${esc(accName(x.a.accountId))}${x.a.email?" · "+esc(x.a.email):""}</div></td>
+      <td><button class="lnk" data-go="contact/${esc(x.b.id)}">${esc(x.b.name)}</button><div class="sub">${esc(accName(x.b.accountId))}${x.b.email?" · "+esc(x.b.email):""}</div></td>
+      <td class="sub">${esc(x.why)}</td>
+      <td style="text-align:right;white-space:nowrap">${can("del")?`<button class="btn sm" data-cmerge="${esc(x.b.id)}:${esc(x.a.id)}">Merge</button>`:""}</td></tr>`).join("")}</tbody></table></section>`}
 function mergeModal(fromId){const A=acct(fromId);if(!A)return;
   const d=dupAccounts(A);const accs=(d.length?d:live(S.accounts).filter(x=>x.id!==fromId)).sort((x,y)=>(x.name||"").localeCompare(y.name||""));
   openModal(mshell("Merge "+A.name+" into…","acct",`<div class="fgrid">${sel("m-into","Keep this account",(d[0]||{}).id||"",accs.map(x=>({v:x.id,l:x.name+(x.city?" · "+x.city:"")+(x.state?" "+x.state:"")})),1)}
@@ -9645,6 +9802,8 @@ function sortBtn(key,label,cur,attr){
   return `<button class="sortb ${cur===key?"on":""}" data-sort="${attr}:${key}" title="Sort by ${esc(label)}">
     ${esc(label)}${cur===key?" ▾":""}</button>`;
 }
+// a small "⋯" menu at the end of a table row, for the rare actions (delete) kept out of the way of everyday ones
+function rowMenu(inner){return can("del")?`<details class="dd rowm"><summary class="btn sm q" aria-label="More actions" title="More actions">⋯</summary><div class="dd-m">${inner}</div></details>`:""}
 function jobTable(js,showAcct,withDel){
   if(!js.length)return `<div class="empty">No work orders.</div>`;
   js=sortJobs(js);
@@ -9658,7 +9817,7 @@ function jobTable(js,showAcct,withDel){
       <td><span class="pill ${jobCls(j.status)}">${esc((JS[j.status]||{}).label||"")}</span>${j.rush?` <span class="pill r">Rush</span>`:""}</td>
       <td>${jobDuePill(j)}</td>
       <td class="mono" style="text-align:right">${jobRevenue(j)?money2(jobRevenue(j))
-        :`<span class="pill" title="No unit prices on the lines">no price</span>`}</td>${withDel?`<td style="text-align:right"><button class="btn sm d" data-del="job:${j.num}">Delete</button></td>`:""}</tr>`).join("")}</tbody></table>`;
+        :`<span class="pill" title="No unit prices on the lines">no price</span>`}</td>${withDel?`<td style="text-align:right">${rowMenu(`<button class="danger" data-del="job:${j.num}" data-typed="1">Delete this work order…</button>`)}</td>`:""}</tr>`).join("")}</tbody></table>`;
 }
 
 /* ========== contacts ========== */
@@ -9669,7 +9828,7 @@ function contactList(){
   list.sort((a,b)=>(a.name||"").localeCompare(b.name||""));
   // the last call, email or meeting logged with each person
   const last={};live(S.activity).forEach(x=>{if(!x.contactId||!/call|email|meeting/.test(String(x.type||"")))return;const t=Number(x.at)||0;if(t>(last[x.contactId]||0))last[x.contactId]=t});
-  return `<div class="pad"><section class="card flush wide">
+  return `<div class="pad">${S.q?"":dupContactsCard()}<section class="card flush wide">
     <header><span class="oi oi-cont">${ic("contact",14)}</span><h2>Contacts</h2><span class="n">${list.length}</span>
       <span class="sp"><input class="btn" id="lq" placeholder="Filter" value="${esc(S.q)}" style="font-weight:400;width:150px">
       <button class="btn" data-csvimport="contacts">${ic("file",14)}Import</button>
@@ -9692,6 +9851,7 @@ function contactRec(id){
       <div class="tt"><div class="kicker">Contact</div><h1>${esc(c.name)}</h1><div class="sub">${esc(c.title||"")}</div></div>
       <div class="acts"><button class="btn" data-edit="contact:${esc(id)}">Edit</button>
         <details class="dd"><summary class="btn">More</summary><div class="dd-m">
+          <button data-cmerge="${esc(id)}:">Merge with another contact…</button>
           <button class="danger" data-del="contact:${esc(id)}">Delete this contact</button></div></details></div></div>
       <div class="hl-facts">
         <div><div class="k">Account</div><div class="v"><button class="lnk" data-go="account/${esc(c.accountId)}">${esc(accName(c.accountId))}</button></div></div>
@@ -9791,7 +9951,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-69";
+const APP_VERSION="2026.11.25-70";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -11487,7 +11647,7 @@ function reportsView(){
             <td class="mono" style="text-align:right">${b.cost?money(b.cost):"—"}</td>
             <td style="text-align:right">${marginPill(b.value&&b.cost?((b.value-b.cost)/b.value*100):null,b.value)}</td>
             <td><div style="display:flex;align-items:center;gap:8px">
-              <div style="height:16px;width:${w}%;background:${v<0?"var(--red)":"var(--brand)"};border-radius:1px"></div>
+              <div style="height:16px;width:${w}%;background:${v<0?"var(--red)":"var(--act)"};border-radius:1px"></div>
               <span class="mono" style="font-weight:700;white-space:nowrap">${esc((cfg.metric==="margin"&&!b.cost)?"—":metricTxt(v,cfg.metric))}</span>
             </div></td></tr>`}).join("")}
         <tr style="background:var(--card2)"><td style="font-weight:800">Total</td>
@@ -11741,7 +11901,8 @@ function archiveView(){
           ${accs.map(a=>`<option value="${esc(a.id)}" ${af===a.id?"selected":""}>${esc(a.name)}</option>`).join("")}
         </select>
         <button class="btn" data-backup="csv">Export</button>
-        ${ps.length+js.length?`<button class="btn d" data-archclear="1" title="Moves what's listed below to the recycle bin — restore from there if you need it">Delete all shown (${ps.length+js.length})</button>`:""}
+        ${ps.length+js.length&&can("del")?`<details class="dd"><summary class="btn">More</summary><div class="dd-m">
+          <button class="danger" data-archclear="1" title="Moves what's listed below to the recycle bin — restore from there if you need it">Delete all ${ps.length+js.length} shown…</button></div></details>`:""}
       </div></div></section>
 
     <section class="card flush wide"><header><span class="oi sm oi-proj">${ic("project",14)}</span>
@@ -11760,7 +11921,7 @@ function archiveView(){
           <td class="mono" style="text-align:right">${money(projValue(p2))}</td>
           <td class="mono">${esc(p2.invNum||"—")}</td>
           <td class="mono" style="text-align:right">${live(S.jobs).filter(j=>j.projectId===p2.id).length||"—"}</td>
-          <td style="text-align:right"><button class="btn sm d" data-del="project:${esc(p2.id)}">Delete</button></td>
+          <td style="text-align:right">${rowMenu(`<button class="danger" data-del="project:${esc(p2.id)}" data-typed="1">Delete this project…</button>`)}</td>
         </tr>`}).join("")}</tbody></table>`
       :`<div class="empty"><b>Nothing archived${af||q?" matches that":""}</b>Projects land here when you mark them Invoiced or Lost.</div>`}
     </section>
@@ -11885,7 +12046,7 @@ function settingsView(){
     <section class="card"><header><h2>Website orders</h2><span class="sub">streetsignsupply.com sends paid orders in. On your own site the CRM checks every 15 minutes.</span></header><div class="body">
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <input id="b-shopurl" value="${esc(b.shopUrl||"")}" placeholder="https://streetsignsupply.com" style="flex:2;min-width:220px">
-        <input id="b-shoptoken" value="${esc((S.secrets&&S.secrets.shopToken)||b.shopToken||"")}" placeholder="Key from WordPress → WooCommerce → CRM orders" class="mono" style="flex:1;min-width:180px"></div>
+        <input id="b-shoptoken" value="${esc((S.secrets&&S.secrets.shopToken)||"")}" placeholder="Key from WordPress → WooCommerce → CRM orders" class="mono" style="flex:1;min-width:180px"></div>
       <div style="margin-top:8px">${ck("b-shopauto",b.shopAuto!==false,"Bring new orders in by themselves","On your own site")}
       ${ck("b-shopwo",b.shopWO!==false,"Make the work orders straight away")}</div>
       ${b.shopLast?`<div class="sub" style="margin-top:6px">Last order seen: ${esc(String(b.shopLast))}</div>`:""}
@@ -12785,7 +12946,7 @@ function gateModal(num,to,bl){
       <ul style="margin:0;padding-left:20px">${bl.map(b=>`<li style="margin-bottom:4px">${esc(b)}</li>`).join("")}</ul></div>`,
     `<button class="btn" data-close="1">Go back</button><button class="btn p" data-adv="${num}:${to}:1">Move it anyway</button>`));
 }
-function delModal(type,id){
+function delModal(type,id,typed){
   const L={account:"account",contact:"contact",project:"project",job:"work order"}[type];
   const d=depCounts(type,id),line=depLine(d);
   let body=`<p style="margin:0 0 10px">It moves to the recycle bin — you can restore it any time, and its field history is kept either way.</p>`;
@@ -12816,6 +12977,7 @@ function delModal(type,id){
       <div class="h">Pulled for ${type==="job"?"this work order":js0.length===1?"its work order":"its work orders"}: ${esc(pullsText(pulls).join(" · "))}. It goes back into inventory.
         ${type!=="job"?"Only when its work orders go to the bin too. ":""}${shipped?"It shipped, so this is off — tick it only if the material wasn't used. ":""}Restoring takes it off the shelf again.</div></div></label>`;
   }
+  if(typed)body+=`<p class="note" style="margin:12px 0 4px">Type <b>delete</b> to confirm.</p><input id="deltype" autocomplete="off" style="width:100%">`;
   openModal(mshell("Delete this "+L+"?","",`<div style="padding:14px 16px">${body}</div>`,
     `<button class="btn" data-close="1">Cancel</button>
      <button class="btn" data-dodel="${esc(type)}:${esc(String(id))}"
@@ -13476,7 +13638,7 @@ function buildWO(num){
 // brought in twice.
 const WEB_SKIP=["cancelled","refunded","failed","trash","checkout-draft"];
 // the shop key is kept in settings/secrets, which only owners and office can read
-function shopCfg(){const b=S.brand||{};return {url:String(b.shopUrl||"").trim().replace(/\/+$/,""),token:String((S.secrets&&S.secrets.shopToken)||b.shopToken||"").trim(),last:b.shopLast||""}}
+function shopCfg(){const b=S.brand||{};return {url:String(b.shopUrl||"").trim().replace(/\/+$/,""),token:String((S.secrets&&S.secrets.shopToken)||"").trim(),last:b.shopLast||""}}
 function webProj(id){return live(S.projects).concat([...S.projects.values()].filter(p=>p&&p.deleted)).find(p=>p&&p.webOrder&&String(p.webOrder.id)===String(id))}
 function webMeta(li){const m={};Object.defineProperty(m,"_lab",{value:{},enumerable:false});(li.meta_data||li.meta||[]).forEach(x=>{if(!x)return;
   const k=String(x.display_key||x.key||"").replace(/^pa_/,"").replace(/[_-]+/g," ").trim().toLowerCase();
@@ -15526,8 +15688,10 @@ function bind(){
     const af=t.closest("[data-actf]");if(af){S.actFilter=af.dataset.actf;render();return}
     const ff=t.closest("[data-filef]");if(ff){S.fileFilter=ff.dataset.filef;render();return}
 
-    const dl=t.closest("[data-del]");if(dl){const[k,id]=dl.dataset.del.split(":");delModal(k,id);return}
-    const dd=t.closest("[data-dodel]");if(dd){const[k,id]=dd.dataset.dodel.split(":");softDelete(k,id);return}
+    const dl=t.closest("[data-del]");if(dl){const[k,id]=dl.dataset.del.split(":");const dd0=dl.closest("details");if(dd0)dd0.open=false;delModal(k,id,!!dl.dataset.typed);return}
+    const dd=t.closest("[data-dodel]");if(dd){const[k,id]=dd.dataset.dodel.split(":");
+      const ty=$("#deltype");if(ty&&String(ty.value||"").trim().toLowerCase()!=="delete"){toast("Type delete to confirm.");ty.focus();return}
+      softDelete(k,id);return}
     const rs=t.closest("[data-restore]");
     if(rs){const[k,id3]=rs.dataset.restore.split(":");const w=restoreGuard(k,id3);
       if(w){askConfirm("Restore anyway?",`<p style="margin:0">${esc(w)}</p>`,"Restore it",false,()=>restore(k,id3));return}
@@ -15536,6 +15700,7 @@ function bind(){
     const lg=t.closest("[data-logo]");if(lg){uploadLogo();return}
     const ne=t.closest("[data-newev]");
     {const mg=t.closest("[data-merge]");if(mg){mergeModal(mg.dataset.merge);return}}
+    {const cm=t.closest("[data-cmerge]");if(cm){const [f,to]=cm.dataset.cmerge.split(":");contactMergeModal(f,to||"");return}}
     {const a1=t.closest("[data-ivadd]");if(a1){itemVendModal(a1.dataset.ivadd,"");return}}
     {const l1=t.closest("[data-ivlink]");if(l1){itemLinkModal(l1.dataset.ivlink);return}}
     {const e1=t.closest("[data-ivedit]");if(e1){const [ii,vv]=e1.dataset.ivedit.split(":");itemVendModal(ii,vv);return}}
