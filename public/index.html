@@ -1046,10 +1046,12 @@ details.dd[open] > summary{border-color:var(--ink3)}
   .pj-foot span{margin-left:auto}
 }
 /* ===== archived projects under the open ones (account page) ===== */
-tr.archdiv td{background:var(--card2)!important;font-size:12px;font-weight:700;color:var(--ink2);padding:7px 14px;border-top:1px solid var(--line)}
-tr.archdiv .ic{vertical-align:-2px;margin-right:4px}
-tr.archrow td{color:var(--ink2)}
-tr.archrow .lnk{color:var(--ink2);font-weight:600}
+tr.archdiv td{background:var(--card2)!important;font-size:13px;font-weight:800;color:var(--ink);padding:9px 14px;border-top:1px solid var(--line);letter-spacing:.01em}
+tr.archdiv .ic{vertical-align:-2px;margin-right:5px;color:var(--ink2)}
+/* sortable column headings look like every other heading (no shouting capitals) */
+th .sortb{text-transform:none;letter-spacing:0;font-size:12px;font-weight:700;color:var(--ink2)}
+th .sortb.on{color:var(--ink)}
+/* archived rows read exactly like the active ones (same bold name, same text) — the divider says they're archived */
 /* ===== files: first 2, the rest folded ===== */
 .fmore > summary{list-style:none;cursor:pointer;padding:6px 14px 12px;font-size:12.5px;font-weight:700;color:var(--blue)}
 .fmore > summary::-webkit-details-marker{display:none}
@@ -9274,7 +9276,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-50";
+const APP_VERSION="2026.11.25-51";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
