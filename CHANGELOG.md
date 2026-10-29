@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-38 — 2026-10-28
+- Projects and Work orders open on the List view (Pipeline and the Status board are still one click away)
+
 ## 2026.11.25-37 — 2026-10-28
 - Lists fit the screen: Contacts, Accounts, Projects, Vendors, Archive and the other wide lists wrap long names, accounts and emails instead of cutting off the right-hand columns
 
