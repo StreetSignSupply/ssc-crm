@@ -2764,12 +2764,13 @@ function projValue(p){
   }
   return Number(p.amount)||0;
 }
-function projCost(p){if(!p)return 0;const js=jobsOf(p.id);
-  const onWO=js.reduce((m,j)=>{woItems(j).forEach(x=>{m[itKey(x)]=1});return m},{});
-  // lines still only on the quote cost what the quote says they cost, so the header agrees with the Quote lines table
-  const quoteOnly=orderedLines(p).filter(l=>!isCharge(l)&&!onWO[olKey(l)]).reduce((t,l)=>{let c=0;try{const r=quoteLineCost(l);c=r&&r.cost?r.cost:0}catch(e){}return t+(Number(l.qty)||0)*c},0);
-  return js.reduce((t,j)=>t+jobCost(j),0)+(Number(p.otherCost)||0)+quoteOnly
-  +orderedLines(p).filter(isCharge).reduce((t,l)=>t+(Number(l.qty)||1)*(Number(l.cost)||0),0)}
+// what the job costs, the same way the Quote lines table adds it up (each line's cost × qty, plus charges and other
+// costs), so the header margin and the lines never disagree. Material actually pulled is shown separately (projPulled).
+function projCost(p){if(!p)return 0;const js=jobsOf(p.id);const lines=orderedLines(p);
+  const est=lines.filter(l=>!isCharge(l)).reduce((t,l)=>{let c=0;try{const r=quoteLineCost(l);c=r&&r.cost?r.cost:0}catch(e){}return t+(Number(l.qty)||0)*c},0);
+  const base=lines.some(l=>!isCharge(l))?est:js.reduce((t,j)=>t+jobCost(j),0);
+  return base+(Number(p.otherCost)||0)+lines.filter(isCharge).reduce((t,l)=>t+(Number(l.qty)||1)*(Number(l.cost)||0),0)}
+function projPulled(p){return p?jobsOf(p.id).reduce((t,j)=>t+jobCost(j),0):0}
 function valueFrom(p){return !p||!p.amountAuto?"typed in":orderedLines(p).some(l=>Number(l.price)>0)?"from the quote lines"
   :orderedLines(p).some(l=>!isCharge(l))?"no prices on the lines yet":"from the work order lines"}
 function projMargin(p){const r=projValue(p);if(!r||projCost(p)===0)return null;return (r-projCost(p))/r*100}
@@ -4524,7 +4525,8 @@ function nextStep(kind,rec){
   }
   if(kind==="project"){
     const js=jobsOf(rec.id);
-    if(!(rec.contacts||[]).length){t="Nobody on this project";b="Put a contact on it so proofs and invoices have somewhere to go.";a=`data-assign="${esc(rec.id)}"`}
+    // proofs and invoices go to the account's main contact when the project has none of its own, so only nag when there's nobody at all
+    if(!(rec.contacts||[]).length&&!contactsOf(rec.accountId).length){t="Nobody on this project";b="Put a contact on it so proofs and invoices have somewhere to go.";a=`data-assign="${esc(rec.id)}"`}
     else if((rec.stage==="won"||rec.stage==="production")&&!js.length){t="Won, but nothing for the shop yet";b="One tap — it's built from the project.";a=`data-quickwo="${esc(rec.id)}"`}
     else if(rec.stage==="shipped"&&billState(rec)!=="invoiced"&&billState(rec)!=="paid"){t="Shipped — not invoiced";
       b="Send the invoice. It stays open until the money's in.";a=`data-stage="${esc(rec.id)}:invoiced"`}
@@ -5513,9 +5515,11 @@ function nextStepFor(p){
 }
 function decorateHelp(){
   const main=document.querySelector(".main");if(!main)return;const show=helpOn();
+  // a page's one-line description under its title: tucked away too unless explanations are on
+  main.querySelectorAll(".pad > div > h1 + .sub").forEach(el=>{if(el.textContent.trim().split(/\s+/).length>=8&&!show)el.hidden=true});
   main.querySelectorAll("section.card > header > .sub").forEach(el=>{
     if(el.closest("[data-nohelp]")||el.querySelector("button,a,input,select,textarea,img"))return;
-    const t=el.textContent.trim();if(t.split(/\s+/).length<18)return;
+    const t=el.textContent.trim();if(t.split(/\s+/).length<8)return;
     el.classList.add("hint-long");
     const b=document.createElement("button");b.type="button";b.className="helpq";b.textContent="?";
     b.title="What is this section for?";b.setAttribute("aria-label","Explain this section");b.setAttribute("aria-expanded",show?"true":"false");
@@ -6297,11 +6301,11 @@ async function chargeSave(pid,ixRaw){
    and the margin with a single suggested price. The code, size and material sit behind "Change details";
    everything rarer (how it's made, legend colours, overlaminate, the account's own price, note, picture) under "More options". */
 // one entry per code — "R1-1", "r1-1 " and "R1-1 30x30" are the same code; the sizes are sizes
-function codeNorm(c){return String(c||"").toUpperCase().replace(/\s+/g,"").replace(/[-_ ]?\d+(\.\d+)?X\d+(\.\d+)?$/,"")}
+function codeNorm(c){return String(c||"").split("|")[0].toUpperCase().replace(/\s+/g,"").replace(/[-_ ]?\d+(\.\d+)?X\d+(\.\d+)?$/,"")}
 function codeList(){const m=new Map();
   allCodes().forEach(e=>{const k=codeNorm(e.code);if(!m.has(k))m.set(k,{code:e.code,name:e.name,sizes:new Set(e.sizes)});else e.sizes.forEach(z=>m.get(k).sizes.add(z))});
   sheetRows().forEach(r=>{const raw=r.code||r.mutcd;if(!raw)return;const k=codeNorm(raw);if(!k)return;
-    if(!m.has(k))m.set(k,{code:String(raw).trim().replace(/[-_ ]?\d+(\.\d+)?[xX]\d+(\.\d+)?$/,""),name:String(r.title||r.name||"").replace(/^\d+x\d+\s*/,"").replace(/\s+—\s+\w+$/,""),sizes:new Set()});
+    if(!m.has(k))m.set(k,{code:String(raw).split("|")[0].trim().replace(/[-_ ]?\d+(\.\d+)?[xX]\d+(\.\d+)?$/,""),name:String(r.title||r.name||"").replace(/^\d+x\d+\s*/,"").replace(/\s+—\s+\w+$/,""),sizes:new Set()});
     if(r.size)m.get(k).sizes.add(r.size)});
   return [...m.values()].map(x=>Object.assign(x,{sizes:[...x.sizes]})).sort((a,b)=>a.code.localeCompare(b.code,undefined,{numeric:true}))}
 function codeKnown(c){const k=codeNorm(c);if(!k)return true;if(codeList().some(x=>codeNorm(x.code)===k))return true;
@@ -6312,8 +6316,10 @@ function quoteMaterials(){const v=new Map();
   sheetingList().forEach(x=>v.set(x.name.toLowerCase(),{v:x.name,l:x.long}));
   itemList().filter(i=>i&&!i.deleted&&/sheeting|vinyl|film|banner|magnet/i.test((i.cat||"")+" "+(i.name||""))
     &&!/\bink\b|printhead|print head|application tape|transfer tape|premask|hdpe|ldpe|blank|laminate|cleaner/i.test((i.cat||"")+" "+(i.name||"")))
-    .forEach(i=>{if(!v.has(String(i.name).toLowerCase()))v.set(String(i.name).toLowerCase(),{v:i.name,l:i.name})});
+    .forEach(i=>{const base=matBase(i.name);const k=base.toLowerCase();if(!v.has(k)&&!sheetingList().some(x=>x.name.toLowerCase()===k))v.set(k,{v:base,l:base})});
   return [...v.values()].sort((a,b)=>a.v.localeCompare(b.v,undefined,{numeric:true}))}
+// "3M HIP White 3930 — 24in x 50yd roll" → "3M HIP White 3930": the width is the roll, not the material
+function matBase(n){return String(n||"").replace(/\s*[—–(,·-]?\s*\d+(\.\d+)?\s*(in|inch|"|”|ft|yd|')\b.*$/i,"").replace(/\s*[—–(,·-]\s*$/,"").trim()||String(n||"")}
 function ordSizeOpts(code){const seen=new Set(),out=[];sizeGroups(code).forEach(g=>g.opts.forEach(o=>{const k=normSize(o.v)||o.v;if(seen.has(k))return;seen.add(k);out.push(o)}));return out}
 // the "Find an item" results: codes, your workbook signs, the website, stencils, inventory — eight at a time
 function ordFindRows(q){const t=String(q||"").trim();if(!t)return [];
@@ -6380,7 +6386,8 @@ function ordModal(pid,ix,pre){
     `${isNew?"":`<button class="btn d" data-orddel="${esc(pid)}:${ix}" style="margin-right:auto">Remove</button>`}
      <button class="btn" data-close="1">Cancel</button>
      <button class="btn p" data-ordsave="${esc(pid)}:${isNew?"new":ix}">${isNew?"Add":"Save"}</button>`));
-  const pe=$("#o-price");if(pe){pe.dataset.auto=(o.price&&String(o.price).trim())?"0":"1";
+  // a price you typed stays; a price that came from the item you picked (or the suggestion) follows the details
+  const pe=$("#o-price");if(pe){pe.dataset.auto=(!isNew&&o.price&&String(o.price).trim())?"0":(pre&&pre.price?"pick":"1");
     pe.addEventListener("input",()=>{pe.dataset.auto=pe.value.trim()?"0":"1"})}
   const de=$("#o-desc");if(de){de.dataset.auto=String(o.desc||"").trim()?"0":"1";de.addEventListener("input",()=>{if(!S._ordFill)de.dataset.auto=de.value.trim()?"0":"1"})}
   const tog=$("#o-det-tog"),dbox=$("#o-det");
@@ -6397,8 +6404,9 @@ function ordModal(pid,ix,pre){
   ["o-qty","o-code","o-size","o-grade","o-price","o-build","o-legs","o-nolam","o-desc"].forEach(id=>{const e=$("#"+id);if(e){e.addEventListener("input",ordCostHelp);e.addEventListener("change",ordCostHelp)}});
   // typing a code does what picking it does: fills the name and the usual size, and the sizes list follows the code
   ["o-code","o-size","o-grade"].forEach(id=>{const e=$("#"+id);if(e)e.addEventListener("input",()=>{if(S._ordFill)return;
-    if(S.ordPre){["sheetKey","webId","webVar","webImg"].forEach(k=>delete S.ordPre[k])}   // no longer the item that was picked
-    if(id==="o-code")ordCodeTyped()})});
+    if(S.ordPre){["sheetKey","webId","webVar","webImg","price"].forEach(k=>delete S.ordPre[k])}   // no longer the item that was picked — its price doesn't apply
+    const pe0=$("#o-price");if(pe0&&pe0.dataset.auto!=="0")pe0.dataset.auto="1";
+    if(id==="o-code")ordCodeTyped();ordCostHelp()})});
   ordCodeTyped(true);
   focusFirst(isNew&&!pre?"o-find":"o-qty");
 }
@@ -6408,8 +6416,10 @@ function ordCodeTyped(quiet){const ce=$("#o-code");if(!ce)return;const v=ce.valu
   if(h)h.innerHTML=!v?"":e?`${esc(e.code)} is <b>${esc(e.name)}</b>`:codeKnown(v)?"":`<span style="color:var(--danger-ink);font-weight:700">⚠ Not a code we know</span> — check it, or say what it is in the name`;
   if(quiet||!e)return;
   const de=$("#o-desc"),sz=$("#o-size");
-  if(de&&(de.dataset.auto==="1"||!de.value.trim())&&e.name){de.value=e.name;de.dataset.auto="1"}
-  if(sz&&!sz.value.trim()&&e.sizes.length)sz.value=e.sizes[0];
+  // the name follows the code unless you typed your own; the size follows unless it's already one of this code's sizes
+  const prevAuto=de&&(de.dataset.auto==="1"||!de.value.trim()||codeList().some(x=>x.name&&x.name===de.value.trim()));
+  if(de&&prevAuto&&e.name){de.value=e.name;de.dataset.auto="1"}
+  if(sz&&e.sizes.length&&!e.sizes.some(z=>(normSize(z)||z)===(normSize(sz.value)||sz.value.trim())))sz.value=e.sizes[0];
   ordDetText();ordCostHelp()}
 function ordDetText(){const t=$("#o-det-txt");if(!t)return;const v=[$("#o-code").value.trim(),$("#o-size").value.trim()?sizeLabel($("#o-size").value.trim()):"",$("#o-grade").value.trim()].filter(Boolean).join(" · ");
   t.textContent=v||"No code, size or material yet"}
@@ -6422,7 +6432,7 @@ function ordPickFill(key){
   try{S.ordPre=Object.assign({},pre);
     $("#o-code").value=pre.code||"";$("#o-size").value=pre.size||"";if(pre.grade)$("#o-grade").value=pre.grade;
     const de=$("#o-desc");if(de){de.value=pre.desc||pre.title||de.value;de.dataset.auto="1"}
-    const pe=$("#o-price");if(pe){pe.dataset.auto="1";pe.value=""}
+    const pe=$("#o-price");if(pe){pe.dataset.auto="pick";pe.value=""}
     if(pre.legend){const lr=document.querySelector('[data-legrows="o"] .legrow .leg-film');if(lr&&!lr.value){lr.value=pre.legend;const sl=lr.parentNode.querySelector(".leg-pick");if(sl){if([...sl.options].some(x=>x.value===pre.legend))sl.value=pre.legend;else{sl.value="__other";lr.style.display=""}}}}
   }finally{S._ordFill=false}
   ordCodeTyped(true);ordDetText();ordCostHelp();
@@ -6443,7 +6453,7 @@ function ordCostHelp(){
   const lb=$("#o-legs");if(lb){const lp0=lineProd(line);lb.style.display=(lp0==="sign"&&line.build!=="print")?"":"none"}
   {const nw=$("#o-nolam-wrap"),nl=$("#o-nolam");const pr1=linePrinted(line);if(nw)nw.style.display=pr1?"":"none";line.noLam=!!(pr1&&nl&&nl.checked)}
   const sg=ordSuggest(line);
-  if(pe&&pe.dataset.auto==="1"){pe.value=sg?Number(sg.price).toFixed(2):""}
+  if(pe&&(pe.dataset.auto==="1"||pe.dataset.auto==="pick")){pe.value=sg?Number(sg.price).toFixed(2):""}
   {const cw=$("#o-contract-wrap");if(cw){const a0=acct(S.ordAid);const pv=Number(pe&&pe.value)||0;
     const cur=a0?contractPrice(a0,line):null;cw.style.display=(a0&&pv>0&&!(cur&&Math.abs(Number(cur.price)-pv)<0.005))?"":"none"}}
   ordDetText();
@@ -6469,7 +6479,7 @@ async function ordSave(pid,ixRaw){
   if(keep){["sheetKey","title","webImg","webId","webVar"].forEach(k=>{if(keep[k]&&rec[k]==null)rec[k]=keep[k]})}
   Object.assign(rec,tidyLine(rec));
   rec.noLam=!!($("#o-nolam")&&$("#o-nolam").checked&&linePrinted(rec));
-  if(ixRaw==="new"?!(Number(rec.qty)>0):!String(rec.qty).trim()){toast("Put in a quantity — 1 or more.");const qe=$("#o-qty");if(qe)qe.focus();return}
+  if(!(Number(rec.qty)>0)){toast("Put in a quantity — 1 or more.");const qe=$("#o-qty");if(qe)qe.focus();return}
   if(!rec.code&&!rec.desc)return toast("Give it a name or a code.");
   if(!lg.legend&&S.ordPre&&S.ordPre.legend&&!old0){rec.legend=S.ordPre.legend}
   if(!String(rec.price||"").trim()){const sg=ordSuggest(Object.assign({},rec,{sheetKey:rec.sheetKey||(S.ordPre&&S.ordPre.sheetKey)||""}));if(sg)rec.price=Number(sg.price).toFixed(2)}
@@ -7942,19 +7952,8 @@ function pickOptionsHTML(field,code){
 }
 // iPhones and some browsers hide the type-ahead list, so every pick-or-type box gets
 // a proper dropdown beside it that fills the box in.
-function withPick(html,id,field,label){
-  const opts=sugg(field);
-  if(!opts.length)return withList(html,id,field);
-  const isCode=field==="code";
-  return `<div class="fld full" style="border-bottom:0;padding-bottom:0">
-    <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
-      <div style="flex:1;min-width:190px">${withList(html,id,field)}</div>
-      <select class="pickone" data-pickinto="${id}" style="flex:0 0 auto;max-width:230px">
-        <option value="">${esc(label||"Pick one…")}</option>
-        ${(field==="grade"||field==="legend"||field==="size"||field==="code")?pickOptionsHTML(field):opts.map(x=>{const sh=field==="grade"?sheetingList().find(y=>y.name===x):null;
-          return `<option value="${esc(x)}">${esc(isCode?(x+(signName({code:x})?" — "+signName({code:x}):"")):(sh?sh.long:x))}</option>`}).join("")}
-      </select></div></div>`;
-}
+// every pick-or-type box is one searchable box (the separate "Pick a…" dropdowns beside them are gone)
+function withPick(html,id,field,label){return withList(html,id,field)}
 let LEGN=0;
 function legRow(pfx,l){
   const id=pfx+"-lf-"+(++LEGN);
@@ -7986,16 +7985,18 @@ function readLegends(pfx){
 }
 function withList(html,id,field){
   const isCode=field==="code";
-  const opts=sugg(field).map(x=>{const nm=isCode?signName({code:x}):"";return '<option value="'+esc(x)+'"'+(nm?' label="'+esc(x+" — "+nm)+'"':'')+'>'+(nm?esc(nm):'')+'</option>'}).join("");
+  const opts=isCode?codeList().map(e=>'<option value="'+esc(e.code)+'" label="'+esc(e.code+(e.name?" — "+e.name:""))+'">'+esc(e.name||"")+'</option>').join("")
+    :field==="size"?ordSizeOpts("").map(o=>'<option value="'+esc(o.v)+'">'+esc(o.l)+'</option>').join("")
+    :sugg(field).map(x=>'<option value="'+esc(x)+'"></option>').join("");
   return html.replace('<input id="'+id+'"','<input list="dl-'+id+'" autocomplete="off" id="'+id+'"'+(isCode?' data-codehint="1"':''))
     +'<datalist id="dl-'+id+'">'+opts+'</datalist>'
-    +(isCode?'<div class="sub codehint" id="hint-'+id+'" style="margin-top:4px">Click the box to see every code with what it is, or type a word like "stop" or "speed".</div>':'');
+    +(isCode?'<div class="sub codehint" id="hint-'+id+'" style="margin-top:4px"></div>':'');
 }
 function codeHint(el){
   const h=document.getElementById("hint-"+el.id);if(!h)return;
-  const v=el.value.trim();if(!v){h.textContent='Click the box to see every code with what it is, or type a word like "stop" or "speed".';return}
+  const v=el.value.trim();if(!v){h.textContent="";return}
   const nm=signName({code:v});
-  h.innerHTML=nm?'<b>'+esc(v)+'</b> is <b>'+esc(nm)+'</b>':'Not a code we have on file — fine for a custom item. Say what it is in the notes.';
+  h.innerHTML=nm?'<b>'+esc(v)+'</b> is <b>'+esc(nm)+'</b>':'<span style="color:var(--danger-ink);font-weight:700">⚠ Not a code we know</span> — check it, or say what it is in the name';
 }
 const SIGN_NAMES={"R1-1":"Stop","R1-2":"Yield","R2-1":"Speed limit","R3-1":"No right turn","R3-2":"No left turn","R5-1":"Do not enter",
   "R6-1":"One way","R7-1":"No parking","R7-8":"Reserved parking — accessible","R8-31":"Fire lane — no parking","W1-1":"Turn",
@@ -8965,7 +8966,8 @@ function render(){
   applyBrand();
   try{const t=pageTitle();document.title=(t?t+" · ":"")+"SSS CRM"}catch(e){}
   // overlays live outside #root, so clear them before we draw the new ones
-  document.querySelectorAll("#viewer,.scrim,.modal").forEach(el=>el.remove());
+  const keepModal=!!(S.modal&&S._modalShown===S.modal&&document.querySelector(".modal"));
+  document.querySelectorAll(keepModal?"#viewer":"#viewer,.scrim,.modal").forEach(el=>el.remove());
   const prev=$(".main"),st=prev?prev.scrollTop:0,wy=window.scrollY||0;
   const rkey=(S.route&&S.route.v||"")+"/"+(S.route&&S.route.id||"");
   // the Google sign-in usually comes back within a few seconds of opening: show a plain loading screen until then,
@@ -8999,7 +9001,10 @@ function render(){
   if(S.saveFail&&S.saveFail.length&&!document.querySelector(".savefail")){const m=document.querySelector(".main");if(m)m.insertAdjacentHTML("afterbegin",
     `<div class="alert savefail" style="margin:10px 16px">${S.saveFail.map(f=>esc(f.what)+" ("+esc(f.why)+")").join("<br>")}<span class="sp"><button class="btn sm" data-conntest="1">Check the database</button><button class="btn sm" data-savefailok="1">Dismiss</button></span></div>`)}
   try{decorateAccess();decorateProjectTabs()}catch(e){}
-  if(S.modal){document.body.insertAdjacentHTML("beforeend",S.modal);setTimeout(decorateAddress,0)}
+  // an open form isn't redrawn when data arrives in the background — that wiped what was being typed and its live boxes
+  if(S.modal&&!keepModal){document.body.insertAdjacentHTML("beforeend",S.modal);S._modalShown=S.modal;setTimeout(decorateAddress,0)}
+  else if(!S.modal)S._modalShown=null;
+  if(keepModal){const m=document.querySelector(".modal"),sc=document.querySelector(".scrim");if(sc)document.body.appendChild(sc);if(m)document.body.appendChild(m)}
   const vh=viewerHTML();if(vh)document.body.insertAdjacentHTML("beforeend",vh);
   bind();
   const m=$(".main");
@@ -9955,7 +9960,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-72";
+const APP_VERSION="2026.11.25-73";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -10212,7 +10217,7 @@ function projectRec(id){
             :`<button class="btn sm d" data-edit="project:${esc(id)}">Unassigned</button>`})()}</div></div>
         <div><div class="k">Value</div><div class="v mono">${money(projValue(p))}
           ${p.amountAuto?`<div class="sub">${valueFrom(p)}</div>`:""}</div></div>
-        <div><div class="k">Cost</div><div class="v mono">${projCost(p)?money(projCost(p)):"—"}</div></div>
+        <div><div class="k">Cost</div><div class="v mono">${projCost(p)?money(projCost(p)):"—"}${projPulled(p)&&Math.abs(projPulled(p)-projCost(p))>1?`<div class="sub" title="Material and other costs recorded on the work orders">${money(projPulled(p))} pulled so far</div>`:""}</div></div>
         <div><div class="k">Margin</div><div class="v">${marginPill(projMargin(p),projValue(p))}</div></div>
         <div><div class="k">Billing</div><div class="v">${billPill(p)}
           ${billedEarly(p)&&p.stage!=="invoiced"&&p.stage!=="closed"?`<div class="sub">billed before production</div>`:""}</div></div>
@@ -12380,7 +12385,7 @@ async function downloadFile(fid){
 }
 function openModal(h){S.modal=h;S.modalTouched=false;S.discardArmed=false;render();decorateAddress()}
 function modalDirty(){return !!S.modalTouched}
-function closeModal(){S.modal=null;const s=$(".scrim"),m=$(".modal");if(s)s.remove();if(m)m.remove()}
+function closeModal(){S.modal=null;S._modalShown=null;const s=$(".scrim"),m=$(".modal");if(s)s.remove();if(m)m.remove()}
 function mshell(title,icon,b,f){
   return `<div class="scrim" data-close="1"></div><div class="modal"><div class="mbox">
     <h2>${icon?`<span class="oi sm oi-${icon}">${ic(({acct:"account",cont:"contact",proj:"project",job:"job",file:"file"})[icon]||"file",14)||icon[0].toUpperCase()}</span>`:""}${esc(title)}
@@ -15236,7 +15241,7 @@ function bind(){
       else if(row){row.querySelector(".leg-film").value="";row.querySelector(".leg-pct").value=""}
       if(box)box.dispatchEvent(new Event("input",{bubbles:true}));S.modalTouched=true;return}
     const rg=t.closest("tr.rowgo");
-    if(rg&&!t.closest("button,a,input,select,label,textarea,[data-go],[data-edit],[data-sort]")){
+    if(rg&&!t.closest("button,a,input,select,label,textarea,details,summary,[data-go],[data-edit],[data-sort]")){
       const l=rg.querySelector(":scope > td:first-child .lnk[data-go]");if(l){go(l.dataset.go);return}}
     const czb=t.closest("[data-cz]");
     if(czb&&!t.closest("button:not(.cz),a,input,select,textarea")){toggleCz(czb.dataset.cz);return}

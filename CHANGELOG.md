@@ -1,5 +1,15 @@
 # What changed
 
+## 2026.11.25-73
+- Add a line: the Find box works on the live site. Any form left open no longer gets redrawn when new data arrives in the background — that was wiping its live search and re-pricing (and anything being typed).
+- A price that came from a picked item is dropped as soon as the code, size or material is changed by hand, and the line re-prices from the new details (a price you typed yourself stays).
+- Typing a code fills the name (unless you wrote your own) and switches the size to that code's usual size when the current one isn't one of its sizes.
+- One entry per code (workbook codes like "R1-1|30X30" are R1-1), and one entry per material (roll widths aren't separate materials).
+- Editing a line needs a quantity of 1 or more. The work order line form uses the same single searchable boxes (no "Pick a…" dropdowns or "Click the box" text).
+- Project header: Cost and margin are worked out the same way as the Quote lines table, so they agree; material pulled so far shows under it.
+- "Nobody on this project" only shows when the account has no contact either (proofs and invoices go to the account's main contact).
+- Archive: the row "⋯" menu opens instead of the project. More of the gray helper text is tucked behind the "?" buttons (or Help → Show the long explanations).
+
 ## 2026.11.25-72
 - Settings → Data: "Turn the lock off" is under More and asks you to type off. It used to be a plain button beside "Apply the updated rules" and turned the lock off with one click.
 
