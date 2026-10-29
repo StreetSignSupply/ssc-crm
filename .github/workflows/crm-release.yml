@@ -43,6 +43,9 @@ jobs:
         if: github.event.inputs.rollback == ''
         run: |
           V=$(grep -o 'APP_VERSION="[^"]*"' next/index.html | head -1 | cut -d'"' -f2)
+          # two pushes close together: an older build must never go live over a newer one — the newer push has its own run
+          git fetch -q origin main
+          if ! git diff --quiet HEAD origin/main -- next/index.html; then echo "::notice::$V skipped — a newer next/ is already on main and releases in its own run"; exit 0; fi
           if cmp -s next/index.html public/index.html; then echo "::notice::$V already live"; exit 0; fi
           cp next/index.html public/index.html; printf '%s\n' "$V" > public/version.txt
           git config user.name "Street Sign Supply agents"; git config user.email matt@streetsignsupply.com
