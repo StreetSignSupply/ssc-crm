@@ -1585,6 +1585,8 @@ const filesOf=(k,id)=>live(S.files).filter(f=>{
   const I=String(id);
   if(k==="account")return f.accountId===I&&!f.projectId&&!f.jobId;
   if(k==="project")return f.projectId===I&&!f.jobId;
+  if(k==="vendor")return f.vendorId===I;
+  if(k==="item")return f.itemId===I;
   return f.jobId===I;
 }).sort((a,b)=>(b.at||0)-(a.at||0));
 const filesUnder=pid=>live(S.files).filter(f=>f.projectId===String(pid)).length;
@@ -9201,7 +9203,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-42";
+const APP_VERSION="2026.11.25-43";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -12013,7 +12015,9 @@ function jobModal(j,pid){
   focusFirst("f-desc");
 }
 function uploadModal(kind,id,preset){
-  const where=kind==="job"?("work order "+id):kind==="project"?("project "+(projName(id)||id)):("account "+(accName(id)||id));
+  const where=kind==="job"?("work order "+id):kind==="project"?("project "+(projName(id)||id))
+    :kind==="vendor"?("vendor "+((S.vendors.get(id)||{}).name||id)):kind==="item"?("item "+((S.items.get(id)||{}).name||id)):("account "+(accName(id)||id));
+  if(!preset&&kind==="vendor")preset="Invoice";
   openModal(mshell("Upload files","file",
     `<p class="note" style="margin:10px 14px">These attach to <b>${esc(where)}</b> and nowhere else. A reorder gets its own project and its own files.</p>
     <div class="fgrid"><div class="fld full"><div class="k">Choose files</div>
@@ -12039,6 +12043,8 @@ async function doUpload(files,cat,kind,id){
         type:up.contentType||file.type,cat,who:me(),when:stamp(),at:Date.now(),deleted:false,
         accountId:"",projectId:"",jobId:""};
       if(kind==="account")rec.accountId=String(id);
+      if(kind==="vendor")rec.vendorId=String(id);      // vendor invoices, quotes and price sheets stay on the vendor
+      if(kind==="item")rec.itemId=String(id);
       if(kind==="project"){rec.projectId=String(id);const p=S.projects.get(id);rec.accountId=p?p.accountId:""}
       if(kind==="job"){rec.jobId=String(id);const j=S.jobs.get(String(id));
         rec.projectId=j?j.projectId:"";rec.accountId=j?j.accountId:""}
