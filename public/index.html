@@ -1046,13 +1046,17 @@ details.dd[open] > summary{border-color:var(--ink3)}
   .pj-foot span{margin-left:auto}
 }
 /* ===== archived projects under the open ones (account page) ===== */
-tr.archdiv td{background:var(--hd)!important;font-size:12.5px;font-weight:800;color:var(--ink);padding:9px 14px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);letter-spacing:0}
-tr.archdiv .ic{vertical-align:-2px;margin-right:5px;color:var(--ink2)}
+tr.archdiv td{background:var(--plate2)!important;font-size:11.5px;font-weight:800;color:#fff;padding:7px 14px;border:0;letter-spacing:.08em;text-transform:uppercase}
+tr.archdiv .ic{vertical-align:-2px;margin-right:6px;color:#fff;opacity:.8}
+tr.archdiv:hover td{background:var(--plate2)!important}
 /* sortable column headings look like every other heading (no shouting capitals) */
-th,th .sortb{text-transform:none;letter-spacing:0;font-size:12.5px;font-weight:800;color:var(--ink)}
+/* three clear levels in every list: small grey column labels · bold names · a dark band for sections like Archived */
+th,th .sortb{text-transform:uppercase;letter-spacing:.06em;font-size:11px;font-weight:700;color:var(--ink3)}
+th .sortb:hover{color:var(--ink)}
+td .lnk{font-size:14.5px;font-weight:700;color:var(--ink)}
 th .sortb{display:inline;padding:0 0 1px;margin:0;font:inherit;line-height:inherit;vertical-align:baseline;border-bottom-width:2px}
 th{vertical-align:middle;line-height:1.3}
-th .sortb.on{color:var(--ink);border-bottom-color:var(--brand)}
+th .sortb.on{color:var(--ink2);border-bottom-color:var(--brand)}
 /* archived rows read exactly like the active ones (same bold name, same text) — the divider says they're archived */
 /* ===== files: first 2, the rest folded ===== */
 .fmore > summary{list-style:none;cursor:pointer;padding:6px 14px 12px;font-size:12.5px;font-weight:700;color:var(--blue)}
@@ -9278,7 +9282,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-53";
+const APP_VERSION="2026.11.25-54";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
