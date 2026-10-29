@@ -1,5 +1,10 @@
 # What changed
 
+## 2026.11.25-79
+- Work orders: blanks can come from different places on the same job. Pick "Mixed — choose for each line" under Blanks and each line gets its own choice (pull from stock, on order from a vendor, or cut in-house). It starts each line on stock when there are enough on the shelf and on "on order" when there aren't, and shows what's on hand. Each work order line can also be changed later ("Blanks for this line").
+- A mixed work order pulls only the stock lines from inventory, marks the ordered blanks "on order", lists which lines are waiting on blanks, and its route has both "Blanks received from vendor" and "Pull blanks from stock".
+- Sign pictures: a line whose words match a website sign in any order (e.g. "Fire Lane No Parking" = the website's "No Parking Fire Lane Sign", arrows pointing the same way) shows that website picture. Only a sign that isn't on the website gets a drawing.
+
 ## 2026.11.25-78
 - Parking and fire-lane sign drawings look like the real signs: white face, red border, the legend in big red capitals one word per line ("FIRE / LANE / NO / PARKING / ANY / TIME"), each phrase sized to fill the sign, so they're readable even as a small thumbnail.
 
