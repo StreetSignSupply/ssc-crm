@@ -22,6 +22,14 @@ service cloud.firestore {
                              || d.get("claudeId", "") == request.auth.uid
                              || (d.get("claudeIds", []) is list && request.auth.uid in d.get("claudeIds", [])); }
 
+    // a person may record their own sign-in id on their record, and nobody else's
+    function ownIdsOnly() {
+      return (!changed().hasAny(["claudeId"]) || request.resource.data.claudeId == request.auth.uid)
+          && (!changed().hasAny(["claudeIds"])
+              || (request.resource.data.claudeIds is list
+                  && request.resource.data.claudeIds.toSet().difference(resource.data.get("claudeIds", []).toSet()).hasOnly([request.auth.uid])
+                  && request.resource.data.claudeIds.toSet().hasAll(resource.data.get("claudeIds", []).toSet())));
+    }
     // the access list itself: only owners change it
     match /access/{key} {
       allow read: if member();
@@ -32,19 +40,28 @@ service cloud.firestore {
     match /team/{id} {
       allow read: if member();
       allow create, delete: if isOwner();
-      allow update: if isOwner() || (member() && isSelf(resource.data) && !changed().hasAny(["access", "companyDash", "email", "role"]));
+      allow update: if isOwner() || (member() && isSelf(resource.data) && !changed().hasAny(["access", "companyDash", "email", "role"])
+                                     && ownIdsOnly());
     }
     // settings: owners and office; keys and tokens live in settings/secrets, which only they can read;
     // the record of what's been sent to the sheet is kept up by every copy of the CRM; the lock switch is the owner's
     match /settings/{id} {
       allow read: if id == "secrets" ? isOffice() : member();
-      allow write: if id == "syncsent" ? member() : (id == "dbLock" ? isOwner() : isOffice());
+      allow write: if id == "syncsent" ? member() : (id == "dbLock" ? isOwner()
+                    : isOffice() && !(id != "secrets" && request.resource.data.get("shopToken", "") != ""));
     }
-    // change history: anyone adds to it; nothing is taken out except by owners (the list keeps its newest 400)
+    // change history is add-only: every entry already there stays exactly as it was, new ones go on the end.
+    // Once a record's list reaches 400 the oldest drop off, but the newest 300 must all still be there.
+    function oldE() { return resource.data.get("entries", []); }
+    function newE() { return request.resource.data.get("entries", []); }
+    function sameRec() { return request.resource.data.get("recType", "") == resource.data.get("recType", "")
+                             && request.resource.data.get("recId", "") == resource.data.get("recId", ""); }
+    function appended() { return newE().size() >= oldE().size() && newE()[0:oldE().size()] == oldE(); }
+    function trimmed() { return oldE().size() >= 380 && newE().size() <= 400
+                             && newE().hasAll(oldE()[oldE().size() - 300:oldE().size()]); }
     match /history/{id} {
       allow read, create: if member();
-      allow update: if member() && (isOwner() || request.resource.data.get("entries", []).size() >= resource.data.get("entries", []).size()
-                                     || request.resource.data.get("entries", []).size() >= 380);
+      allow update: if member() && sameRec() && (appended() || trimmed());
       allow delete: if isOwner();
     }
     // quotes and projects: the shop doesn't change prices, billing or the stage
@@ -64,11 +81,51 @@ service cloud.firestore {
       allow create, update: if isOffice() || (member() && !isShop());
       allow delete: if isOffice();
     }
-    // everything else (accounts, contacts, work orders, files, activity, stock moves, mail out, counters…):
-    // read and edit for the team; hard deletes for owners and office (everyday deletes are soft)
+    // accounts and contacts: owners, office and sales; the shop reads them
+    match /accounts/{id} {
+      allow read: if member();
+      allow create, update: if member() && !isShop();
+      allow delete: if isOffice();
+    }
+    match /contacts/{id} {
+      allow read: if member();
+      allow create, update: if member() && !isShop();
+      allow delete: if isOffice();
+    }
+    // work orders: the shop moves them along (status, steps, QC, notes) but doesn't create them or change what's ordered or its price
+    match /jobs/{id} {
+      allow read: if member();
+      allow create: if member() && !isShop();
+      allow update: if member() && !(isShop() && changed().hasAny(["lines", "orderLines", "value", "price", "projectId", "accountId", "num", "deleted"]));
+      allow delete: if isOffice();
+    }
+    // stock moves are add-only; undoing a move only flips its undo fields; anything else is owners and office
+    match /invtx/{id} {
+      allow read, create: if member();
+      allow update: if isOffice() || (member() && changed().hasOnly(["undone", "undoneAt", "undoneBy", "undoneWhy", "qty", "qtyWas", "redoneAt", "redoneBy"]));
+      allow delete: if isOffice();
+    }
+    // email the CRM sends: one message to one person on the team (task notices); nothing edits or removes it afterwards
+    match /mail/{id} {
+      allow read: if isOffice();
+      allow create: if member() && request.resource.data.to is list && request.resource.data.to.size() == 1
+                    && request.resource.data.to[0] is string
+                    && exists(/databases/$(db)/documents/access/$(request.resource.data.to[0].lower()));
+      allow update, delete: if false;
+    }
+    // number counters only go up; the fix-run record is for background jobs only
+    match /meta/{id} {
+      allow read: if member();
+      allow create, update: if member() && id != "fixruns" && (id != "counter" || (
+          request.resource.data.get("nextJob", 0) >= (resource == null ? 0 : resource.data.get("nextJob", 0))
+          && request.resource.data.get("nextProject", 0) >= (resource == null ? 0 : resource.data.get("nextProject", 0))
+          && request.resource.data.get("nextQuote", 0) >= (resource == null ? 0 : resource.data.get("nextQuote", 0))));
+      allow delete: if false;
+    }
+    // day-to-day records: activity, events, files, reminders, notifications
     match /{coll}/{id=**} {
-      allow read, create, update: if member() && !(coll in ["access", "team", "settings", "history", "projects", "items", "vendors"]);
-      allow delete: if isOffice() && !(coll in ["access", "team", "settings", "history", "projects", "items", "vendors"]);
+      allow read, create, update: if member() && coll in ["activity", "events", "files", "reminders", "notifications", "filedata"];
+      allow delete: if isOffice() && coll in ["activity", "events", "files", "reminders", "notifications", "filedata"];
     }
   }
 }
