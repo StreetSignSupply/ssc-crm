@@ -117,7 +117,7 @@ if (STEP === "stencils") {
     const sh = meta2.sheets.find((x) => x.properties.title === TAB);
     if (sh && sh.properties.gridProperties.rowCount < rows.length + 5) await api(":batchUpdate", "POST", { requests: [{ appendDimension: { sheetId: sh.properties.sheetId, dimension: "ROWS", length: rows.length + 5 - sh.properties.gridProperties.rowCount } }] });
     await api("/values/" + encodeURIComponent("'" + TAB + "'!A1") + "?valueInputOption=RAW", "PUT", { values: rows });
-    const flagged = rows.slice(1).filter((r) => r[17]).length, uncosted = rows.slice(1).filter((r) => r[13] === "").length;
+    const flagged = rows.slice(1).filter((r) => r[18]).length, uncosted = rows.slice(1).filter((r) => r[14] === "").length;
     console.log("::notice::stencil export: " + (rows.length - 1) + " rows (" + new Set(rows.slice(1).map((r) => r[0])).size + " stencils), " + uncosted + " rows not costed, " + flagged + " rows flagged");
     await browser.close(); process.exit(0);
   } catch (e) { console.log("::error::stencil export: " + String(e.message || e).slice(0, 160)); await browser.close(); process.exit(1); }
