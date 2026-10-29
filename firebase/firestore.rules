@@ -56,7 +56,7 @@ service cloud.firestore {
     function newE() { return request.resource.data.get("entries", []); }
     function sameRec() { return request.resource.data.get("recType", "") == resource.data.get("recType", "")
                              && request.resource.data.get("recId", "") == resource.data.get("recId", ""); }
-    function appended() { return newE().size() >= oldE().size() && newE()[0:oldE().size()] == oldE(); }
+    function appended() { return newE().size() >= oldE().size() && (oldE().size() == 0 || newE()[0:oldE().size()] == oldE()); }
     function trimmed() { return oldE().size() >= 380 && newE().size() <= 400
                              && newE().hasAll(oldE()[oldE().size() - 300:oldE().size()]); }
     match /history/{id} {
