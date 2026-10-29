@@ -1,3 +1,5 @@
 setBill quickWOGo mergeAccounts dupAccounts acctKey live liveJobs contactsOf jobsOf filesOf projFiles onHand isClosed orderedLines woItems normKey accName returnJobStock archivedJobs repFor olKey itKey isCharge advance itemVendors itemVendSave landed lockLineCosts lockedCostOf stcLoad stcExportRows stcMatFor stcSq stcCost accessSync accessWanted signIns quoteLineCost lineProd parseSize matchItem sheetFind signMatCost projValue invTaxOf billState push
 
 mergeContacts dupContactPairs remAll remEmailOf
+
+orderedLines isCharge defaultPrice
