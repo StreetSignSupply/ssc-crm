@@ -2556,6 +2556,8 @@ function quoteLineCostLive(line){
   // a catalog stencil: its sheet at item cost plus CNC time
   if(!S.stc&&/^(SSS|STN)-/i.test(String(line.code||"")))stcLoad();
   {const sc=stcLineCost(line);if(sc)return sc}
+  // a sign with no sheeting picked can't be costed — say what's missing instead of a blank
+  if(lineProd(line)==="sign"&&!String(line.grade||"").trim()&&!line.sheetKey)return {cost:0,src:"nograde",why:"Pick the sheeting grade (HIP, DG3, EG…) and it'll be costed"};
   const uc=lineUnitCost(line.build==="print"?{method:"print"}:null,{code:line.code,size:line.size,grade:line.grade,sheetKey:line.sheetKey,
     legend:line.legend||"",legends:line.legends||[],build:line.build||""});
   // signs: the materials they're made of, at the CRM's item costs (preferred price + freight), when every part has a cost
@@ -4841,7 +4843,7 @@ function reconCard(p){
         <td class="mono" style="text-align:right">${r.extra?r.sched:r.ordered}</td>
         ${(function(){const qn=Number(r.extra?r.sched:r.ordered)||0;const uc=quoteLineCost(r);
           const pr=Number(r.price)||0;const mg=(pr&&uc.cost)?((pr-uc.cost)/pr*100):null;
-          return `<td class="mono" style="text-align:right" title="${esc(uc.why||"")}">${uc.src==="stcflag"?`<span class="pill r" title="${esc(uc.why||"")}">not costed</span>`:uc.cost?money2(uc.cost)+(uc.src==="locked"?`<div class="sub" style="white-space:nowrap">${ic("lock",11)} locked${r.costAt?" "+esc(fmtDate(isoDay(r.costAt))):""}</div>`:""):uc.src==="nosize"?`<span class="sub">needs a size</span>`:`<span class="sub">—</span>`}</td>
+          return `<td class="mono" style="text-align:right" title="${esc(uc.why||"")}">${uc.src==="stcflag"?`<span class="pill r" title="${esc(uc.why||"")}">not costed</span>`:uc.cost?money2(uc.cost)+(uc.src==="locked"?`<div class="sub" style="white-space:nowrap">${ic("lock",11)} locked${r.costAt?" "+esc(fmtDate(isoDay(r.costAt))):""}</div>`:""):uc.src==="nosize"?`<span class="sub">needs a size</span>`:uc.src==="nograde"?`<span class="pill o" title="${esc(uc.why)}">needs a grade</span>`:`<span class="sub">—</span>`}</td>
             <td class="mono" style="text-align:right">${pr?(Math.round(pr)===pr?money(pr):money2(pr)):`<span class="sub">—</span>`}</td>
             <td class="mono" style="text-align:right;font-weight:800">${pr?money(pr*qn):""}</td>
             <td style="text-align:right">${mg==null?`<span class="sub">—</span>`

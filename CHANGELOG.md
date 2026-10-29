@@ -1,5 +1,12 @@
 # What changed
 
+## 2026.11.25-62
+- Stencils: the SKU shows under each stencil in "Browse the price list", and searching by SKU works with or without the dashes (SSS-FAA-108-01, FAA108).
+- Aluminum .080 stencils are costed from the full aluminum sheets in inventory (any full sheet that says .080 aluminum — small sign blanks aren't used); the cheapest per sq ft is picked unless you choose one.
+- The 99 stencils pulled from the 25 Oct price list are held: listed with the reason, not offered on quotes. Open one to fix its sq ft, "Price at the 40% floor", and "Release for quoting". A repriced stencil's price date is the day you did it.
+- A sign line with no sheeting grade says "needs a grade" instead of a blank cost (P-2014 has 23 of these).
+- Behind the scenes: the owner's CRM keeps a list of who may sign in (one record per team member's sign-in), ready for the database lock.
+
 ## 2026.11.25-61
 - Visual review, part 1: nothing smaller than 12px for labels, table headings, pills, times and section captions (print and PDF layouts unchanged); darker secondary gray text; orange text darkened to pass contrast.
 - Form fields have visible borders and a blue focus ring (red stays for brand and alarms); disabled buttons read clearly instead of fading out.
