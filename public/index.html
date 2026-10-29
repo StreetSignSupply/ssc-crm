@@ -9282,7 +9282,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-54";
+const APP_VERSION="2026.11.25-55";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -15279,6 +15279,11 @@ document.addEventListener("click",e=>{
   document.querySelectorAll("details.dd[open]").forEach(d=>{if(!d.contains(t)||t.closest(".dd-m"))d.removeAttribute("open")});
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape")document.querySelectorAll("details.dd[open]").forEach(d=>d.removeAttribute("open"))});
+// "Show fewer" on a file list: keep the link where it was on screen, so the first 2 files land right above it
+// instead of disappearing under the bar pinned at the top
+document.addEventListener("click",e=>{const sm=e.target.closest&&e.target.closest("details.fmore > summary");if(!sm)return;
+  const d=sm.parentElement;if(!d.open)return;const m=$(".main");if(!m)return;const before=sm.getBoundingClientRect().top;
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{const after=sm.getBoundingClientRect().top;m.scrollTop+=after-before}))},true);
 if(window.claude&&typeof claude.use==="function")boot();
 else setTimeout(()=>{if(window.claude&&claude.use)boot();else{S.ready=true;render()}},1400);
 })();
