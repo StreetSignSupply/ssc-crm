@@ -2556,6 +2556,11 @@ function quoteLineCostLive(line){
   // a catalog stencil: its sheet at item cost plus CNC time
   if(!S.stc&&/^(SSS|STN)-/i.test(String(line.code||"")))stcLoad();
   {const sc=stcLineCost(line);if(sc)return sc}
+  // a bare blank (no sheeting) costs what the blank costs: the inventory blank for its size and gauge
+  if(!String(line.grade||"").trim()&&/\bblanks?\b/i.test((line.desc||"")+" "+(line.title||""))&&parseSize(line.size)){
+    const gm=String(line.desc||"").match(/\.(0\d0|125|100)\b/);const it=pickBlank(line.size,gm?gm[1]:"080")||pickBlank(line.size);
+    if(it&&Number(it.cost)>0)return {cost:Number(it.cost),src:"material",why:"bare blank — "+it.name+" at its item cost"};
+    return {cost:0,src:"noblank",why:"No "+sizeLabel(line.size)+" blank in inventory with a cost — add it (or its cost) and this line is costed"}}
   // a sign with no sheeting picked can't be costed — say what's missing instead of a blank
   if(lineProd(line)==="sign"&&!String(line.grade||"").trim()&&!line.sheetKey)return {cost:0,src:"nograde",why:"Pick the sheeting grade (HIP, DG3, EG…) and it'll be costed"};
   const uc=lineUnitCost(line.build==="print"?{method:"print"}:null,{code:line.code,size:line.size,grade:line.grade,sheetKey:line.sheetKey,
@@ -4843,7 +4848,7 @@ function reconCard(p){
         <td class="mono" style="text-align:right">${r.extra?r.sched:r.ordered}</td>
         ${(function(){const qn=Number(r.extra?r.sched:r.ordered)||0;const uc=quoteLineCost(r);
           const pr=Number(r.price)||0;const mg=(pr&&uc.cost)?((pr-uc.cost)/pr*100):null;
-          return `<td class="mono" style="text-align:right" title="${esc(uc.why||"")}">${uc.src==="stcflag"?`<span class="pill r" title="${esc(uc.why||"")}">not costed</span>`:uc.cost?money2(uc.cost)+(uc.src==="locked"?`<div class="sub" style="white-space:nowrap">${ic("lock",11)} locked${r.costAt?" "+esc(fmtDate(isoDay(r.costAt))):""}</div>`:""):uc.src==="nosize"?`<span class="sub">needs a size</span>`:uc.src==="nograde"?`<span class="pill o" title="${esc(uc.why)}">needs a grade</span>`:`<span class="sub">—</span>`}</td>
+          return `<td class="mono" style="text-align:right" title="${esc(uc.why||"")}">${uc.src==="stcflag"?`<span class="pill r" title="${esc(uc.why||"")}">not costed</span>`:uc.cost?money2(uc.cost)+(uc.src==="locked"?`<div class="sub" style="white-space:nowrap">${ic("lock",11)} locked${r.costAt?" "+esc(fmtDate(isoDay(r.costAt))):""}</div>`:""):uc.src==="nosize"?`<span class="sub">needs a size</span>`:uc.src==="nograde"?`<span class="pill o" title="${esc(uc.why)}">needs a grade</span>`:uc.src==="noblank"?`<span class="pill o" title="${esc(uc.why)}">no blank in stock list</span>`:`<span class="sub">—</span>`}</td>
             <td class="mono" style="text-align:right">${pr?(Math.round(pr)===pr?money(pr):money2(pr)):`<span class="sub">—</span>`}</td>
             <td class="mono" style="text-align:right;font-weight:800">${pr?money(pr*qn):""}</td>
             <td style="text-align:right">${mg==null?`<span class="sub">—</span>`
@@ -6617,10 +6622,11 @@ function pickRoll(pre,minIn,needSq){
   return fits[0]||c.slice().sort((a,b)=>rollWidth(b)-rollWidth(a))[0];
 }
 function pickBlank(sz,gauge){
-  const k=sizeKey(sz);if(!k)return null;
+  const k=sizeKey(sz);if(!k)return null;const d=parseSize(sz);const p2=x=>String(Math.round(x)).padStart(2,"0");const k2=d?p2(d.h)+p2(d.w):k;
+  // a 12x24 and a 24x12 are the same blank
   const c=itemList().filter(i=>{
     const sk=String(i.sku||"").toUpperCase();
-    return sk.indexOf("BLK-")===0&&sk.indexOf(k)>=0;
+    return sk.indexOf("BLK-")===0&&(sk.indexOf(k)>=0||sk.indexOf(k2)>=0);
   });
   if(!c.length)return null;
   if(gauge){const g=c.filter(i=>String(i.sku).indexOf("-"+gauge+"-")>=0);if(g.length)return g[0]}
@@ -9675,7 +9681,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-65";
+const APP_VERSION="2026.11.25-66";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
