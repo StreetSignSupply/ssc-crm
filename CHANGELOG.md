@@ -1,5 +1,12 @@
 # What changed
 
+## 2026.11.25-59
+- Stencils: every stencil in the 1 Sep catalog (1,785, with its catalog picture) plus the 75 more on the 25 Oct approved price list — 1,860 in all — under Inventory → Stencils. SKU, name, blank size, pieces, material sq ft, a price for each grade and the date the price was set.
+- Each grade (LDPE .125, LDPE .063, HDPE .030, HDPE .250, ALUM .080) is cut from an inventory sheet; cost = sheet cost per sq ft (preferred vendor price + freight) × material sq ft × 1.15 waste + CNC labor (25 Oct rates). Changing the sheet's vendor or price changes every stencil. Rates, the sheet for each grade and a stencil's sq ft can be changed on the page.
+- A stencil that can't be costed (no sheet for its grade, no cost on the sheet, no sq ft) says so and is never costed at $0; the quote total's margin waits for it.
+- Stencils are in the quote line picker (Stencils); the line carries the SKU, its cost locks at quoted like any other line, margin shows, and it makes a stencil work order that plans the sheet from the stencil's own sq ft.
+- Download CSV on the Stencils page; the same rows go to the "CRM Stencils" tab of the SSS Pipeline sheet every Monday morning.
+
 ## 2026.11.25-58
 - Closing a Files card keeps the first 2 files showing with "Show N more"; clicking that on a closed card opens the card and all its files.
 - Locked job costs now show: the quote lines table shows the locked cost with "locked <date>" (the table was dropping the lock and recomputing), and the line editor shows a "locked" tag.
