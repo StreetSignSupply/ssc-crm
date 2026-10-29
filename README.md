@@ -1,3 +1,7 @@
+> **Editing the CRM:** change `next/index.html`, not `public/index.html`. Every push runs the release check
+> (`tests/smoke.mjs`, workflow `crm-release.yml`); a build that passes is copied to `public/index.html` automatically.
+> Put an earlier release back: run "Release the CRM" with the version in `rollback`.
+
 # Street Sign Supply CRM — builds
 
 `public/index.html` is the CRM. crm.streetsignsupply.com loads this file from this repository every time it opens
