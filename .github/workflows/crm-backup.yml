@@ -1,0 +1,37 @@
+name: CRM backup (nightly)
+# Every night: the whole CRM database to a private file in the project's own Cloud Storage, read back and
+# checked, 30 days kept. Sundays it also runs the restore check. Logs show counts only.
+on:
+  workflow_dispatch:
+    inputs:
+      mode: { description: "backup or check", default: "backup" }
+  schedule:
+    - cron: "23 9 * * *"
+    - cron: "41 9 * * 0"
+permissions:
+  contents: read
+  id-token: write
+concurrency: { group: crm-backup, cancel-in-progress: false }
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - id: gauth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/741399760463/locations/global/workloadIdentityPools/github/providers/ssc-crm
+          service_account: firebase-adminsdk-fbsvc@ssc-crm-a7224.iam.gserviceaccount.com
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/devstorage.read_write,https://www.googleapis.com/auth/cloud-platform
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - working-directory: worker
+        run: npm install --no-audit --no-fund --loglevel=error 2>&1 | tail -2
+      - working-directory: worker
+        env:
+          FIREBASE_PROJECT: ssc-crm-a7224
+          STORAGE_TOKEN: ${{ steps.gauth.outputs.access_token }}
+          BACKUP_MODE: ${{ github.event.inputs.mode || (github.event.schedule == '41 9 * * 0' && 'check') || 'backup' }}
+        run: node backup.mjs
