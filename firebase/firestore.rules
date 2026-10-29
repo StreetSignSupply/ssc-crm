@@ -1,7 +1,7 @@
 rules_version = '2';
 // Street Sign Supply CRM — who may read and change the database.
 // Only people on the team list can open anything. Their record in /access (one per sign-in email and per sign-in id,
-// kept in step with the team list by the owner's CRM) says their level: owner, office, sales or shop.
+// kept in step with the team list by the owner's CRM) gives their level: owner, office, sales or shop.
 // Background jobs use the project's service account, which these rules don't apply to.
 service cloud.firestore {
   match /databases/{db}/documents {
@@ -15,33 +15,60 @@ service cloud.firestore {
                                      : get(/databases/$(db)/documents/access/$(emailKey())).data.role; }
     function isOwner() { return member() && role() == "owner"; }
     function isOffice() { return member() && role() in ["owner", "office"]; }
+    function isShop() { return member() && role() == "shop"; }
+    function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
+    // the team member this record is: their sign-in email or one of their sign-in ids
+    function isSelf(d) { return (d.get("email", "") is string && d.get("email", "").lower() == emailKey())
+                             || d.get("claudeId", "") == request.auth.uid
+                             || (d.get("claudeIds", []) is list && request.auth.uid in d.get("claudeIds", [])); }
 
     // the access list itself: only owners change it
     match /access/{key} {
       allow read: if member();
       allow write: if isOwner();
     }
-    // the team list: owners add and remove people and set levels; anyone on it can update the rest of their record
+    // the team list: owners add and remove people and set levels; everyone else can only update their own record,
+    // and never its level
     match /team/{id} {
       allow read: if member();
       allow create, delete: if isOwner();
-      allow update: if isOwner() || (member() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(["access", "companyDash"]));
+      allow update: if isOwner() || (member() && isSelf(resource.data) && !changed().hasAny(["access", "companyDash", "email", "role"]));
     }
-    // settings: owners and office
+    // settings: owners and office; keys and tokens live in settings/secrets, which only they can read;
+    // the record of what's been sent to the sheet is kept up by every copy of the CRM; the lock switch is the owner's
     match /settings/{id} {
-      allow read: if member();
-      allow write: if isOffice();
+      allow read: if id == "secrets" ? isOffice() : member();
+      allow write: if id == "syncsent" ? member() : (id == "dbLock" ? isOwner() : isOffice());
     }
-    // change history: anyone on the team adds to it; only owners remove it (purging deleted records)
+    // change history: anyone adds to it; nothing is taken out except by owners (the list keeps its newest 400)
     match /history/{id} {
-      allow read, create, update: if member();
+      allow read, create: if member();
+      allow update: if member() && (isOwner() || request.resource.data.get("entries", []).size() >= resource.data.get("entries", []).size()
+                                     || request.resource.data.get("entries", []).size() >= 380);
       allow delete: if isOwner();
     }
-    // everything else: read and edit for the team; hard deletes for owners and office (everyday deletes are soft)
-    // (the collections above have their own rules; a rule here would also match them, so they're left out)
+    // quotes and projects: the shop doesn't change prices, billing or the stage
+    match /projects/{id} {
+      allow read, create: if member();
+      allow update: if member() && !(isShop() && changed().hasAny(["orderLines", "value", "amountAuto", "billStatus", "billDate", "paidDate", "invNum", "invTax", "depositAmt", "quote", "price"]));
+      allow delete: if isOffice();
+    }
+    // inventory: sales and shop count and move stock; only owners and office change what things cost
+    match /items/{id} {
+      allow read, create: if member();
+      allow update: if member() && (isOffice() || !changed().hasAny(["cost", "vendorPrice", "vendorFreight", "vendors", "vendorId", "sell"]));
+      allow delete: if isOffice();
+    }
+    match /vendors/{id} {
+      allow read: if member();
+      allow create, update: if isOffice() || (member() && !isShop());
+      allow delete: if isOffice();
+    }
+    // everything else (accounts, contacts, work orders, files, activity, stock moves, mail out, counters…):
+    // read and edit for the team; hard deletes for owners and office (everyday deletes are soft)
     match /{coll}/{id=**} {
-      allow read, create, update: if member() && !(coll in ["access", "team", "settings", "history"]);
-      allow delete: if isOffice() && !(coll in ["access", "team", "settings", "history"]);
+      allow read, create, update: if member() && !(coll in ["access", "team", "settings", "history", "projects", "items", "vendors"]);
+      allow delete: if isOffice() && !(coll in ["access", "team", "settings", "history", "projects", "items", "vendors"]);
     }
   }
 }

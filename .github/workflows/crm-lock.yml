@@ -30,10 +30,10 @@ jobs:
         env: { FIREBASE_PROJECT: ssc-crm-a7224, STEP: plan }
         run: node lock.mjs
       # the rules are tested in the emulator before they go live
-      - if: steps.plan.outputs.action == 'deploy'
+      - if: steps.plan.outputs.action == 'deploy' || steps.plan.outputs.action == 'update'
         uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: "21" }
-      - if: steps.plan.outputs.action == 'deploy'
+      - if: steps.plan.outputs.action == 'deploy' || steps.plan.outputs.action == 'update'
         working-directory: firebase
         run: |
           npm install --no-audit --no-fund --loglevel=error 2>&1 | tail -1
