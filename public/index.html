@@ -9669,7 +9669,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-62";
+const APP_VERSION="2026.11.25-63";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -11879,8 +11879,9 @@ function settingsView(){
         <button class="btn p" data-backup="1">Download a full backup</button>
         <button class="btn" data-backup="csv">Export projects and work orders (CSV)</button>
         <button class="btn" data-go="bin">Open the recycle bin</button></div>
-      <p class="sub" style="margin:12px 0 0">Nothing is ever hard-deleted — deleting moves a record to the recycle bin, and field history is kept permanently. Download a backup monthly; it's one JSON file with everything in it.</p>
+      <p class="sub" style="margin:12px 0 0">Nothing is ever hard-deleted — deleting moves a record to the recycle bin, and field history is kept permanently. A full backup is also taken automatically every night and kept 30 days.</p>
     </div></section>
+    ${myAccess()==="owner"&&isHosted()?dbLockCard():""}
     <section class="card"><header><h2>Import from a spreadsheet</h2><span class="sub">Save any Excel or Google Sheets tab as CSV. You match the columns and see a preview before anything saves; existing records update, blank cells never wipe anything.</span></header>
       <div class="body">
         <div class="setrow">
@@ -14672,6 +14673,20 @@ function remDeliver(url,force){
   return n;
 }
 // on load and every 15 minutes: deliver what's due, and redraw the bell when the count moved
+/* The database lock: the owner turns it on here; a job running every 10 minutes does it, then waits for this
+   page to confirm it still reads and writes (and puts the old rules back by itself if nothing confirms in 20 min). */
+function dbLockCard(){const d=S.dbLock||{};const want=d.want||"off",st=d.state||"off";
+  const label=st==="on"?"On":st==="pending"?"Turning on — checking":want==="on"?"Turning on (within 10 minutes)":st==="rolled back"?"Off — put back automatically":want==="off"&&(st==="on"||st==="pending")?"Turning off (within 10 minutes)":"Off";
+  return `<section class="card"><header><h2>Database lock</h2><span class="pill ${st==="on"?"g":st==="pending"||want!==st?"o":""}">${esc(label)}</span></header><div class="body">
+    <p style="margin:0 0 10px">When it's on, the database itself only lets people on your team list in, and enforces their level: only owners change levels,
+      owners and office change settings and permanently delete, and nobody but an owner can erase change history.</p>
+    <p class="sub" style="margin:0 0 10px">After it's turned on, keep this page open for a few minutes: it confirms everything still opens. If nothing confirms within 20 minutes, the old rules come back by themselves. ${esc(d.note||"")}${d.error?" — last problem: "+esc(d.error):""}</p>
+    <div class="setrow">${want==="on"?`<button class="btn" data-dblock="off">Turn the lock off</button>`:`<button class="btn p" data-dblock="on">Turn the lock on</button>`}</div></div></section>`}
+async function dbLockSet(want){try{await setDoc("settings/dbLock",Object.assign({},S.dbLock||{},{want,askedAt:Date.now(),askedBy:me(),error:""}));toast(want==="on"?"The lock turns on within 10 minutes — keep the CRM open so it can confirm":"The lock turns off within 10 minutes")}catch(e){toast("That didn't save.")}}
+// while the lock is being checked, any owner or office copy of the CRM that can still read and write says so
+function dbLockWatch(){try{db.doc("settings/dbLock").onSnapshot(sn=>{const d=sn&&sn.exists?(typeof sn.data==="function"?sn.data():sn.data):null;S.dbLock=d||{};
+    if(d&&d.state==="pending"&&can("settings")&&!(Number(d.seenAt)>Number(d.deployedAt)))push("settings/dbLock",{seenAt:Date.now(),seenBy:me()}).catch(()=>{});
+    if(S.route&&S.route.v==="settings"&&!typing())render()},()=>{})}catch(e){}}
 /* Who may open the CRM, as the database checks it: one small record per team member's sign-in email and per
    sign-in id, holding their access level. The owner's copy of the CRM keeps these matching the team list; the
    database rules only let owners change them, and only let people with one read or write anything. */
@@ -15448,6 +15463,7 @@ function bind(){
     {const x=t.closest("[data-stccsv]");if(x){stcCsv();return}}
     {const x=t.closest("[data-stcflag]");if(x){S.stcF=Object.assign({},S.stcF||{},{flag:!(S.stcF&&S.stcF.flag),page:0});render();return}}
     {const x=t.closest("[data-stcpage]");if(x){S.stcF=Object.assign({},S.stcF||{},{page:Number(x.dataset.stcpage)||0});render();const m=$(".main");if(m)m.scrollTop=0;return}}
+    {const x=t.closest("[data-dblock]");if(x){const w=x.dataset.dblock;if(w==="on"){askConfirm("Turn the database lock on?","Only the people on your team list will be able to open the CRM. Keep this page open for a few minutes after — it confirms everything still works, and if it can't, the old rules come back by themselves within 20 minutes.","Turn it on",false,()=>dbLockSet("on"))}else dbLockSet("off");return}}
     {const x=t.closest("[data-stcrel]");if(x){const[sku,on]=x.dataset.stcrel.split(":");const r=Object.assign({},stcCfg().release);if(on==="1")r[sku]=true;else delete r[sku];
       stcCfgSave({release:r}).then(()=>{toast(on==="1"?"Released — it's on the quote picker now":"Held");closeModal();stcViewModal(sku);render()}).catch(()=>toast("That didn't save."));return}}
     {const x=t.closest("[data-stcfloor]");if(x){const sku=x.dataset.stcfloor;const st=stcBySku(sku);if(!st)return;
@@ -15684,7 +15700,7 @@ async function boot(){
   sub("accounts","accounts");sub("contacts","contacts");sub("projects","projects");
   sub("jobs","jobs",true);sub("files","files");sub("activity","activity");sub("history","history");
   sub("events","events");sub("team","team");
-  sub("vendors","vendors");sub("items","items");sub("invtx","invtx");sub("notifications","notifications");sub("reminders","remarks");sub("access","access");
+  sub("vendors","vendors");sub("items","items");sub("invtx","invtx");sub("notifications","notifications");sub("reminders","remarks");sub("access","access");dbLockWatch();
   syncSentLoad();
   db.doc("settings/prodtypes").onSnapshot(s=>{if(s&&s.exists&&s.data())S.prodtypes=s.data();if(!typing()&&!S.modal)render()},()=>{});
   db.doc("settings/pricelist").onSnapshot(s=>{if(s&&s.exists&&s.data())S.pricelist=s.data();if(!typing()&&!S.modal)render()},()=>{});

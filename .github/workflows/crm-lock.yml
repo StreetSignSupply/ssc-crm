@@ -1,0 +1,48 @@
+name: Database lock switch
+# Does what the owner asked for in Settings → Data (lock on / off). Every 10 minutes; nothing happens unless asked.
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+permissions:
+  contents: read
+  id-token: write
+concurrency: { group: crm-lock, cancel-in-progress: false }
+jobs:
+  lock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - id: gauth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/741399760463/locations/global/workloadIdentityPools/github/providers/ssc-crm
+          service_account: firebase-adminsdk-fbsvc@ssc-crm-a7224.iam.gserviceaccount.com
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/firebase
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - working-directory: firebase
+        run: npm install --no-audit --no-fund --loglevel=error --omit=dev 2>&1 | tail -1
+      - id: plan
+        working-directory: firebase
+        env: { FIREBASE_PROJECT: ssc-crm-a7224, STEP: plan }
+        run: node lock.mjs
+      # the rules are tested in the emulator before they go live
+      - if: steps.plan.outputs.action == 'deploy'
+        uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "21" }
+      - if: steps.plan.outputs.action == 'deploy'
+        working-directory: firebase
+        run: |
+          npm install --no-audit --no-fund --loglevel=error 2>&1 | tail -1
+          npx firebase emulators:exec --only firestore --project demo-ssc "node rules.test.mjs" > out.txt 2>&1 || { echo "::error::rules test failed — not turning the lock on"; grep -E '^FAIL' out.txt | head -5; exit 1; }
+          echo "::notice::rules test: $(grep -cE '^PASS' out.txt) passed"
+      - if: steps.plan.outputs.action != 'none' && steps.plan.outputs.action != 'wait'
+        working-directory: firebase
+        env:
+          FIREBASE_PROJECT: ssc-crm-a7224
+          RULES_TOKEN: ${{ steps.gauth.outputs.access_token }}
+          STEP: run
+        run: node lock.mjs
