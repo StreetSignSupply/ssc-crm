@@ -1,5 +1,12 @@
 # What changed
 
+## 2026.11.25-74
+- Quantity boxes on the quote line and work order line forms take 1 or more only: a red note shows under the box while it's 0, negative or blank, and Add/Save refuse it.
+- A price picked from the price list stays the suggested price until you change the code, size or material (the account's own price still comes first).
+- Typing a code never replaces a name or size you typed yourself — it only fills them when they're empty or were filled in by the form.
+- Project header: under the margin it says how many lines sell below cost.
+- Files: the delete is in a "⋯" menu on each file instead of a trash icon beside Open.
+
 ## 2026.11.25-73
 - Add a line: the Find box works on the live site. Any form left open no longer gets redrawn when new data arrives in the background — that was wiping its live search and re-pricing (and anything being typed).
 - A price that came from a picked item is dropped as soon as the code, size or material is changed by hand, and the line re-prices from the new details (a price you typed yourself stays).
