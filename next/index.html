@@ -2731,7 +2731,7 @@ function quoteLineCostLive(line){
       legend:line.legend||"",legends:line.legends||[],build:line.build||"",noLam:!!line.noLam};
     const printed=line.build==="print"||(lp!=="sign"&&/40C|IJ35|PRINT/i.test(line.grade||""));
     const rows=planFor({prod:lp,method:printed?"print":"film",decalMethod:printed?"print":"cut",blankSrc:"stock",items:[one]},null);
-    let tot=0;const parts=[],noCost=[];
+    let tot=0;const parts=[],noCost=[],pp=[];
     rows.forEach(r=>{const it2=r.itemId?S.items.get(r.itemId):null;if(!it2)return;
       // by square feet where it's film — the rounded roll fraction loses a few cents
       const per2=rollSqft(it2)||itemSqft(it2);
@@ -2741,8 +2741,8 @@ function quoteLineCostLive(line){
       const sk=String(it2.sku||"").toUpperCase();
       const what=/^BLK-/.test(sk)||/blank/i.test(it2.name)?"blank":/^EC-1170C/.test(sk)?"clear overlay":/^EC-/.test(sk)?"legend"
         :/lamin|8518|8519|8520|8914/i.test(it2.name)?"laminate":lp==="sign"?"sheeting":"media";
-      tot+=c;parts.push(what+" "+it2.name.split("—")[0].replace(/^3M\s+/,"").trim()+" $"+c.toFixed(2))});
-    if(tot>0)return {cost:Math.round(tot*100)/100,src:"material",
+      tot+=c;parts.push(what+" "+it2.name.split("—")[0].replace(/^3M\s+/,"").trim()+" $"+c.toFixed(2));pp.push({l:partKind(it2,lp),c})});
+    if(tot>0)return {cost:Math.round(tot*100)/100,src:"material",parts:partsSum(pp),
       why:parts.join(" + ")+(noCost.length?" — no cost in inventory yet for "+noCost.join(", "):"")+" (includes "+WASTE_DEFAULT+"% waste on film)"};
   }
   const it=matchItem(line.grade)||matchItem(line.sub);
@@ -2761,13 +2761,18 @@ function signMatCost(line,j){
     legend:line.legend||"",legends:line.legends||[],build:line.build||"",noLam:!!line.noLam};
   const printed=line.build==="print"||(j&&jobIsPrinted(j));
   let rows=[];try{rows=planFor({prod:"sign",method:printed?"print":"film",blankSrc:"stock",items:[one]},null)}catch(e){return null}
-  if(!rows.length)return null;let tot=0;const parts=[];
+  if(!rows.length)return null;let tot=0;const parts=[],pp=[];
   for(const r of rows){const it2=r.itemId?S.items.get(r.itemId):null;if(!it2||!(Number(it2.cost)>0))return null;
     const per2=rollSqft(it2)||itemSqft(it2),sqX=r.sqRaw||r.sq;
     const c=(sqX&&per2&&/roll|sheet/i.test(it2.unit||""))?sqX/per2*Number(it2.cost):(Number(r.qty)||0)*Number(it2.cost);
-    tot+=c;parts.push(it2.name.split("—")[0].replace(/^3M\s+/,"").trim()+" $"+c.toFixed(2))}
+    tot+=c;parts.push(it2.name.split("—")[0].replace(/^3M\s+/,"").trim()+" $"+c.toFixed(2));pp.push({l:partKind(it2,"sign"),c})}
   if(!(tot>0))return null;
-  return {cost:Math.round(tot*100)/100,src:"material",why:"Item costs (preferred vendor + freight): "+parts.join(" + ")+" (includes "+WASTE_DEFAULT+"% waste on film)"}}
+  return {cost:Math.round(tot*100)/100,src:"material",parts:partsSum(pp),why:"Item costs (preferred vendor + freight): "+parts.join(" + ")+" (includes "+WASTE_DEFAULT+"% waste on film)"}}
+// what a cost part is, in the shop's words: Blank, Sheeting, Legend, Overlay, Overlaminate, Ink, Media
+function partKind(it,lp){const sk=String(it.sku||"").toUpperCase(),n=String(it.name||"");
+  return /^BLK-/.test(sk)||/blank/i.test(n)?"Blank":/^EC-1170C/.test(sk)?"Overlay":/^EC-/.test(sk)?"Legend":/lamin|8518|8519|8520|8914/i.test(n)?"Overlaminate"
+    :/\bink\b/i.test(n)?"Ink":lp==="sign"?"Sheeting":"Media"}
+function partsSum(pp){const m={};pp.forEach(x=>{m[x.l]=(m[x.l]||0)+x.c});return ["Blank","Sheeting","Media","Legend","Overlay","Overlaminate","Ink"].filter(k=>m[k]).map(k=>({l:k,c:Math.round(m[k]*100)/100}))}
 // cut film for a decal: the CRM item's cost per sq ft when the item has one, else the workbook's tab 11 rate
 function filmRateFor(grade,fallback){const it=matchItem(grade);const per=it?itemSqft(it):0;
   return it&&per&&Number(it.cost)>0?{rate:Number(it.cost)/per,what:it.name.split("—")[0].trim()}:{rate:Number(fallback)||0,what:"7125 (tab 11 rate)"}}
@@ -6503,7 +6508,8 @@ function ordSuggest(line){
   const a=S.ordAid?acct(S.ordAid):null;const cp=a?contractPrice(a,line):null;
   if(cp)return {price:Number(cp.price),why:a.name+"'s own price for this item",contract:true};
   // the price on the item you picked from the price list stands until you change its code, size or material
-  const pp=S.ordPre&&Number(S.ordPre.price);if(pp>0)return {price:pp,why:"the price list price for the item you picked"};
+  const pp=S.ordPre&&Number(S.ordPre.price);const pickedWeb=!!(S.ordPre&&S.ordPre.webId);
+  if(pp>0&&!(pickedWeb&&priceBasis(a)==="list"))return {price:pp,why:pickedWeb?"the website price for the item you picked":"the price list price for the item you picked"};
   return defaultPrice(line,S.ordAid)}
 function ordCostHelp(){
   const box=$("#o-cost-help");if(!box)return;
@@ -6527,7 +6533,16 @@ function ordCostHelp(){
   const parts=[];
   if(showCost)parts.push(uc&&uc.src==="stcflag"?`<span class="pill r" title="${esc(uc.why||"")}">can't be costed yet</span>`:cost?`Cost <b class="mono">${money2(cost)}</b>${uc.src==="locked"?" "+ic("lock",11):""}`:`<span class="sub">Cost — add the size and material</span>`);
   if(showCost&&mg!=null)parts.push(`margin <span class="pill ${mg<0?"r":mg>=35?"g":mg>=20?"o":"r"}">${mg<0?"⚠ ":""}${Math.round(mg)}%</span>${mg<0?` <b style="color:var(--danger-ink)">below cost</b>`:belowFloor(pr,cost)?` <span class="sub" style="color:var(--danger-ink)">under your ${marginFloor()}% floor</span>`:""}`);
-  box.innerHTML=`<div class="ocost"><span class="ocost-t">${parts.join(" · ")||""}</span>
+  // the other price, so a website price and a price list price are never confused
+  {const a0=S.ordAid?acct(S.ordAid):null;const b0=priceBasis(a0);let alt=null;
+    try{alt=b0==="web"?listPrice00(line):webPriceOf(line)}catch(e){}
+    if(alt&&sg&&Math.abs(alt.price-Number(sg.price))>0.005)parts.push(`<span class="sub">${b0==="web"?"price list":"website"} ${money2(alt.price)} <button type="button" class="lnk" data-ordprice="${Number(alt.price).toFixed(2)}">use</button></span>`);
+    if(sg)parts.unshift(`<span class="sub" title="${esc(sg.why||"")}">from ${esc(sg.contract?"their own price":/website/.test(sg.why||"")?"the website":/price list|workbook|tab 04/i.test(sg.why||"")?"your price list":/target margin/.test(sg.why||"")?"cost + target margin":"your prices")}</span>`)}
+  // what the cost is made of (blank, sheeting, legend film, overlaminate, ink), when it's worked out from materials
+  let pts=uc&&uc.parts;if(!pts&&uc&&uc.src==="locked"){try{pts=quoteLineCostLive(line).parts}catch(e){}}
+  const brk=showCost&&pts&&pts.length?`<div class="sub" style="margin-top:6px">${uc.src==="locked"?"Today: ":""}${pts.map(x=>esc(x.l)+" "+money2(x.c)).join(" · ")}</div>`
+    :showCost&&uc&&uc.why&&cost?`<div class="sub" style="margin-top:6px">${esc(uc.why)}</div>`:"";
+  box.innerHTML=`<div class="ocost"><span class="ocost-t">${parts.join(" · ")||""}${brk}</span>
     ${sg&&!same?`<button type="button" class="btn sm" data-ordprice="${Number(sg.price).toFixed(2)}" title="${esc(sg.why||"")}">Use suggested price ${money2(sg.price)}</button>`
       :sg?`<span class="sub" title="${esc(sg.why||"")}">suggested price</span>`:""}</div>`;
 }
@@ -7413,7 +7428,7 @@ function defaultPrice(line,aid){
   const a=aid?acct(aid):null;
   if(a&&line&&!isCharge(line)){const c=contractPrice(a,line);
     if(c)return {price:Number(c.price),why:a.name+"'s own price for this item"+(c.at?" (set "+fmtDate(isoDay(c.at))+")":""),contract:true}}
-  const base=listPrice(line);if(!base)return null;
+  const base=listPrice(line,priceBasis(a));if(!base)return null;
   const d=acctDiscount(a),qb=qtyBreakFor(line);
   let out=base;
   if(d.pct||qb){let pr=base.price;const bits=[];
@@ -7428,18 +7443,26 @@ function defaultPrice(line,aid){
 function lamCostFor(line){try{const d=parseSize(line.size);if(!d)return 0;const it=matchItem(line.grade)||matchItem(line.sub);
   const lam=laminateFor(it,null,true);if(!lam)return 0;const per=itemSqft(lam);if(!per||!(Number(lam.cost)>0))return 0;
   return Math.round(d.w*d.h/144*Number(lam.cost)/per*(1+WASTE_DEFAULT/100)*100)/100}catch(e){return 0}}
-function listPrice(line){const r=listPrice0(line);
+// where a customer's quote prices come from: the account's own choice, else retail customers pay website prices and
+// everyone else (contractors, government, resellers) our price list. The other price is still shown beside it.
+function priceBasis(a){const v=a&&a.priceBasis;if(v==="list"||v==="web")return v;return a&&/retail|individual|homeowner/i.test(a.type||"")?"web":"list"}
+function listPrice(line,basis){const r=listPrice0(line,basis);
   if(!(r&&line&&line.noLam&&linePrinted(line)))return r;
   const lc=lamCostFor(line);if(!lc)return Object.assign({},r,{why:r.why+" (no overlaminate)"});
   const m=Math.min(0.9,Math.max(0,(Number((S.brand||{}).margin)||40)/100));const off=Math.round(lc/(1-m)*100)/100;
   return Object.assign({},r,{price:Math.max(0,Math.round((r.price-off)*100)/100),why:r.why+" less $"+off.toFixed(2)+" for the declined overlaminate"})}
-function listPrice0(line){
+function webPriceOf(line){const wv=webcatVar(line);return wv?{price:wv.price,why:"the website — "+wv.name+(wv.mat?" ("+wv.mat+")":""),web:true}:null}
+function listPrice0(line,basis){
   if(!line||isCharge(line))return null;
+  if(basis==="web"){const w=webPriceOf(line);if(w)return w}
+  const r0=listPrice00(line);if(r0)return r0;
+  return webPriceOf(line)||listPriceCost(line)}
+// our own price for the line: price list, decal formula, workbook (tab 04), inventory item price — never the website
+function listPrice00(line){
   const pl=(S.pricelist||{}).byKey||{};const g=gradeTok(line.grade)||String(line.grade||"").trim();
   const sz=normSize(line.size)||String(line.size||"");
   const mine=pl[[String(line.code||"").toUpperCase().replace(/\s+/g,""),sz,g].join("|")];
   if(mine&&Number(mine.price))return {price:Number(mine.price),why:"your price list"};
-  {const wv=webcatVar(line);if(wv)return {price:wv.price,why:"streetsignsupply.com — "+wv.name+(wv.mat?" ("+wv.mat+")":"")}}
   {const byName=line.desc?pl[[norm(line.desc),sz,g].join("|")]:null;if(byName&&Number(byName.price))return {price:Number(byName.price),why:"your price list (website)"}}
   if(isDecalLine(line)&&parseSize(line.size)&&decalCfg().model!=="tab11"){const ap=decalAreaPrice(line);if(ap)return ap}
   if(isDecalLine(line)&&parseSize(line.size)){const vp=vinylPrice(line.size,line.qty);
@@ -7451,10 +7474,11 @@ function listPrice0(line){
   const it0=matchItem(line.grade)||matchItem(line.sub);
   if(it0&&parseSize(line.size)){const ap=catAreaPrice(it0,line.size);if(ap&&ap.mine&&ap.sell)return {price:ap.sell,why:"your price for "+it0.name.split("—")[0].trim()}}
   if(it0&&Number(it0.sell)&&!parseSize(line.size))return {price:Number(it0.sell),why:"your price for "+it0.name.split("—")[0].trim()};
-  const c=quoteLineCost(line);
-  if(c&&c.cost>0)return {price:suggestPrice(c.cost),why:"cost "+money2(c.cost)+" at the "+Math.round(targetMargin())+"% target margin"};
   return null;
 }
+function listPriceCost(line){const c=quoteLineCost(line);
+  if(c&&c.cost>0)return {price:suggestPrice(c.cost),why:"cost "+money2(c.cost)+" at the "+Math.round(targetMargin())+"% target margin"};
+  return null}
 /* ===== invoices are made in QuickBooks =====
    The CRM hands QuickBooks the lines (a file for its invoice import, or copy and paste), then
    records the QuickBooks invoice number and marks the project invoiced. */
@@ -8224,6 +8248,7 @@ function genericSignPic(line){if(!line||typeof line!=="object")return null;
   else if(/^W\d/.test(cd)||(!cd&&/\bWARNING\b|\bCAUTION\b/.test(t)))kind=square?"warn":"warnrect";
   else if(/^R\d/.test(cd)||(!cd&&/\bREGULATORY\b/.test(t)))kind="reg";
   else if(/^[DI]\d/.test(cd)||(!cd&&/\bGUIDE\b|\bSTREET NAME\b/.test(t)))kind="guide";
+  else if(!cd&&/\bNO PARKING\b|\bFIRE LANE\b|\bTOW[- ]AWAY\b|\bNO STOPPING\b|\bLOADING ZONE\b/.test(t))kind="park";
   else return null;   // a custom sign: never a made-up box of words — it needs its real picture or the designer's proof
   // the words on the drawing: the line's own name, without bid numbers, sizes, materials or "typical"
   let label=raw.split(" — ")[0].replace(/^bid\s+item\s+[a-z0-9.\-]+\s*[:\-–—]\s*/i,"").replace(/\(([^)]*)\)/g,(x,y)=>" "+y.replace(/\b[A-Z]{1,2}\d+-\d+[A-Z]*\b/gi,"").replace(/\btypical\b/gi,"")+" ")
@@ -8247,7 +8272,7 @@ function genericSignPic(line){if(!line||typeof line!=="object")return null;
   else if(kind==="warn"){const arr=wrap(label||"WARNING",9,3);
     svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><polygon points="50,2 98,50 50,98 2,50" fill="#ffcc00" stroke="#111" stroke-width="3"/><polygon points="50,9 91,50 50,91 9,50" fill="none" stroke="#111" stroke-width="2"/>'+lines(50,50,arr,arr.length>2?9:11,"#111")+'</svg>'}
   else{const W=100,H=Math.max(30,Math.min(300,Math.round(100*h/w)));
-    const bg=kind==="guide"?"#00843d":kind==="warnrect"?"#ffcc00":"#fff",fg=kind==="guide"?"#fff":"#111";
+    const bg=kind==="guide"?"#00843d":kind==="warnrect"?"#ffcc00":"#fff",fg=kind==="guide"?"#fff":kind==="park"?"#c8102e":"#111";
     const arr=wrap(label||"",H>W?10:16,H>W?4:2);const fs=Math.max(8,Math.min(15,Math.round(Math.min(80/(Math.max(5,...arr.map(x=>x.length))*0.68),(H-20)/Math.max(1,arr.length)/1.2))));
     svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' '+H+'"><rect x="2" y="2" width="'+(W-4)+'" height="'+(H-4)+'" rx="6" fill="'+bg+'" stroke="'+fg+'" stroke-width="3"/><rect x="7" y="7" width="'+(W-14)+'" height="'+(H-14)+'" rx="4" fill="none" stroke="'+fg+'" stroke-width="2"/>'+lines(50,H/2,arr,fs,fg)+'</svg>'}
   return GENPIC[key]={img:"data:image/svg+xml;base64,"+btoa(unescape(encodeURIComponent(svg))),name:label||kind,generic:true}}
@@ -9627,7 +9652,8 @@ function accountRec(id){
           <span class="sp"><button class="btn sm" data-negadd="${esc(id)}">Add a negotiated price</button>
             <button class="btn sm" data-edit="account:${esc(id)}">Change discount</button></span></header>
           <div class="fgrid">${fld("Discount",d.pct?d.label:"None — list prices")}
-            ${fld("On quotes",a.showSavings?"Shows list price and their savings":"Shows their price only")}</div>
+            ${fld("On quotes",a.showSavings?"Shows list price and their savings":"Shows their price only")}
+            ${fld("Prices from",priceBasis(a)==="web"?"The website (retail)":"Our price list (contractor)")}</div>
           ${cps.length?`<div class="tw"><table><thead><tr><th>Their own prices</th><th style="text-align:right">Price each</th><th style="width:90px"></th></tr></thead><tbody>
             ${cps.map(([k,c])=>`<tr><td>${esc(c.label||k)}<div class="sub">set ${esc(c.at?fmtDate(isoDay(c.at)):"")}${c.until?(cpExpired(c)?` · <b style="color:#C00">ended ${esc(fmtDate(c.until))} — no longer used</b>`:" · good until "+esc(fmtDate(c.until))):""}</div></td>
               <td class="mono" style="text-align:right">${money2(c.price)}</td>
@@ -10024,7 +10050,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-76";
+const APP_VERSION="2026.11.25-77";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -12539,7 +12565,8 @@ function accountModal(a,then){
       ${sel("f-rep","Sales rep",a.repId||"",repList().map(t=>({v:t.id,l:t.name+(t.role?" — "+t.role:"")})),1)}
       ${sel("f-plevel","Pricing level",a.priceLevel||"",[{v:"",l:"List price — no discount"}].concat(priceLevels().map(l=>({v:l.id,l:l.name+" — "+l.pct+"% off"}))))}
       ${inp("f-disc","Or their own % off (overrides the level)",a.discountPct==null?"":a.discountPct,"number")}
-      ${chk("f-savings","Show list price and their savings on quotes",a.showSavings)}<div class="fld"></div>
+      ${chk("f-savings","Show list price and their savings on quotes",a.showSavings)}
+      ${sel("f-pbasis","Quote prices from",a.priceBasis||"",[{v:"",l:"Automatic — retail: website, everyone else: price list"},{v:"list",l:"Our price list (contractor pricing)"},{v:"web",l:"The website (retail pricing)"}])}
       <div class="fld"></div>
       ${a.id&&contactsOf(a.id).length?sel("f-bc","Billing contact — invoices go here",a.billingContactId||"",
         contactsOf(a.id).map(c=>({v:c.id,l:c.name+(c.role?" — "+c.role:"")})),1)
@@ -12560,6 +12587,7 @@ function accountModal(a,then){
       priceLevel:$("#f-plevel")?$("#f-plevel").value:(a.priceLevel||""),
       discountPct:$("#f-disc")?($("#f-disc").value.trim()===""?"":Math.max(0,Math.min(90,Number($("#f-disc").value)||0))):(a.discountPct==null?"":a.discountPct),
       showSavings:$("#f-savings")?$("#f-savings").checked:!!a.showSavings,
+      priceBasis:$("#f-pbasis")?$("#f-pbasis").value:(a.priceBasis||""),
       notes:$("#f-notes").value.trim(),deleted:false,
       createdAt:a.createdAt||Date.now(),updatedAt:Date.now()};
     if(rec.exempt&&!a.exempt&&!rec.exemptExp){$("#f-exp").focus();return toast("Put in the certificate's expiry date — exempt needs a certificate on file.")}
