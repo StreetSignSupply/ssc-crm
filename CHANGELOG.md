@@ -1,5 +1,16 @@
 # What changed
 
+## 2026.11.25-69
+- Calmer colors: buttons, links, selected tabs and the stage steps use blue; red is kept for warnings, overdue and the logo.
+- One primary (blue) and one secondary (outline) button style; the yellow and brown one-off buttons now use those.
+- Delete is no longer beside everyday buttons: on accounts, contacts, work orders, vendors and items it is under "More"; file tiles show a small trash icon instead of a Delete button.
+- Text on screen is never smaller than 12px (calendar entries, menu headings, small notes).
+- Files: the "Added" column shows the date and who added it without wrapping. Contact roles and emails no longer wrap.
+- Calendar days show up to 4 entries before "+N more"; your own events are purple so they don't look like start dates.
+- Inventory: items with none on hand read "0 sheets" without the "0 sq ft".
+- Work order back button reads "← P-2008" (full project name on hover), so it no longer runs past the header.
+- Side menu: Stencils and Purchase orders sit under Inventory and appear when you're in that section, so the menu is shorter.
+
 ## 2026.11.25-68
 - Tighter database rules, ready to apply from Settings → Data ("Apply the updated rules"): people change only their own team record (never its level), the shop key moves to a record only owners and office can read, change history can't be cut short, the shop can't change quote prices, billing or stage fields, and only owners and office change what items cost. Updated rules only go live when the owner applies them, and fall back by themselves if the CRM doesn't confirm.
 - The shop (WooCommerce) key is saved in settings/secrets instead of the general settings everyone reads.
