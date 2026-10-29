@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-71
+- Contacts "Possible duplicates" only lists real look-alikes: the same email, or the same person's name (department names like "Bids" or "Purchasing" only count on the same account). It was listing 196 pairs.
+
 ## 2026.11.25-70
 - Quote "Add a line" is shorter: one "Find an item" box (codes, your workbook, the website, stencils and inventory — pick a result and the name, code, size, material and price fill in), then Quantity (starts at 1), What to call it, Price each, and one line with the cost, the margin and a single "Use suggested price" button. Code, size and material are behind "Change details" as single searchable boxes; how it's made, legend colours, overlaminate, saving the account's own price and the note are under "More options".
 - One suggested price: the account's own price, else your price list / workbook / website (never under the quote floor), else the cost at your target margin. The second "use $X" from the cost formula is gone.

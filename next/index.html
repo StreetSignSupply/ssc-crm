@@ -9599,11 +9599,15 @@ async function mergeAccounts(fromId,toId,why){
 }
 // contacts that look like the same person: same name on the same account, the same email, or the same phone
 function contactKey(n){return String(n||"").toLowerCase().replace(/\(.*?\)/g,"").replace(/[^a-z]/g,"")}
+// a person's name, not a shared inbox or a department ("Bids", "Purchasing", "General inbox", "City Office")
+const GENERIC_CONTACT=/\b(inbox|bids?|estimat\w*|purchas\w*|procure\w*|accounts?|payable|receivable|office|sales|info|admin|billing|public works|department|dept|general|main|reception|contracts?|engineering|no named)\b/i;
+function personName(n){const t=String(n||"").replace(/\(.*?\)/g,"").trim();return /^[A-Za-z'.-]{2,}\s+[A-Za-z'.-]{2,}/.test(t)&&!GENERIC_CONTACT.test(t)}
 function dupContacts(c){
   const k=contactKey(c.name),em=String(c.email||"").trim().toLowerCase(),ph=String(c.phone||c.mobile||"").replace(/\D/g,"").slice(-10);
   return live(S.contacts).filter(x=>x.id!==c.id&&(
-    (k.length>3&&contactKey(x.name)===k)||(em&&String(x.email||"").trim().toLowerCase()===em)||
-    (ph.length===10&&String(x.phone||x.mobile||"").replace(/\D/g,"").slice(-10)===ph)));
+    (em&&String(x.email||"").trim().toLowerCase()===em)||                                     // the same email anywhere
+    (k.length>3&&contactKey(x.name)===k&&(x.accountId===c.accountId||personName(c.name)))||    // the same person's name (a shared inbox name only on the same account)
+    (ph.length===10&&x.accountId===c.accountId&&String(x.phone||x.mobile||"").replace(/\D/g,"").slice(-10)===ph&&contactKey(x.name)===k)));
 }
 function dupContactPairs(){const seen=new Set(),out=[];
   live(S.contacts).forEach(c=>dupContacts(c).forEach(d=>{const key=[c.id,d.id].sort().join("|");if(seen.has(key))return;seen.add(key);
@@ -9951,7 +9955,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-70";
+const APP_VERSION="2026.11.25-71";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
