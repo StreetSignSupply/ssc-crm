@@ -131,7 +131,7 @@ if (STEP === "qb") {
   const api = async (url, method, body) => { const r = await fetch("https://sheets.googleapis.com/v4/spreadsheets/" + SHEET + url, { method, headers: { Authorization: "Bearer " + tok, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
     if (!r.ok) throw new Error(method + " " + r.status); return r.json(); };
   try {
-    const got = await api("/values/" + encodeURIComponent("'QB Invoices'!A1:L2000"), "GET");
+    const got = await api("/values/" + encodeURIComponent("'QB Invoices'!A1:M2000"), "GET");
     const rows = got.values || []; const H = (rows[0] || []).map((h) => String(h).trim().toLowerCase());
     const inv = rows.slice(1).filter((r) => r && r.length).map((r) => { const o = {}; H.forEach((h, i) => o[h] = r[i] == null ? "" : String(r[i])); return o; }).filter((o) => o.doc_number);
     if (!inv.length) throw new Error("the QB Invoices tab is empty");
