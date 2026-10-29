@@ -1912,7 +1912,7 @@ function itemVendors(i){const out=[];
   // costs typed as "$1,234.50" still count as numbers
   out.forEach(o=>["cost","freight"].forEach(k=>{if(typeof o[k]==="string"&&/[$,]/.test(o[k])){const n=Number(o[k].replace(/[$,\s]/g,""));if(!isNaN(n))o[k]=n}}));
   // a row whose vendor is missing or deleted still shows — flagged — so it can be fixed instead of vanishing
-  return out.map(o=>{const v=S.vendors.get(o.vendorId);return (!v||v.deleted||!String(v.name||"").trim())?Object.assign({},o,{missing:true}):o})}
+  return out.map(o=>{const v=S.vendors.get(o.vendorId);return (!v||v.deleted||!/[A-Za-z0-9]/.test(String(v.name||"")))?Object.assign({},o,{missing:true}):o})}
 // what one unit really costs from a vendor: their price plus the freight per unit
 function landed(v){return Math.round(((Number(v&&v.cost)||0)+(Number(v&&v.freight)||0))*10000)/10000}
 const altItemsOf=vid=>itemList().filter(i=>i.vendorId!==vid&&(i.vendors||[]).some(v=>v.vendorId===vid));
