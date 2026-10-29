@@ -51,6 +51,9 @@ if (MODE === "check") {
 }
 // BACKUP_MODE=restore: put chosen fields of chosen projects back to what the newest backup has (RESTORE="2002:invTax,billDate;2010:paidDate")
 if (MODE === "restore") {
+  // only ever run by a person from the Actions page (the "CRM restore (run by hand only)" workflow) — never on a schedule
+  if (process.env.GITHUB_EVENT_NAME && process.env.GITHUB_EVENT_NAME !== "workflow_dispatch") fail("restore only runs when started by hand");
+  const RUN = process.env.GITHUB_RUN_ID || "local";
   const ls = await (await gcs("/storage/v1/b/" + bucket + "/o?prefix=crm-backups/")).json();
   const items = (ls.items || []).filter((x) => /\.json\.gz$/.test(x.name)).sort((a, b) => a.name.localeCompare(b.name));
   const last = items[items.length - 1]; if (!last) fail("no backups");
@@ -59,12 +62,13 @@ if (MODE === "restore") {
   for (const part of String(process.env.RESTORE || "").split(";").filter(Boolean)) {
     const [num, fields] = part.split(":"); const path = Object.keys(back.docs).find((p) => /^projects\//.test(p) && String(back.docs[p].num) === num);
     if (!path) { say("project " + num + " not in the backup"); continue; }
-    const old = back.docs[path], patch = {};
+    const old = back.docs[path], patch = {}; const now0 = (await fs.doc(path).get()).data() || {};
+    const before = fields.split(",").map((f) => f + " was " + (now0[f] === undefined || now0[f] === "" ? "blank" : String(now0[f]))).join(", ");
     fields.split(",").forEach((f) => { patch[f] = old[f] === undefined ? Firestore.FieldValue.delete() : old[f]; });
     patch.updatedAt = Date.now(); await fs.doc(path).set(patch, { merge: true });
     const hk = "history/project_" + path.split("/")[1]; const h = await fs.doc(hk).get();
-    const entries = ((h.exists && h.data().entries) || []).concat([{ f: "Fix run", o: "", n: "Restored " + fields.split(",").join(", ") + " from the " + last.name.replace("crm-backups/", "").replace(".json.gz", "") + " backup (undoing a wrong QuickBooks match)", ev: 1, w: "FIX", t: Date.now() }]);
-    if (h.exists) await fs.doc(hk).set({ entries }, { merge: true });
+    const entries = ((h.exists && h.data().entries) || []).concat([{ f: "Fix run", o: before, n: "Backup restore run " + RUN + ": put back " + fields.split(",").join(", ") + " from the " + last.name.replace("crm-backups/", "").replace(".json.gz", "") + " backup", ev: 1, w: "FIX", t: Date.now(), run: RUN }]).slice(-400);
+    await fs.doc(hk).set({ recType: "project", recId: path.split("/")[1], entries, updatedAt: Date.now() }, { merge: true });
     done++;
   }
   say("::notice::restore: " + done + " projects put back from " + last.name.replace("crm-backups/", ""));

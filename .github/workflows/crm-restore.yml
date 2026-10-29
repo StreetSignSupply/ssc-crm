@@ -1,0 +1,36 @@
+name: CRM restore (run by hand only)
+# Puts chosen fields of chosen projects back to what the newest nightly backup has. Never runs on a schedule:
+# only when someone starts it from the Actions page. Every change is written into that project's Field history
+# as a "Fix run" with this run's number and the values it replaced.
+on:
+  workflow_dispatch:
+    inputs:
+      restore: { description: "project:fields;… e.g. 2002:invTax,billDate", required: true }
+permissions:
+  contents: read
+  id-token: write
+concurrency: { group: crm-backup, cancel-in-progress: false }
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - id: gauth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/741399760463/locations/global/workloadIdentityPools/github/providers/ssc-crm
+          service_account: firebase-adminsdk-fbsvc@ssc-crm-a7224.iam.gserviceaccount.com
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/devstorage.read_write,https://www.googleapis.com/auth/cloud-platform
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - working-directory: worker
+        run: npm install --no-audit --no-fund --loglevel=error 2>&1 | tail -2
+      - working-directory: worker
+        env:
+          FIREBASE_PROJECT: ssc-crm-a7224
+          STORAGE_TOKEN: ${{ steps.gauth.outputs.access_token }}
+          BACKUP_MODE: restore
+          RESTORE: ${{ github.event.inputs.restore }}
+        run: node backup.mjs
