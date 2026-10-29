@@ -4,7 +4,8 @@ name: CRM backup (nightly)
 on:
   workflow_dispatch:
     inputs:
-      mode: { description: "backup or check", default: "backup" }
+      mode: { description: "backup, check or restore", default: "backup" }
+      restore: { description: "for restore: project:fields;… e.g. 2002:invTax,billDate", default: "" }
   schedule:
     - cron: "23 9 * * *"
     - cron: "41 9 * * 0"
@@ -34,4 +35,5 @@ jobs:
           FIREBASE_PROJECT: ssc-crm-a7224
           STORAGE_TOKEN: ${{ steps.gauth.outputs.access_token }}
           BACKUP_MODE: ${{ github.event.inputs.mode || (github.event.schedule == '41 9 * * 0' && 'check') || 'backup' }}
+          RESTORE: ${{ github.event.inputs.restore }}
         run: node backup.mjs
