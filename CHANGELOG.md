@@ -1,5 +1,17 @@
 # What changed
 
+## 2026.11.25-70
+- Quote "Add a line" is shorter: one "Find an item" box (codes, your workbook, the website, stencils and inventory — pick a result and the name, code, size, material and price fill in), then Quantity (starts at 1), What to call it, Price each, and one line with the cost, the margin and a single "Use suggested price" button. Code, size and material are behind "Change details" as single searchable boxes; how it's made, legend colours, overlaminate, saving the account's own price and the note are under "More options".
+- One suggested price: the account's own price, else your price list / workbook / website (never under the quote floor), else the cost at your target margin. The second "use $X" from the cost formula is gone.
+- Typing a code fills the name and usual size just like picking it, the sizes list follows the code, and an unknown code is flagged. Each code appears once. The material list only shows sheeting, vinyl, films, banner and magnet stock.
+- A quantity is required to add a line. On a phone the form is one column with 16px boxes and Cancel/Add stay at the bottom.
+- Quote lines that sell below cost show "⚠ −22% below cost" and a warning above the lines.
+- Contacts: a "Possible duplicates" list (same name, email or phone) with Merge, and "Merge with another contact…" under More on each contact.
+- Archive: Delete on each row and "Delete all shown" are inside menus, and each asks you to type delete.
+- Less red: account icons and section marks, link hovers, stage labels and today's date use blue or slate; red is for the logo, alerts, overdue, low stock and deleting. Secondary text is darker.
+- Database rules (offered for Apply in Settings → Data): change history is add-only (nothing already there can be edited); accounts and contacts can't be changed by the shop; the shop moves work orders along but can't create them or change their lines; stock moves can only be added or undone; the CRM can only email people on the team; number counters only go up; people can record only their own sign-in id; the shop key can't go back into the open settings record. History saves retry if two people add at once.
+- The backup restore is its own workflow that only runs when started by hand, and each change it makes goes into the record's history with the run number and the values it replaced.
+
 ## 2026.11.25-69
 - Calmer colors: buttons, links, selected tabs and the stage steps use blue; red is kept for warnings, overdue and the logo.
 - One primary (blue) and one secondary (outline) button style; the yellow and brown one-off buttons now use those.
