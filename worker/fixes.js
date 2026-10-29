@@ -1,14 +1,12 @@
-// P-2014: lines with no sheeting grade whose own name says which one (HIP, DG3 or EG) get that grade, so they cost.
-// Lines that don't say are left alone and counted. Counts only.
+// P-2014: what the lines with no grade are (word counts only, read-only).
 (async (T) => {
   const p = T.live(T.S.projects).find((x) => String(x.num) === "2014"); if (!p) return { found: false };
-  let set = 0, unclear = 0; const by = {};
-  const lines = (p.orderLines || []).map((l) => { if (!l || l.charge || String(l.grade || "").trim()) return l;
-    const t = String((l.desc || "") + " " + (l.title || "") + " " + (l.code || "")).toUpperCase();
-    const hits = ["HIP", "DG3", "EG"].filter((g) => new RegExp("\\b" + g + "\\b").test(t));
-    if (hits.length !== 1) { unclear++; return l; }
-    set++; by[hits[0]] = (by[hits[0]] || 0) + 1; return Object.assign({}, l, { grade: hits[0] }); });
-  if (set) { await T.push("projects/" + p.id, { orderLines: lines, updatedAt: Date.now() });
-    await T.recordHistory("project", p.id, [{ f: "Fix run", o: "", n: "Sheeting grade filled in on " + set + " lines from the grade in their own name", ev: 1 }]); }
-  return { set, unclear, by };
+  const L = (p.orderLines || []).filter((l) => l && !l.charge && !String(l.grade || "").trim());
+  const kinds = {}; const words = {};
+  L.forEach((l) => { const t = String((l.desc || "") + " " + (l.code || "")).toLowerCase();
+    const k = /post|u-?channel|square tub|anchor|bracket|bolt|rivet|hardware|cap|clamp/.test(t) ? "post/hardware" : /blank|aluminum|alum|\.080|\.063|sheet/.test(t) ? "blank/aluminum" : /sign|r\d|w\d|stop|speed/.test(t) ? "sign" : "other";
+    kinds[k] = (kinds[k] || 0) + 1;
+    (t.match(/[a-z]{4,}/g) || []).forEach((w) => words[w] = (words[w] || 0) + 1); });
+  const top = Object.entries(words).sort((a, b) => b[1] - a[1]).slice(0, 12).map((x) => x[0] + ":" + x[1]).join(" ");
+  return { lines: L.length, kinds, hasSize: L.filter((l) => T.parseSize(l.size)).length, priced: L.filter((l) => Number(l.price) > 0).length, top };
 })
