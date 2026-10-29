@@ -1045,6 +1045,11 @@ details.dd[open] > summary{border-color:var(--ink3)}
   .pj-foot{font-size:9.5px;margin-top:7px;display:flex}
   .pj-foot span{margin-left:auto}
 }
+/* ===== archived projects under the open ones (account page) ===== */
+tr.archdiv td{background:var(--card2)!important;font-size:12px;font-weight:700;color:var(--ink2);padding:7px 14px;border-top:1px solid var(--line)}
+tr.archdiv .ic{vertical-align:-2px;margin-right:4px}
+tr.archrow td{color:var(--ink2)}
+tr.archrow .lnk{color:var(--ink2);font-weight:600}
 /* ===== folded notes ===== */
 .ntd > summary{list-style:none;cursor:pointer}
 .ntd > summary::-webkit-details-marker{display:none}
@@ -9063,9 +9068,12 @@ function sortProjs(ps){
   else c.sort(byDue);
   return c;
 }
-function projRows(ps){
+// arch: closed projects listed under the open ones, behind an "Archived" divider (the account page)
+function projRows(ps,arch){
   ps=sortProjs(ps);
   const cp=S.sortP||"due";
+  const archRows=arch&&arch.length?`<tr class="archdiv"><td colspan="7">${ic("archive",14)} Archived · ${arch.length}</td></tr>`
+    +projRows(arch.slice().sort((a,b)=>(Number(b.num)||0)-(Number(a.num)||0))).replace(/^[\s\S]*?<tbody>/,"").replace(/<\/tbody><\/table>$/,"").replace(/<tr><td>/g,'<tr class="archrow"><td>'):"";
   return `<table><thead><tr><th>${sortBtn("num","Project",cp,"p")}</th>
     <th>${sortBtn("stage","Stage",cp,"p")}</th><th>${sortBtn("value","Value",cp,"p")}</th>
     <th>${sortBtn("due","Due",cp,"p")}</th><th>Billing</th><th>Work orders</th><th>Files</th></tr></thead><tbody>
@@ -9078,7 +9086,7 @@ function projRows(ps){
         ?(billWhen(p)!=="after"?`<span class="pill r">${billWhen(p)==="before"?"prepay due":"deposit due"}</span>`:`<span class="sub">—</span>`)
         :billPill(p)}</td>
       <td class="mono">${jobsOf(p.id).length||"—"}</td>
-      <td class="mono">${filesUnder(p.id)||"—"}</td></tr>`).join("")}</tbody></table>`;
+      <td class="mono">${filesUnder(p.id)||"—"}</td></tr>`).join("")}${archRows}</tbody></table>`;
 }
 function relProjects(ps,aid){
   const arch=ps.filter(isClosed);
@@ -9088,10 +9096,8 @@ function relProjects(ps,aid){
     <span class="sp">
       ${arch.length?`<button class="btn sm" data-goarch="${esc(aid)}">${arch.length} archived</button>`:""}
       <button class="btn sm p" data-new="project:${esc(aid)}">New project</button></span></header>
-    ${open.length?projRows(open)
-    :`<div class="empty"><b>Nothing open for this account</b>${arch.length
-      ?"There "+(arch.length===1?"is 1 closed project":"are "+arch.length+" closed projects")+" in the archive."
-      :"Every order, bid, or reorder this account gives you is its own project, with its own files."}</div>`}
+    ${open.length||arch.length?(open.length?"":`<div class="empty" style="min-height:0;padding:14px 18px"><b>Nothing open for this account</b></div>`)+projRows(open,arch)
+    :`<div class="empty"><b>Nothing open for this account</b>Every order, bid, or reorder this account gives you is its own project, with its own files.</div>`}
   </section>`;
 }
 function relJobs(js,title){
@@ -9254,7 +9260,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-47";
+const APP_VERSION="2026.11.25-48";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
