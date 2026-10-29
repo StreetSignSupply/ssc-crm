@@ -102,7 +102,12 @@ service cloud.firestore {
     // stock moves are add-only; undoing a move only flips its undo fields; anything else is owners and office
     match /invtx/{id} {
       allow read, create: if member();
-      allow update: if isOffice() || (member() && changed().hasOnly(["undone", "undoneAt", "undoneBy", "undoneWhy", "qty", "qtyWas", "redoneAt", "redoneBy"]));
+      // anyone may undo a move (its qty goes to 0 and the old qty is kept) or redo it (the kept qty comes back) — never set a new qty
+      allow update: if isOffice() || (member() && changed().hasOnly(["undone", "undoneAt", "undoneBy", "undoneWhy", "qty", "qtyWas", "redoneAt", "redoneBy"])
+                       && ((request.resource.data.get("undone", false) == true && request.resource.data.qty == 0
+                            && request.resource.data.get("qtyWas", null) == resource.data.qty && resource.data.get("undone", false) != true)
+                        || (request.resource.data.get("undone", true) == false && resource.data.get("undone", false) == true
+                            && request.resource.data.qty == resource.data.get("qtyWas", null))));
       allow delete: if isOffice();
     }
     // email the CRM sends: one message to one person on the team (task notices); nothing edits or removes it afterwards
