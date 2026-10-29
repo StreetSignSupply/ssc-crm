@@ -65,7 +65,11 @@ await ok("shop moves a work order along", updateDoc(doc(shop, "jobs/j1"), { stat
 await no("shop can't change a work order's lines", updateDoc(doc(shop, "jobs/j1"), { lines: [1] }));
 await no("shop can't create a work order", setDoc(doc(shop, "jobs/j9"), { num: 9 }));
 await no("shop can't change a stock move's qty", updateDoc(doc(shop, "invtx/x2"), { itemId: "i2" }));
+await no("shop can't change a stock move's quantity", updateDoc(doc(shop, "invtx/x2"), { qty: -50 }));
+await no("shop can't 'undo' to a made-up quantity", updateDoc(doc(shop, "invtx/x2"), { undone: true, qty: 5, qtyWas: -2 }));
 await ok("a stock move can be undone", updateDoc(doc(shop, "invtx/x2"), { undone: true, undoneAt: 1, undoneBy: "S", qty: 0, qtyWas: -2 }));
+await no("an undone move can't be undone again", updateDoc(doc(shop, "invtx/x2"), { undone: true, qty: 0, qtyWas: 0 }));
+await ok("an undone move can be put back", updateDoc(doc(shop, "invtx/x2"), { undone: false, qty: -2, redoneAt: 2, redoneBy: "S" }));
 await ok("mail to a team member", setDoc(doc(sales, "mail/m1"), { to: ["matt@streetsignsupply.com"], message: { subject: "x" } }));
 await no("mail to anyone else", setDoc(doc(sales, "mail/m2"), { to: ["someone@gmail.com"], message: { subject: "x" } }));
 await no("mail can't be changed", updateDoc(doc(sales, "mail/m1"), { to: ["someone@gmail.com"] }));
