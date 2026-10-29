@@ -1,5 +1,16 @@
 # What changed
 
+## 2026.11.25-42 — 2026-10-28
+- Email, phone, mobile, website and address show with icons everywhere (accounts, contacts, vendors, billing, project contacts) and each one is a link: email, call, open the site, open in Maps
+- Websites show as the plain address (ashcreekssd.utah.gov), on one line
+- One even type scale: labels 12, secondary text 13, body 14, card titles 15; dates in the activity feed are plain text instead of code font; nothing on screen smaller than 11
+- Header values (account, rep) the same size as the others
+- Primary contact listed first on an account
+- Menu: Our website link (streetsignsupply.com, opens in a new tab)
+- Quote pictures: any line with an MUTCD code (on the line or in its description, like "1.1 R1-1 Stop") gets the public-domain MUTCD drawing from Wikimedia Commons by itself when the sign library and the website have no picture — checked in the background, and a code Commons doesn't have falls back to the plain drawing
+- Vendors: People list — add each rep with their title, location/branch, email, phone and mobile (e.g. Grimco Las Vegas and Salt Lake)
+- Vendor files card says "this vendor only"
+
 ## 2026.11.25-39 — 2026-10-28
 - Menu: Sales now reads Accounts, Projects, Contacts
 
