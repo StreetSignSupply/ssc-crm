@@ -1,5 +1,15 @@
 # What changed
 
+## 2026.11.25-57 — 2026-10-28
+- Receiving no longer changes an item's cost: each receipt records what was paid (price, freight, date, vendor) on the stock movement and as the item's Last paid; the item's cost — what quotes and work orders use — is always the preferred vendor's price + freight and only changes when the preferred vendor or its price is edited
+- An item shows a warning when the last price paid is more than 2% off the cost quotes use, with Update the price
+- Vendor prices have Freight per unit (Add a vendor and Edit, default $0); the vendor table shows Price, Freight and Landed, and Lowest cost goes by landed
+- A vendor price whose vendor is missing shows "Vendor missing" and can be re-pointed with Edit
+- Material cost is locked on each job: when a project is quoted (or is further along) each quote line keeps that day's cost; margins on quotes, work orders and projects use the locked cost, so changing an item's cost later never moves an old job's margin. Editing what a line is made of retakes its cost; open quotes have Refresh costs
+- Material pulled onto a work order is valued at the cost recorded on the day it was pulled
+- Sign quotes and work orders cost blanks, sheeting and film from the CRM's item costs (preferred price + freight); the workbook's 04 SIGN COSTS tab is only used when an item has no cost yet. Decal and lettering film use the item's cost too (11 VINYL only fills gaps)
+- Files list: files on a vendor or an item show it under Attached to and Account
+
 ## 2026.11.25-56 — 2026-10-28
 - Vendors: click a person's name to see all their details (title, location, email, phone, mobile, notes) with Edit and Make main rep — the main rep swaps into Details and the previous one moves to the People list
 
