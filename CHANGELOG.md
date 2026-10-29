@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-50 — 2026-10-28
+- Files: only the newest 2 files show; the rest fold behind Show N more files (on projects, accounts, work orders and vendors — on an account the files from its projects fold the same way)
+
 ## 2026.11.25-49 — 2026-10-28
 - Project tabs: before a work order exists the Close-out tab reads Schedule (there's no close-out yet)
 
