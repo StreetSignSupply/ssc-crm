@@ -38,9 +38,10 @@ service cloud.firestore {
       allow delete: if isOwner();
     }
     // everything else: read and edit for the team; hard deletes for owners and office (everyday deletes are soft)
+    // (the collections above have their own rules; a rule here would also match them, so they're left out)
     match /{coll}/{id=**} {
-      allow read, create, update: if member();
-      allow delete: if isOffice();
+      allow read, create, update: if member() && !(coll in ["access", "team", "settings", "history"]);
+      allow delete: if isOffice() && !(coll in ["access", "team", "settings", "history"]);
     }
   }
 }
