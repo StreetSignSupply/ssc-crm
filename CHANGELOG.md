@@ -1,5 +1,13 @@
 # What changed
 
+## 2026.11.25-61
+- Visual review, part 1: nothing smaller than 12px for labels, table headings, pills, times and section captions (print and PDF layouts unchanged); darker secondary gray text; orange text darkened to pass contrast.
+- Form fields have visible borders and a blue focus ring (red stays for brand and alarms); disabled buttons read clearly instead of fading out.
+- Delete buttons look like delete buttons (red outline); buttons are a little taller, and 44px tall on touch screens.
+- Numbers line up (tabular figures) and never break mid-number.
+- Long lists keep their column names at the top while you scroll.
+- The browser tab shows where you are ("P-2014 Yavapai… · SSS CRM") and has an SSS icon.
+
 ## 2026.11.25-60
 - From the 29 Oct design review: list pages sort by any column heading (click again to reverse; accounts sort as a whole list).
 - A new version no longer reloads the page under you: a note offers "Reload now"; only a screen nobody is using updates by itself, and background jobs never reload.

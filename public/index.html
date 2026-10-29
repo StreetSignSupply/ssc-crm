@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Street Sign Supply — CRM</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpolygon points='19,2 45,2 62,19 62,45 45,62 19,62 2,45 2,19' fill='%23C40000' stroke='%23fff' stroke-width='3'/%3E%3Ctext x='32' y='43' font-family='Arial Black,Arial,sans-serif' font-weight='900' font-size='30' fill='%23fff' text-anchor='middle'%3ESSS%3C/text%3E%3C/svg%3E">
+<meta name="theme-color" content="#1F1E1B">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;500;600;700;800&family=Overpass+Mono:wght@400;600;700&display=swap" rel="stylesheet">
@@ -347,7 +349,7 @@ td .btn,th .btn{white-space:nowrap;word-break:normal;overflow-wrap:normal}
   .main table.stack td{display:flex;gap:12px;align-items:baseline;justify-content:space-between;
     border:0!important;padding:3px 0!important;text-align:right!important;min-height:0;width:auto}
   .main table.stack td[data-label]::before{content:attr(data-label);flex:0 0 36%;text-align:left;
-    font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--ink2);padding-top:2px}
+    font-size:12px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--ink2);padding-top:2px}
   .main table.stack td:not([data-label]){justify-content:flex-start;text-align:left!important}
   .main table.stack td:first-child{text-align:left!important;font-size:14.5px}
   .main table.stack td:first-child[data-label]::before{display:none}
@@ -479,7 +481,7 @@ td.mono[style*="text-align:right"],th[style*="text-align:right"]{white-space:now
 .addropt span{display:flex;flex-direction:column;min-width:0}
 .addropt b{font-size:13.5px}.addropt span span{font-size:12px;color:var(--ink2)}
 .addropt.on,.addropt:hover{background:var(--card2)}
-.addrfoot{font-size:10px;color:var(--ink3);text-align:right;padding:4px 10px}
+.addrfoot{font-size:12px;color:var(--ink3);text-align:right;padding:4px 10px}
 .stepno{width:22px;height:22px;border-radius:50%;flex:0 0 auto;display:inline-flex;align-items:center;
   justify-content:center;font-size:11.5px;font-weight:800;color:#fff;margin-right:2px;background:var(--brand);
   font-family:Overpass,Arial,sans-serif;font-variant-numeric:tabular-nums}
@@ -491,7 +493,7 @@ td.mono[style*="text-align:right"],th[style*="text-align:right"]{white-space:now
 .actg-l{display:none}
 .actg-b{display:flex;gap:6px;flex-wrap:wrap;padding:0}
 .actg-b .btn{flex:0 1 auto}
-.sortb{background:none;border:0;padding:3px 0;cursor:pointer;font:inherit;font-size:10.5px;font-weight:800;
+.sortb{background:none;border:0;padding:3px 0;cursor:pointer;font:inherit;font-size:12px;font-weight:800;
   letter-spacing:.07em;text-transform:uppercase;color:var(--ink2);border-bottom:2px solid transparent}
 .sortb:hover{color:var(--ink)}
 .sortb.on{color:var(--ink);border-bottom-color:var(--brand)}
@@ -500,7 +502,7 @@ td.mono[style*="text-align:right"],th[style*="text-align:right"]{white-space:now
 .matrow.is-short{border-left-color:#B8231C}.matrow.is-ok{border-left-color:#1F7A42}.matrow.is-done{border-left-color:#1F7A42;background:var(--card2)}
 .matrow-name{font-weight:700}
 .matrow-fact{display:flex;flex-direction:column;gap:2px;min-width:0}
-.matrow-fact .k{font-size:9.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2)}
+.matrow-fact .k{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2)}
 .matrow-fact .v{font-size:13.5px}
 .matrow-act{text-align:right;white-space:nowrap}
 .t-r{color:#B8231C;font-weight:700}
@@ -554,7 +556,7 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
   .main table.stack td{display:flex;gap:12px;align-items:baseline;justify-content:space-between;
     border:0!important;padding:3px 0!important;text-align:right!important;min-height:0;width:auto}
   .main table.stack td[data-label]::before{content:attr(data-label);flex:0 0 36%;text-align:left;
-    font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--ink2);padding-top:2px}
+    font-size:12px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--ink2);padding-top:2px}
   .main table.stack td:not([data-label]){justify-content:flex-start;text-align:left!important}
   .main table.stack td:first-child{text-align:left!important;font-size:14.5px}
   .main table.stack td:first-child[data-label]::before{display:none}
@@ -658,7 +660,7 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
     background:var(--card);box-shadow:var(--sh);padding:13px 14px 12px}
   .trk:last-of-type{margin-bottom:10px}
   .trk.is-late{border-left-color:var(--red)}
-  .trk.is-soon{border-left-color:var(--orange)}
+  .trk.is-soon{border-left-color:var(--orange-text)}
   .trk.is-ok{border-left-color:var(--green)}
   .trk:hover{background:var(--card)}
   .trk-top{display:block;margin-bottom:10px}
@@ -677,9 +679,9 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
   .trk-ph-facts{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line2);
     border:1px solid var(--line2);border-radius:4px;overflow:hidden;margin-bottom:10px}
   .trk-ph-facts > div{background:var(--card2);padding:7px 10px;display:flex;flex-direction:column;gap:1px;min-width:0}
-  .trk-ph-facts span{font-size:9.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2)}
+  .trk-ph-facts span{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2)}
   .trk-ph-facts b{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .trk-ph-facts b.t-r{color:var(--red)} .trk-ph-facts b.t-o{color:var(--orange)} .trk-ph-facts b.t-g{color:var(--green)}
+  .trk-ph-facts b.t-r{color:var(--red)} .trk-ph-facts b.t-o{color:var(--orange-text)} .trk-ph-facts b.t-g{color:var(--green)}
   .trk-jobs{gap:6px}
   .trk-jobs .jchip{font-size:12px;padding:4px 9px}
 
@@ -735,7 +737,7 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
   padding:8px 9px;text-align:left;width:100%;box-shadow:var(--sh);display:block;border-radius:2px;min-width:0}
 .kc .r1 .mono{font-size:13px}
 .kc:hover{border-color:var(--ink3);border-left-color:var(--brand)}
-.kc.late{border-left-color:var(--red)}.kc.rush{border-left-color:var(--red)}.kc.soon{border-left-color:var(--orange)}
+.kc.late{border-left-color:var(--red)}.kc.rush{border-left-color:var(--red)}.kc.soon{border-left-color:var(--orange-text)}
 .kc .r1{display:flex;gap:8px;align-items:baseline}
 .kc .nm{font-weight:800;font-size:13.5px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;white-space:normal;line-height:1.3}
 .kc .r2{font-size:12px;color:var(--ink2);margin:3px 0 7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -767,7 +769,7 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
 .ev:hover{filter:brightness(.94);box-shadow:inset 0 0 0 1px var(--brand)}
 .ev:active{transform:translateY(1px)}
 .ev.start{border-left-color:var(--blue)}
-.ev.due{border-left-color:var(--orange)}
+.ev.due{border-left-color:var(--orange-text)}
 .ev.late{border-left-color:var(--plate);background:#B8231C;color:#fff}
 .ev.ship{border-left-color:var(--green);color:var(--ink3);text-decoration:line-through}
 .ev.evx{border-left-color:var(--brand);background:var(--card);box-shadow:inset 0 0 0 1px var(--line2)}
@@ -843,7 +845,7 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
   font-family:"Overpass Mono",monospace;flex:0 0 auto}
 .act .c{min-width:0;flex:1}
 .act .c .m{font-size:13.5px;overflow-wrap:anywhere}
-.act .c time{font-size:10.5px;color:var(--ink3);font-family:"Overpass Mono",monospace}
+.act .c time{font-size:12px;color:var(--ink3);font-family:"Overpass Mono",monospace}
 .act .done{text-decoration:line-through;color:var(--ink3)}
 .hrow{display:flex;gap:11px;padding:9px 15px;border-bottom:1px solid var(--line2);font-size:13px;align-items:baseline}
 .hrow:last-child{border-bottom:0}
@@ -852,7 +854,7 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
 .hrow .v{flex:1;min-width:0;overflow-wrap:anywhere}
 .hrow .o{color:var(--ink3);text-decoration:line-through}
 .hrow .n{color:var(--ink);font-weight:700}
-.hrow time{flex:0 0 auto;font-size:10px;color:var(--ink3);font-family:"Overpass Mono",monospace}
+.hrow time{flex:0 0 auto;font-size:12px;color:var(--ink3);font-family:"Overpass Mono",monospace}
 
 /* ========= modal ========= */
 .scrim{position:fixed;inset:0;background:rgba(8,8,9,.55);z-index:90;backdrop-filter:blur(2px)}
@@ -1099,12 +1101,12 @@ th .sortb.on{color:var(--ink2);border-bottom-color:var(--brand)}
 .dtoday{font-size:11.5px;font-weight:700;color:var(--brand-ink)}
 .ev{display:flex!important;flex-direction:column;align-items:stretch;gap:1px;-webkit-line-clamp:unset;white-space:normal!important;
   border-radius:5px;padding:4px 7px 5px;min-height:0;font-size:12px;font-weight:600;line-height:1.3;border-left-width:3px;overflow:visible}
-.ev .evk{font-size:10.5px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:var(--ink2);line-height:1.2}
+.ev .evk{font-size:12px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:var(--ink2);line-height:1.2}
 .ev .evn{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
 .ev.start{background:color-mix(in srgb,var(--blue) 9%,var(--card))}
 .ev.start .evk{color:var(--blue)}
 .ev.due{background:color-mix(in srgb,var(--orange) 10%,var(--card))}
-.ev.due .evk{color:var(--orange)}
+.ev.due .evk{color:var(--orange-text)}
 .ev.late{background:color-mix(in srgb,var(--red) 12%,var(--card));color:var(--ink);border-left-color:var(--red)}
 .ev.late .evk{color:var(--red)}
 .ev.ship{text-decoration:none;color:var(--ink3);background:var(--card2);opacity:.85}
@@ -1145,6 +1147,29 @@ th{font-size:12px}
 .rail-web .rail-i{color:var(--ink2)}
 .rail-ext{flex:0 0 auto!important;font-size:12px;color:var(--ink3);margin-left:auto}
 .app.rail-min .rail-ext{display:none}
+/* ===== 29 Oct visual review: readable sizes, visible fields, numbers that never wrap ===== */
+:root{--ink2:#55524C;--ink3:#66625B;--border-input:#8C877E;--focus:#1D4E8F;--orange-text:#8F4405}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink2:#B3AFA7;--ink3:#9A968E;--border-input:#6A665F;--focus:#7FB0E6;--orange-text:#F0A35E}}
+:root[data-theme="dark"]{--ink2:#B3AFA7;--ink3:#9A968E;--border-input:#6A665F;--focus:#7FB0E6;--orange-text:#F0A35E}
+td,th{overflow-wrap:break-word}
+td.mono,th.mono,.mono{font-variant-numeric:tabular-nums lining-nums}
+td.mono[style*="text-align:right"]{min-width:7ch}
+th,.k,.fld .k,.hl-facts .k{font-size:12px}
+.pill{font-size:12px}
+.fld input,.fld select,.fld textarea,.main input[type=text],.main input:not([type]),.main input[type=number],.main input[type=email],.main input[type=tel],.main input[type=date],.main select,.main textarea,
+.modal input:not([type=checkbox]):not([type=radio]):not([type=file]),.modal select,.modal textarea{border-color:var(--border-input)}
+.fld input:focus,.fld select:focus,.fld textarea:focus,.main input:focus,.main select:focus,.main textarea:focus,.modal input:focus,.modal select:focus,.modal textarea:focus{outline:2px solid var(--focus);outline-offset:1px;box-shadow:none}
+:focus-visible{outline-color:var(--focus)}
+.btn{min-height:34px}
+.btn.sm{min-height:28px}
+.btn.d{border-color:color-mix(in srgb,var(--danger-ink) 55%,var(--line));color:var(--danger-ink)}
+.btn.d:hover{border-color:var(--danger-ink);background:color-mix(in srgb,var(--danger-ink) 7%,var(--card))}
+.btn[disabled]{opacity:1;background:var(--card2);color:var(--ink3);border-color:var(--line);cursor:not-allowed}
+.btn.p[disabled]{background:var(--card2);color:var(--ink3);border-color:var(--line)}
+@media (hover:none) and (pointer:coarse){.btn,.btn.sm,summary.btn{min-height:44px}.cz{min-width:36px;min-height:36px}}
+/* column names stay in view on long lists (tables that aren't inside their own side-scroller) */
+table.stickyhead > thead > tr > th{position:sticky;top:0;z-index:3;box-shadow:inset 0 -1px 0 var(--line)}
+@media (min-width:701px){.card:has(> table.stickyhead){overflow:clip}}
 </style>
 </head>
 <body>
@@ -4273,7 +4298,7 @@ function wizRender(){
     title="Step 5 — Check it, then create";
     const cName=w.contMode==="existing"?((S.contacts.get(w.contId)||{}).name||""):w.contMode==="new"?w.cont.name:"";
     const row=(icn,k,v,sub)=>`<div class="gate" style="align-items:flex-start"><span class="oi sm oi-${icn}">${ic(icn==="acct"?"account":icn==="cont"?"contact":icn==="proj"?"project":"job",14)}</span>
-      <div style="flex:1"><div class="h" style="font-weight:800;text-transform:uppercase;letter-spacing:.06em;font-size:10px">${k}</div>
+      <div style="flex:1"><div class="h" style="font-weight:800;text-transform:uppercase;letter-spacing:.06em;font-size:12px">${k}</div>
       <div class="t">${v}</div>${sub?`<div class="h">${sub}</div>`:""}</div></div>`;
     body=`<div style="padding:4px 0">
       ${row("acct","Customer",acc?esc(acc.name):esc(w.acct.name)+` <span class="pill g">new</span>`,acc?"":esc(w.acct.type+" · "+w.acct.terms))}
@@ -7484,7 +7509,7 @@ function materialCard(j){
       </div>`).join("")}
       <div class="sub" style="padding:8px 15px 10px;border-top:1px solid var(--line2)">Quantities are estimates from the line items and include <b>${w}% waste</b>. You can change the waste allowance and the amounts when you pull.</div>
     </div>`:""}
-    ${issued.length?`<div style="padding:10px 15px 4px;border-top:1px solid var(--line);font-size:10.5px;
+    ${issued.length?`<div style="padding:10px 15px 4px;border-top:1px solid var(--line);font-size:12px;
       font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--ink2)">Pulled from stock</div>
       <table><tbody>${issued.map(t=>{const it2=S.items.get(t.itemId);const live2=it2&&!it2.deleted;
         return `<tr><td>${live2?`<button class="lnk" data-go="item/${esc(t.itemId)}">${esc(it2.name)}</button>`
@@ -8685,6 +8710,7 @@ function sortTable(tb,col,dir){const body=tb.tBodies[0];if(!body)return;
   rows.concat(rest).forEach(r=>body.appendChild(r))}
 function decorateSorts(){const v=S.route&&S.route.v;if(!SORT_VIEWS[v])return;S.tsort=S.tsort||{};
   document.querySelectorAll(".main table").forEach((tb,ti)=>{const ths=[...tb.querySelectorAll(":scope > thead > tr > th")];
+    if(ths.length&&tb.parentElement&&tb.parentElement.classList.contains("card")&&tb.tBodies[0]&&tb.tBodies[0].rows.length>12)tb.classList.add("stickyhead");
     if(!ths.length||tb.querySelector(".sortb")||!tb.tBodies[0]||tb.tBodies[0].rows.length<2)return;
     const key=v+"#"+ti;
     ths.forEach((th,ci)=>{if(!th.textContent.trim())return;th.classList.add("thsort");th.title="Sort by "+th.textContent.trim().toLowerCase();
@@ -8692,8 +8718,20 @@ function decorateSorts(){const v=S.route&&S.route.v;if(!SORT_VIEWS[v])return;S.t
         if(first&&v==="accounts"){render();return}   // sorting the accounts shows them all, so the order is the whole list's
         ths.forEach(h=>h.removeAttribute("data-dir"));th.setAttribute("data-dir",dir>0?"asc":"desc");sortTable(tb,ci,dir)}});
     const cur=S.tsort[key];if(cur&&ths[cur.col]){ths[cur.col].setAttribute("data-dir",cur.dir>0?"asc":"desc");sortTable(tb,cur.col,cur.dir)}})}
+// the browser tab says where you are: "P-2014 Yavapai… · SSS CRM"
+function pageTitle(){const r=S.route||{};const id=r.id;
+  try{if(r.v==="project"){const p=S.projects.get(id);return p?"P-"+p.num+" "+String(p.name||"").slice(0,40):"Project"}
+    if(r.v==="account")return accName(id)||"Account";
+    if(r.v==="contact"){const c=S.contacts.get(id);return c?c.name:"Contact"}
+    if(r.v==="job"){const j=S.jobs.get(String(id));return "WO "+id+(j&&j.desc?" "+String(j.desc).slice(0,40):"")}
+    if(r.v==="vendor"){const v=S.vendors.get(id);return v?v.name:"Vendor"}
+    if(r.v==="item"){const it=S.items.get(id);return it?it.name:"Item"}
+    for(const g of NAVG)for(const [k,,l] of g.pages)if(k===r.v)return l;
+    if(r.v==="home")return "Company dashboard";}catch(e){}
+  return ""}
 function render(){
   applyBrand();
+  try{const t=pageTitle();document.title=(t?t+" · ":"")+"SSS CRM"}catch(e){}
   // overlays live outside #root, so clear them before we draw the new ones
   document.querySelectorAll("#viewer,.scrim,.modal").forEach(el=>el.remove());
   const prev=$(".main"),st=prev?prev.scrollTop:0,wy=window.scrollY||0;
@@ -8848,7 +8886,7 @@ function mobileNav(){
 }
 function moreNav(){
   openModal(mshell("Go to","",`<div style="padding:10px 14px">${NAVG.map(g=>`<div style="margin:6px 0 12px">
-      <div class="k" style="font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);margin-bottom:6px">${esc(g.label)}</div>
+      <div class="k" style="font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);margin-bottom:6px">${esc(g.label)}</div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${g.pages.filter(([r])=>(r!=="mybook"||S.viewerTeam)&&(r!=="settings"||can("settings"))).map(([r,i,l])=>`<button class="btn" data-go="${r}"
         style="flex-direction:column;display:flex;align-items:center;gap:6px;padding:12px 6px;height:auto">${ic(i,20)}<span style="font-size:11.5px">${l}</span></button>`).join("")}</div></div>`).join("")}</div>`,
     `<button class="btn" data-close="1">Close</button>`));
@@ -9172,7 +9210,7 @@ function home(){
     </div></div>`;
 }
 function tile(k,v,c){
-  const col=c==="r"?"color:var(--red)":c==="o"?"color:var(--orange)":"";
+  const col=c==="r"?"color:var(--red)":c==="o"?"color:var(--orange-text)":"";
   const note=(c&&c!=="r"&&c!=="o")?c:"";
   return `<div class="card" style="margin:0"><div class="body" style="padding:11px 13px">
   <div class="sub" style="font-weight:600">${esc(k)}</div>
@@ -9622,7 +9660,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-60";
+const APP_VERSION="2026.11.25-61";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -10388,7 +10426,7 @@ function jobRec(num){
             <button class="btn sm" data-upload="job:${j.num}">Upload a file</button>`:""}</span></header>
         ${signed.length?`<div class="fgal">${signed.map(f=>fileTile(f)).join("")}</div>`
         :`<div class="${S.canUpload?"drop":"empty"}" data-drop="job:${j.num}:Signed work order">Drop the scanned, signed copy here.</div>`}
-        ${others.length?`<div style="padding:10px 15px 4px;border-top:1px solid var(--line);font-size:10.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--ink2)">Other files on this work order</div>
+        ${others.length?`<div style="padding:10px 15px 4px;border-top:1px solid var(--line);font-size:12px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--ink2)">Other files on this work order</div>
           <div class="fgal">${others.map(f=>fileTile(f)).join("")}</div>`:""}</section>`})()}
 
       ${(function(){const rev=jobRevenue(j),mc=jobMatCost(j),oc=jobOther(j),mg=jobMargin(j);
@@ -11012,7 +11050,7 @@ function kpi(label,value,sub,color){
   return `<div class="card" style="margin:0"><div class="body" style="padding:12px 14px">
     <div class="kpi-l">${esc(label)}</div>
     <div class="mono kpiv kpi-v" style="${
-      color==="r"?"color:var(--red)":color==="o"?"color:var(--orange)":color==="g"?"color:var(--green)":""}">${esc(String(value))}</div>
+      color==="r"?"color:var(--red)":color==="o"?"color:var(--orange-text)":color==="g"?"color:var(--green)":""}">${esc(String(value))}</div>
     ${sub?`<div class="kpi-s">${esc(sub)}</div>`:""}</div></div>`;
 }
 function kpiRow(cells){
@@ -11275,7 +11313,7 @@ function reportsView(){
             :"Built from the settings below."}</div>
         </div>
       </div>
-      <div style="padding:2px 15px 10px;font-size:10.5px;font-weight:800;letter-spacing:.07em;
+      <div style="padding:2px 15px 10px;font-size:12px;font-weight:800;letter-spacing:.07em;
         text-transform:uppercase;color:var(--ink2);border-top:1px solid var(--line2);margin-top:4px;padding-top:12px">
         Adjust</div>
       <div class="fgrid">
