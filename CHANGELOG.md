@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-49 — 2026-10-28
+- Project tabs: before a work order exists the Close-out tab reads Schedule (there's no close-out yet)
+
 ## 2026.11.25-48 — 2026-10-28
 - Account page: archived (closed and lost) projects are listed under the active ones, behind an Archived divider, newest first
 
