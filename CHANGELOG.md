@@ -1,5 +1,18 @@
 # What changed
 
+## 2026.11.25-60
+- From the 29 Oct design review: list pages sort by any column heading (click again to reverse; accounts sort as a whole list).
+- A new version no longer reloads the page under you: a note offers "Reload now"; only a screen nobody is using updates by itself, and background jobs never reload.
+- Money and counts in right-hand columns no longer break across lines.
+- Accounts list shows the rep as text (change it on the account's Edit) — no dropdown to change by mistake.
+- Work order Delete moved to the left, away from "Move to QC".
+- Sidebar "History" is now "Change history".
+- Inventory "Out of stock" counts only items with a reorder point; the rest show as a note.
+- Contacts list has a Last contacted column (last call, email or meeting logged with them).
+- Smaller gray text is darker and easier to read.
+- Settings warns before you leave with changes not saved.
+- Reminder emails and texts go to one person each — the rep the reminder belongs to, or the owner — not a copy to everyone.
+
 ## 2026.11.25-59
 - Stencils: every stencil in the 1 Sep catalog (1,785, with its catalog picture) plus the 75 more on the 25 Oct approved price list — 1,860 in all — under Inventory → Stencils. SKU, name, blank size, pieces, material sq ft, a price for each grade and the date the price was set.
 - Each grade (LDPE .125, LDPE .063, HDPE .030, HDPE .250, ALUM .080) is cut from an inventory sheet; cost = sheet cost per sq ft (preferred vendor price + freight) × material sq ft × 1.15 waste + CNC labor (25 Oct rates). Changing the sheet's vendor or price changes every stencil. Rates, the sheet for each grade and a stencil's sq ft can be changed on the page.
