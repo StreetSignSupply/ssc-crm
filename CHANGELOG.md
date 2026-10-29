@@ -1,5 +1,10 @@
 # What changed
 
+## 2026.11.25-58
+- Closing a Files card keeps the first 2 files showing with "Show N more"; clicking that on a closed card opens the card and all its files.
+- Locked job costs now show: the quote lines table shows the locked cost with "locked <date>" (the table was dropping the lock and recomputing), and the line editor shows a "locked" tag.
+- Re-price only shows before a project is won.
+
 ## 2026.11.25-57 — 2026-10-28
 - Receiving no longer changes an item's cost: each receipt records what was paid (price, freight, date, vendor) on the stock movement and as the item's Last paid; the item's cost — what quotes and work orders use — is always the preferred vendor's price + freight and only changes when the preferred vendor or its price is edited
 - An item shows a warning when the last price paid is more than 2% off the cost quotes use, with Update the price
