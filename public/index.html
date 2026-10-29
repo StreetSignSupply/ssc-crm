@@ -5565,7 +5565,7 @@ function catRows(q,kind){
   });
   if(!kind||kind==="stencil"){
     if(!S.stc)stcLoad();
-    stcList().forEach(st=>{STC_GRADES.forEach((g,gi)=>{const pr=stcPrice(st,gi);if(pr==null)return;
+    stcList().forEach(st=>{if(stcHeld(st))return;STC_GRADES.forEach((g,gi)=>{const pr=stcPrice(st,gi);if(pr==null)return;
       out.push({kind:"stc",key:"stc:"+st.sku+":"+gi,sku:st.sku,gi,title:st.n,size:st.w&&st.h?st.w+"x"+st.h:"",grade:g.k,code:st.sku,cost:null,
         sell:pr,mine:true,img:stcPicUrl(st),stc:st,hay:(st.n+" "+st.sku+" "+(st.cat||"")+" "+g.label+" "+g.k+" stencil").toLowerCase()})})});
   }
@@ -5575,7 +5575,9 @@ function catRows(q,kind){
         sell:Number(v.price)||0,mine:true,img:p.img||"",url:p.url||"",tiers:v.t||[],
         hay:(p.name+" "+(p.cat||"")+" "+(v.size||"")+" "+(v.mat||"")+" "+(v.grade||"")+" website sign").toLowerCase()})})});
   }
-  if(words.length)out=out.filter(r=>words.every(w=>r.hay.indexOf(w)>=0));
+  if(words.length){const cq=t.replace(/[^a-z0-9]/g,"");
+    out=out.filter(r=>words.every(w=>r.hay.indexOf(w)>=0)||(cq.length>=4&&r.kind==="stc"&&r.sku.toLowerCase().replace(/[^a-z0-9]/g,"").indexOf(cq)>=0));
+    if(/^s?s?s?-?[a-z]{3}-?\d/.test(t))out.sort((a,b)=>(b.kind==="stc")-(a.kind==="stc"))}
   return out;
 }
 /* ================= THE WEBSITE CATALOGUE (streetsignsupply.com) =================
@@ -5598,11 +5600,11 @@ const STC_GRADES=[
   {k:"LDPE .063",label:"LIGHT .063 LDPE",short:"LIGHT 1/16\"",test:t=>/LDPE|POLYETH/.test(t)&&/\.06|1\/16/.test(t)},
   {k:"HDPE .030",label:"HDPE budget .030",short:"HDPE .030",test:t=>/HDPE/.test(t)&&/\.030?\b|\.03\b/.test(t)},
   {k:"HDPE .250",label:"HDPE heavy 1/4\"",short:"HDPE 1/4\"",test:t=>/HDPE/.test(t)&&/\.25|1\/4/.test(t)},
-  {k:"ALUM .080",label:"ALUM .080",short:"ALUM .080",test:t=>/ALUM|5052/.test(t)&&/\.080|\.08\b/.test(t)}];
+  {k:"ALUM .080",label:"ALUM .080",short:"ALUM .080",test:t=>/ALUM|5052|ALUMINIUM/.test(t)&&/\.080|\.08\b|0\.08\b|080\b/.test(t)}];
 // the rates Matt approved with the price list (25 Oct 2026); the cut factors are how much longer a grade takes on the CNC
 const STC_DEF={waste:1.15,laborRate:25,setupMin:5,minPerPiece:0.5,minPerSqft:1.5,cut:[1,1,1,2,3]};
 function stcCfg(){const c=(S.brand&&S.brand.stencilCfg)||{};const o=Object.assign({},STC_DEF,c);
-  o.cut=STC_DEF.cut.map((v,i)=>(c.cut&&Number(c.cut[i])>0)?Number(c.cut[i]):v);o.mat=Object.assign({},c.mat||{});o.sq=Object.assign({},c.sq||{});return o}
+  o.cut=STC_DEF.cut.map((v,i)=>(c.cut&&Number(c.cut[i])>0)?Number(c.cut[i]):v);o.mat=Object.assign({},c.mat||{});o.sq=Object.assign({},c.sq||{});o.price=Object.assign({},c.price||{});o.release=Object.assign({},c.release||{});o.pd=Object.assign({},c.pd||{});return o}
 async function stcCfgSave(patch){const cur=Object.assign({},(S.brand&&S.brand.stencilCfg)||{});const next=Object.assign(cur,patch);
   try{await push("settings/brand",{stencilCfg:next})}catch(e){const b2=Object.assign({},S.brand||{},{stencilCfg:next});await setDoc("settings/brand",b2)}
   S.brand=Object.assign({},S.brand||{},{stencilCfg:next});S.stcCostIdx=null}
@@ -5630,7 +5632,6 @@ function stcGradeIx(g){const t=String(g==null?"":g).toUpperCase();if(!t)return -
 // the sheet each grade is cut from: Matt's pick in Settings, else the cheapest full sheet in inventory that says that gauge
 function stcMatCands(gi){const g=STC_GRADES[gi];if(!g)return [];
   return itemList().filter(it=>{const t=[it.name,it.sku,it.cat].join(" ").toUpperCase();
-    if(/sign|blank/i.test(String(it.cat||""))&&!/stencil/i.test(String(it.cat||"")))return false;
     return g.test(t)&&stcSheetSqft(it)>=20})}
 function stcMatFor(gi){const c=stcCfg();const id=c.mat[gi];
   if(id){const it=S.items.get(id);if(it&&!it.deleted)return {it,auto:false}}
@@ -5654,11 +5655,15 @@ function stcCost(s,gi){
   return {cost,mat:m.it,matCost:Math.round(mat*100)/100,labor:Math.round(labor*100)/100,min:Math.round(min*10)/10,rate,sq,flags:[],auto:m.auto,
     why:(Math.round(sq*100)/100)+" sq ft × "+c.waste+" waste of "+m.it.name.split("—")[0].trim()+" at "+money2(rate)+"/sq ft = "+money2(mat)
       +" + "+(Math.round(min*10)/10)+" min CNC at "+money2(c.laborRate)+"/hr = "+money2(labor)}}
-function stcPrice(s,gi){const p=s&&s.p?s.p[gi]:null;return p!=null&&Number(p)>0?Number(p):null}
+// the 99 catalog stencils Matt pulled from the 25 Oct price list (size or kit not confirmed) are held:
+// listed with their reason, but not offered on quotes until the artwork is measured and Matt releases them
+function stcPd(s){return (s&&stcCfg().pd[s.sku])||(s&&s.pd)||""}
+function stcHeld(s){if(!s||s.src!=="sep")return false;const r=stcCfg().release||{};return !r[s.sku]}
+function stcPrice(s,gi){const ov=s?(stcCfg().price||{})[s.sku]:null;if(ov&&ov[gi]!=null&&Number(ov[gi])>0)return Number(ov[gi]);const p=s&&s.p?s.p[gi]:null;return p!=null&&Number(p)>0?Number(p):null}
 // what's wrong with a stencil as a whole (shown on the list and in the export)
 function stcFlags(s){const out=[];const sq=stcSq(s);
   if(!(sq>0))out.push("No material sq ft — measure the artwork");
-  if(s.src==="sep")out.push("Not on the 25 Oct price list — size or kit not confirmed; price is the 1 Sep catalog's");
+  if(stcHeld(s))out.push("Held — pulled from the 25 Oct price list (size or kit not confirmed). Measure the artwork, fix the sq ft, then release it");
   return [...new Set(out)]}
 // a quote or work order line that is a catalog stencil: its code is the stencil's SKU
 function stcLine(line){if(!line)return null;const s=stcBySku(line.code);if(!s)return null;return {s,gi:stcGradeIx(line.grade)}}
@@ -5713,7 +5718,7 @@ function stencilsView(){
           ${showCost?`<td class="mono" style="text-align:right;white-space:nowrap" title="${esc(r&&r.why||r&&r.flags.join("; ")||"")}">${r&&r.cost!=null?money2(r.cost):`<span class="pill r">not costed</span>`}</td>`:""}
           <td class="mono" style="text-align:right;font-weight:700;white-space:nowrap">${pr?money2(pr):"—"}</td>
           ${showCost?`<td style="text-align:right">${mg==null?`<span class="sub">—</span>`:`<span class="pill ${mg>=40?"g":mg>=25?"o":"r"}">${Math.round(mg)}%</span>`}</td>`:""}
-          <td class="sub" style="white-space:nowrap">${esc(fmtDate(s.pd))}</td>
+          <td class="sub" style="white-space:nowrap">${esc(fmtDate(stcPd(s)))}</td>
           <td style="max-width:260px;white-space:normal">${fl.length?fl.map(x=>`<div class="sub" style="color:var(--red,#C00)">${esc(x)}</div>`).join(""):`<span class="sub">—</span>`}</td></tr>`}).join("")}
         </tbody></table></div>
         ${pages>1?`<div style="display:flex;gap:6px;align-items:center;padding:10px 15px">${f.page>0?`<button class="btn sm" data-stcpage="${f.page-1}">Previous</button>`:""}
@@ -5727,11 +5732,13 @@ function stcViewModal(sku){const s=stcBySku(sku);if(!s)return;const showCost=can
       <div style="flex:1;min-width:220px"><div class="mono" style="font-weight:800">${esc(s.sku)}${s.stn?` <span class="sub">· price list ${esc(s.stn)}</span>`:""}</div>
         <div class="sub">${esc(s.cat||"")}</div>
         <div style="margin-top:8px">Blank ${s.w&&s.h?esc(s.w+" × "+s.h+" in"):"size not in the catalog"} · ${esc(s.pc||1)} piece${Number(s.pc)>1?"s":""} · <b>${Math.round(stcSq(s)*100)/100} sq ft</b> of sheet${stcCfg().sq[s.sku]?" (your figure)":""}</div>
-        <div class="sub" style="margin-top:4px">Price set ${esc(fmtDate(s.pd))} — ${s.src==="sep"?"the 1 Sep catalog":"the 25 Oct price list Matt approved"}${s.fix?" · "+esc(s.fix):""}</div>
+        <div class="sub" style="margin-top:4px">Price set ${esc(fmtDate(stcPd(s)))} — ${s.src==="sep"?"the 1 Sep catalog":"the 25 Oct price list Matt approved"}${s.fix?" · "+esc(s.fix):""}</div>
         ${s.ph?`<div class="sub" style="margin-top:4px">The catalog picture is only an outline of the blank.</div>`:""}
         ${fl.length?`<div class="warn" style="margin-top:8px">${fl.map(esc).join("<br>")}</div>`:""}
         ${showCost?`<div style="margin-top:10px;display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span class="sub">Material sq ft</span>
-          <input id="stc-sq" value="${esc(String(stcSq(s)||""))}" style="width:90px" inputmode="decimal"><button class="btn sm" data-stcsq="${esc(s.sku)}">Save</button></div>`:""}</div></div>
+          <input id="stc-sq" value="${esc(String(stcSq(s)||""))}" style="width:90px" inputmode="decimal"><button class="btn sm" data-stcsq="${esc(s.sku)}">Save</button></div>
+          <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" data-stcfloor="${esc(s.sku)}" title="Each grade at cost ÷ 0.60, rounded up to the next 50¢ — the 25 Oct rule">Price at the 40% floor</button>
+            ${s.src==="sep"?(stcHeld(s)?`<button class="btn sm p" data-stcrel="${esc(s.sku)}:1">Release for quoting</button>`:`<button class="btn sm" data-stcrel="${esc(s.sku)}:0">Hold again</button>`):""}</div>`:""}</div></div>
     <div style="overflow-x:auto"><table style="table-layout:auto;width:100%"><thead><tr><th>Grade</th>${showCost?`<th style="text-align:right">Material</th><th style="text-align:right">Labor</th><th style="text-align:right">Cost</th>`:""}<th style="text-align:right">Price</th>${showCost?`<th style="text-align:right">Margin</th>`:""}</tr></thead><tbody>
       ${STC_GRADES.map((g,i)=>{const pr=stcPrice(s,i);const r=stcCost(s,i);const mg=(pr&&r.cost!=null)?(pr-r.cost)/pr*100:null;
         return `<tr><td style="white-space:nowrap"><b>${esc(g.k)}</b></td>${showCost?`<td class="mono" style="text-align:right;white-space:nowrap">${r.cost!=null?money2(r.matCost):"—"}</td><td class="mono" style="text-align:right;white-space:nowrap">${r.cost!=null?money2(r.labor):"—"}</td>
@@ -5765,7 +5772,7 @@ function stcExportRows(){const head=["SKU","Price list code","Stencil","Category
   stcList().forEach(s=>{const fl=stcFlags(s);STC_GRADES.forEach((g,i)=>{const pr=stcPrice(s,i);if(pr==null)return;const r=stcCost(s,i);
     const mg=(r.cost!=null&&pr)?Math.round((pr-r.cost)/pr*1000)/10:"";
     rows.push([s.sku,s.stn||"",s.n,s.cat||"",s.w&&s.h?s.w+" x "+s.h:"",s.pc||1,g.label,r.mat?r.mat.name:"",Math.round(stcSq(s)*100)/100,
-      stcSq(s)?Math.round(stcSq(s)*c.waste*100)/100:"",r.rate?Math.round(r.rate*1000)/1000:"",r.cost!=null?r.matCost:"",r.cost!=null?r.labor:"",r.cost!=null?r.cost:"",pr,s.pd,mg,
+      stcSq(s)?Math.round(stcSq(s)*c.waste*100)/100:"",r.rate?Math.round(r.rate*1000)/1000:"",r.cost!=null?r.matCost:"",r.cost!=null?r.labor:"",r.cost!=null?r.cost:"",pr,stcPd(s),mg,
       r.flags.concat(fl.filter(x=>/Not on the 25 Oct/.test(x))).join("; ")])})});
   return rows}
 async function stcCsv(){await stcLoad();if(!S.stc)return toast(S.stcErr||"The stencil catalog isn't loaded.");
@@ -6048,7 +6055,7 @@ function catalogModal(target,pid,num,kind){
      <div class="sub" style="padding:0 15px 8px">${rows.length} to choose from — ${webcatProducts().length?webcatProducts().length+" products on your website with every size and material, ":""}${sheetRows().length} signs from your workbook${(S.sheet&&S.sheet.source)?" ("+esc(S.sheet.source)+")":""}, everything else from inventory at your cost plus ${Math.round(targetMargin())}% margin</div>
      ${rows.length?`<table><thead><tr><th>What it is</th><th>Size</th><th>Grade</th><th style="text-align:right">Cost</th><th style="text-align:right">Sell</th><th></th></tr></thead><tbody>
        ${rows.slice(0,400).map(r=>`<tr>
-         <td>${(r.kind==="web"||r.kind==="stc")&&r.img?`<img src="${esc(r.img)}" alt="" loading="lazy" style="width:38px;height:38px;object-fit:contain;border:1px solid var(--line);border-radius:3px;background:#fff;float:left;margin-right:8px">`:""}<b>${esc(r.title)}</b>${r.kind==="web"?`<div class="sub">streetsignsupply.com${r.tiers&&r.tiers.length?" · "+esc(r.tiers[r.tiers.length-1][0])+" pcs "+money(r.tiers[r.tiers.length-1][1]):""}</div>`:""}${r.code&&r.kind==="sign"?`<div class="sub">${esc(r.code)}</div>`:""}${r.byArea?`<div class="sub">priced by size — ${esc(r.onHand)} ${esc(r.unit)} in stock</div>`:""}</td>
+         <td>${(r.kind==="web"||r.kind==="stc")&&r.img?`<img src="${esc(r.img)}" alt="" loading="lazy" style="width:38px;height:38px;object-fit:contain;border:1px solid var(--line);border-radius:3px;background:#fff;float:left;margin-right:8px">`:""}<b>${esc(r.title)}</b>${r.kind==="web"?`<div class="sub">streetsignsupply.com${r.tiers&&r.tiers.length?" · "+esc(r.tiers[r.tiers.length-1][0])+" pcs "+money(r.tiers[r.tiers.length-1][1]):""}</div>`:""}${r.code&&(r.kind==="sign"||r.kind==="stc")?`<div class="sub mono">${esc(r.code)}</div>`:""}${r.byArea?`<div class="sub">priced by size — ${esc(r.onHand)} ${esc(r.unit)} in stock</div>`:""}</td>
          <td>${r.byArea?`<input data-catsz="${esc(r.key)}" placeholder="3x2 in, or 3ft x 5ft" style="width:86px;padding:4px 6px;border:1px solid var(--line);border-radius:3px;background:var(--card2)">`:esc(r.size)}</td>
          <td>${esc(r.kind==="sign"||r.kind==="stc"?r.grade:"")}</td>
          <td class="mono" style="text-align:right">${r.kind==="stc"?(function(){if(!can("cost"))return "—";const c1=stcCost(r.stc,r.gi);return c1.cost!=null?money(c1.cost):`<span class="pill r" title="${esc(c1.flags.join("; "))}">not costed</span>`})():r.cost?money(r.cost):r.byArea?`<span class="sub">type a size</span>`:"—"}</td>
@@ -15439,6 +15446,14 @@ function bind(){
     {const x=t.closest("[data-stccsv]");if(x){stcCsv();return}}
     {const x=t.closest("[data-stcflag]");if(x){S.stcF=Object.assign({},S.stcF||{},{flag:!(S.stcF&&S.stcF.flag),page:0});render();return}}
     {const x=t.closest("[data-stcpage]");if(x){S.stcF=Object.assign({},S.stcF||{},{page:Number(x.dataset.stcpage)||0});render();const m=$(".main");if(m)m.scrollTop=0;return}}
+    {const x=t.closest("[data-stcrel]");if(x){const[sku,on]=x.dataset.stcrel.split(":");const r=Object.assign({},stcCfg().release);if(on==="1")r[sku]=true;else delete r[sku];
+      stcCfgSave({release:r}).then(()=>{toast(on==="1"?"Released — it's on the quote picker now":"Held");closeModal();stcViewModal(sku);render()}).catch(()=>toast("That didn't save."));return}}
+    {const x=t.closest("[data-stcfloor]");if(x){const sku=x.dataset.stcfloor;const st=stcBySku(sku);if(!st)return;
+      const pr=STC_GRADES.map((g,i)=>{const c1=stcCost(st,i);return c1.cost!=null?Math.ceil(c1.cost/0.6*2)/2:null});
+      if(pr.every(v=>v==null))return toast("None of its grades can be costed yet.");
+      const all=Object.assign({},stcCfg().price);all[sku]=pr.map((v,i)=>v!=null?v:(st.p?st.p[i]:null));
+      const pdm=Object.assign({},stcCfg().pd);pdm[sku]=today();
+      stcCfgSave({price:all,pd:pdm}).then(()=>{toast("Priced at the 40% floor");closeModal();stcViewModal(sku);render()}).catch(()=>toast("That didn't save."));return}}
     {const x=t.closest("[data-stcsq]");if(x){const sku=x.dataset.stcsq,v=Number(($("#stc-sq")||{}).value);const c0=stcCfg();const sq=Object.assign({},c0.sq);const st=stcBySku(sku);
       if(!(v>0))return toast("Put in the sq ft of sheet it takes.");
       if(st&&Math.abs(v-(Number(st.sq)||0))<0.001)delete sq[sku];else sq[sku]=v;
