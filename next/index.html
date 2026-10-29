@@ -2340,8 +2340,9 @@ function issueModal(num){
   if(q)q.oninput=()=>{const el=$("#iss-list");if(el)el.innerHTML=issueRows(num,q.value)};
   focusFirst("iss-q");
 }
-function txModal(iid,type,jobNum,amount){
+function txModal(iid,type,jobNum,amount,poRef){
   const it=S.items.get(iid);if(!it)return;
+  const poLine=poRef?(it.orders||[]).find(o=>o.ref===poRef):null;
   const wos=liveJobs().filter(j=>j.status!=="shipped").sort((a,b)=>(a.due||"9999").localeCompare(b.due||"9999"))
     .map(j=>({v:String(j.num),l:j.num+" · "+(j.desc||"").slice(0,44)}));
   const T={receive:"Receive stock",use:"Use on a work order",adjust:"Adjust the count",count:"Physical count"};
@@ -2352,16 +2353,17 @@ function txModal(iid,type,jobNum,amount){
       ${(function(){const per=itemSqft(it);const area=per>0&&/roll|sheet/i.test(it.unit||"")&&type!=="receive";
         const lab=type==="count"?"Counted quantity":type==="adjust"?"Change by (use a minus sign to reduce)":"Quantity";
         return `<div class="fld"><div class="k">${area?lab+" in square feet":lab}</div>
-          <input id="x-qty" type="number" step="any" data-xper="${area?per:0}" value="${esc(type==="receive"?(it.reorderQty||""):(amount||""))}">
+          <input id="x-qty" type="number" step="any" data-xper="${area?per:0}" value="${esc(type==="receive"?(poLine?Math.max(0,Number(poLine.left)||0):(it.reorderQty||"")):(amount||""))}">${poLine?`<div class="sub" style="margin-top:4px">Against ${esc(poRef)} — ${esc(poLine.left)} still to come.</div>`:""}
           ${amount?`<div class="sub" style="margin-top:4px">Worked out from this work order's lines — change it if you cut more or less.</div>`:""}
           ${(!area&&per>0&&/roll|sheet/i.test(it.unit||""))?`<div class="sub" style="margin-top:4px">Counted in ${esc(it.unit)}s — one ${esc(it.unit)} is ${per} sq ft. Cutting and counting are asked in square feet.</div>`:""}
           ${area?`<div class="sub" style="margin-top:4px">One ${esc(it.unit)} is ${per} sq ft. ${type==="receive"?"Type the square feet you took in — a full "+esc(it.unit)+" is "+per+".":type==="count"?"Count the "+esc(it.unit)+"s and part-"+esc(it.unit)+"s, then type the square feet they come to.":"Type the square feet you cut and it takes that much off, not a whole "+esc(it.unit)+"."}</div>`:""}</div>`})()}
       ${type==="use"?sel("x-job","Work order",jobNum||"",wos,1):""}
       ${type==="receive"?(function(){const pv=itemVendors(it).find(v=>v.preferred)||{};
+        if(poLine){if(poLine.price!==""&&poLine.price!=null)pv.cost=poLine.price;if(poLine.vendorId)pv.vendorId=poLine.vendorId}
         return inp("x-cost","Price paid per "+(it.unit||"unit")+" on this receipt",pv.cost||it.cost||"","number")+inp("x-fr","Freight per "+(it.unit||"unit")+" on this receipt",pv.freight||"0","number")
           +sel("x-vend","From vendor",pv.vendorId||it.vendorId||"",vendorList().map(v=>({v:v.id,l:v.name})))
           +`<div class="fld full sub">Recorded as what you paid. The item's cost for quotes stays the preferred vendor's price + freight — change that under Vendors.</div>`})():""}
-      ${ta("x-note",type==="receive"?"PO number, packing slip, anything worth knowing":"Note","")}</div>`,
+      ${ta("x-note",type==="receive"?"PO number, packing slip, anything worth knowing":"Note",poRef?poRef:"")}</div>`,
     `<button class="btn" data-close="1">Cancel</button><button class="btn p" id="save">Save</button>`));
   $("#save").onclick=async()=>{
     const typed=Number($("#x-qty").value);
@@ -2379,7 +2381,7 @@ function txModal(iid,type,jobNum,amount){
     const txid=uid("tx");
     closeModal();
     try{
-      await setDoc("invtx/"+txid,{id:txid,itemId:iid,type,qty:delta,at:Date.now(),who:me(),
+      await setDoc("invtx/"+txid,{id:txid,itemId:iid,type,qty:delta,at:Date.now(),who:me(),ref:poRef||"",
         note,jobId:jid||"",cost,freight:type==="receive"?frt:"",vendorId:type==="receive"?rvend:"",itemName:it.name||"",unit:it.unit||"",unitCost:it.cost||"",deleted:false});
       const patch={onHand:Math.max(0,onHand(it)+delta),updatedAt:Date.now()};
       if(onHand(it)+delta<0){patch.needsCount=true;note=(note?note+" — ":"")+"count was "+Math.round(-(onHand(it)+delta)*100)/100+" short"}
@@ -2387,6 +2389,13 @@ function txModal(iid,type,jobNum,amount){
       // receiving never changes the item's cost — it records what was paid (receipt history on the movement, last paid on the item)
       if(type==="receive"&&cost)patch.lastPaid={price:Number(cost)||0,freight:Number(frt)||0,landed:Math.round(((Number(cost)||0)+(Number(frt)||0))*10000)/10000,
         at:Date.now(),vendorId:rvend||"",vendor:rvend?vendName(rvend):"",qty:delta};
+      // received against a purchase order: that order's "still to come" and the item's "on order" come down
+      if(type==="receive"&&poRef&&delta>0){const ords=(it.orders||[]).map(x=>Object.assign({},x));const o=ords.find(x=>x.ref===poRef);
+        if(o){o.left=Math.max(0,Number(o.left||0)-delta);patch.orders=ords;patch.onOrder=Math.max(0,onOrder(it)-delta);
+          if(rvend&&!o.vendorId)o.vendorId=rvend}}
+      // "Last bought" on the vendor it came from
+      if(type==="receive"&&rvend&&delta>0){if(rvend===it.vendorId)patch.vendorLast=today();
+        else if((it.vendors||[]).some(v=>v.vendorId===rvend))patch.vendors=(it.vendors||[]).map(v=>v.vendorId===rvend?Object.assign({},v,{lastBought:today()}):v)}
       await push("items/"+iid,patch);
       recordHistory("item",iid,[{f:"Stock",o:String(onHand(it)),
         n:String(onHand(it)+delta)+" ("+(TXT[type]||type)+(jid?", work order "+jid:"")+")"}]);
@@ -2397,6 +2406,77 @@ function txModal(iid,type,jobNum,amount){
   };
   focusFirst("x-qty");
 }
+/* ================= PURCHASE ORDERS =================
+   A purchase order is kept on each item it orders (item.orders, one entry per PO ref: qty, what's still to come, price,
+   expected date) — the same place the Material Planner's orders land. This page gathers them by PO, makes new ones,
+   and receives against them: receiving brings "on order" down, adds to stock and records what was paid. */
+function purchaseOrders(){const m={};
+  itemList().forEach(it=>(it.orders||[]).forEach(o=>{const ref=String(o.ref||"").trim()||("(no PO number) "+(o.vendor||"")+" "+isoDay(o.at||0));
+    const po=m[ref]||(m[ref]={ref,vendor:o.vendor||"",vendorId:o.vendorId||"",at:o.at||0,expected:o.expected||"",lines:[],note:o.note||""});
+    po.lines.push({itemId:it.id,name:it.name,unit:it.unit||"",qty:Number(o.qty)||0,left:Math.max(0,Number(o.left)||0),price:o.price!=null&&o.price!==""?Number(o.price):null});
+    if((o.at||0)<po.at||!po.at)po.at=o.at||po.at;if(o.expected&&(!po.expected||o.expected<po.expected))po.expected=o.expected;if(!po.vendorId&&o.vendorId)po.vendorId=o.vendorId}));
+  return Object.values(m).map(po=>Object.assign(po,{open:po.lines.some(l=>l.left>0),total:po.lines.reduce((t,l)=>t+(l.price||0)*l.qty,0)}))
+    .sort((a,b)=>(b.open-a.open)||((b.at||0)-(a.at||0)))}
+function purchasingView(){
+  const all=purchaseOrders();const f=S.poF=S.poF||{show:"open"};
+  const list=all.filter(po=>f.show==="all"||(f.show==="open"?po.open:!po.open));
+  const late=po=>po.open&&po.expected&&po.expected<today();
+  return `<div class="pad"><section class="card flush wide"><header><span class="oi oi-file">${ic("inventory",14)}</span><h2>Purchase orders</h2><span class="n">${list.length}</span>
+      <span class="sp">${[["open","Open"],["received","Received"],["all","All"]].map(([k,l])=>`<button class="btn sm ${f.show===k?"p":""}" data-poshow="${k}">${l}</button>`).join("")}
+        <button class="btn p" data-ponew="1">New purchase order</button></span></header>
+    <div class="sub" style="padding:8px 15px">Every order placed with a vendor — by you or the Material Planner. Receive each line when it arrives: stock goes up, "on order" comes down, and what you paid is recorded.</div>
+    ${list.length?list.map(po=>`<div style="border-top:1px solid var(--line);padding:12px 15px">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><b class="mono">${esc(po.ref)}</b><span>${esc(po.vendor||"—")}</span>
+        <span class="sub">ordered ${po.at?esc(fmtDate(isoDay(po.at))):"—"}${po.expected?" · expected "+esc(fmtDate(po.expected)):""}</span>
+        ${po.open?(late(po)?`<span class="pill r">Late</span>`:`<span class="pill b">Open</span>`):`<span class="pill g">Received</span>`}
+        ${po.total?`<span class="mono" style="margin-left:auto;font-weight:700">${money2(po.total)}</span>`:""}
+        ${po.open?`<button class="btn sm" data-poemail="${esc(po.ref)}" style="${po.total?"":"margin-left:auto"}">Email it to the vendor</button>`:""}</div>
+      <table style="margin-top:8px"><thead><tr><th>Item</th><th style="text-align:right">Ordered</th><th style="text-align:right">Still to come</th><th style="text-align:right">Price</th><th></th></tr></thead><tbody>
+        ${po.lines.map(l=>`<tr><td><button class="lnk" data-go="item/${esc(l.itemId)}">${esc(l.name)}</button></td>
+          <td class="mono" style="text-align:right">${esc(l.qty)} ${esc(l.unit)}</td><td class="mono" style="text-align:right">${l.left>0?esc(l.left):"—"}</td>
+          <td class="mono" style="text-align:right">${l.price!=null?money2(l.price):"—"}</td>
+          <td style="text-align:right">${l.left>0?`<button class="btn sm p" data-porecv="${esc(l.itemId)}|${esc(po.ref)}">Receive</button>`:`<span class="sub">in</span>`}</td></tr>`).join("")}</tbody></table></div>`).join("")
+      :`<div class="empty"><b>${f.show==="open"?"Nothing on order":"No purchase orders here"}</b>Make one with New purchase order — or the Material Planner's orders show up here by themselves.</div>`}
+  </section></div>`}
+function poNextRef(){const d=today().replace(/-/g,"");const have=new Set(purchaseOrders().map(p=>p.ref));let n=1;while(have.has("PO-"+d+"-"+n))n++;return "PO-"+d+"-"+n}
+function poModal(){const vs=vendorList();S.poLines=S.poLines||[{itemId:"",qty:"",price:""}];
+  const vid=S.poVend||(vs[0]||{}).id||"";const its=itemList().slice().sort((a,b)=>{const av=itemVendors(a).some(v=>v.vendorId===vid),bv=itemVendors(b).some(v=>v.vendorId===vid);return (bv-av)||a.name.localeCompare(b.name)});
+  const priceOf=(iid)=>{const it=S.items.get(iid);if(!it)return "";const r=itemVendors(it).find(v=>v.vendorId===vid);return r&&Number(r.cost)>0?String(r.cost):""};
+  openModal(mshell("New purchase order","job",
+    `<div class="fgrid">${sel("po-vend","Vendor",vid,vs.map(v=>({v:v.id,l:v.name})),1)}${inp("po-exp","Expected",S.poExp||"","date")}</div>
+     <table><thead><tr><th>Item</th><th style="width:90px">Qty</th><th style="width:110px">Price each</th><th style="width:40px"></th></tr></thead><tbody>
+       ${S.poLines.map((l,i)=>`<tr><td><select data-poitem="${i}" style="width:100%"><option value="">— pick an item —</option>${its.map(it=>`<option value="${esc(it.id)}"${l.itemId===it.id?" selected":""}>${esc(it.name)}${itemVendors(it).some(v=>v.vendorId===vid)?"":" (not linked to this vendor)"}</option>`).join("")}</select></td>
+         <td><input data-poqty="${i}" type="number" step="any" value="${esc(l.qty)}" style="width:80px"></td>
+         <td><input data-poprice="${i}" type="number" step="any" value="${esc(l.price||priceOf(l.itemId))}" style="width:100px"></td>
+         <td><button class="btn sm" data-podel="${i}" title="Remove">×</button></td></tr>`).join("")}</tbody></table>
+     <div style="padding:8px 15px"><button class="btn sm" data-poadd="1">Add a line</button></div>
+     <div class="fgrid">${ta("po-note","Note for the vendor (optional)",S.poNote||"")}</div>`,
+    `<button class="btn" data-close="1">Cancel</button><button class="btn" id="po-save">Save</button><button class="btn p" id="po-send">Save and email it</button>`));
+  const keep=()=>{S.poVend=$("#po-vend").value;S.poExp=$("#po-exp").value;S.poNote=$("#po-note").value;
+    S.poLines=S.poLines.map((l,i)=>({itemId:(document.querySelector('[data-poitem="'+i+'"]')||{}).value||"",qty:(document.querySelector('[data-poqty="'+i+'"]')||{}).value||"",price:(document.querySelector('[data-poprice="'+i+'"]')||{}).value||""}))};
+  $("#po-vend").onchange=()=>{keep();S.poLines=S.poLines.map(l=>Object.assign(l,{price:""}));closeModal();poModal()};
+  document.querySelectorAll("[data-poitem]").forEach(e=>e.onchange=()=>{keep();const i=Number(e.dataset.poitem);S.poLines[i].price=priceOf(S.poLines[i].itemId);closeModal();poModal()});
+  const b1=document.querySelector("[data-poadd]");if(b1)b1.onclick=()=>{keep();S.poLines.push({itemId:"",qty:"",price:""});closeModal();poModal()};
+  document.querySelectorAll("[data-podel]").forEach(e=>e.onclick=()=>{keep();S.poLines.splice(Number(e.dataset.podel),1);if(!S.poLines.length)S.poLines.push({itemId:"",qty:"",price:""});closeModal();poModal()});
+  const go=async(send)=>{keep();const v=S.vendors.get(S.poVend);if(!v)return toast("Pick the vendor.");
+    const lines=S.poLines.filter(l=>l.itemId&&Number(l.qty)>0);if(!lines.length)return toast("Add at least one item with a quantity.");
+    const ref=poNextRef(),now=Date.now();
+    for(const l of lines){const it=S.items.get(l.itemId);if(!it)continue;const q=Number(l.qty);
+      const ords=(it.orders||[]).map(x=>Object.assign({},x));ords.push({ref,vendor:v.name,vendorId:v.id,qty:q,left:q,price:l.price===""?"":Number(l.price),expected:S.poExp||"",at:now,by:me()});
+      const was=onOrder(it);await push("items/"+it.id,{onOrder:was+q,orders:ords.slice(-30),updatedAt:now});
+      const txid=uid("tx");await setDoc("invtx/"+txid,{id:txid,itemId:it.id,type:"ordered",kind:"ordered",qty:q,at:now,who:me(),note:"Ordered from "+v.name+" — "+ref+(S.poExp?" (expected "+S.poExp+")":""),
+        jobId:"",cost:l.price,ref,expected:S.poExp||"",vendor:v.name,vendorId:v.id,itemName:it.name||"",unit:it.unit||"",unitCost:it.cost||"",deleted:false});
+      recordHistory("item",it.id,[{f:"On order",o:String(was),n:String(was+q)+" ("+ref+", "+v.name+")"}])}
+    recordHistory("vendor",v.id,[{f:"Purchase order",o:"",n:ref+" — "+lines.length+" line"+(lines.length===1?"":"s"),ev:1}]);
+    S.poLines=null;S.poNote="";closeModal();toast(ref+" saved");if(send)setTimeout(()=>poEmail(ref),300);render()};
+  $("#po-save").onclick=()=>go(false);$("#po-send").onclick=()=>go(true)}
+function poEmail(ref){const po=purchaseOrders().find(p=>p.ref===ref);if(!po)return;const v=(po.vendorId&&S.vendors.get(po.vendorId))||vendorList().find(x=>x.name===po.vendor);
+  if(!v||!v.email)return toast("That vendor has no email — add one on the vendor.");
+  const b=S.brand||{};const L=["Hi"+(v.contact?" "+String(v.contact).split(" ")[0]:"")+",","","Please process purchase order "+po.ref+(v.acct?" on account "+v.acct:"")+":",""];
+  po.lines.forEach(l=>L.push("  "+l.qty+" "+(l.unit||"")+"  "+l.name+(l.price!=null?"  @ $"+Number(l.price).toFixed(2):"")));
+  L.push("");if(po.expected)L.push("Needed by "+fmtDate(po.expected)+".");
+  L.push("Ship to: "+[b.name||"Street Sign Supply",b.addr||b.address||""].filter(Boolean).join(", "),"","Please confirm price, lead time and freight.","","Thanks,",(viewerName()||"")+"".trim(),b.name||"Street Sign Supply");
+  mailOpen(v.email,"PO "+po.ref+" — "+(b.name||"Street Sign Supply"),L.join("\n"),{cc:false})}
 function reorderMail(vid){
   const v=S.vendors.get(vid);if(!v||!v.email)return toast("No email on this vendor.");
   const low=itemsOf(vid).filter(i=>lowStock().indexOf(i)>=0);
@@ -5670,6 +5750,10 @@ function stcPrice(s,gi){const ov=s?(stcCfg().price||{})[s.sku]:null;if(ov&&ov[gi
 // what's wrong with a stencil as a whole (shown on the list and in the export)
 function stcFlags(s){const out=[];const sq=stcSq(s);
   if(!(sq>0))out.push("No material sq ft — measure the artwork");
+  // a grade it's sold in with no sheet to cut it from, or a sheet with no cost
+  const noSheet=[],noCost=[];STC_GRADES.forEach((g,i)=>{if(stcPrice(s,i)==null)return;const m=stcMatFor(i);if(!m)noSheet.push(g.k);else if(m.noCost||!(Number(m.it.cost)>0))noCost.push(g.k)});
+  if(noSheet.length)out.push("No sheet in inventory for "+noSheet.join(", "));
+  if(noCost.length)out.push("Sheet has no cost for "+noCost.join(", "));
   if(stcHeld(s))out.push("Held — pulled from the 25 Oct price list (size or kit not confirmed). Measure the artwork, fix the sq ft, then release it");
   return [...new Set(out)]}
 // a quote or work order line that is a catalog stencil: its code is the stencil's SKU
@@ -5713,7 +5797,7 @@ function stencilsView(){
         ${showCost?`<button class="btn" data-stccsv="1">${ic("file",14)}Download CSV</button>`:""}</span></header>
       <div class="sub" style="padding:8px 15px">${esc((S.stc.source||""))}. Prices are per stencil in the grade picked above; the price date says which list it came from.</div>
       ${shown.length?`<div style="overflow-x:auto"><table style="table-layout:auto;width:100%"><thead><tr><th style="width:70px"></th><th>SKU</th><th>Stencil</th><th>Size</th><th style="text-align:right">Pcs</th><th style="text-align:right">Sq ft</th>
-        ${showCost?`<th style="text-align:right">Cost</th>`:""}<th style="text-align:right">Price</th>${showCost?`<th style="text-align:right">Margin</th>`:""}<th>Price set</th><th>Flags</th></tr></thead><tbody>
+        ${showCost?`<th>Material item</th><th style="text-align:right">Material</th><th style="text-align:right">CNC</th><th style="text-align:right">Cost</th>`:""}<th style="text-align:right">Price</th>${showCost?`<th style="text-align:right">Margin</th>`:""}<th>Price set</th><th>Flags</th></tr></thead><tbody>
         ${shown.map(s=>{const pr=stcPrice(s,gi);const r=showCost?stcCost(s,gi):null;const mg=(pr&&r&&r.cost!=null)?(pr-r.cost)/pr*100:null;const fl=stcFlags(s);
           return `<tr>
           <td>${s.img?`<img src="${esc(stcPicUrl(s))}" alt="" loading="lazy" style="width:62px;height:34px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:3px">`:`<span class="sub">no picture</span>`}</td>
@@ -5722,6 +5806,9 @@ function stencilsView(){
           <td class="mono" style="white-space:nowrap">${s.w&&s.h?esc(s.w+" × "+s.h+" in"):"—"}</td>
           <td class="mono" style="text-align:right">${esc(s.pc||1)}</td>
           <td class="mono" style="text-align:right">${stcSq(s)?Math.round(stcSq(s)*100)/100:"—"}</td>
+          ${showCost?`<td style="max-width:180px;white-space:normal" class="sub">${r&&r.mat?esc(r.mat.name):`<span class="pill r">none</span>`}</td>
+            <td class="mono" style="text-align:right;white-space:nowrap">${r&&r.cost!=null?money2(r.matCost):"—"}</td>
+            <td class="mono" style="text-align:right;white-space:nowrap" title="${esc(r&&r.min!=null?r.min+" min":"")}">${r&&r.cost!=null?money2(r.labor):"—"}</td>`:""}
           ${showCost?`<td class="mono" style="text-align:right;white-space:nowrap" title="${esc(r&&r.why||r&&r.flags.join("; ")||"")}">${r&&r.cost!=null?money2(r.cost):`<span class="pill r">not costed</span>`}</td>`:""}
           <td class="mono" style="text-align:right;font-weight:700;white-space:nowrap">${pr?money2(pr):"—"}</td>
           ${showCost?`<td style="text-align:right">${mg==null?`<span class="sub">—</span>`:`<span class="pill ${mg>=40?"g":mg>=25?"o":"r"}">${Math.round(mg)}%</span>`}</td>`:""}
@@ -5774,13 +5861,13 @@ function stcRatesModal(){const c=stcCfg();
     if(!(p.waste>=1)||!(p.laborRate>=0)||p.cut.some(x=>!(x>0)))return toast("Check the numbers — waste is 1 or more, cut factors above 0.");
     try{await stcCfgSave(p);closeModal();toast("Saved");render()}catch(e){toast("That didn't save.")}}}
 // one row per stencil per grade it's sold in — what the weekly cost audit reads
-function stcExportRows(){const head=["SKU","Price list code","Stencil","Category","Blank size (in)","Pieces","Grade","Material item","Material sq ft","Usage incl. waste (sq ft)","Sheet $/sq ft","Material cost","Labor cost","Current cost","Price","Price date","Margin %","Flags"];
+function stcExportRows(){const head=["SKU","Price list code","Stencil","Category","Blank size (in)","Pieces","Grade","Material item","Material sq ft","Usage incl. waste (sq ft)","Sheet $/sq ft","Material cost","CNC labor cost","CNC minutes","Current cost","Price","Price date","Margin %","Flags"];
   const rows=[head];const c=stcCfg();
   stcList().forEach(s=>{const fl=stcFlags(s);STC_GRADES.forEach((g,i)=>{const pr=stcPrice(s,i);if(pr==null)return;const r=stcCost(s,i);
     const mg=(r.cost!=null&&pr)?Math.round((pr-r.cost)/pr*1000)/10:"";
     rows.push([s.sku,s.stn||"",s.n,s.cat||"",s.w&&s.h?s.w+" x "+s.h:"",s.pc||1,g.label,r.mat?r.mat.name:"",Math.round(stcSq(s)*100)/100,
-      stcSq(s)?Math.round(stcSq(s)*c.waste*100)/100:"",r.rate?Math.round(r.rate*1000)/1000:"",r.cost!=null?r.matCost:"",r.cost!=null?r.labor:"",r.cost!=null?r.cost:"",pr,stcPd(s),mg,
-      r.flags.concat(fl.filter(x=>/^Held/.test(x))).join("; ")])})});
+      stcSq(s)?Math.round(stcSq(s)*c.waste*100)/100:"",r.rate?Math.round(r.rate*1000)/1000:"",r.cost!=null?r.matCost:"",r.cost!=null?r.labor:"",r.cost!=null?r.min:"",r.cost!=null?r.cost:"",pr,stcPd(s),mg,
+      (r.mat?[]:["No sheet in inventory for "+g.k]).concat(r.flags.filter(x=>!/sheet in inventory/.test(x))).concat(fl.filter(x=>/^Held|sq ft/.test(x))).filter((x,ix,a)=>a.indexOf(x)===ix).join("; ")])})});
   return rows}
 async function stcCsv(){await stcLoad();if(!S.stc)return toast(S.stcErr||"The stencil catalog isn't loaded.");
   const data=stcExportRows().map(r=>r.map(v=>{const x=String(v==null?"":v);return /[",\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x}).join(",")).join("\r\n");
@@ -8914,7 +9001,7 @@ function moreNav(){
 const NAVG=[
   {id:"sales",label:"Sales",icon:"project",pages:[["mybook","contact","Dashboard"],["accounts","account","Accounts"],["projects","project","Projects"],["contacts","contact","Contacts"]]},
   {id:"shop",label:"Production",icon:"job",pages:[["jobs","job","Work orders"],["tracker","chart","Tracker"],["calendar","calendar","Calendar"],["files","file","Files"]]},
-  {id:"stock",label:"Inventory",icon:"inventory",pages:[["inventory","inventory","Inventory"],["stencils","inventory","Stencils"],["vendors","vendor","Vendors"]]},
+  {id:"stock",label:"Inventory",icon:"inventory",pages:[["inventory","inventory","Inventory"],["stencils","inventory","Stencils"],["purchasing","inventory","Purchase orders"],["vendors","vendor","Vendors"]]},
   {id:"money",label:"Reports",icon:"chart",pages:[["reports","chart","Reports"]]},
   {id:"admin",label:"Admin",icon:"history",pages:[["archive","archive","Archive"],["audit","history","Change history"],["settings","history","Settings"]]}];
 /* ===== who can do what =====
@@ -9029,6 +9116,7 @@ function body(){
     case "vendor":return vendorRec(r.id);
     case "inventory":return inventoryView();
     case "stencils":return stencilsView();
+    case "purchasing":return purchasingView();
     case "item":return itemRec(r.id);
     case "calendar":return calendarView();
     case "audit":return auditView();
@@ -9681,7 +9769,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-66";
+const APP_VERSION="2026.11.25-67";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -15475,6 +15563,10 @@ function bind(){
     {const x=t.closest("[data-stccsv]");if(x){stcCsv();return}}
     {const x=t.closest("[data-stcflag]");if(x){S.stcF=Object.assign({},S.stcF||{},{flag:!(S.stcF&&S.stcF.flag),page:0});render();return}}
     {const x=t.closest("[data-stcpage]");if(x){S.stcF=Object.assign({},S.stcF||{},{page:Number(x.dataset.stcpage)||0});render();const m=$(".main");if(m)m.scrollTop=0;return}}
+    {const x=t.closest("[data-poshow]");if(x){S.poF={show:x.dataset.poshow};render();return}}
+    {const x=t.closest("[data-ponew]");if(x){S.poLines=null;poModal();return}}
+    {const x=t.closest("[data-poemail]");if(x){poEmail(x.dataset.poemail);return}}
+    {const x=t.closest("[data-porecv]");if(x){const[a,b]=x.dataset.porecv.split("|");txModal(a,"receive","","",b);return}}
     {const x=t.closest("[data-dblock]");if(x){const w=x.dataset.dblock;if(w==="on"){askConfirm("Turn the database lock on?","Only the people on your team list will be able to open the CRM. Keep this page open for a few minutes after — it confirms everything still works, and if it can't, the old rules come back by themselves within 20 minutes.","Turn it on",false,()=>dbLockSet("on"))}else dbLockSet("off");return}}
     {const x=t.closest("[data-stcrel]");if(x){const[sku,on]=x.dataset.stcrel.split(":");const r=Object.assign({},stcCfg().release);if(on==="1")r[sku]=true;else delete r[sku];
       stcCfgSave({release:r}).then(()=>{toast(on==="1"?"Released — it's on the quote picker now":"Held");closeModal();stcViewModal(sku);render()}).catch(()=>toast("That didn't save."));return}}

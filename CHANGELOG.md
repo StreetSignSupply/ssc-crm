@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-67
+- Inventory → Purchase orders: every order placed with a vendor (yours and the Material Planner's, e.g. PR-20261026-1), open / received / late, with "New purchase order" (vendor, items, qty, price, expected date; optional email to the vendor) and "Receive" on each line — stock goes up, "on order" comes down, what was paid is recorded, and "Last bought" fills in for that vendor.
+- Stencils list: material item, material cost and CNC cost columns for the grade picked; the CSV adds CNC minutes. Flags now also catch a grade with no sheet in inventory or a sheet with no cost, and a stencil with no sq ft.
+
 ## 2026.11.25-66
 - Bare aluminum blanks on a quote (no sheeting) are costed from the blank in inventory for that size and gauge (12x24 and 24x12 are the same blank); if inventory has no such blank with a cost, the line says "no blank in stock list". P-2014's 30 blank lines were showing "needs a grade".
 

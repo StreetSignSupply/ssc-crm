@@ -15,7 +15,8 @@ const D = {
   contacts: { c1: { name: "Pat Example", accountId: "a1", email: "pat@example.com", phone: "4355550100", role: "Buyer" } },
   vendors: { v1: { name: "Test Plastics" }, v2: { name: "Test Metals" } },
   items: {
-    i1: { name: "LDPE .125 Stencil Sheet 5x10", cat: "Stencil material", cost: "91.20", vendorId: "v1", vendorPrice: "91.20", unit: "sheet", onHand: 4, reorderPoint: 2 },
+    i1: { name: "LDPE .125 Stencil Sheet 5x10", cat: "Stencil material", cost: "91.20", vendorId: "v1", vendorPrice: "91.20", unit: "sheet", onHand: 4, reorderPoint: 2,
+      onOrder: 3, orders: [{ ref: "PR-20261026-1", vendor: "Test Plastics", qty: 3, left: 3, expected: "2026-11-02", at: now - day }] },
     i2: { name: "Aluminum .080 sheet 48x96", cat: "Substrate", cost: "141.20", vendorId: "v2", vendorPrice: "141.20", unit: "sheet", onHand: 0 },
     i3: { name: "3M HIP White 3930 48in x 50yd", cat: "Film / vinyl", cost: "900", unit: "roll", onHand: 1 } },
   projects: {
@@ -30,7 +31,7 @@ const D = {
   activity: { x1: { id: "x1", recType: "account", recId: "a1", kind: "note", type: "call", text: "Called about the bid", contactId: "c1", at: now - day, when: new Date(now - day).toISOString().slice(0, 10) } },
   events: {}, history: {}, invtx: {}, notifications: {}, reminders: {}, access: {} };
 const ROUTES = ["home", "mybook", "accounts", "account/a1", "contacts", "contact/c1", "projects", "project/p1", "project/p2", "jobs", "job/1001", "tracker", "calendar",
-  "files", "inventory", "item/i1", "stencils", "vendors", "vendor/v1", "reports", "audit", "archive", "bin", "settings"];
+  "files", "purchasing", "inventory", "item/i1", "stencils", "vendors", "vendor/v1", "reports", "audit", "archive", "bin", "settings"];
 const browser = await chromium.launch(); const pg = await browser.newPage({ viewport: { width: 1400, height: 900 } });
 const errs = [];
 pg.on("pageerror", (e) => errs.push(String(e.message || e).slice(0, 160)));
@@ -54,7 +55,7 @@ for (const r of ROUTES) {
   if (!drawn) bad.push(r + ": nothing drawn"); if (errs.length > before) bad.push(r + ": " + errs.slice(before).join(" | "));
 }
 // a few forms
-const forms = [["project/p1", "[data-edit^='project:']"], ["project/p1", "[data-ordadd]"], ["account/a1", "[data-edit^='account:']"], ["accounts", "[data-newvend],[data-new='account']"], ["job/1001", "[data-edit^='job:']"]];
+const forms = [["purchasing", "[data-ponew]"], ["purchasing", "[data-porecv]"], ["project/p1", "[data-edit^='project:']"], ["project/p1", "[data-ordadd]"], ["account/a1", "[data-edit^='account:']"], ["accounts", "[data-newvend],[data-new='account']"], ["job/1001", "[data-edit^='job:']"]];
 for (const [r, sel] of forms) { await pg.evaluate((r) => { location.hash = "#/" + r; }, r); await pg.waitForTimeout(400); const before = errs.length;
   const el = await pg.$(sel); if (el) { await el.click().catch(() => {}); await pg.waitForTimeout(400); if (!(await pg.$(".modal"))) bad.push(r + " " + sel + ": form didn't open"); await pg.keyboard.press("Escape"); }
   if (errs.length > before) bad.push(r + " " + sel + ": " + errs.slice(before).join(" | ")); }
