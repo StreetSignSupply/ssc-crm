@@ -9669,7 +9669,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-63";
+const APP_VERSION="2026.11.25-64";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -15652,11 +15652,12 @@ function bind(){
 /* ========== boot ========== */
 // the shop computer keeps the CRM open all day: when a newer version is published it reloads itself,
 // but only when nobody is typing and no window is open, so nothing half-done is lost
-const CHANGELOG_SRC="https://raw.githubusercontent.com/StreetSignSupply/ssc-crm/main/CHANGELOG.md";
+// the version that's actually live (written by the release job once a build passes its check)
+const CHANGELOG_SRC="https://raw.githubusercontent.com/StreetSignSupply/ssc-crm/main/public/version.txt";
 async function selfUpdateCheck(){
   if(!isHosted()||window.sscWorker)return;   // background jobs never reload themselves mid-run
   try{const r=await fetch(CHANGELOG_SRC+"?v="+Math.floor(Date.now()/300000),{cache:"no-store"});if(!r.ok)return;
-    const m=/^##\s+(\d{4}\.\d{2}\.\d{2}-\d+)/m.exec(await r.text());if(!m||m[1]===APP_VERSION)return;
+    const m=/(\d{4}\.\d{2}\.\d{2}-\d+)/.exec(await r.text());if(!m||m[1]===APP_VERSION)return;
     const newer=m[1].localeCompare(APP_VERSION,undefined,{numeric:true})>0;if(!newer)return;
     S._updateWaiting=m[1];
     // someone at the screen gets a note and reloads when they're ready; a screen nobody is looking at
