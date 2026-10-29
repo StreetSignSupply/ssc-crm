@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-47 — 2026-10-28
+- Projects and accounts open tidier: Field history always starts closed; Schedule starts closed when nothing is scheduled; Billing starts closed until there's something billed (project) or a billing contact / QuickBooks name (account) — click the title to open any of them
+- Close-out only shows once a work order exists
+
 ## 2026.11.25-46 — 2026-10-28
 - Fixed: the "N archived" button on an account did nothing — it now opens the Archive showing that account's closed projects
 
