@@ -1192,6 +1192,9 @@ details.omore>summary{cursor:pointer;font-weight:700;padding:6px 0;color:var(--a
   .olform input,.olform select,.olform textarea{font-size:16px!important;width:100%}
   .mbox>.foot{position:sticky;bottom:0;background:var(--card);z-index:2}
 }
+.ftile{overflow:visible!important}.ftile .th{overflow:hidden}
+.ftile .dd-m{top:auto;bottom:calc(100% + 6px);z-index:20}
+@media (max-width:700px){.sub,.mono.sub{font-size:13px!important;color:var(--ink2)!important}}
 /* -69 visual recheck */
 .rail-sub{height:30px;margin-left:26px;font-size:13px}.rail-sub svg{width:15px;height:15px}
 .app.rail-min .rail-sub{margin-left:12px}
@@ -2173,6 +2176,9 @@ function scopeBar(){
 }
 const teamList=()=>live(S.team).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
 function teamName(id){const t=S.team.get(id);return t&&!t.deleted?t.name:""}
+// who did it, as a name: a team id or a person's initials ("JS") → "Jarom S."; anything else as written
+function whoName(w){const v=String(w||"").trim();if(!v)return "";const t=(S.team&&S.team.get(v))||(S.team?live(S.team).find(x=>String(x.initials||"").toUpperCase()===v.toUpperCase()):null);
+  if(!t||!t.name)return v;const p=String(t.name).trim().split(/\s+/);return p[0]+(p[1]?" "+p[1][0]+".":"")}
 
 /* ===== people at a vendor: more than one rep, each with their own location (Grimco Las Vegas and Salt Lake) ===== */
 function vendPeople(v){return ((v&&v.people)||[]).filter(x=>x&&!x.deleted)}
@@ -6322,13 +6328,25 @@ function quoteMaterials(){const v=new Map();
 function matBase(n){return String(n||"").replace(/\s*[—–(,·-]?\s*\d+(\.\d+)?\s*(in|inch|"|”|ft|yd|')\b.*$/i,"").replace(/\s*[—–(,·-]\s*$/,"").trim()||String(n||"")}
 function ordSizeOpts(code){const seen=new Set(),out=[];sizeGroups(code).forEach(g=>g.opts.forEach(o=>{const k=normSize(o.v)||o.v;if(seen.has(k))return;seen.add(k);out.push(o)}));return out}
 // the "Find an item" results: codes, your workbook signs, the website, stencils, inventory — eight at a time
+// a catalog title as people read it: no "|24X12" key on the end, no doubled spaces
+function cleanTitle(t){return String(t||"").replace(/\|.*$/,"").replace(/\s{2,}/g," ").trim()}
+// how well a result matches: the exact code first, then names that start with the words, then whole words —
+// and "DOES NOT STOP" goes below real stop signs
+function findScore(q,code,title){const t=String(q||"").trim().toLowerCase();if(!t)return 9;
+  if(code&&codeNorm(code)===codeNorm(t))return 0;
+  const nm=cleanTitle(title).toLowerCase().replace(/^\d+(\.\d+)?\s*[x×]\s*\d+(\.\d+)?("|in)?\s*/,"");
+  const esc2=t.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+  let sc=nm.indexOf(t)===0?1:new RegExp("\\b"+esc2+"\\b").test(nm)?2:3;
+  if(new RegExp("\\b(not|no)\\s+(\\w+\\s+){0,2}"+esc2).test(nm))sc+=3;
+  return sc}
 function ordFindRows(q){const t=String(q||"").trim();if(!t)return [];
   const out=[];const cq=codeNorm(t);
-  codeList().filter(e=>codeNorm(e.code).indexOf(cq)===0||(t.length>2&&String(e.name).toLowerCase().indexOf(t.toLowerCase())>=0)).slice(0,4)
-    .forEach(e=>out.push({key:"code:"+e.code,title:e.code+" — "+e.name,sub:e.sizes.length?"sizes "+e.sizes.slice(0,4).map(sizeLabel).join(", "):"MUTCD code",sell:null}));
-  catRows(t,"").slice(0,12).forEach(r=>out.push({key:r.key,title:r.title,sub:[r.size?sizeLabel(r.size):"",r.kind==="sign"||r.kind==="stc"||r.kind==="web"?r.grade:"",
-    r.kind==="web"?"website":r.kind==="stc"?"stencil":r.kind==="sign"?"workbook":r.byArea?"priced by size":""].filter(Boolean).join(" · "),sell:r.sell,img:r.img||""}));
-  const seen=new Set();return out.filter(x=>{if(seen.has(x.key))return false;seen.add(x.key);return true}).slice(0,8)}
+  codeList().filter(e=>codeNorm(e.code).indexOf(cq)===0||(t.length>2&&String(e.name).toLowerCase().indexOf(t.toLowerCase())>=0))
+    .forEach(e=>out.push({key:"code:"+e.code,title:e.code+" — "+e.name,sub:e.sizes.length?"sizes "+e.sizes.slice(0,4).map(sizeLabel).join(", "):"MUTCD code",sell:null,sc:Math.min(findScore(t,e.code,e.name),findScore(t,e.code,e.code))}));
+  catRows(t,"").forEach(r=>out.push({key:r.key,title:cleanTitle(r.title),sub:[r.size?sizeLabel(r.size):"",r.kind==="sign"||r.kind==="stc"||r.kind==="web"?cleanTitle(r.grade):"",
+    r.kind==="web"?"website":r.kind==="stc"?"stencil":r.kind==="sign"?"workbook":r.byArea?"priced by size":""].filter(Boolean).join(" · "),sell:r.sell,img:r.img||"",sc:findScore(t,r.code||r.sku,r.title)+0.5}));
+  const seen=new Set();return out.filter(x=>{if(seen.has(x.key))return false;seen.add(x.key);return true})
+    .map((x,i)=>Object.assign(x,{i})).sort((a,b)=>a.sc-b.sc||a.i-b.i).slice(0,8)}
 // what picking a catalog row puts on the line (the same as the price list browser)
 function catalogPre(key){const r=catRows("").find(x=>x.key===key);if(!r)return null;
   if(r.kind==="stc")return {code:r.sku,size:r.size,grade:r.grade,price:r.sell?Number(r.sell).toFixed(2):"",title:r.title,desc:r.title,legend:"",webImg:r.img||""};
@@ -9972,7 +9990,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-74";
+const APP_VERSION="2026.11.25-75";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -10938,7 +10956,7 @@ function fileList(){
         <td><span class="pill">${esc(f.cat||"Other")}</span></td><td>${fileOwner(f)}
           ${f.jobId&&f.projectId?`<div class="sub">${esc(projName(f.projectId))}</div>`:""}</td>
         <td class="sub">${f.accountId?esc(accName(f.accountId)):f.vendorId?esc(vendName(f.vendorId))+" (vendor)":"—"}</td>
-        <td class="sub" style="white-space:nowrap" title="${esc((f.when||"")+" · "+(f.who||""))}">${esc(String(f.when||"").replace(/,?\s*\d{1,2}:\d{2}.*$/,""))}<div>${esc(f.who||"")}</div></td>
+        <td style="white-space:nowrap" title="${esc((f.when||"")+" · "+(f.who||""))}">${esc(String(f.when||"").replace(/,?\s*\d{1,2}:\d{2}.*$/,""))}<div class="sub">by ${esc(whoName(f.who))}</div></td>
         <td style="text-align:right;white-space:nowrap">
           <button class="btn sm" data-view="${esc(f.id)}">Open</button>
           <button class="btn sm" data-dl="${esc(f.id)}">Save</button></td></tr>`).join("")}</tbody></table>`
