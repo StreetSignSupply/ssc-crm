@@ -122,6 +122,66 @@ if (STEP === "stencils") {
     await browser.close(); process.exit(0);
   } catch (e) { console.log("::error::stencil export: " + String(e.message || e).slice(0, 160)); await browser.close(); process.exit(1); }
 }
+// FIX_STEP=qb -> QuickBooks is the source of truth for billing. Reads the "QB Invoices" tab (filled each morning
+// from QuickBooks), matches each invoice to its CRM project, makes the CRM's invoice number, invoice date, tax and
+// paid status match QuickBooks, and writes what it changed and anything it couldn't settle to the "QB Check" tab.
+// Totals that differ are flagged, never changed. Counts only in the log.
+if (STEP === "qb") {
+  const SHEET = process.env.PIPE_SHEET || "1aChWjS_R0ImI19AkBD-WAXRYoJz0douDNdhsASwIuVs", tok = process.env.SHEETS_TOKEN;
+  const api = async (url, method, body) => { const r = await fetch("https://sheets.googleapis.com/v4/spreadsheets/" + SHEET + url, { method, headers: { Authorization: "Bearer " + tok, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+    if (!r.ok) throw new Error(method + " " + r.status); return r.json(); };
+  try {
+    const got = await api("/values/" + encodeURIComponent("'QB Invoices'!A1:L2000"), "GET");
+    const rows = got.values || []; const H = (rows[0] || []).map((h) => String(h).trim().toLowerCase());
+    const inv = rows.slice(1).filter((r) => r && r.length).map((r) => { const o = {}; H.forEach((h, i) => o[h] = r[i] == null ? "" : String(r[i])); return o; }).filter((o) => o.doc_number);
+    if (!inv.length) throw new Error("the QB Invoices tab is empty");
+    const res = await page.evaluate(async (inv) => {
+      const T = window.__T, S = T.S, today = T.today();
+      const num = (v) => { const n = Number(String(v || "").replace(/[$,\s]/g, "")); return isFinite(n) ? n : 0; };
+      const norm = (s) => String(s || "").toLowerCase().replace(/\(deleted\)/g, "").replace(/[^a-z0-9]/g, "");
+      const projs = T.live(S.projects);
+      const out = [], used = new Set(); let changed = 0, matched = 0, flagged = 0;
+      for (const q of inv) {
+        if (num(q.total) === 0) continue;   // voided and zeroed test invoices
+        const doc = String(q.doc_number).replace(/^#/, "").trim(); const total = num(q.total), tax = num(q.tax), bal = num(q.balance);
+        let p = projs.find((x) => String(x.invNum || "").replace(/^#/, "").trim() === doc);
+        let how = "invoice number";
+        if (!p) { const cn = norm(q.customer);
+          const cand = projs.filter((x) => !used.has(x.id) && !String(x.invNum || "").trim() && ["won", "production", "shipped", "invoiced", "closed"].indexOf(x.stage) >= 0)
+            .filter((x) => { const a = S.accounts.get(x.accountId) || {}; return cn && (norm(a.qb) === cn || norm(a.name) === cn); })
+            .filter((x) => Math.abs((T.projValue(x) || 0) + (T.invTaxOf(x) || 0) - total) < 1.01 || Math.abs((T.projValue(x) || 0) - (total - tax)) < 1.01);
+          if (cand.length === 1) { p = cand[0]; how = "customer and total"; }
+          else { out.push([doc, q.txn_date, q.customer, total, "", "", "Not matched", cand.length > 1 ? "more than one CRM project fits — set the invoice number on the right one" : "no CRM project with this invoice number, or with this customer and total"]); flagged++; continue; }
+        }
+        used.add(p.id); matched++;
+        const patch = {}, notes = [];
+        if (String(p.invNum || "").trim() !== doc) { patch.invNum = doc; notes.push("invoice # " + doc); }
+        if (q.txn_date && p.billDate !== q.txn_date) { patch.billDate = q.txn_date; notes.push("invoiced on " + q.txn_date); }
+        if (T.invTaxOf(p) === null || Math.abs(T.invTaxOf(p) - tax) > 0.004) { patch.invTax = tax; notes.push("tax " + tax.toFixed(2)); }
+        const paid = total > 0 && bal <= 0.004;
+        const want = paid ? "paid" : (T.billState(p) === "deposit" && bal < total ? "deposit" : "invoiced");
+        if (T.billState(p) !== want) { patch.billStatus = want; notes.push(want === "paid" ? "paid in full" : want); }
+        if (paid && !p.paidDate) { patch.paidDate = today; notes.push("paid date " + today); }
+        if (Object.keys(patch).length) { patch.updatedAt = Date.now(); await T.push("projects/" + p.id, patch);
+          await T.recordHistory("project", p.id, [{ f: "QuickBooks", o: "", n: "Matched QuickBooks invoice " + doc + ": " + notes.join(", "), ev: 1 }]); changed++; }
+        const crmTotal = Math.round(((T.projValue(Object.assign({}, p, patch)) || 0) + tax) * 100) / 100;
+        const diff = Math.abs(crmTotal - total) > 1.01;
+        if (diff) flagged++;
+        out.push([doc, q.txn_date, q.customer, total, "P-" + p.num, crmTotal, diff ? "Total differs" : (notes.length ? "Updated" : "Matches"),
+          (diff ? "QuickBooks " + total.toFixed(2) + " vs CRM " + crmTotal.toFixed(2) + " — check the quote lines against the invoice. " : "") + (notes.length ? "CRM set to QuickBooks: " + notes.join(", ") : "") + " (matched by " + how + ")"]);
+      }
+      return { out, changed, matched, flagged, total: inv.length };
+    }, inv);
+    const head = [["Invoice", "Date", "Customer (QuickBooks)", "QuickBooks total", "CRM project", "CRM total", "Result", "What happened", "", "Checked " + new Date().toISOString().replace("T", " ").slice(0, 16) + " UTC"]];
+    const meta = await api("?fields=sheets.properties.title", "GET");
+    if (!(meta.sheets || []).some((x) => x.properties.title === "QB Check")) await api(":batchUpdate", "POST", { requests: [{ addSheet: { properties: { title: "QB Check" } } }] });
+    await api("/values/" + encodeURIComponent("'QB Check'!A:J") + ":clear", "POST", {});
+    await api("/values/" + encodeURIComponent("'QB Check'!A1") + "?valueInputOption=RAW", "PUT", { values: head.concat(res.out) });
+    await page.waitForTimeout(20000);
+    console.log("::notice::QuickBooks check: " + res.total + " invoices, " + res.matched + " matched, " + res.changed + " CRM projects updated to match, " + res.flagged + " flagged for a look");
+    await browser.close(); process.exit(0);
+  } catch (e) { console.log("::error::QuickBooks check: " + String(e.message || e).slice(0, 160)); await browser.close(); process.exit(1); }
+}
 // Send all to the CRM Orders sheet (the toast text tells how many went)
 // changed records reach the sheet by themselves (the CRM sends each change); a full Send all only when asked
 const wantAll = STEP !== "apply" || /\/\/ send all/.test(fsys.readFileSync(path.resolve(here, "fixes.js"), "utf8"));
