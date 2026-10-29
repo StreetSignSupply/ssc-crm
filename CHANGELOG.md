@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-48 — 2026-10-28
+- Account page: archived (closed and lost) projects are listed under the active ones, behind an Archived divider, newest first
+
 ## 2026.11.25-47 — 2026-10-28
 - Projects and accounts open tidier: Field history always starts closed; Schedule starts closed when nothing is scheduled; Billing starts closed until there's something billed (project) or a billing contact / QuickBooks name (account) — click the title to open any of them
 - Close-out only shows once a work order exists
