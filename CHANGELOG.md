@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-66
+- Bare aluminum blanks on a quote (no sheeting) are costed from the blank in inventory for that size and gauge (12x24 and 24x12 are the same blank); if inventory has no such blank with a cost, the line says "no blank in stock list". P-2014's 30 blank lines were showing "needs a grade".
+
 ## 2026.11.25-65
 - Opening the CRM shows a plain "Loading your data…" screen while the Google sign-in comes back, instead of flashing the sign-in card.
 - On crm.streetsignsupply.com an owner on the team list with a sign-in email counts as claimed, so the "Lock the CRM to your sign-in" banner no longer shows there (the database lock now keeps everyone else out).
