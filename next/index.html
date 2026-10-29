@@ -1199,6 +1199,7 @@ details.omore>summary{cursor:pointer;font-weight:700;padding:6px 0;color:var(--a
 .btn.segtab:hover{background:none;color:var(--ink);border-color:transparent;border-bottom-color:var(--line)}
 .btn.segtab.on{color:var(--act);border-bottom-color:var(--act);font-weight:800}
 .cxl .cx span,.cx span{white-space:nowrap}
+.addpic{width:40px;height:40px;padding:0;justify-content:center;font-size:12px!important;line-height:1.1;border:1px dashed var(--line)!important;flex:0 0 auto}
 /* -76 design review */
 .updbar{left:auto!important;right:16px;bottom:16px!important;transform:none!important;max-width:min(360px,calc(100vw - 32px));flex-wrap:wrap;font-size:13px!important}
 body:has(.modal) .updbar{display:none!important}
@@ -3613,7 +3614,7 @@ async function deliverDoc(html,baseName,opt,okMsg){
   try{const blob=await htmlToPdf(html,Object.assign({keepShots:true},opt));const name=baseName+".pdf";
     // look at it first — pages as they'll print — then save
     if(!opt.noPreview){const imgs=(blob._shots||[]).map(c=>c.toDataURL("image/jpeg",0.85));
-      S._docPending={blob,name,okMsg};
+      S._docPending={blob,name,okMsg,pid:opt.pid||"",kind:opt.kind||"",docNo:opt.docNo||""};
       openModal(mshell(name.replace(/\.pdf$/,"").replace(/-(?=[A-Za-z])/g," "),"file",`<div style="background:#5E646B;padding:14px;max-height:72vh;overflow:auto;display:flex;flex-direction:column;gap:14px;align-items:center">
           ${imgs.map((u,i)=>`<img src="${u}" alt="Page ${i+1}" style="width:100%;max-width:${opt.w<5?"340px":"760px"};background:#fff;box-shadow:0 4px 14px rgba(0,0,0,.35)">`).join("")}</div>`,
         `<span class="sub" style="margin-right:auto">${imgs.length} page${imgs.length===1?"":"s"} · ${opt.w<5?"4×6 label":"letter"}</span>
@@ -3639,7 +3640,7 @@ async function docSave(p,kind){
   const name=(kind==="quote"?"Quote-":"Invoice-")+String(no).replace(/[^A-Za-z0-9-]+/g,"")+"-"
     +accName(p.accountId).replace(/[^A-Za-z0-9]+/g,"-").slice(0,24);
   toast("Making the PDF…");
-  const ok=await deliverDoc(html,name,{w:8.5,h:11,footer:(kind==="quote"?"Quote ":"Invoice ")+no},(kind==="quote"?"Quote ":"Invoice ")+no+" saved as a PDF");
+  const ok=await deliverDoc(html,name,{w:8.5,h:11,footer:(kind==="quote"?"Quote ":"Invoice ")+no,pid:p.id,kind,docNo:String(no||"")},(kind==="quote"?"Quote ":"Invoice ")+no+" saved as a PDF");
   if(ok!==false||true)recordHistory("project",p.id,[{f:kind==="quote"?"Quote":"Invoice",o:"",n:"Document made — "+no+", "+money2(docLines(p).reduce((t,l)=>t+l.qty*l.unit,0)),ev:1}]);
 }
 
@@ -5023,7 +5024,8 @@ function reconCard(p){
           :`<span class="pill o">${r.sched} made, ${r.ordered} ordered</span>${where?`<div style="margin-top:5px">${where}</div>`:""}`;
         return `<tr>
         <td><div style="display:flex;gap:10px;align-items:center">
-          ${linePic(p,r)?`<img src="${esc(linePic(p,r))}" alt="" class="quotepic" data-signpic="${esc(picKey(r))}" data-picfall="1" style="width:40px;height:40px" title="Change this item's picture">`:""}
+          ${linePic(p,r)?`<img src="${esc(linePic(p,r))}" alt="" class="quotepic" data-signpic="${esc(picKey(r))}" data-picfall="1" style="width:40px;height:40px" title="Change this item's picture">`
+            :r.charge?"":`<button type="button" class="btn sm q addpic" data-signpic="${esc(picKey(r))}" title="Add a photo of this item — it's used on every quote with this item">+ Photo</button>`}
           <div><b>${esc(r.desc||signName(r)||r.code||"—")}</b>${(r.desc||signName(r))&&r.code?`<div class="sub">${esc(r.code)}</div>`:""}${r.note?`<div class="sub">${esc(r.note)}</div>`:""}</div></div></td>
         <td>${esc(r.size?sizeLabel(r.size):"—")}</td><td title="${esc(r.grade||"")}"><span class="gfull">${esc(r.grade||"—")}</span><span class="gshort">${esc(gradeShort(r.grade)||"—")}</span>${legendsOf(r).length&&r.build!=="print"
           ?`<div class="sub" title="Legend film">legend ${esc(legendText(r,true))}</div>`:""}${r.noLam?`<div class="sub" title="${esc(NOLAM_TXT)}">no overlaminate</div>`:""}</td>
@@ -10103,7 +10105,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-79";
+const APP_VERSION="2026.11.25-80";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -12955,6 +12957,17 @@ function uploadModal(kind,id,preset){
     doUpload([...el.files],$("#f-cat").value,kind,id);
   };
 }
+// a quote or invoice PDF goes into the project's Files as well, and any older PDF of the same quote or invoice number
+// moves to the recycle bin — so Files never holds two different Q-1015s
+async function docToFiles(d){if(!assets||!d||!d.pid)return;const p=S.projects.get(d.pid);if(!p)return;
+  const file=(typeof File!=="undefined")?new File([d.blob],d.name,{type:"application/pdf"}):d.blob;
+  const up=await assets.upload(file);const fid=uid("f");const now=Date.now();
+  await setDoc("files/"+fid,{id:fid,assetId:up.id,url:up.url,name:d.name,size:up.sizeBytes||(d.blob&&d.blob.size)||0,type:"application/pdf",
+    cat:d.kind==="invoice"?"Invoice":"Quote",who:me(),when:stamp(),at:now,deleted:false,accountId:p.accountId||"",projectId:p.id,jobId:""});
+  const no=String(d.docNo||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+  if(no)for(const f of live(S.files).filter(f=>f.id!==fid&&f.projectId===p.id&&/\.pdf$/i.test(f.name||"")&&String(f.name||"").toUpperCase().replace(/[^A-Z0-9]/g,"").indexOf(no)>=0))
+    await push("files/"+f.id,{deleted:true,deletedAt:now,deletedBy:me(),supersededBy:fid,updatedAt:now});
+  logEvent("project",p.id,(d.kind==="invoice"?"Invoice":"Quote")+" PDF "+d.name+" saved to Files"+(no?" (older copies moved to the bin)":""))}
 async function doUpload(files,cat,kind,id){
   if(!assets){toast("Uploading isn't available on this view.");return}
   const stat=$("#upstat");let n=0;
@@ -15816,7 +15829,8 @@ function bind(){
     if(t.closest("[data-docsave]")){const d=S._docPending;if(!d)return;closeModal();
       (async()=>{try{if(downloads)await downloads.save({filename:d.name,data:d.blob});
         else{const a=document.createElement("a");a.href=URL.createObjectURL(d.blob);a.download=d.name;document.body.appendChild(a);a.click();a.remove()}
-        toast(d.okMsg||"PDF saved")}catch(e){if(!(e&&e.code==="declined"))toast("Couldn't save it here.")}})();return}
+        toast(d.okMsg||"PDF saved")}catch(e){if(!(e&&e.code==="declined"))toast("Couldn't save it here.")}
+        if(d.pid)docToFiles(d).catch(()=>{})})();return}
     const nt=t.closest("[data-newtab]");if(nt){const f=S.files.get(nt.dataset.newtab);if(!f)return;
       (async()=>{try{let u=f.link&&driveId(f.url)?"https://drive.google.com/file/d/"+driveId(f.url)+"/view":f.url;if(/^data:/i.test(u)){const bl=await (await fetch(u)).blob();u=URL.createObjectURL(bl)}
         const w2=window.open(u,"_blank","noopener");if(!w2)toast("Your browser blocked the new tab — use Save a copy instead.")}catch(e){toast("Couldn't open it in a tab here — use Save a copy.")}})();return}

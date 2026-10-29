@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-80
+- Quote and invoice PDFs: when you save one, it also goes into the project's Files, and any older PDF of the same quote or invoice number moves to the recycle bin — no more two different Q-1015s side by side.
+- Quote lines with no picture (posts, anchors, bolts, custom items) have a "+ Photo" button: add a link or upload a picture once and every quote with that item uses it.
+
 ## 2026.11.25-79
 - Work orders: blanks can come from different places on the same job. Pick "Mixed — choose for each line" under Blanks and each line gets its own choice (pull from stock, on order from a vendor, or cut in-house). It starts each line on stock when there are enough on the shelf and on "on order" when there aren't, and shows what's on hand. Each work order line can also be changed later ("Blanks for this line").
 - A mixed work order pulls only the stock lines from inventory, marks the ordered blanks "on order", lists which lines are waiting on blanks, and its route has both "Blanks received from vendor" and "Pull blanks from stock".
