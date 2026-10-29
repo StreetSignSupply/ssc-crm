@@ -1,5 +1,10 @@
 # What changed
 
+## 2026.11.25-65
+- Opening the CRM shows a plain "Loading your data…" screen while the Google sign-in comes back, instead of flashing the sign-in card.
+- On crm.streetsignsupply.com an owner on the team list with a sign-in email counts as claimed, so the "Lock the CRM to your sign-in" banner no longer shows there (the database lock now keeps everyone else out).
+- QuickBooks check runs each morning: invoice numbers, invoice dates, tax and paid status in the CRM follow QuickBooks; totals that differ are listed on the "QB Check" tab, never changed.
+
 ## 2026.11.25-64
 - Releases are checked before they go live: work happens in next/index.html; every change runs the release check (every main page and several forms with made-up data) and only a build that passes is copied to public/index.html, the one crm.streetsignsupply.com loads. A failed check leaves the live CRM as it was. An earlier release can be put back by version.
 - The "newer version ready" note now follows the release actually live (public/version.txt), not the changelog.
