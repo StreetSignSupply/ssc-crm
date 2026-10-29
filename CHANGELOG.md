@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-72
+- Settings → Data: "Turn the lock off" is under More and asks you to type off. It used to be a plain button beside "Apply the updated rules" and turned the lock off with one click.
+
 ## 2026.11.25-71
 - Contacts "Possible duplicates" only lists real look-alikes: the same email, or the same person's name (department names like "Bids" or "Purchasing" only count on the same account). It was listing 196 pairs.
 
