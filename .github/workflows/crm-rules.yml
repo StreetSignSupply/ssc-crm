@@ -27,7 +27,13 @@ jobs:
       - name: Test the rules in the emulator
         if: github.event.inputs.mode != 'rollback'
         working-directory: firebase
-        run: npx firebase emulators:exec --only firestore --project demo-ssc "node rules.test.mjs"
+        run: |
+          set +e
+          npx firebase emulators:exec --only firestore --project demo-ssc "node rules.test.mjs" > out.txt 2>&1; s=$?
+          echo "::notice::rules test: $(grep -cE '^PASS' out.txt) passed, $(grep -cE '^FAIL' out.txt) failed"
+          grep -E '^FAIL' out.txt | head -10 | sed 's/^/::error::/'
+          if [ $s -ne 0 ] && ! grep -qE '^(PASS|FAIL)' out.txt; then echo "::error::emulator: $(grep -iE 'error' out.txt | tail -3 | tr '\n' ' ' | cut -c1-300)"; fi
+          exit $s
       - id: gauth
         if: github.event.inputs.mode == 'deploy' || github.event.inputs.mode == 'rollback'
         uses: google-github-actions/auth@v2
