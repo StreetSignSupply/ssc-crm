@@ -1,5 +1,10 @@
 # What changed
 
+## 2026.11.25-75
+- Find an item: results read cleanly (no "|24X12" keys on the end) and rank better — the exact code first, then names that start with what you typed, then whole words; "DOES NOT STOP" signs come after real stop signs.
+- Phones: small grey notes are 13px and darker. Files list: "by Jarom S." under the date instead of bare initials.
+- File tiles: the "⋯" menu (with Delete) opens upward and isn't cut off by the tile.
+
 ## 2026.11.25-74
 - Quantity boxes on the quote line and work order line forms take 1 or more only: a red note shows under the box while it's 0, negative or blank, and Add/Save refuse it.
 - A price picked from the price list stays the suggested price until you change the code, size or material (the account's own price still comes first).
