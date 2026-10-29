@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-52 — 2026-10-28
+- Project details starts closed when the project has more than 4 lines (the line count shows on the title) — click the title to open it
+
 ## 2026.11.25-51 — 2026-10-28
 - Column headings that sort (Project, Stage, Value, Due) look like the others — no all-capitals
 - Account page: archived projects use the same bold project names and text as the active ones; the Archived divider is bolder

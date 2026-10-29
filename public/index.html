@@ -9276,7 +9276,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-51";
+const APP_VERSION="2026.11.25-52";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -9560,8 +9560,10 @@ function projectRec(id){
     </div></div>
 
     <div class="cols">
-      <section class="card flush"><header><h2>Project details</h2>
-        <span class="sub">The quote, the dates and where it ships. Edit is on the header.</span></header>
+      ${(function(){const nl=orderedLines(p).filter(l=>!isCharge(l)).length||Object.values(scheduledFor(p)).length;
+        // more than a few lines: starts closed, with the count in the title row
+        return `<section class="card flush"${nl>4?" data-defshut":""}><header><h2>Project details</h2>${nl>4?`<span class="n">${nl} lines</span>`:""}
+        <span class="sub">The quote, the dates and where it ships. Edit is on the header.</span></header>`})()}
         ${(function(){
           // what's being made, from the ordered lines — or the work orders if nothing's been recorded
           const ol=orderedLines(p);
