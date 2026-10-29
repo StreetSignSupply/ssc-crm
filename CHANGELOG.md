@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-53 — 2026-10-28
+- Table headings (Project, Stage, Value, Due, Billing…) are bolder and darker, all in the same style; the Archived divider uses exactly the same style as the headings
+
 ## 2026.11.25-52 — 2026-10-28
 - Project details starts closed when the project has more than 4 lines (the line count shows on the title) — click the title to open it
 
