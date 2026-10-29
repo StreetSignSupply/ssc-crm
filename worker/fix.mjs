@@ -93,6 +93,32 @@ if (STEP === "apply") {
     step("fixes applied");
   }
 }
+// FIX_STEP=stencils -> the stencil export (one row per stencil per grade, with today's cost) goes to the
+// "CRM Stencils" tab of the SSS Pipeline sheet for the weekly cost audit. Counts only in the log.
+if (STEP === "stencils") {
+  const rows = await page.evaluate(async () => { const T = window.__T; await T.stcLoad(); return T.S.stc ? T.stcExportRows() : null; });
+  if (!rows) { console.log("::error::stencil catalog didn't load"); await browser.close(); process.exit(1); }
+  const SHEET = process.env.PIPE_SHEET || "1aChWjS_R0ImI19AkBD-WAXRYoJz0douDNdhsASwIuVs", TAB = "CRM Stencils";
+  const tok = process.env.SHEETS_TOKEN;
+  const api = async (url, method, body) => { const r = await fetch("https://sheets.googleapis.com/v4/spreadsheets/" + SHEET + url, { method, headers: { Authorization: "Bearer " + tok, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+    if (!r.ok) { const t = await r.text(); const m = (t.match(/"status":\s*"([A-Z_]+)"/) || [])[1] || ""; const why = /has not been used|is disabled/.test(t) ? "Sheets API not turned on for the project" : /permission|PERMISSION/.test(t) ? "the sheet isn't shared with the CRM's service account" : m;
+      throw new Error(method + " " + r.status + " " + why); } return r.json(); };
+  try {
+    const meta = await api("?fields=sheets.properties.title", "GET");
+    if (!(meta.sheets || []).some((x) => x.properties.title === TAB)) await api(":batchUpdate", "POST", { requests: [{ addSheet: { properties: { title: TAB, gridProperties: { rowCount: rows.length + 50, columnCount: 22 } } } }] });
+    else await api(":batchUpdate", "POST", { requests: [] }).catch(() => {});
+    await api("/values/" + encodeURIComponent("'" + TAB + "'!A:V") + ":clear", "POST", {});
+    const stamp = "Exported from the CRM " + new Date().toISOString().replace("T", " ").slice(0, 16) + " UTC";
+    rows[0] = rows[0].concat(["", stamp]);
+    const meta2 = await api("?fields=sheets(properties(title,sheetId,gridProperties))", "GET");
+    const sh = meta2.sheets.find((x) => x.properties.title === TAB);
+    if (sh && sh.properties.gridProperties.rowCount < rows.length + 5) await api(":batchUpdate", "POST", { requests: [{ appendDimension: { sheetId: sh.properties.sheetId, dimension: "ROWS", length: rows.length + 5 - sh.properties.gridProperties.rowCount } }] });
+    await api("/values/" + encodeURIComponent("'" + TAB + "'!A1") + "?valueInputOption=RAW", "PUT", { values: rows });
+    const flagged = rows.slice(1).filter((r) => r[17]).length, uncosted = rows.slice(1).filter((r) => r[13] === "").length;
+    console.log("::notice::stencil export: " + (rows.length - 1) + " rows (" + new Set(rows.slice(1).map((r) => r[0])).size + " stencils), " + uncosted + " rows not costed, " + flagged + " rows flagged");
+    await browser.close(); process.exit(0);
+  } catch (e) { console.log("::error::stencil export: " + String(e.message || e).slice(0, 160)); await browser.close(); process.exit(1); }
+}
 // Send all to the CRM Orders sheet (the toast text tells how many went)
 // changed records reach the sheet by themselves (the CRM sends each change); a full Send all only when asked
 const wantAll = STEP !== "apply" || /\/\/ send all/.test(fsys.readFileSync(path.resolve(here, "fixes.js"), "utf8"));

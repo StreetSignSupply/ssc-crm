@@ -2523,6 +2523,9 @@ function lockPass(){S._lockDone=S._lockDone||{};
 // what a quoted line costs us today: the cost sheet first, then the material it's cut from
 function quoteLineCostLive(line){
   if(isCharge(line))return {cost:Number(line.cost)||0,why:Number(line.cost)>0?"what this charge costs you":"nothing out of pocket",src:"charge"};
+  // a catalog stencil: its sheet at item cost plus CNC time
+  if(!S.stc&&/^(SSS|STN)-/i.test(String(line.code||"")))stcLoad();
+  {const sc=stcLineCost(line);if(sc)return sc}
   const uc=lineUnitCost(line.build==="print"?{method:"print"}:null,{code:line.code,size:line.size,grade:line.grade,sheetKey:line.sheetKey,
     legend:line.legend||"",legends:line.legends||[],build:line.build||""});
   // signs: the materials they're made of, at the CRM's item costs (preferred price + freight), when every part has a cost
@@ -3556,6 +3559,7 @@ const CHARGES=[
 function isCharge(l){return !!(l&&l.charge)}
 function lineProd(l){
   if(isCharge(l))return "charge";
+  if(stcBySku(l.code))return "stencil";
   const g=String(l.grade||"")+" "+String(l.sub||""), c=String(l.code||"").toUpperCase(), d=String(l.desc||"").toUpperCase();
   const hay=(c+" "+d+" "+g).toLowerCase();
   const cw=customProds().find(t=>(t.words||[]).some(w=>w&&hay.indexOf(String(w).toLowerCase())>=0));
@@ -3682,7 +3686,7 @@ async function quickWOGo(pid,preset){
     const num=await nextNum("nextJob",1001);
     await setDoc("jobs/"+num,{num,desc:p.name,projectId:pid,accountId:p.accountId,due:q.due||p.due||"",
       source:p.source||"",prod:q.prod,blankSrc:q.prod==="sign"?q.blankSrc:"",method:q.prod==="sign"?q.method:"",
-      stencilMat:q.prod==="stencil"?(stenMatFromGrade((items[0]||{}).grade)||q.stencilMat||"ldpe16"):"",bannerFin:q.prod==="banner"?"hem":"",
+      stencilMat:q.prod==="stencil"?((function(){const x=stcLine(items[0]);const m=x&&x.gi>=0?stcMatFor(x.gi):null;return m?m.it.id:""})()||stenMatFromGrade((items[0]||{}).grade)||q.stencilMat||"ldpe16"):"",bannerFin:q.prod==="banner"?"hem":"",
       decalMethod:q.prod==="decal"?"print":"",postFin:q.prod==="posts"?"bundle":"",
       rush:false,needsProof:q.prod==="sign",drive:"",notes:"",status:"new",
       gates:{specs:false,payment:false,proof:false,material:false,qc:false},route:{},items,
@@ -4807,7 +4811,7 @@ function reconCard(p){
         <td class="mono" style="text-align:right">${r.extra?r.sched:r.ordered}</td>
         ${(function(){const qn=Number(r.extra?r.sched:r.ordered)||0;const uc=quoteLineCost(r);
           const pr=Number(r.price)||0;const mg=(pr&&uc.cost)?((pr-uc.cost)/pr*100):null;
-          return `<td class="mono" style="text-align:right" title="${esc(uc.why||"")}">${uc.cost?money2(uc.cost)+(uc.src==="locked"?`<div class="sub" style="white-space:nowrap">${ic("lock",11)} locked${r.costAt?" "+esc(fmtDate(isoDay(r.costAt))):""}</div>`:""):uc.src==="nosize"?`<span class="sub">needs a size</span>`:`<span class="sub">—</span>`}</td>
+          return `<td class="mono" style="text-align:right" title="${esc(uc.why||"")}">${uc.src==="stcflag"?`<span class="pill r" title="${esc(uc.why||"")}">not costed</span>`:uc.cost?money2(uc.cost)+(uc.src==="locked"?`<div class="sub" style="white-space:nowrap">${ic("lock",11)} locked${r.costAt?" "+esc(fmtDate(isoDay(r.costAt))):""}</div>`:""):uc.src==="nosize"?`<span class="sub">needs a size</span>`:`<span class="sub">—</span>`}</td>
             <td class="mono" style="text-align:right">${pr?(Math.round(pr)===pr?money(pr):money2(pr)):`<span class="sub">—</span>`}</td>
             <td class="mono" style="text-align:right;font-weight:800">${pr?money(pr*qn):""}</td>
             <td style="text-align:right">${mg==null?`<span class="sub">—</span>`
@@ -4823,8 +4827,10 @@ function reconCard(p){
       ${(function(){const tot=rows.reduce((t,r)=>t+(Number(r.price)||0)*(Number(r.extra?r.sched:r.ordered)||0),0);
         const pcs=rows.filter(r=>!r.charge).reduce((t,r)=>t+(Number(r.extra?r.sched:r.ordered)||0),0);
         const cost=rows.reduce((t,r)=>t+(quoteLineCost(r).cost||0)*(Number(r.extra?r.sched:r.ordered)||0),0);
-        const mg=(tot&&cost)?((tot-cost)/tot*100):null;
-        return `<tr style="background:var(--card2)"><td colspan="3"><b>Total</b></td><td class="mono" style="text-align:right"><b>${pcs}</b></td>
+        // a stencil that can't be costed would make the margin look better than it is — say so instead
+        const uncosted=rows.filter(r=>!r.charge&&quoteLineCost(r).src==="stcflag").length;
+        const mg=(tot&&cost&&!uncosted)?((tot-cost)/tot*100):null;
+        return `<tr style="background:var(--card2)"><td colspan="3"><b>Total</b>${uncosted?` <span class="sub">— margin waits on ${uncosted} line${uncosted===1?"":"s"} that can't be costed yet</span>`:""}</td><td class="mono" style="text-align:right"><b>${pcs}</b></td>
           <td class="mono" style="text-align:right">${cost?money(cost):""}</td><td></td>
           <td class="mono" style="text-align:right;font-weight:800;font-size:15px">${tot?money(tot):`<span class="sub">no prices yet</span>`}</td>
           <td style="text-align:right">${mg==null?"":`<span class="pill ${mg>=35?"g":mg>=20?"o":"r"}">${Math.round(mg)}%</span>`}</td><td colspan="2"></td></tr>
@@ -5527,8 +5533,14 @@ function catRows(q,kind){
       unit:it.unit||"",onHand:onHand(it),
       hay:(it.name+" "+it.cat+" "+(it.sku||"")+" "+(k==="vinyl"?"decal vinyl lettering cut":k==="stencil"?"stencil":k==="banner"?"banner magnet":"post hardware blank")).toLowerCase()});
   });
+  if(!kind||kind==="stencil"){
+    if(!S.stc)stcLoad();
+    stcList().forEach(st=>{STC_GRADES.forEach((g,gi)=>{const pr=stcPrice(st,gi);if(pr==null)return;
+      out.push({kind:"stc",key:"stc:"+st.sku+":"+gi,sku:st.sku,gi,title:st.n,size:st.w&&st.h?st.w+"x"+st.h:"",grade:g.k,code:st.sku,cost:null,
+        sell:pr,mine:true,img:stcPicUrl(st),stc:st,hay:(st.n+" "+st.sku+" "+(st.cat||"")+" "+g.label+" "+g.k+" stencil").toLowerCase()})})});
+  }
   if(!kind||kind==="web"){
-    webcatProducts().forEach(p=>{(p.vars||[]).forEach((v,vi)=>{
+    webcatProducts().forEach(p=>{if(S.stc&&/^stencil:/.test(String(p.id||"")))return;(p.vars||[]).forEach((v,vi)=>{
       out.push({kind:"web",key:"web:"+p.id+":"+vi,pid:p.id,title:p.name,size:v.size||"",grade:v.mat||"",gt:v.grade||"",code:"",cost:null,
         sell:Number(v.price)||0,mine:true,img:p.img||"",url:p.url||"",tiers:v.t||[],
         hay:(p.name+" "+(p.cat||"")+" "+(v.size||"")+" "+(v.mat||"")+" "+(v.grade||"")+" website sign").toLowerCase()})})});
@@ -5543,6 +5555,194 @@ function catRows(q,kind){
 const WEBCAT_GIDS={prices:1288427450,pics:777001,wb04:777004,wb11:777011};
 // the stencil price list Matt approved (25 Oct 2026): one product per stencil, one price per grade
 const STENCIL_SRC="https://raw.githubusercontent.com/StreetSignSupply/ssc-crm/main/public/stencils.json";
+/* ================= STENCILS =================
+   Every stencil in the catalog (Stencil_Catalog_CUSTOMER, 1 Sep 2026) with the price list Matt approved on 25 Oct 2026.
+   The catalog lives next to the CRM (public/stencil-catalog.json, pictures in public/pics/stencils/). What a stencil
+   costs is worked out here, every time, from the sheet it's cut from: that inventory item's cost (its preferred vendor's
+   price plus freight) per sq ft × the stencil's material sq ft × waste, plus CNC labor. Change the preferred vendor or
+   its price and every stencil follows. A stencil with no sheet for its grade, or no material sq ft, is flagged — never $0. */
+const STC_SRC="https://raw.githubusercontent.com/StreetSignSupply/ssc-crm/main/public/stencil-catalog.json";
+const STC_PIC="https://raw.githubusercontent.com/StreetSignSupply/ssc-crm/main/public/pics/stencils/";
+const STC_GRADES=[
+  {k:"LDPE .125",label:"PRO .125 LDPE",short:"PRO 1/8\"",test:t=>/LDPE|POLYETH/.test(t)&&/\.125|1\/8/.test(t)},
+  {k:"LDPE .063",label:"LIGHT .063 LDPE",short:"LIGHT 1/16\"",test:t=>/LDPE|POLYETH/.test(t)&&/\.06|1\/16/.test(t)},
+  {k:"HDPE .030",label:"HDPE budget .030",short:"HDPE .030",test:t=>/HDPE/.test(t)&&/\.030?\b|\.03\b/.test(t)},
+  {k:"HDPE .250",label:"HDPE heavy 1/4\"",short:"HDPE 1/4\"",test:t=>/HDPE/.test(t)&&/\.25|1\/4/.test(t)},
+  {k:"ALUM .080",label:"ALUM .080",short:"ALUM .080",test:t=>/ALUM|5052/.test(t)&&/\.080|\.08\b/.test(t)}];
+// the rates Matt approved with the price list (25 Oct 2026); the cut factors are how much longer a grade takes on the CNC
+const STC_DEF={waste:1.15,laborRate:25,setupMin:5,minPerPiece:0.5,minPerSqft:1.5,cut:[1,1,1,2,3]};
+function stcCfg(){const c=(S.brand&&S.brand.stencilCfg)||{};const o=Object.assign({},STC_DEF,c);
+  o.cut=STC_DEF.cut.map((v,i)=>(c.cut&&Number(c.cut[i])>0)?Number(c.cut[i]):v);o.mat=Object.assign({},c.mat||{});o.sq=Object.assign({},c.sq||{});return o}
+async function stcCfgSave(patch){const cur=Object.assign({},(S.brand&&S.brand.stencilCfg)||{});const next=Object.assign(cur,patch);
+  try{await push("settings/brand",{stencilCfg:next})}catch(e){const b2=Object.assign({},S.brand||{},{stencilCfg:next});await setDoc("settings/brand",b2)}
+  S.brand=Object.assign({},S.brand||{},{stencilCfg:next});S.stcCostIdx=null}
+function stcList(){return (S.stc&&S.stc.items)||[]}
+function stcBySku(sku){const k=String(sku||"").trim().toUpperCase();if(!k||!S.stc)return null;
+  const idx=S.stcIdx||(S.stcIdx=(function(){const m={};stcList().forEach(s=>{m[s.sku]=s;if(s.stn)m[s.stn]=s});return m})());return idx[k]||null}
+let STC_LOADING=null;
+function stcLoad(){if(S.stc)return Promise.resolve(S.stc);if(STC_LOADING)return STC_LOADING;
+  STC_LOADING=(async()=>{try{const r=await fetch(STC_SRC+"?v="+Math.floor(Date.now()/3600000),{cache:"no-store"});if(!r.ok)throw new Error(r.status);
+      const j=await r.json();S.stc=j;S.stcIdx=null;S.stcErr="";try{render()}catch(e){}return j}
+    catch(e){S.stcErr="The stencil catalog couldn't be read ("+(e&&e.message||"no answer")+")";STC_LOADING=null;try{render()}catch(e2){}return null}})();
+  return STC_LOADING}
+function stcPicUrl(s){return s&&s.img?STC_PIC+encodeURIComponent(s.sku)+".png":""}
+// a full sheet's square feet — names say 48x96 (inches) or 5x10 (feet)
+function stcSheetSqft(it){if(!it)return 0;if(Number(it.sqftPer))return Number(it.sqftPer);
+  const m=String(it.name||"").match(/(\d+(?:\.\d+)?)\s*(?:in|"|ft|')?\s*[x×]\s*(\d+(?:\.\d+)?)\s*(in|"|ft|')?/i);if(!m)return 0;
+  const w=+m[1],h=+m[2];return (w<=12&&h<=12)?w*h:w*h/144}
+function stcGradeIx(g){const t=String(g==null?"":g).toUpperCase();if(!t)return -1;
+  const i=STC_GRADES.findIndex(x=>x.k===t||x.label.toUpperCase()===t);if(i>=0)return i;
+  if(/ALUM|5052/.test(t))return 4;
+  if(/HDPE/.test(t))return /\.25|1\/4|HEAVY|MUNICIPAL/.test(t)?3:2;
+  if(/1\/8|\.125|\bPRO\b/.test(t))return 0;
+  if(/1\/16|\.063|\.06\b|LIGHT/.test(t))return 1;
+  return -1}
+// the sheet each grade is cut from: Matt's pick in Settings, else the cheapest full sheet in inventory that says that gauge
+function stcMatCands(gi){const g=STC_GRADES[gi];if(!g)return [];
+  return itemList().filter(it=>{const t=[it.name,it.sku,it.cat].join(" ").toUpperCase();
+    if(/sign|blank/i.test(String(it.cat||""))&&!/stencil/i.test(String(it.cat||"")))return false;
+    return g.test(t)&&stcSheetSqft(it)>=20})}
+function stcMatFor(gi){const c=stcCfg();const id=c.mat[gi];
+  if(id){const it=S.items.get(id);if(it&&!it.deleted)return {it,auto:false}}
+  const L=stcMatCands(gi).map(it=>({it,r:(Number(it.cost)||0)/stcSheetSqft(it)})).filter(x=>x.r>0).sort((a,b)=>a.r-b.r);
+  if(L.length)return {it:L[0].it,auto:true};
+  const any=stcMatCands(gi)[0];return any?{it:any,auto:true,noCost:true}:null}
+function stcSq(s){const o=stcCfg().sq[s.sku];return Number(o)>0?Number(o):(Number(s.sq)||0)}
+// one stencil in one grade: material + labor, or the reasons it can't be costed
+function stcCost(s,gi){
+  if(!s||gi<0)return {cost:null,flags:["pick a grade"]};
+  const c=stcCfg(),flags=[],sq=stcSq(s),m=stcMatFor(gi),pcs=Math.max(1,Number(s.pc)||1),cf=c.cut[gi]||1;
+  if(!(sq>0))flags.push("no material sq ft");
+  if(!m)flags.push("no "+STC_GRADES[gi].k+" sheet in inventory");
+  else if(m.noCost||!(Number(m.it.cost)>0))flags.push(m.it.name.split("—")[0].trim()+" has no cost");
+  if(flags.length)return {cost:null,flags,mat:m?m.it:null,sq};
+  const per=stcSheetSqft(m.it),rate=Number(m.it.cost)/per;
+  const mat=sq*c.waste*rate;
+  const min=Number(c.setupMin)+Number(c.minPerPiece)*pcs*cf+Number(c.minPerSqft)*sq*cf;
+  const labor=min/60*Number(c.laborRate);
+  const cost=Math.round((mat+labor)*100)/100;
+  return {cost,mat:m.it,matCost:Math.round(mat*100)/100,labor:Math.round(labor*100)/100,min:Math.round(min*10)/10,rate,sq,flags:[],auto:m.auto,
+    why:(Math.round(sq*100)/100)+" sq ft × "+c.waste+" waste of "+m.it.name.split("—")[0].trim()+" at "+money2(rate)+"/sq ft = "+money2(mat)
+      +" + "+(Math.round(min*10)/10)+" min CNC at "+money2(c.laborRate)+"/hr = "+money2(labor)}}
+function stcPrice(s,gi){const p=s&&s.p?s.p[gi]:null;return p!=null&&Number(p)>0?Number(p):null}
+// what's wrong with a stencil as a whole (shown on the list and in the export)
+function stcFlags(s){const out=[];const sq=stcSq(s);
+  if(!(sq>0))out.push("No material sq ft — measure the artwork");
+  if(s.src==="sep")out.push("Not on the 25 Oct price list — size or kit not confirmed; price is the 1 Sep catalog's");
+  return [...new Set(out)]}
+// a quote or work order line that is a catalog stencil: its code is the stencil's SKU
+function stcLine(line){if(!line)return null;const s=stcBySku(line.code);if(!s)return null;return {s,gi:stcGradeIx(line.grade)}}
+function stcLineCost(line){const x=stcLine(line);if(!x)return null;
+  if(x.gi<0)return {cost:0,src:"stcflag",why:"Stencil "+x.s.sku+" — pick a grade (LDPE .125, LDPE .063, HDPE .030, HDPE .250 or ALUM .080) to cost it"};
+  const r=stcCost(x.s,x.gi);
+  if(r.cost==null)return {cost:0,src:"stcflag",why:"Stencil "+x.s.sku+" can't be costed: "+r.flags.join("; ")};
+  return {cost:r.cost,src:"material",why:"Stencil "+x.s.sku+": "+r.why}}
+
+function stencilsView(){
+  if(!S.stc){stcLoad();return `<div class="pad"><section class="card"><header><h2>Stencils</h2></header>
+    <div class="empty">${S.stcErr?`<b>${esc(S.stcErr)}</b>It loads from GitHub — check the connection and open this page again.`:`<b>Loading the stencil catalog…</b>`}</div></section></div>`}
+  const f=S.stcF=S.stcF||{q:"",cat:"",gi:0,flag:false,page:0};
+  const all=stcList();const q=String(S.q||"").trim().toLowerCase();const words=q.split(/\s+/).filter(Boolean);
+  let list=all.filter(s=>(!f.cat||s.cat===f.cat)&&(!words.length||words.every(w=>(s.sku+" "+s.n+" "+(s.cat||"")+" "+(s.stn||"")).toLowerCase().indexOf(w)>=0)));
+  const flagged=all.filter(s=>stcFlags(s).length);
+  if(f.flag)list=list.filter(s=>stcFlags(s).length);
+  const cats=[...new Set(all.map(s=>s.cat).filter(Boolean))].sort();
+  const PG=150,pages=Math.max(1,Math.ceil(list.length/PG));if(f.page>=pages)f.page=0;
+  const shown=list.slice(f.page*PG,f.page*PG+PG);const gi=f.gi;const showCost=can("cost");
+  const c=stcCfg();
+  const matCards=STC_GRADES.map((g,i)=>{const m=stcMatFor(i);const per=m?stcSheetSqft(m.it):0;const r=m&&Number(m.it.cost)>0&&per?Number(m.it.cost)/per:0;
+    return `<tr><td><b>${esc(g.label)}</b></td>
+      <td>${m?`<button class="lnk" data-go="item/${esc(m.it.id)}">${esc(m.it.name)}</button>${m.auto?` <span class="sub">(cheapest match)</span>`:""}`:`<span class="pill r">No sheet in inventory</span>`}</td>
+      <td class="mono" style="text-align:right">${m&&Number(m.it.cost)>0?money2(Number(m.it.cost)):"—"}</td>
+      <td class="mono" style="text-align:right">${per?Math.round(per*10)/10:"—"}</td>
+      <td class="mono" style="text-align:right;font-weight:700">${r?money2(r):"—"}</td>
+      <td class="mono" style="text-align:right">${c.cut[i]}×</td>
+      <td style="text-align:right">${showCost?`<button class="btn sm" data-stcmat="${i}">Change</button>`:""}</td></tr>`}).join("");
+  return `<div class="pad">
+    ${showCost?`<section class="card flush wide"><header><span class="oi oi-file">${ic("inventory",14)}</span><h2>How stencils are costed</h2>
+      <span class="sub" style="flex:1 1 100%;order:9">Sheet cost per sq ft (the item's preferred vendor price + freight) × material sq ft × ${c.waste} waste, plus CNC time at ${money2(c.laborRate)}/hr: ${c.setupMin} min setup, weed and pack + ${c.minPerPiece} min a piece + ${c.minPerSqft} min a sq ft, × the grade's cut factor. Change a vendor's price on the sheet's item and every stencil follows.</span>
+      <span class="sp"><button class="btn sm" data-stcrates="1">Change the rates</button></span></header>
+      <table><thead><tr><th>Grade</th><th>Cut from</th><th style="text-align:right">Sheet cost</th><th style="text-align:right">Sq ft</th><th style="text-align:right">$/sq ft</th><th style="text-align:right">Cut factor</th><th></th></tr></thead><tbody>${matCards}</tbody></table></section>`:""}
+    <section class="card flush wide"><header><span class="oi oi-file">${ic("inventory",14)}</span><h2>Stencils</h2><span class="n">${list.length}${list.length!==all.length?" of "+all.length:""}</span>
+      <span class="sp"><input class="btn" id="lq" placeholder="Search SKU or name" value="${esc(S.q)}" style="font-weight:400;width:170px">
+        <select id="stc-cat" class="btn" style="font-weight:400"><option value="">Every category</option>${cats.map(x=>`<option${x===f.cat?" selected":""}>${esc(x)}</option>`).join("")}</select>
+        <select id="stc-gi" class="btn" style="font-weight:400">${STC_GRADES.map((g,i)=>`<option value="${i}"${i===gi?" selected":""}>${esc(g.label)}</option>`).join("")}</select>
+        <button class="btn${f.flag?" p":""}" data-stcflag="1">${flagged.length} flagged</button>
+        ${showCost?`<button class="btn" data-stccsv="1">${ic("file",14)}Download CSV</button>`:""}</span></header>
+      <div class="sub" style="padding:8px 15px">${esc((S.stc.source||""))}. Prices are per stencil in the grade picked above; the price date says which list it came from.</div>
+      ${shown.length?`<div style="overflow-x:auto"><table style="table-layout:auto;width:100%"><thead><tr><th style="width:70px"></th><th>SKU</th><th>Stencil</th><th>Size</th><th style="text-align:right">Pcs</th><th style="text-align:right">Sq ft</th>
+        ${showCost?`<th style="text-align:right">Cost</th>`:""}<th style="text-align:right">Price</th>${showCost?`<th style="text-align:right">Margin</th>`:""}<th>Price set</th><th>Flags</th></tr></thead><tbody>
+        ${shown.map(s=>{const pr=stcPrice(s,gi);const r=showCost?stcCost(s,gi):null;const mg=(pr&&r&&r.cost!=null)?(pr-r.cost)/pr*100:null;const fl=stcFlags(s);
+          return `<tr>
+          <td>${s.img?`<img src="${esc(stcPicUrl(s))}" alt="" loading="lazy" style="width:62px;height:34px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:3px">`:`<span class="sub">no picture</span>`}</td>
+          <td class="mono" style="white-space:nowrap"><button class="lnk mono" data-stcview="${esc(s.sku)}">${esc(s.sku)}</button></td>
+          <td style="max-width:320px;white-space:normal">${esc(s.n)}<div class="sub">${esc(s.cat||"")}</div></td>
+          <td class="mono" style="white-space:nowrap">${s.w&&s.h?esc(s.w+" × "+s.h+" in"):"—"}</td>
+          <td class="mono" style="text-align:right">${esc(s.pc||1)}</td>
+          <td class="mono" style="text-align:right">${stcSq(s)?Math.round(stcSq(s)*100)/100:"—"}</td>
+          ${showCost?`<td class="mono" style="text-align:right;white-space:nowrap" title="${esc(r&&r.why||r&&r.flags.join("; ")||"")}">${r&&r.cost!=null?money2(r.cost):`<span class="pill r">not costed</span>`}</td>`:""}
+          <td class="mono" style="text-align:right;font-weight:700;white-space:nowrap">${pr?money2(pr):"—"}</td>
+          ${showCost?`<td style="text-align:right">${mg==null?`<span class="sub">—</span>`:`<span class="pill ${mg>=40?"g":mg>=25?"o":"r"}">${Math.round(mg)}%</span>`}</td>`:""}
+          <td class="sub" style="white-space:nowrap">${esc(fmtDate(s.pd))}</td>
+          <td style="max-width:260px;white-space:normal">${fl.length?fl.map(x=>`<div class="sub" style="color:var(--red,#C00)">${esc(x)}</div>`).join(""):`<span class="sub">—</span>`}</td></tr>`}).join("")}
+        </tbody></table></div>
+        ${pages>1?`<div style="display:flex;gap:6px;align-items:center;padding:10px 15px">${f.page>0?`<button class="btn sm" data-stcpage="${f.page-1}">Previous</button>`:""}
+          <span class="sub">Page ${f.page+1} of ${pages}</span>${f.page<pages-1?`<button class="btn sm" data-stcpage="${f.page+1}">Next</button>`:""}</div>`:""}`
+      :`<div class="empty"><b>Nothing matched</b>Try fewer words.</div>`}
+    </section></div>`}
+function stcViewModal(sku){const s=stcBySku(sku);if(!s)return;const showCost=can("cost");const fl=stcFlags(s);
+  openModal(mshell(s.n,"proj",
+    `<div style="display:flex;gap:16px;flex-wrap:wrap;padding:14px 15px">
+      ${s.img?`<img src="${esc(stcPicUrl(s))}" alt="" style="width:240px;max-width:100%;height:auto;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:4px">`:`<div class="empty" style="width:240px">No picture in the catalog</div>`}
+      <div style="flex:1;min-width:220px"><div class="mono" style="font-weight:800">${esc(s.sku)}${s.stn?` <span class="sub">· price list ${esc(s.stn)}</span>`:""}</div>
+        <div class="sub">${esc(s.cat||"")}</div>
+        <div style="margin-top:8px">Blank ${s.w&&s.h?esc(s.w+" × "+s.h+" in"):"size not in the catalog"} · ${esc(s.pc||1)} piece${Number(s.pc)>1?"s":""} · <b>${Math.round(stcSq(s)*100)/100} sq ft</b> of sheet${stcCfg().sq[s.sku]?" (your figure)":""}</div>
+        <div class="sub" style="margin-top:4px">Price set ${esc(fmtDate(s.pd))} — ${s.src==="sep"?"the 1 Sep catalog":"the 25 Oct price list Matt approved"}${s.fix?" · "+esc(s.fix):""}</div>
+        ${s.ph?`<div class="sub" style="margin-top:4px">The catalog picture is only an outline of the blank.</div>`:""}
+        ${fl.length?`<div class="warn" style="margin-top:8px">${fl.map(esc).join("<br>")}</div>`:""}
+        ${showCost?`<div style="margin-top:10px;display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span class="sub">Material sq ft</span>
+          <input id="stc-sq" value="${esc(String(stcSq(s)||""))}" style="width:90px" inputmode="decimal"><button class="btn sm" data-stcsq="${esc(s.sku)}">Save</button></div>`:""}</div></div>
+    <div style="overflow-x:auto"><table style="table-layout:auto;width:100%"><thead><tr><th>Grade</th>${showCost?`<th style="text-align:right">Material</th><th style="text-align:right">Labor</th><th style="text-align:right">Cost</th>`:""}<th style="text-align:right">Price</th>${showCost?`<th style="text-align:right">Margin</th>`:""}</tr></thead><tbody>
+      ${STC_GRADES.map((g,i)=>{const pr=stcPrice(s,i);const r=stcCost(s,i);const mg=(pr&&r.cost!=null)?(pr-r.cost)/pr*100:null;
+        return `<tr><td style="white-space:nowrap"><b>${esc(g.k)}</b></td>${showCost?`<td class="mono" style="text-align:right;white-space:nowrap">${r.cost!=null?money2(r.matCost):"—"}</td><td class="mono" style="text-align:right;white-space:nowrap">${r.cost!=null?money2(r.labor):"—"}</td>
+          <td class="mono" style="text-align:right;font-weight:700;white-space:nowrap" title="${esc(r.why||r.flags.join("; "))}">${r.cost!=null?money2(r.cost):`<span class="pill r">${/sheet/.test(r.flags[0]||"")?"no sheet":/sq ft/.test(r.flags[0]||"")?"no sq ft":"not costed"}</span>`}</td>`:""}
+          <td class="mono" style="text-align:right;font-weight:700;white-space:nowrap">${pr?money2(pr):"—"}</td>${showCost?`<td style="text-align:right">${mg==null?"—":`<span class="pill ${mg>=40?"g":mg>=25?"o":"r"}">${Math.round(mg)}%</span>`}</td>`:""}</tr>`}).join("")}
+    </tbody></table></div>`,`<button class="btn" data-close="1">Close</button>`))}
+function stcMatModal(gi){const g=STC_GRADES[gi];if(!g)return;const c=stcCfg();
+  const opts=itemList().filter(it=>/stencil|ldpe|hdpe|polyeth|alum|5052/i.test([it.cat,it.name,it.sku].join(" "))).sort((a,b)=>a.name.localeCompare(b.name));
+  openModal(mshell("Sheet for "+g.label,"proj",
+    `<p class="note" style="margin:10px 15px">Which inventory item ${esc(g.label)} stencils are cut from. Its cost (the preferred vendor's price plus freight) and its sheet size set the cost per sq ft. Leave it on automatic to use the cheapest full sheet that says ${esc(g.k)}.</p>
+     <div class="fgrid"><div class="fld full"><div class="k">Sheet</div><select id="stc-matsel"><option value="">Automatic — cheapest matching sheet</option>
+       ${opts.map(it=>`<option value="${esc(it.id)}"${c.mat[gi]===it.id?" selected":""}>${esc(it.name)}${Number(it.cost)>0?" — "+money2(Number(it.cost)):""}${stcSheetSqft(it)?" · "+Math.round(stcSheetSqft(it)*10)/10+" sq ft":""}</option>`).join("")}</select></div></div>`,
+    `<button class="btn" data-close="1">Cancel</button><button class="btn p" id="stc-matgo">Save</button>`));
+  const b=$("#stc-matgo");if(b)b.onclick=async()=>{const v=$("#stc-matsel").value;const mat=Object.assign({},c.mat);if(v)mat[gi]=v;else delete mat[gi];
+    try{await stcCfgSave({mat});closeModal();toast("Saved — every "+g.k+" stencil uses it now");render()}catch(e){toast("That didn't save.")}}}
+function stcRatesModal(){const c=stcCfg();
+  const f=(id,l,v,h)=>`<div class="fld"><div class="k">${l}</div><input id="${id}" value="${esc(String(v))}" inputmode="decimal">${h?`<div class="sub">${h}</div>`:""}</div>`;
+  openModal(mshell("Stencil cost rates","proj",
+    `<p class="note" style="margin:10px 15px">Approved with the price list on 25 Oct 2026. Labor is still an estimate until the Rover is running stencils.</p>
+     <div class="fgrid">${f("sr-waste","Waste factor on material",c.waste,"1.15 = 15% more sheet than the stencil's sq ft")}${f("sr-rate","CNC labor $/hr",c.laborRate)}
+       ${f("sr-setup","Setup, weed and pack — minutes a stencil",c.setupMin)}${f("sr-pc","Minutes a piece",c.minPerPiece)}${f("sr-sq","Minutes a sq ft",c.minPerSqft)}
+       ${STC_GRADES.map((g,i)=>f("sr-cut"+i,"Cut factor — "+g.label,c.cut[i])).join("")}</div>`,
+    `<button class="btn" data-close="1">Cancel</button><button class="btn p" id="sr-go">Save</button>`));
+  const b=$("#sr-go");if(b)b.onclick=async()=>{const n=id=>Number($("#"+id).value);
+    const p={waste:n("sr-waste"),laborRate:n("sr-rate"),setupMin:n("sr-setup"),minPerPiece:n("sr-pc"),minPerSqft:n("sr-sq"),cut:STC_GRADES.map((g,i)=>n("sr-cut"+i))};
+    if(!(p.waste>=1)||!(p.laborRate>=0)||p.cut.some(x=>!(x>0)))return toast("Check the numbers — waste is 1 or more, cut factors above 0.");
+    try{await stcCfgSave(p);closeModal();toast("Saved");render()}catch(e){toast("That didn't save.")}}}
+// one row per stencil per grade it's sold in — what the weekly cost audit reads
+function stcExportRows(){const head=["SKU","Price list code","Stencil","Category","Blank size (in)","Pieces","Grade","Material item","Material sq ft","Usage incl. waste (sq ft)","Sheet $/sq ft","Material cost","Labor cost","Current cost","Price","Price date","Margin %","Flags"];
+  const rows=[head];const c=stcCfg();
+  stcList().forEach(s=>{const fl=stcFlags(s);STC_GRADES.forEach((g,i)=>{const pr=stcPrice(s,i);if(pr==null)return;const r=stcCost(s,i);
+    const mg=(r.cost!=null&&pr)?Math.round((pr-r.cost)/pr*1000)/10:"";
+    rows.push([s.sku,s.stn||"",s.n,s.cat||"",s.w&&s.h?s.w+" x "+s.h:"",s.pc||1,g.label,r.mat?r.mat.name:"",Math.round(stcSq(s)*100)/100,
+      stcSq(s)?Math.round(stcSq(s)*c.waste*100)/100:"",r.rate?Math.round(r.rate*1000)/1000:"",r.cost!=null?r.matCost:"",r.cost!=null?r.labor:"",r.cost!=null?r.cost:"",pr,s.pd,mg,
+      r.flags.concat(fl.filter(x=>/Not on the 25 Oct/.test(x))).join("; ")])})});
+  return rows}
+async function stcCsv(){await stcLoad();if(!S.stc)return toast(S.stcErr||"The stencil catalog isn't loaded.");
+  const data=stcExportRows().map(r=>r.map(v=>{const x=String(v==null?"":v);return /[",\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x}).join(",")).join("\r\n");
+  const name="stencils-"+isoDay(Date.now())+".csv";
+  if(downloads){try{await downloads.save({filename:name,data});return}catch(e){}}
+  try{const b=new Blob([data],{type:"text/csv"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();a.remove()}catch(e){toast("Couldn't build the file here.")}}
 function webcatProducts(){return (S.webcat&&S.webcat.products)||[]}
 function webcatPic(name){const nm=String(name||"").trim().toUpperCase();if(!nm)return null;
   const idx=S.webcatIdx||(S.webcatIdx=(function(){const m={};webcatProducts().forEach(p=>{m[String(p.name||"").toUpperCase()]=p});return m})());
@@ -5818,10 +6018,10 @@ function catalogModal(target,pid,num,kind){
      <div class="sub" style="padding:0 15px 8px">${rows.length} to choose from — ${webcatProducts().length?webcatProducts().length+" products on your website with every size and material, ":""}${sheetRows().length} signs from your workbook${(S.sheet&&S.sheet.source)?" ("+esc(S.sheet.source)+")":""}, everything else from inventory at your cost plus ${Math.round(targetMargin())}% margin</div>
      ${rows.length?`<table><thead><tr><th>What it is</th><th>Size</th><th>Grade</th><th style="text-align:right">Cost</th><th style="text-align:right">Sell</th><th></th></tr></thead><tbody>
        ${rows.slice(0,400).map(r=>`<tr>
-         <td>${r.kind==="web"&&r.img?`<img src="${esc(r.img)}" alt="" loading="lazy" style="width:38px;height:38px;object-fit:contain;border:1px solid var(--line);border-radius:3px;background:#fff;float:left;margin-right:8px">`:""}<b>${esc(r.title)}</b>${r.kind==="web"?`<div class="sub">streetsignsupply.com${r.tiers&&r.tiers.length?" · "+esc(r.tiers[r.tiers.length-1][0])+" pcs "+money(r.tiers[r.tiers.length-1][1]):""}</div>`:""}${r.code&&r.kind==="sign"?`<div class="sub">${esc(r.code)}</div>`:""}${r.byArea?`<div class="sub">priced by size — ${esc(r.onHand)} ${esc(r.unit)} in stock</div>`:""}</td>
+         <td>${(r.kind==="web"||r.kind==="stc")&&r.img?`<img src="${esc(r.img)}" alt="" loading="lazy" style="width:38px;height:38px;object-fit:contain;border:1px solid var(--line);border-radius:3px;background:#fff;float:left;margin-right:8px">`:""}<b>${esc(r.title)}</b>${r.kind==="web"?`<div class="sub">streetsignsupply.com${r.tiers&&r.tiers.length?" · "+esc(r.tiers[r.tiers.length-1][0])+" pcs "+money(r.tiers[r.tiers.length-1][1]):""}</div>`:""}${r.code&&r.kind==="sign"?`<div class="sub">${esc(r.code)}</div>`:""}${r.byArea?`<div class="sub">priced by size — ${esc(r.onHand)} ${esc(r.unit)} in stock</div>`:""}</td>
          <td>${r.byArea?`<input data-catsz="${esc(r.key)}" placeholder="3x2 in, or 3ft x 5ft" style="width:86px;padding:4px 6px;border:1px solid var(--line);border-radius:3px;background:var(--card2)">`:esc(r.size)}</td>
-         <td>${esc(r.kind==="sign"?r.grade:"")}</td>
-         <td class="mono" style="text-align:right">${r.cost?money(r.cost):r.byArea?`<span class="sub">type a size</span>`:"—"}</td>
+         <td>${esc(r.kind==="sign"||r.kind==="stc"?r.grade:"")}</td>
+         <td class="mono" style="text-align:right">${r.kind==="stc"?(function(){if(!can("cost"))return "—";const c1=stcCost(r.stc,r.gi);return c1.cost!=null?money(c1.cost):`<span class="pill r" title="${esc(c1.flags.join("; "))}">not costed</span>`})():r.cost?money(r.cost):r.byArea?`<span class="sub">type a size</span>`:"—"}</td>
          <td class="mono" style="text-align:right;font-weight:800">${r.sell?money(r.sell):""}${r.mine?`<div class="sub">your price</div>`:""}</td>
          <td style="text-align:right"><button class="btn sm p" data-catpick="${esc(r.key)}">Use this</button></td></tr>`).join("")}
        </tbody></table>${rows.length>400?`<div class="sub" style="padding:8px 15px">${rows.length-400} more — narrow the search.</div>`:""}`
@@ -5833,6 +6033,13 @@ function catalogModal(target,pid,num,kind){
 }
 function catalogPick(key){
   const c=S.cat||{};const r=catRows("").find(x=>x.key===key);if(!r)return;
+  if(r.kind==="stc"){
+    // the SKU goes in the code, so the line is costed from the stencil catalog and its cost locks when it's quoted
+    const pre={code:r.sku,size:r.size,grade:r.grade,price:r.sell?Number(r.sell).toFixed(2):"",title:r.title,desc:r.title,legend:"",webImg:r.img||""};
+    closeModal();
+    if(c.target==="line")lineModal(c.num,null,pre);else ordModal(c.pid,null,pre);
+    return;
+  }
   if(r.kind==="web"){
     const pre={code:"",size:r.size,grade:r.grade,price:r.sell?Number(r.sell).toFixed(2):"",title:r.title,desc:r.title,legend:"",
       webImg:r.img||"",webId:r.pid,webVar:Number(key.split(":")[2])||0};
@@ -5986,7 +6193,7 @@ function ordCostHelp(){
   const sug=(ap&&ap.mine&&ap.sell)?ap.sell:(it0&&Number(it0.sell)&&!parseSize(line.size)?Number(it0.sell):suggestPrice(uc.cost));
   const mg=pr>0?((pr-uc.cost)/pr*100):null;
   box.innerHTML=`<div class="k">What it costs you
-      <span class="pill ${uc.src==="locked"?"b":uc.src==="sheet"?"g":"o"}" style="margin-left:6px">${uc.src==="locked"?"locked "+(line.costAt?esc(fmtDate(isoDay(line.costAt))):"when quoted"):uc.src==="sheet"?"from the cost sheet":uc.src==="material"?"from your item costs":"worked out from the material"}</span></div>
+      <span class="pill ${uc.src==="locked"?"b":uc.src==="sheet"?"g":"o"}" style="margin-left:6px">${uc.src==="locked"?"locked "+(line.costAt?esc(fmtDate(isoDay(line.costAt))):"when quoted"):uc.src==="sheet"?"from the cost sheet":uc.src==="material"?"from your item costs":uc.src==="stcflag"?"can't be costed":"worked out from the material"}</span></div>
     <div class="v"><span class="mono" style="font-weight:700">${money2(uc.cost)}</span> each${q?` — <span class="mono">${money2(uc.cost*q)}</span> for ${q}`:""}</div>
     <div class="sub" style="margin-top:3px">${esc(uc.why||"")}</div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px">
@@ -6534,13 +6741,14 @@ function planFor0(j,wastePct){
     return out;
   }
   if(prodOf(j)==="stencil"){const it=stenItem(j);
-    const odd=woItems(j).filter(x=>Number(x.qty)>0&&!parseSize(x.size));
+    const odd=woItems(j).filter(x=>Number(x.qty)>0&&!parseSize(x.size)&&!(stcBySku(x.code)&&stcSq(stcBySku(x.code))>0));
     const flag=odd.length?[{itemId:"",name:(it?it.name:stenLabel(j)),unit:"",sq:0,qty:0,onHand:0,missing:true,noSize:true,
       why:odd.map(x=>(x.qty||"")+" × "+(x.code||x.desc||"stencil")+" at \""+(x.size||"no size")+"\"").join("; ")
         +" — give each a width × height (like 39x39) so the sheet can be worked out"}]:[];
     if(!it)return flag;
-    let sq=0;woItems(j).forEach(x=>{const d=parseSize(x.size);if(d)sq+=d.w*d.h/144*(Number(x.qty)||0)});
-    if(!sq)return flag;sq*=waste;const per=sheetSqft(it);
+    // a catalog stencil uses its own material sq ft (every piece of a kit); anything else, its width × height
+    let sq=0;woItems(j).forEach(x=>{const cs=stcBySku(x.code);if(cs&&stcSq(cs)>0){sq+=stcSq(cs)*(Number(x.qty)||0);return}const d=parseSize(x.size);if(d)sq+=d.w*d.h/144*(Number(x.qty)||0)});
+    if(!sq)return flag;sq*=waste;const per=stcSheetSqft(it)||sheetSqft(it);
     return [{itemId:it.id,name:it.name,unit:it.unit||"sheet",qty:Math.round(sq/per*100)/100,sq:Math.round(sq*10)/10,onHand:onHand(it),
       why:"stencil faces cut on the CNC — "+Math.round(sq)+" sq ft including waste"}].concat(flag)}
   const out=[],pd=prodOf(j);
@@ -6688,6 +6896,7 @@ function sheetChoices(line){
 }
 // what one piece costs, and where the number came from
 function lineUnitCost(j,line){
+  {const sc=stcLineCost(line);if(sc)return sc}
   const pd=prodOf(j);
   if(pd==="sign"){
     const m=parseSize(line.size)?signMatCost(line,j):null;if(m)return m;
@@ -8610,7 +8819,7 @@ function moreNav(){
 const NAVG=[
   {id:"sales",label:"Sales",icon:"project",pages:[["mybook","contact","Dashboard"],["accounts","account","Accounts"],["projects","project","Projects"],["contacts","contact","Contacts"]]},
   {id:"shop",label:"Production",icon:"job",pages:[["jobs","job","Work orders"],["tracker","chart","Tracker"],["calendar","calendar","Calendar"],["files","file","Files"]]},
-  {id:"stock",label:"Inventory",icon:"inventory",pages:[["inventory","inventory","Inventory"],["vendors","vendor","Vendors"]]},
+  {id:"stock",label:"Inventory",icon:"inventory",pages:[["inventory","inventory","Inventory"],["stencils","inventory","Stencils"],["vendors","vendor","Vendors"]]},
   {id:"money",label:"Reports",icon:"chart",pages:[["reports","chart","Reports"]]},
   {id:"admin",label:"Admin",icon:"history",pages:[["archive","archive","Archive"],["audit","history","History"],["settings","history","Settings"]]}];
 /* ===== who can do what =====
@@ -8723,6 +8932,7 @@ function body(){
     case "vendors":return vendorListView();
     case "vendor":return vendorRec(r.id);
     case "inventory":return inventoryView();
+    case "stencils":return stencilsView();
     case "item":return itemRec(r.id);
     case "calendar":return calendarView();
     case "audit":return auditView();
@@ -9376,7 +9586,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-58";
+const APP_VERSION="2026.11.25-59";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -14482,6 +14692,8 @@ function bind(){
   if(gq)gq.oninput=e=>{S.gsearch=e.target.value;clearTimeout(deb.get("g"));
     deb.set("g",setTimeout(()=>{const p=e.target.selectionStart;render();
       const n=$("#gq");if(n){n.focus();try{n.setSelectionRange(p,p)}catch(_){}}},220))};
+  {const a=$("#stc-cat");if(a)a.onchange=()=>{S.stcF=Object.assign({},S.stcF||{},{cat:a.value,page:0});render()};
+   const b=$("#stc-gi");if(b)b.onchange=()=>{S.stcF=Object.assign({},S.stcF||{},{gi:Number(b.value)||0});render()}}
   const lq=$("#lq");
   if(lq)lq.oninput=e=>{S.q=e.target.value;clearTimeout(deb.get("l"));
     deb.set("l",setTimeout(()=>{const p=e.target.selectionStart;render();
@@ -15121,6 +15333,16 @@ function bind(){
     const nv=t.closest("[data-newvend]");if(nv){vendorModal(null);return}
     const evd=t.closest("[data-editvend]");if(evd){vendorModal(S.vendors.get(evd.dataset.editvend));return}
     {const x=t.closest("[data-vpadd]");if(x){vendPersonModal(x.dataset.vpadd,"");return}}
+    {const x=t.closest("[data-stcview]");if(x){stcViewModal(x.dataset.stcview);return}}
+    {const x=t.closest("[data-stcmat]");if(x){stcMatModal(Number(x.dataset.stcmat));return}}
+    {const x=t.closest("[data-stcrates]");if(x){stcRatesModal();return}}
+    {const x=t.closest("[data-stccsv]");if(x){stcCsv();return}}
+    {const x=t.closest("[data-stcflag]");if(x){S.stcF=Object.assign({},S.stcF||{},{flag:!(S.stcF&&S.stcF.flag),page:0});render();return}}
+    {const x=t.closest("[data-stcpage]");if(x){S.stcF=Object.assign({},S.stcF||{},{page:Number(x.dataset.stcpage)||0});render();const m=$(".main");if(m)m.scrollTop=0;return}}
+    {const x=t.closest("[data-stcsq]");if(x){const sku=x.dataset.stcsq,v=Number(($("#stc-sq")||{}).value);const c0=stcCfg();const sq=Object.assign({},c0.sq);const st=stcBySku(sku);
+      if(!(v>0))return toast("Put in the sq ft of sheet it takes.");
+      if(st&&Math.abs(v-(Number(st.sq)||0))<0.001)delete sq[sku];else sq[sku]=v;
+      stcCfgSave({sq}).then(()=>{toast("Saved");closeModal();stcViewModal(sku);render()}).catch(()=>toast("That didn't save."));return}}
     {const x=t.closest("[data-costrefresh]");if(x){const pid=x.dataset.costrefresh;lockLineCosts(pid,true).then(n=>toast(n?"Costs refreshed on "+n+" line"+(n===1?"":"s"):"Costs are already current"));return}}
     {const x=t.closest("[data-vpview]");if(x){const[a,b]=x.dataset.vpview.split("|");vendPersonView(a,b);return}}
     {const x=t.closest("[data-vpedit]");if(x){const[a,b]=x.dataset.vpedit.split("|");vendPersonModal(a,b);return}}

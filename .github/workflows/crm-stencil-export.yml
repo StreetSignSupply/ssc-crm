@@ -1,0 +1,38 @@
+name: Stencil export (CRM Stencils tab)
+# Every stencil with today's cost from the CRM, written to the "CRM Stencils" tab of the SSS Pipeline sheet
+# for the weekly cost audit. Runs early every Monday, whenever the stencil catalog changes, or by hand.
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: "17 10 * * 1"
+  push:
+    branches: [main]
+    paths: ["public/stencil-catalog.json", ".github/workflows/crm-stencil-export.yml"]
+permissions:
+  contents: read
+  id-token: write
+concurrency: { group: crm-fix, cancel-in-progress: false }
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - id: gauth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/741399760463/locations/global/workloadIdentityPools/github/providers/ssc-crm
+          service_account: firebase-adminsdk-fbsvc@ssc-crm-a7224.iam.gserviceaccount.com
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/spreadsheets,https://www.googleapis.com/auth/cloud-platform
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - working-directory: worker
+        run: npm install --no-audit --no-fund --loglevel=error 2>&1 | tail -2
+      - working-directory: worker
+        env:
+          FIREBASE_PROJECT: ssc-crm-a7224
+          FIX_STEP: stencils
+          WATCH_MIN: "25"
+          SHEETS_TOKEN: ${{ steps.gauth.outputs.access_token }}
+        run: node fix.mjs
