@@ -1045,6 +1045,34 @@ details.dd[open] > summary{border-color:var(--ink3)}
   .pj-foot{font-size:9.5px;margin-top:7px;display:flex}
   .pj-foot span{margin-left:auto}
 }
+/* ===== polish: contact details with icons, and one type scale =====
+   labels 12 · secondary text 13 · body 14 · card titles 15; nothing on screen under 11 */
+.cx{display:inline-flex;align-items:flex-start;gap:7px;color:var(--blue);text-decoration:none;line-height:1.35;max-width:100%;font-size:13.5px}
+.cx .ic{flex:0 0 auto;color:var(--ink3);margin-top:1px}
+.cx span{min-width:0;overflow-wrap:anywhere}
+.cx:hover span{text-decoration:underline;text-underline-offset:2px}
+.cx:hover .ic{color:var(--blue)}
+.cxl{display:flex;flex-direction:column;align-items:flex-start;gap:5px;margin-top:4px}
+td > .cxl:first-child{margin-top:0}
+.hl-facts .v .cx{font-size:14px;font-weight:600}
+.fld .k,.hl-facts .k{font-size:12px}
+.fld .v{font-size:14px;line-height:1.4}
+.hl-facts .v{font-size:15px}
+.sub{font-size:13px}
+.card>header .n{font-size:13px}
+.act .c .m{font-size:14px;line-height:1.45}
+.act .c time,.hrow time{font-size:12px;font-family:inherit;letter-spacing:0}
+.sortb,.sres .t,.gme label,.step small,.matrow-fact .k,.jchip,.ev,.bell-r .btn.sm,.dd-m > .on::after,.snav button .n{font-size:11.5px}
+.main table.stack td[data-label]::before,.trk-ph-facts span{font-size:11px}
+th{font-size:12px}
+.pill{font-size:11.5px}
+.hl-facts .v .lnk{font-size:inherit}
+.cx-web span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.cx-web{min-width:0}
+.rail-web{flex:0 0 auto;border-top:1px solid var(--line2);padding:4px 0}
+.rail-web .rail-i{color:var(--ink2)}
+.rail-ext{flex:0 0 auto!important;font-size:12px;color:var(--ink3);margin-left:auto}
+.app.rail-min .rail-ext{display:none}
 </style>
 </head>
 <body>
@@ -1364,6 +1392,9 @@ const WQ=new Map();
 /* ========== utils ========== */
 const $=s=>document.querySelector(s);
 const ICO={
+  globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+  pin:'<path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
+  mobile:'<rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/>',
   call:'<path d="M5 3h3l2 5-2.5 1.5a11 11 0 0 0 5 5L14 12l5 2v3a2 2 0 0 1-2.2 2A16 16 0 0 1 3 5.2 2 2 0 0 1 5 3z"/>',
   email:'<rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
   meeting:'<circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 20a5 5 0 0 1 6-4.6"/>',
@@ -1992,6 +2023,34 @@ function scopeBar(){
 const teamList=()=>live(S.team).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
 function teamName(id){const t=S.team.get(id);return t&&!t.deleted?t.name:""}
 
+/* ===== people at a vendor: more than one rep, each with their own location (Grimco Las Vegas and Salt Lake) ===== */
+function vendPeople(v){return ((v&&v.people)||[]).filter(x=>x&&!x.deleted)}
+function vendPeopleCard(v){const ps=vendPeople(v);
+  return `<section class="card flush"><header><span class="oi sm oi-cont">${ic("contact",14)}</span><h2>People at ${esc(v.name||"this vendor")}</h2>
+    <span class="n">${ps.length}</span><span class="sp"><button class="btn sm" data-vpadd="${esc(v.id)}">Add person</button></span></header>
+    ${ps.length?`<table><tbody>${ps.map(x=>`<tr>
+      <td><b>${esc(x.name||"—")}</b><div class="sub">${esc([x.title,x.location].filter(Boolean).join(" · "))}</div></td>
+      <td>${cxLines(cxMail(x.email,"",{cc:false}),cxTel(x.phone),cxTel(x.mobile,"mobile"))||`<span class="sub">no email or phone yet</span>`}</td>
+      <td style="width:130px;text-align:right;white-space:nowrap"><button class="btn sm" data-vpedit="${esc(v.id)}|${esc(x.id)}">Edit</button>
+        <button class="btn sm d" data-vpdel="${esc(v.id)}|${esc(x.id)}">Remove</button></td></tr>`).join("")}</tbody></table>`
+    :`<div class="empty">Add each rep you deal with — a different branch or location is fine. ${v.contact?`${esc(v.contact)} stays as the main rep in Details.`:""}</div>`}</section>`}
+function vendPersonModal(vid,pid){const v=S.vendors.get(vid);if(!v)return;const x=vendPeople(v).find(y=>y.id===pid)||{};
+  openModal(mshell(x.id?"Edit person":"Add a person at "+(v.name||"this vendor"),"cont",
+    `<div class="fgrid">${inp("vp-name","Name",x.name,"text")}${inp("vp-title","Title / role",x.title)}
+      ${inp("vp-loc","Location / branch",x.location||"")}${inp("vp-email","Email",x.email,"email")}
+      ${inp("vp-phone","Phone",x.phone,"tel")}${inp("vp-mobile","Mobile",x.mobile,"tel")}
+      ${ta("vp-notes","Notes",x.notes)}</div>`,
+    `<button class="btn" data-close="1">Cancel</button><button class="btn p" id="vpsave">Save</button>`));
+  $("#vpsave").onclick=async()=>{const name=$("#vp-name").value.trim();if(!name){$("#vp-name").focus();return toast("Put in their name.")}
+    const rec={id:x.id||uid("vp"),name,title:$("#vp-title").value.trim(),location:$("#vp-loc").value.trim(),email:$("#vp-email").value.trim(),
+      phone:fmtPhone($("#vp-phone").value.trim()),mobile:fmtPhone($("#vp-mobile").value.trim()),notes:$("#vp-notes").value.trim(),createdAt:x.createdAt||Date.now()};
+    const all=((S.vendors.get(vid)||{}).people||[]).filter(y=>y&&y.id!==rec.id).concat([rec]);
+    closeModal();await push("vendors/"+vid,{people:all,updatedAt:Date.now()});
+    recordHistory("vendor",vid,[{f:"People",o:"",n:(x.id?"Edited ":"Added ")+name+(rec.location?" ("+rec.location+")":""),ev:1}]);toast(x.id?"Saved.":"Added "+name+".")}}
+async function vendPersonDel(vid,pid){const v=S.vendors.get(vid);if(!v)return;const x=vendPeople(v).find(y=>y.id===pid);if(!x)return;
+  askConfirm("Remove "+(x.name||"this person")+"?",`<p style="margin:0">They come off ${esc(v.name||"this vendor")}'s people list. Field history keeps a note of it.</p>`,"Remove",true,async()=>{
+    await push("vendors/"+vid,{people:(v.people||[]).map(y=>y&&y.id===pid?Object.assign({},y,{deleted:true,deletedAt:Date.now()}):y),updatedAt:Date.now()});
+    recordHistory("vendor",vid,[{f:"People",o:x.name||"",n:"Removed",ev:1}]);toast("Removed.")})}
 function vendorModal(v,then){
   v=v||{};
   const _seenV=v.updatedAt||0;
@@ -2277,8 +2336,7 @@ function billingBlock(c,override,logKey){
   if(!c)return `<div class="v"><span class="pill r">Not set</span></div>`;
   return `<div class="v"><button class="lnk" data-go="contact/${esc(c.id)}">${esc(c.name)}</button>
     ${override?` <span class="pill">project override</span>`:""}
-    <div class="sub">${c.email?`<a href="${esc(mailLink(c.email))}"${mailTarget()}${logKey?` data-maillog="${esc(logKey)}:${esc(c.id)}"`:""}>${esc(c.email)}</a>`:"no email on file"}
-      ${c.phone?` · <span style="white-space:nowrap">${esc(fmtPhone(c.phone))}</span>`:""}</div></div>`;
+    ${cxLines(cxMail(c.email,logKey?logKey+":"+c.id:""),cxTel(c.phone))||`<div class="sub">no email on file</div>`}</div>`;
 }
 function billingModal(scope,id){
   const isAcct=scope==="account";
@@ -7385,8 +7443,42 @@ function picEntry(line){
   for(const k of tries){const e=k&&lib[k];if(e&&e.img&&!e.web)return e}     // a picture uploaded by hand for this item wins
   {const wb=webBest(line);if(wb)return wb}                                  // the website sign that matches the words, legend and direction
   for(const k of tries){if(k&&lib[k])return lib[k]}
-  return webcatPic(line&&line.desc)||webcatPic(line&&line.title)||webcatByWords(cd&&typeof SIGN_NAMES!=="undefined"?SIGN_NAMES[cd]:"")||genericSignPic(line);
+  return webcatPic(line&&line.desc)||webcatPic(line&&line.title)||webcatByWords(cd&&typeof SIGN_NAMES!=="undefined"?SIGN_NAMES[cd]:"")||mutcdPic(line,cd)||genericSignPic(line);
 }
+/* ===== MUTCD sign pictures, found by themselves =====
+   Every standard MUTCD sign has a public-domain drawing on Wikimedia Commons named MUTCD_<code>.svg
+   (MUTCD_R1-1.svg, MUTCD_W1-2R.svg). A line with a sign code (on the line, or in its description like
+   "1.1 R1-1 Stop 30x30") gets that picture without anyone looking for it. The link is checked once in the
+   background; a code Commons doesn't have falls back to the plain drawing. Hand-uploaded pictures and the
+   website's own photos still come first. */
+const MUTCD_RX=/\b([RWDEIMOSG]\d{1,2}-\d{1,2}[A-Za-z]{0,2})\b/i;
+// the code as written on the line (Commons file names are case-sensitive: R1-5b, W1-2R)
+function mutcdCodeOf(line,cd){const raw=String((line&&line.code)||cd||"").split("|")[0].trim();
+  let m=MUTCD_RX.exec(raw);if(m&&m[1].length===raw.length)return m[1];
+  m=MUTCD_RX.exec(String((line&&line.desc)||""));return m?m[1]:""}
+function mutcdUrl(code){const f="MUTCD_"+code+".svg",h=md5(f);
+  return "https://upload.wikimedia.org/wikipedia/commons/thumb/"+h[0]+"/"+h.slice(0,2)+"/"+f+"/330px-"+f+".png"}
+// R1-5b and W1-2R are both real: try the code as written, then letters after the number lower-case, then upper-case
+function mutcdTries(code){const head=code.replace(/[A-Za-z]+$/,""),tail=code.slice(head.length);
+  const pre=head.charAt(0).toUpperCase()+head.slice(1);
+  return [...new Set([pre+tail,pre+tail.toLowerCase(),pre+tail.toUpperCase()])]}
+function mutcdPic(line,cd){try{const code=mutcdCodeOf(line,cd);if(!code)return null;
+  for(const c of mutcdTries(code)){const u=mutcdUrl(c);picProbe(u);if(PICBAD[u])continue;
+    return {img:u,name:c+(typeof SIGN_NAMES!=="undefined"&&SIGN_NAMES[c.toUpperCase()]?" "+SIGN_NAMES[c.toUpperCase()]:""),web:true,mutcd:true}}
+  return null}catch(e){return null}}
+// small MD5 (Wikimedia files live under folders named from the MD5 of the file name)
+function md5(str){const k=[],r=[7,12,17,22,7,12,17,22,7,12,17,22,7,12,17,22,5,9,14,20,5,9,14,20,5,9,14,20,5,9,14,20,4,11,16,23,4,11,16,23,4,11,16,23,4,11,16,23,6,10,15,21,6,10,15,21,6,10,15,21,6,10,15,21];
+  for(let i=0;i<64;i++)k[i]=Math.floor(Math.abs(Math.sin(i+1))*4294967296)|0;
+  const b=unescape(encodeURIComponent(str)),n=b.length,words=[];
+  for(let i=0;i<n;i++)words[i>>2]|=b.charCodeAt(i)<<((i%4)*8);
+  words[n>>2]|=0x80<<((n%4)*8);const nb=(((n+8)>>6)+1)*16;for(let i=0;i<nb;i++)words[i]=words[i]|0;words[nb-2]=n*8;
+  let a0=0x67452301,b0=0xefcdab89|0,c0=0x98badcfe|0,d0=0x10325476;
+  for(let o=0;o<nb;o+=16){let A=a0,B=b0,C=c0,D=d0;
+    for(let i=0;i<64;i++){let F,g;
+      if(i<16){F=(B&C)|(~B&D);g=i}else if(i<32){F=(D&B)|(~D&C);g=(5*i+1)%16}else if(i<48){F=B^C^D;g=(3*i+5)%16}else{F=C^(B|~D);g=(7*i)%16}
+      const t=D;D=C;C=B;const x=(A+F+k[i]+words[o+g])|0;B=(B+((x<<r[i])|(x>>>(32-r[i]))))|0;A=t}
+    a0=(a0+A)|0;b0=(b0+B)|0;c0=(c0+C)|0;d0=(d0+D)|0}
+  return [a0,b0,c0,d0].map(v=>{let h="";for(let i=0;i<4;i++)h+=((v>>>(i*8))&255).toString(16).padStart(2,"0");return h}).join("")}
 // the website sign whose name carries every word of the MUTCD name ("One way" -> "One Way Sign")
 function webcatByWords(nm){nm=String(nm||"").toUpperCase().replace(/\(.*?\)/g,"").trim();if(nm.length<3)return null;
   const w=nm.split(/[^A-Z0-9]+/).filter(x=>x.length>=2);if(!w.length)return null;
@@ -8434,6 +8526,7 @@ function rail(){
       <a href="#/${target}" class="rail-i ${onDash?"on":""}" ${onDash?'aria-current="page"':""} title="${esc(lbl)}">${ic("home",18)}<span>${esc(lbl)}</span></a>${tog}
       ${groups}
     </nav>
+    <div class="rail-web"><a class="rail-i" href="${esc((S.brand||{}).website||"https://streetsignsupply.com")}" target="_blank" rel="noopener" title="Open streetsignsupply.com in a new tab">${ic("globe",18)}<span>Our website</span><span class="rail-ext">↗</span></a></div>
     <div class="rail-foot"><button class="rail-i" data-railtog="1" title="Collapse the menu">${ic("collapse",18)}<span class="rl-c">Collapse</span><span class="rl-x">Expand</span></button></div>
   </aside>`;
 }
@@ -8767,7 +8860,7 @@ function accountRec(id){
           <div class="fld"><div class="k">Invoices go to</div>${billingBlock(billingForAccount(a),false,"account:"+id)}</div>
           ${fld("QuickBooks customer name",a.qb)}
           ${a.exempt?fld("Exemption certificate",a.exemptExp?"Expires "+fmtDate(a.exemptExp):"On file, no expiry recorded"):""}
-          ${fldFull("Billing address",[a.street,a.city,a.state,a.zip].filter(Boolean).join(", "))}
+          ${fldHFull("Billing address",cxAddr([a.street,a.city,a.state,a.zip].filter(Boolean).join(", ")))}
         </div></section>
       ${(function(){const d=acctDiscount(a);const cps=Object.entries(a.contractPrices||{});
         return `<section class="card flush"><header><h2>Special pricing</h2>
@@ -8784,7 +8877,7 @@ function accountRec(id){
         </section>`})()}
       <section class="card flush"><header><h2>Details</h2>
         <span class="sp"><button class="btn sm" data-edit="account:${esc(id)}">Edit</button></span></header>
-        <div class="fgrid">${fld("Phone",fmtPhone(a.phone))}${fld("Website",a.website,1)}
+        <div class="fgrid">${fldH("Phone",cxTel(a.phone))}${fldH("Website",cxWeb(a.website))}
           ${fld("Created",fmtTs(a.createdAt))}
           ${fldFull("Notes",a.notes)}</div></section>
       ${relContacts(cs,id)}
@@ -8879,18 +8972,32 @@ function crumbsForItem(it){
 }
 function crumbsForVendor(v){return [{l:"Vendors",h:"vendors"},{l:v.name}]}
 function notFound(w){return `<div class="pad"><div class="empty"><b>${esc(w)} not found</b>It may have been deleted. Check the recycle bin in Settings.</div></div>`}
+// contact details with an icon: email, phone, mobile, website, address. Each is a real link (mail, call, web, map).
+function cxMail(email,logKey,opts){if(!email)return "";
+  return `<a class="cx" href="${esc(mailLink(email,"","",opts))}"${mailTarget()}${logKey?` data-maillog="${esc(logKey)}"`:""} title="Email ${esc(email)}">${ic("email",15)}<span>${esc(email).replace("@","@<wbr>")}</span></a>`}
+function cxTel(phone,kind){const f=fmtPhone(phone);if(!f)return "";
+  return `<a class="cx" href="tel:${esc(telHref(phone))}" title="Call ${esc(f)}">${ic(kind==="mobile"?"mobile":"call",15)}<span>${esc(f)}</span></a>`}
+function cxWeb(url){if(!url)return "";const href=/^https?:/i.test(url)?url:"https://"+url;
+  const show=String(url).replace(/^https?:\/\//i,"").replace(/^www\./i,"").replace(/\/+$/,"");
+  return `<a class="cx cx-web" href="${esc(href)}" target="_blank" rel="noopener" title="Open ${esc(show)}">${ic("globe",15)}<span>${esc(show)}</span></a>`}
+function cxAddr(addr){if(!addr)return "";
+  return `<a class="cx" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}" target="_blank" rel="noopener" title="Open in Maps">${ic("pin",15)}<span>${esc(addr)}</span></a>`}
+function cxLines(){const x=[...arguments].filter(Boolean);return x.length?`<div class="cxl">${x.join("")}</div>`:""}
+function fldH(k,html){return `<div class="fld"><div class="k">${esc(k)}</div><div class="v">${html||"—"}</div></div>`}
+function fldHFull(k,html){return `<div class="fld full"><div class="k">${esc(k)}</div><div class="v">${html||"—"}</div></div>`}
 function fld(k,v,link){
   const val=v?(link?`<a href="${esc(/^https?:/.test(v)?v:"https://"+v)}" target="_blank" rel="noopener">${esc(v)}</a>`:esc(v)):"—";
   return `<div class="fld"><div class="k">${esc(k)}</div><div class="v">${val}</div></div>`;
 }
 function fldFull(k,v){return `<div class="fld full"><div class="k">${esc(k)}</div><div class="v">${v?esc(v):"—"}</div></div>`}
 function relContacts(cs,aid){
+  cs=cs.slice().sort((x,y)=>(y.primary?1:0)-(x.primary?1:0)||String(x.name||"").localeCompare(String(y.name||"")));
   return `<section class="card flush"><header><span class="oi sm oi-cont">${ic("contact",14)}</span><h2>Contacts</h2>
     <span class="n">${cs.length}</span><span class="sp"><button class="btn sm" data-new="contact:${esc(aid)}">New</button></span></header>
     ${cs.length?`<table><tbody>${cs.map(c=>`<tr>
       <td><button class="lnk" data-go="contact/${esc(c.id)}">${esc(c.name)}</button>
         <div class="sub">${esc(c.role||c.title||"")}</div></td>
-      <td>${c.email?`<a href="${esc(mailLink(c.email))}"${mailTarget()} data-maillog="account:${esc(aid)}:${esc(c.id)}">${esc(c.email)}</a>`:""}<div class="sub" style="white-space:nowrap">${esc(fmtPhone(c.phone)||"")}</div></td>
+      <td>${cxLines(cxMail(c.email,"account:"+aid+":"+c.id),cxTel(c.phone),cxTel(c.mobile,"mobile"))||`<span class="sub">no email or phone yet</span>`}</td>
       <td style="width:80px;text-align:right">${c.primary?`<span class="pill g">Primary</span>`:""}</td></tr>`).join("")}</tbody></table>`
     :`<div class="empty">No contacts. Add the buyer and the AP contact — rarely the same person.</div>`}</section>`;
 }
@@ -8984,8 +9091,8 @@ function contactList(){
         <td><button class="lnk" data-go="contact/${esc(c.id)}">${esc(c.name)}</button><div class="sub">${esc(c.title||"")}</div></td>
         <td><button class="lnk" data-go="account/${esc(c.accountId)}">${esc(accName(c.accountId))}</button></td>
         <td>${esc(c.role||"—")}</td>
-        <td>${c.email?`<a href="${esc(mailLink(c.email))}"${mailTarget()} data-maillog="account:${esc(c.accountId)}:${esc(c.id)}">${esc(c.email).replace("@","@<wbr>")}</a>`:"—"}</td>
-        <td style="white-space:nowrap">${esc(fmtPhone(c.phone)||"—")}</td></tr>`).join("")}</tbody></table>`
+        <td>${cxMail(c.email,"account:"+c.accountId+":"+c.id)||"—"}</td>
+        <td style="white-space:nowrap">${cxTel(c.phone)||"—"}</td></tr>`).join("")}</tbody></table>`
     :`<div class="empty"><b>No contacts yet</b>Add people under an account.</div>`}</section></div>`;
 }
 function contactRec(id){
@@ -8999,12 +9106,12 @@ function contactRec(id){
       <div class="hl-facts">
         <div><div class="k">Account</div><div class="v"><button class="lnk" data-go="account/${esc(c.accountId)}">${esc(accName(c.accountId))}</button></div></div>
         <div><div class="k">Role</div><div class="v">${esc(c.role||"—")}</div></div>
-        <div><div class="k">Email</div><div class="v">${c.email?`<a href="${esc(mailLink(c.email))}"${mailTarget()} data-maillog="account:${esc(c.accountId)}:${esc(c.id)}">${esc(c.email)}</a>`:"—"}</div></div>
-        <div><div class="k">Phone</div><div class="v">${esc(fmtPhone(c.phone)||"—")}</div></div></div></div>
+        <div><div class="k">Email</div><div class="v">${cxMail(c.email,"account:"+c.accountId+":"+c.id)||"—"}</div></div>
+        <div><div class="k">Phone</div><div class="v">${cxTel(c.phone)||"—"}</div></div></div></div>
     <div class="cols">
       <section class="card flush"><header><h2>Details</h2></header><div class="fgrid">
         ${fld("Title",c.title)}${fld("Role",c.role)}${fld("Primary contact",c.primary?"Yes":"No")}
-        ${fld("Mobile",fmtPhone(c.mobile))}${fldFull("Notes",c.notes)}</div></section>
+        ${fldH("Mobile",cxTel(c.mobile,"mobile"))}${fldFull("Notes",c.notes)}</div></section>
       <div>
         ${(function(){const ps=live(S.projects).filter(x=>(x.contacts||[]).indexOf(id)>=0);
           return `<section class="card flush"><header><span class="oi sm oi-proj">${ic("project",14)}</span><h2>On these projects</h2>
@@ -9094,7 +9201,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-39";
+const APP_VERSION="2026.11.25-42";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -9427,8 +9534,8 @@ function projectRec(id){
                 <div style="padding:10px 15px;border-right:1px solid var(--line2)"><div class="kpi-l">Won to date</div><div class="v" style="font-size:18px;font-weight:800">${won.length}</div><div class="sub">${money(wonVal)}</div></div>
                 <div style="padding:10px 15px"><div class="kpi-l">All projects</div><div class="v" style="font-size:18px;font-weight:800">${ps.length}</div><div class="sub">${esc(a.terms||"no terms set")}</div></div>
               </div>
-              <div class="fgrid">${fld("Phone",fmtPhone(a.phone))}${fld("Main contact",prim?prim.name+(prim.role?" — "+prim.role:""):"none yet")}
-                ${fld("Address",addr||"—")}${fld("Website",a.website||"—")}`})()}
+              <div class="fgrid">${fldH("Phone",cxTel(a.phone))}${fld("Main contact",prim?prim.name+(prim.role?" — "+prim.role:""):"none yet")}
+                ${fldH("Address",cxAddr(addr))}${fldH("Website",cxWeb(a.website))}`})()}
             <div class="fld full"><div class="k">Invoice to
               <button class="btn sm" data-billing="project:${esc(id)}" style="float:right;margin-top:-3px">Change</button></div>
               ${billingBlock(billingFor(p),!!p.billingContactId,"project:"+id)}
@@ -9575,8 +9682,7 @@ function contactRow(c,pid,assigned){
       ${assigned?` <span class="pill g">On project</span>`:""}
       ${isBill?` <span class="pill b">Invoices</span>`:""}
       <div class="sub">${esc(c.role||c.title||"")}</div></td>
-    <td>${c.phone?`<a href="tel:${esc(telHref(c.phone))}">${esc(fmtPhone(c.phone))}</a>`:`<span class="sub">no phone</span>`}
-      <div class="sub">${c.email?esc(c.email):"no email"}</div></td>
+    <td>${cxLines(cxTel(c.phone),cxMail(c.email,"project:"+pid+":"+c.id))||`<span class="sub">no phone or email</span>`}</td>
     <td style="width:150px;text-align:right;white-space:nowrap">
       <button class="btn sm" data-log="project:${esc(pid)}:call:${esc(c.id)}">Call</button>
       ${c.email?`<button class="btn sm" data-email="${esc(pid)}:${esc(c.id)}">Email</button>`:""}
@@ -9948,7 +10054,7 @@ function gateRow(j,k,t,h){
 function fileCard(kind,id){
   const fs=filesOf(kind,id);
   const scope=kind==="account"?"this account, plus every file on its projects below"
-    :kind==="project"?"this project only":"this work order only";
+    :kind==="project"?"this project only":kind==="vendor"?"this vendor only":"this work order only";
   let more="";
   if(kind==="account"){const I=String(id);
     const sub=live(S.files).filter(f=>f.accountId===I&&(f.projectId||f.jobId)).sort((a,b)=>(b.at||0)-(a.at||0)).map(f=>{
@@ -10260,7 +10366,7 @@ function vendorListView(){
         <td><button class="lnk" data-go="vendor/${esc(v.id)}">${esc(v.name||"Unnamed vendor — add a name")}</button>
           <div class="sub">${esc([v.city,v.state].filter(Boolean).join(", "))}</div></td>
         <td>${esc(v.type||"—")}</td>
-        <td style="max-width:240px;white-space:normal;overflow-wrap:anywhere">${esc(v.contact||"—")}<div class="sub">${esc(fmtPhone(v.phone)||"")}</div></td>
+        <td style="max-width:240px;white-space:normal;overflow-wrap:anywhere">${esc(v.contact||"—")}${v.phone?`<div class="cxl">${cxTel(v.phone)}</div>`:""}</td>
         <td style="max-width:260px;white-space:normal;overflow-wrap:anywhere">${esc(v.terms||"—")}</td><td style="max-width:140px;white-space:normal">${esc(v.leadTime||"—")}</td>
         <td class="mono">${(itemsOf(v.id).length+altItemsOf(v.id).length)||"—"}</td></tr>`).join("")}</tbody></table></div>`
     :`<div class="empty"><b>No vendors yet</b>Add who you buy sheeting, substrate, film, and hardware from.</div>`}
@@ -10291,12 +10397,12 @@ function vendorRec(id){
     <div class="cols">
       <section class="card flush"><header><h2>Details</h2>
         <span class="sp"><button class="btn sm" data-editvend="${esc(id)}">Edit</button></span></header>
-        <div class="fgrid">${fld("Contact",v.contact)}${fld("Phone",fmtPhone(v.phone))}
-          <div class="fld"><div class="k">Email</div><div class="v">${v.email?`<a href="${esc(mailLink(v.email,"","",{cc:false}))}"${mailTarget()}>${esc(v.email)}</a>`:"—"}</div></div>
-          ${fld("Website",v.website,1)}
-          ${fld("Address",[v.street,v.city,v.state,v.zip].filter(Boolean).join(", "))}
+        <div class="fgrid">${fld("Main rep",v.contact)}${fldH("Phone",cxTel(v.phone))}
+          ${fldH("Email",cxMail(v.email,"",{cc:false}))}
+          ${fldH("Website",cxWeb(v.website))}
+          ${fldH("Address",cxAddr([v.street,v.city,v.state,v.zip].filter(Boolean).join(", ")))}
           ${fld("Account number",v.acct)}${fldFull("Notes",v.notes)}</div></section>
-      <div>${fileCard("vendor",id)}${activityCard("vendor",id)}</div>
+      <div>${vendPeopleCard(v)}${fileCard("vendor",id)}${activityCard("vendor",id)}</div>
     </div>
     ${(function(){const all=itemList().filter(i=>itemVendors(i).some(x=>x.vendorId===id)).sort((x,y)=>(x.name||"").localeCompare(y.name||""));
       return `<section class="card flush wide"><header><h2>What we buy from them</h2><span class="n">${all.length}</span>
@@ -14819,6 +14925,9 @@ function bind(){
     const ev2=t.closest("[data-evinvite]");if(ev2){inviteMail(S.events.get(ev2.dataset.evinvite));return}
     const nv=t.closest("[data-newvend]");if(nv){vendorModal(null);return}
     const evd=t.closest("[data-editvend]");if(evd){vendorModal(S.vendors.get(evd.dataset.editvend));return}
+    {const x=t.closest("[data-vpadd]");if(x){vendPersonModal(x.dataset.vpadd,"");return}}
+    {const x=t.closest("[data-vpedit]");if(x){const[a,b]=x.dataset.vpedit.split("|");vendPersonModal(a,b);return}}
+    {const x=t.closest("[data-vpdel]");if(x){const[a,b]=x.dataset.vpdel.split("|");vendPersonDel(a,b);return}}
     const dvd=t.closest("[data-delvend]");
     if(dvd){const id5=dvd.dataset.delvend;const cnt=itemsOf(id5).length;
       askConfirm("Delete this vendor?",
