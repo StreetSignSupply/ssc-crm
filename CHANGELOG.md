@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-43 — 2026-10-28
+- Fixed: files uploaded on a vendor (invoices, quotes, price sheets) were saved without the vendor and never showed — they now attach to the vendor and list in its Files card; the upload starts on the Invoice category
+
 ## 2026.11.25-42 — 2026-10-28
 - Email, phone, mobile, website and address show with icons everywhere (accounts, contacts, vendors, billing, project contacts) and each one is a link: email, call, open the site, open in Maps
 - Websites show as the plain address (ashcreekssd.utah.gov), on one line
