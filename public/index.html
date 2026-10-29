@@ -8745,6 +8745,10 @@ function render(){
   document.querySelectorAll("#viewer,.scrim,.modal").forEach(el=>el.remove());
   const prev=$(".main"),st=prev?prev.scrollTop:0,wy=window.scrollY||0;
   const rkey=(S.route&&S.route.v||"")+"/"+(S.route&&S.route.id||"");
+  // the Google sign-in usually comes back within a few seconds of opening: show a plain loading screen until then,
+  // and only show the sign-in card if it really hasn't come back
+  if(needSignIn()&&Date.now()-BOOT_AT<8000){waitForSignIn();$("#root").innerHTML=`<div class="boot" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:10px">
+      <div style="font-weight:800;font-size:16px">Street Sign Supply CRM</div><div class="sub">Loading your data…</div></div>`;setTimeout(()=>{try{render()}catch(e){}},1000);return}
   if(needSignIn()){waitForSignIn();$("#root").innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:16px">
     <section class="card" style="max-width:420px;width:100%"><header><h2>Sign in to the CRM</h2></header><div class="body">
     <p style="margin:0 0 12px">Checking your Google work sign-in… If you're already signed in, this opens by itself in a few seconds.</p>
@@ -8779,6 +8783,7 @@ function render(){
   if(rkey===S.lastKey){if(m&&st)m.scrollTop=st;if(wy)window.scrollTo(0,wy)}
   S.lastView=S.route.v;S.lastKey=rkey;
 }
+const BOOT_AT=Date.now();
 const RECORD_VIEWS={project:1,account:1,contact:1,job:1,vendor:1,item:1};
 function gbar(){
   const b=S.brand||DEF_BRAND,v=S.route&&S.route.v||"home";
@@ -8913,7 +8918,8 @@ const NAVG=[
 const ACCESS={owner:{label:"Owner",settings:1,del:1,cost:1,price:1},office:{label:"Office",settings:0,del:1,cost:1,price:1},
   sales:{label:"Sales",settings:0,del:0,cost:0,price:1},shop:{label:"Shop",settings:0,del:0,cost:0,price:0}};
 // once an owner has claimed their record, anyone not on the team list (or wearing someone else's initials) gets Shop only
-function ownerClaimed(){return !!(S.team&&live(S.team).some(x=>(x.access||"owner")==="owner"&&x.claudeId))}
+// on crm.streetsignsupply.com the database lets only the team in, and an owner's sign-in email is their proof
+function ownerClaimed(){return !!(S.team&&live(S.team).some(x=>(x.access||"owner")==="owner"&&(x.claudeId||(isHosted()&&String(x.email||"").includes("@")))))}
 function myAccess(){const vid=viewerId();
   // a real match: this sign-in claimed the record, or its email is on it
   const ve=String((S.viewer&&S.viewer.email)||"").toLowerCase();
@@ -9669,7 +9675,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-64";
+const APP_VERSION="2026.11.25-65";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
