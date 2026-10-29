@@ -1357,7 +1357,7 @@ const S={route:{v:"tracker"},me:"",ready:false,canUpload:false,
   files:new Map(),activity:new Map(),history:new Map(),events:new Map(),team:new Map(),
   vendors:new Map(),items:new Map(),invtx:new Map(),remarks:new Map(),viewer:null,viewerTeam:null,projFollow:false,fuEdit:"",drEdit:"",
   brand:Object.assign({},DEF_BRAND),
-  q:"",gsearch:"",jobMode:"board",projMode:"pipeline",modal:null,viewerFile:null,wiz:null,qwo:null,csv:null,stageYes:null,notifications:new Map(),lastView:"",archAcct:"",closeOpen:null,sheet:null,sheetIdx:null,sortJ:"due",sortP:"due",discardArmed:false,noRep:false,woArchive:false,ai:false,aiState:"",aiParsed:null,prepOpen:null,showClosed:false,actFilter:"",fileFilter:"",calMonth:"",alertOff:false,showArchive:false,mineOnly:false,scope:"",
+  q:"",gsearch:"",jobMode:"list",projMode:"list",modal:null,viewerFile:null,wiz:null,qwo:null,csv:null,stageYes:null,notifications:new Map(),lastView:"",archAcct:"",closeOpen:null,sheet:null,sheetIdx:null,sortJ:"due",sortP:"due",discardArmed:false,noRep:false,woArchive:false,ai:false,aiState:"",aiParsed:null,prepOpen:null,showClosed:false,actFilter:"",fileFilter:"",calMonth:"",alertOff:false,showArchive:false,mineOnly:false,scope:"",
   rpt:{preset:"rev",src:"proj",basis:"billed",group:"month",metric:"value",from:"",to:"",rep:"",acct:"",stage:"",prod:""}};
 const WQ=new Map();
 
@@ -9094,7 +9094,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-37";
+const APP_VERSION="2026.11.25-38";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
