@@ -1,5 +1,13 @@
 # What changed
 
+## 2026.11.25-45 — 2026-10-28
+- Long notes (accounts, contacts, vendors, items) start folded: a two-line preview with Show all notes / Hide notes
+
+## 2026.11.25-44 — 2026-10-28
+- Calendar: tidy one-line items with a coloured tag (Start, Due, Late, Done, WO due, Shipped, event time) — nothing cut off mid-line, the full name on hover
+- 3 items a day, then a quiet "+N more"
+- today shown as a red date badge, weekends lightly shaded, finished items muted with a ✓ instead of crossed out, and a colour key above the month
+
 ## 2026.11.25-43 — 2026-10-28
 - Fixed: files uploaded on a vendor (invoices, quotes, price sheets) were saved without the vendor and never showed — they now attach to the vendor and list in its Files card; the upload starts on the Invoice category
 
