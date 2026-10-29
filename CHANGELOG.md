@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-54 — 2026-10-28
+- Lists read in three clear levels: small grey capital column labels, larger bold names, and a dark band for sections like Archived
+
 ## 2026.11.25-53 — 2026-10-28
 - Table headings (Project, Stage, Value, Due, Billing…) are bolder and darker, all in the same style; the Archived divider uses exactly the same style as the headings
 
