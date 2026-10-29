@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-51 — 2026-10-28
+- Column headings that sort (Project, Stage, Value, Due) look like the others — no all-capitals
+- Account page: archived projects use the same bold project names and text as the active ones; the Archived divider is bolder
+
 ## 2026.11.25-50 — 2026-10-28
 - Files and Sign pictures: only the first 2 show; the rest fold behind Show N more files (on projects, accounts, work orders and vendors — on an account the files from its projects fold the same way)
 
