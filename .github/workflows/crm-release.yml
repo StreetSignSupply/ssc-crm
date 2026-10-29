@@ -1,0 +1,50 @@
+name: Release the CRM
+# Changes are made to next/index.html. Each push runs the release check (every main page and some forms, with
+# made-up data); only a build that passes is copied to public/index.html, which is what crm.streetsignsupply.com
+# loads. Run by hand with a version (like 2026.11.25-60) to put an earlier release back.
+on:
+  push:
+    branches: [main]
+    paths: ["next/**", "tests/**", ".github/workflows/crm-release.yml"]
+  workflow_dispatch:
+    inputs:
+      rollback: { description: "version to put back (leave empty to release next/)", default: "" }
+permissions:
+  contents: write
+concurrency: { group: crm-release, cancel-in-progress: false }
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - name: Put an earlier release back
+        if: github.event.inputs.rollback != ''
+        run: |
+          V="${{ github.event.inputs.rollback }}"
+          SHA=$(git log --format=%H -S"APP_VERSION=\"$V\"" -- public/index.html | tail -1)
+          [ -n "$SHA" ] || { echo "::error::no release $V found"; exit 1; }
+          git show "$SHA:public/index.html" > public/index.html
+          printf '%s\n' "$V" > public/version.txt
+          git config user.name "Street Sign Supply agents"; git config user.email matt@streetsignsupply.com
+          git add public/index.html public/version.txt && git commit -m "Put release $V back" && git push
+          echo "::notice::release $V is live again"
+      - name: Check the build
+        if: github.event.inputs.rollback == ''
+        working-directory: tests
+        run: |
+          npm install --no-audit --no-fund --loglevel=error 2>&1 | tail -1
+          npx playwright install --with-deps chromium > /tmp/pw.log 2>&1 || { tail -3 /tmp/pw.log; exit 1; }
+          node smoke.mjs next/index.html
+      - name: Release it
+        if: github.event.inputs.rollback == ''
+        run: |
+          V=$(grep -o 'APP_VERSION="[^"]*"' next/index.html | head -1 | cut -d'"' -f2)
+          if cmp -s next/index.html public/index.html; then echo "::notice::$V already live"; exit 0; fi
+          cp next/index.html public/index.html; printf '%s\n' "$V" > public/version.txt
+          git config user.name "Street Sign Supply agents"; git config user.email matt@streetsignsupply.com
+          git add public/index.html public/version.txt && git commit -m "Release $V (passed the release check)" && git pull --rebase && git push
+          echo "::notice::released $V"

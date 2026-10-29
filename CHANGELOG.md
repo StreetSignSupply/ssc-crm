@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-64
+- Releases are checked before they go live: work happens in next/index.html; every change runs the release check (every main page and several forms with made-up data) and only a build that passes is copied to public/index.html, the one crm.streetsignsupply.com loads. A failed check leaves the live CRM as it was. An earlier release can be put back by version.
+- The "newer version ready" note now follows the release actually live (public/version.txt), not the changelog.
+
 ## 2026.11.25-63
 - Settings → Data → Database lock (owners, on crm.streetsignsupply.com): "Turn the lock on" puts the team-only database rules live within 10 minutes (tested first). The CRM confirms it still opens; if nothing confirms within 20 minutes the old rules come back by themselves. "Turn the lock off" puts the old rules back.
 - Settings → Data notes the automatic nightly backup.
