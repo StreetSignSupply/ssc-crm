@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-78
+- Parking and fire-lane sign drawings look like the real signs: white face, red border, the legend in big red capitals one word per line ("FIRE / LANE / NO / PARKING / ANY / TIME"), each phrase sized to fill the sign, so they're readable even as a small thumbnail.
+
 ## 2026.11.25-77
 - Quote prices come from the right list for the customer. Each account has "Quote prices from": automatic (retail customers → website prices; contractors, government and resellers → your price list), or set it to price list or website. A website item picked for a price-list customer is priced from your price list for that size and material. The Add a line form says where the price came from and shows the other one beside it ("website $30.89 · use").
 - The line form breaks the cost down by part — blank, sheeting, legend, overlay, overlaminate, ink — when it's worked out from materials (a locked cost shows today's breakdown under it).
