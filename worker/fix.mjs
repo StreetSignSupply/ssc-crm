@@ -100,6 +100,9 @@ if (STEP === "stencils") {
   if (!rows) { console.log("::error::stencil catalog didn't load"); await browser.close(); process.exit(1); }
   const SHEET = process.env.PIPE_SHEET || "1aChWjS_R0ImI19AkBD-WAXRYoJz0douDNdhsASwIuVs", TAB = "CRM Stencils";
   const tok = process.env.SHEETS_TOKEN;
+  { const st = await page.evaluate(() => { const T = window.__T; const L = T.S.stc.items; const g = [0, 1, 2, 3, 4].map((i) => !!T.stcMatFor(i));
+      return { stencils: L.length, withPicture: L.filter((x) => x.img).length, noSqft: L.filter((x) => !(T.stcSq(x) > 0)).length, sepOnly: L.filter((x) => x.src === "sep").length, sheetFound: g }; });
+    console.log("::notice::stencils in the CRM: " + JSON.stringify(st)); }
   const api = async (url, method, body) => { const r = await fetch("https://sheets.googleapis.com/v4/spreadsheets/" + SHEET + url, { method, headers: { Authorization: "Bearer " + tok, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
     if (!r.ok) { const t = await r.text(); const m = (t.match(/"status":\s*"([A-Z_]+)"/) || [])[1] || ""; const why = /has not been used|is disabled/.test(t) ? "Sheets API not turned on for the project" : /permission|PERMISSION/.test(t) ? "the sheet isn't shared with the CRM's service account" : m;
       throw new Error(method + " " + r.status + " " + why); } return r.json(); };
