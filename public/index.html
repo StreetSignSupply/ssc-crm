@@ -8347,7 +8347,7 @@ function moreNav(){
     `<button class="btn" data-close="1">Close</button>`));
 }
 const NAVG=[
-  {id:"sales",label:"Sales",icon:"project",pages:[["mybook","contact","Dashboard"],["projects","project","Projects"],["accounts","account","Accounts"],["contacts","contact","Contacts"]]},
+  {id:"sales",label:"Sales",icon:"project",pages:[["mybook","contact","Dashboard"],["accounts","account","Accounts"],["projects","project","Projects"],["contacts","contact","Contacts"]]},
   {id:"shop",label:"Production",icon:"job",pages:[["jobs","job","Work orders"],["tracker","chart","Tracker"],["calendar","calendar","Calendar"],["files","file","Files"]]},
   {id:"stock",label:"Inventory",icon:"inventory",pages:[["inventory","inventory","Inventory"],["vendors","vendor","Vendors"]]},
   {id:"money",label:"Reports",icon:"chart",pages:[["reports","chart","Reports"]]},
@@ -9094,7 +9094,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-38";
+const APP_VERSION="2026.11.25-39";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}

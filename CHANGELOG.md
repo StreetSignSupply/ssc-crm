@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-39 — 2026-10-28
+- Menu: Sales now reads Accounts, Projects, Contacts
+
 ## 2026.11.25-38 — 2026-10-28
 - Projects and Work orders open on the List view (Pipeline and the Status board are still one click away)
 
