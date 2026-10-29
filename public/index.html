@@ -457,6 +457,12 @@ td .btn,th .btn{white-space:nowrap;word-break:normal;overflow-wrap:normal}
 .card > header h2[data-cz]{cursor:pointer}
 .card.collapsed > header .cz{transform:rotate(-90deg)}
 .card.collapsed > :not(header){display:none!important}
+/* a closed files card still shows its first 2 files and the "Show more" link */
+.card.collapsed > .fgal.peek{display:grid!important}
+.card.collapsed > details.fmore.peek{display:block!important}
+.card.collapsed > details.fmore.peek > .fgal{display:none!important}
+.card.collapsed > details.fmore.peek .fm-show{display:inline!important}.card.collapsed > details.fmore.peek .fm-hide{display:none!important}
+.card.collapsed:has(> .fgal.peek) > header{border-bottom:1px solid var(--line)}
 .card.collapsed{flex:0 0 auto!important}
 .card.collapsed > header{border-bottom:0}
 .czbar{display:flex;gap:6px;margin-left:auto}
@@ -1462,6 +1468,7 @@ const ICO={
   note:'<path d="M5 3h9l5 5v13H5z"/><path d="M14 3v5h5"/><path d="M8.5 13h7M8.5 16.5h5"/>',
   task:'<rect x="3.5" y="4.5" width="17" height="16" rx="2.5"/><path d="m8 12.5 3 3 5.5-6"/>',
   calendar:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  lock:'<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
   clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5.5l3.5 2"/>',
   truck:'<path d="M2.5 6.5h10v9h-10z"/><path d="M12.5 10h4l3 3v2.5h-7z"/><circle cx="6.5" cy="17.5" r="2"/><circle cx="16.5" cy="17.5" r="2"/>',
   box:'<path d="m12 2.5 8.5 4.5v10L12 21.5 3.5 17V7z"/><path d="M3.5 7 12 11.5 20.5 7M12 11.5v10"/>',
@@ -4741,7 +4748,8 @@ function reconcile(p){
     rows.push({k,id:o.id||"",code:o.code,size:o.size,grade:o.grade||"",note:o.note||"",desc:o.desc||"",price:o.price||"",
       legend:o.legend||"",legends:o.legends||[],build:o.build||"",sheetKey:o.sheetKey||"",noLam:!!o.noLam,
       ordered:Number(o.qty)||0,sched:sc?sc.qty:0,wos:sc?sc.wos:[],charge:o.charge||"",cost:o.cost||"",
-      webImg:o.webImg||"",artId:o.artId||"",lineId:o.id||""});   // the line's own picture travels with it
+      webImg:o.webImg||"",artId:o.artId||"",lineId:o.id||"",
+      sub:o.sub||"",costLock:o.costLock,costKey:o.costKey,costAt:o.costAt,costWhy:o.costWhy});   // the line's own picture and locked cost travel with it
   });
   Object.keys(sched).forEach(k=>{
     if(seen[k])return;
@@ -4777,7 +4785,7 @@ function reconCard(p){
         ${(function(){const hasDecal=ord.some(l=>!isCharge(l)&&isDecalLine(l));const hasSetup=ord.some(l=>isCharge(l)&&(l.charge==="setup"||/setup/i.test(l.desc||"")));
           const c=decalCfg();return hasDecal&&!hasSetup&&Number(c.runSetup)>0?`<button class="btn sm" data-decalsetup="${esc(p.id)}" title="One setup fee for the decal run">Add decal setup ${money2(c.runSetup)}</button>`:""})()}
         ${(function(){const k=repriceRows(p).filter(r=>r.off).length;
-          return ord.some(l=>!isCharge(l)&&Number(l.price)>0)?`<button class="btn sm${k?" warnbtn":""}" data-reprice="${esc(p.id)}" title="Compare each line's price with today's pricing and update the ones you choose">${k?k+" price"+(k===1?"":"s")+" out of date — re-price":"Re-price"}</button>`:""})()}
+          return ord.some(l=>!isCharge(l)&&Number(l.price)>0)&&!["won","production","shipped","invoiced","closed"].includes(p.stage)?`<button class="btn sm${k?" warnbtn":""}" data-reprice="${esc(p.id)}" title="Compare each line's price with today's pricing and update the ones you choose">${k?k+" price"+(k===1?"":"s")+" out of date — re-price":"Re-price"}</button>`:""})()}
         ${ord.filter(l=>!isCharge(l)).length>1?`<button class="btn sm" data-allgrade="${esc(p.id)}" title="Put the same sheeting or material on every line">Change grade on every line</button>`:""}
         <button class="btn sm p" data-ordadd="${esc(p.id)}">Add a line</button>
         ${!ord.length&&rows.length?`<button class="btn sm" data-ordfill="${esc(p.id)}">Make these the quote lines</button>`:""}</span></header>
@@ -4799,7 +4807,7 @@ function reconCard(p){
         <td class="mono" style="text-align:right">${r.extra?r.sched:r.ordered}</td>
         ${(function(){const qn=Number(r.extra?r.sched:r.ordered)||0;const uc=quoteLineCost(r);
           const pr=Number(r.price)||0;const mg=(pr&&uc.cost)?((pr-uc.cost)/pr*100):null;
-          return `<td class="mono" style="text-align:right" title="${esc(uc.why||"")}">${uc.cost?money2(uc.cost):uc.src==="nosize"?`<span class="sub">needs a size</span>`:`<span class="sub">—</span>`}</td>
+          return `<td class="mono" style="text-align:right" title="${esc(uc.why||"")}">${uc.cost?money2(uc.cost)+(uc.src==="locked"?`<div class="sub" style="white-space:nowrap">${ic("lock",11)} locked${r.costAt?" "+esc(fmtDate(isoDay(r.costAt))):""}</div>`:""):uc.src==="nosize"?`<span class="sub">needs a size</span>`:`<span class="sub">—</span>`}</td>
             <td class="mono" style="text-align:right">${pr?(Math.round(pr)===pr?money(pr):money2(pr)):`<span class="sub">—</span>`}</td>
             <td class="mono" style="text-align:right;font-weight:800">${pr?money(pr*qn):""}</td>
             <td style="text-align:right">${mg==null?`<span class="sub">—</span>`
@@ -5978,7 +5986,7 @@ function ordCostHelp(){
   const sug=(ap&&ap.mine&&ap.sell)?ap.sell:(it0&&Number(it0.sell)&&!parseSize(line.size)?Number(it0.sell):suggestPrice(uc.cost));
   const mg=pr>0?((pr-uc.cost)/pr*100):null;
   box.innerHTML=`<div class="k">What it costs you
-      <span class="pill ${uc.src==="sheet"?"g":"o"}" style="margin-left:6px">${uc.src==="sheet"?"from the cost sheet":"worked out from the material"}</span></div>
+      <span class="pill ${uc.src==="locked"?"b":uc.src==="sheet"?"g":"o"}" style="margin-left:6px">${uc.src==="locked"?"locked "+(line.costAt?esc(fmtDate(isoDay(line.costAt))):"when quoted"):uc.src==="sheet"?"from the cost sheet":uc.src==="material"?"from your item costs":"worked out from the material"}</span></div>
     <div class="v"><span class="mono" style="font-weight:700">${money2(uc.cost)}</span> each${q?` — <span class="mono">${money2(uc.cost*q)}</span> for ${q}`:""}</div>
     <div class="sub" style="margin-top:3px">${esc(uc.why||"")}</div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px">
@@ -8223,6 +8231,7 @@ function toggleCz(key,force){
   const next=(force===undefined)?!shut:force;
   if(card&&card.hasAttribute("data-defshut")){S.czOpen=S.czOpen||{};S.czOpen[key+"@"+location.hash]=!next;
     document.querySelectorAll('.card[data-czkey="'+key.replace(/"/g,'\\"')+'"]').forEach(c=>c.classList.toggle("collapsed",!!next));return}
+  if(card&&next)card.querySelectorAll("details.fmore").forEach(d=>{d.open=false});
   if(isPhone())m[key]=next?"shut":"open";
   else{if(next)m[key]=1;else delete m[key]}
   czSave(m);
@@ -8464,6 +8473,8 @@ function render(){
     const d=document.createElement("details");d.className="fmore";const rest=t.slice(2);
     d.innerHTML=`<summary><span class="fm-show">Show ${rest.length} more</span><span class="fm-hide">Show fewer</span></summary>`;
     const g2=document.createElement("div");g2.className="fgal";rest.forEach(x=>g2.appendChild(x));d.appendChild(g2);g.insertAdjacentElement("afterend",d)});
+  document.querySelectorAll(".main .card").forEach(c=>{const g=c.querySelector(":scope > .fgal");if(!g)return;g.classList.add("peek");
+    const n=g.nextElementSibling;if(n&&n.matches("details.fmore"))n.classList.add("peek")});
   decorateHelp();
   if(S.saveFail&&S.saveFail.length&&!document.querySelector(".savefail")){const m=document.querySelector(".main");if(m)m.insertAdjacentHTML("afterbegin",
     `<div class="alert savefail" style="margin:10px 16px">${S.saveFail.map(f=>esc(f.what)+" ("+esc(f.why)+")").join("<br>")}<span class="sp"><button class="btn sm" data-conntest="1">Check the database</button><button class="btn sm" data-savefailok="1">Dismiss</button></span></div>`)}
@@ -9365,7 +9376,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-57";
+const APP_VERSION="2026.11.25-58";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -15377,7 +15388,9 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape")document.querySelect
 // "Show fewer" on a file list: keep the link where it was on screen, so the first 2 files land right above it
 // instead of disappearing under the bar pinned at the top
 document.addEventListener("click",e=>{const sm=e.target.closest&&e.target.closest("details.fmore > summary");if(!sm)return;
-  const d=sm.parentElement;if(!d.open)return;const m=$(".main");if(!m)return;const before=sm.getBoundingClientRect().top;
+  const d=sm.parentElement,cc=d.closest(".card.collapsed");
+  // "Show more" on a closed files card opens the card and the rest of the files together
+  if(cc&&cc.dataset.czkey){e.preventDefault();e.stopPropagation();toggleCz(cc.dataset.czkey,false);d.open=true;return}if(!d.open)return;const m=$(".main");if(!m)return;const before=sm.getBoundingClientRect().top;
   requestAnimationFrame(()=>requestAnimationFrame(()=>{const after=sm.getBoundingClientRect().top;m.scrollTop+=after-before}))},true);
 if(window.claude&&typeof claude.use==="function")boot();
 else setTimeout(()=>{if(window.claude&&claude.use)boot();else{S.ready=true;render()}},1400);
