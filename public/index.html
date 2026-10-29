@@ -13,7 +13,7 @@
   --brand:#D50101; --brand2:#8E0000; --accent:#FFFFFF; --accent-ink:#1A1500;
   --bg:#EEECE7; --card:#FFFFFF; --card2:#F6F5F1; --hd:#FBFAF8;
   --plate:#1F1E1B; --plate2:#2E2D29;
-  --ink:#1D1C19; --ink2:#5E5B55; --ink3:#86827A; --danger-ink:#B9120E; --brand-ink:#B9120E;
+  --ink:#1D1C19; --ink2:#5E5B55; --ink3:#6F6B64; --danger-ink:#B9120E; --brand-ink:#B9120E;
   --line:#DBD7CF; --line2:#ECE9E3;
   --acct:#D50101; --cont:#5E5B55; --proj:#1D1C19; --job:#8E0000; --file:#3A3D40;
   --green:#1E7A3F; --yellow:#E0B400; --yellow-ink:#1A1500;
@@ -28,7 +28,7 @@
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#141412; --card:#1C1B19; --card2:#23221F; --hd:#201F1C;
   --plate:#0C0C0B; --plate2:#1A1917;
-  --ink:#ECEAE4; --ink2:#A8A49C; --ink3:#89857D; --danger-ink:#FF7A72; --brand-ink:#FF7A72;
+  --ink:#ECEAE4; --ink2:#A8A49C; --ink3:#9A968E; --danger-ink:#FF7A72; --brand-ink:#FF7A72;
   --line:#34322E; --line2:#2A2925;
   --acct:#E8272A; --cont:#8B9198; --proj:#D9DBDD; --job:#B03030; --file:#9AA0A6;
   --green:#3DA868; --yellow:#D9AE00; --orange:#E6792A; --red:#F0433D; --blue:#7FB0E6; --slate:#8B9198;
@@ -36,7 +36,7 @@
 }}
 :root[data-theme="dark"]{
   --bg:#141412;--card:#1C1B19;--card2:#23221F;--hd:#201F1C;--plate:#0C0C0B;--plate2:#1A1917;
-  --ink:#ECEAE4;--ink2:#A8A49C;--ink3:#89857D;--danger-ink:#FF7A72;--brand-ink:#FF7A72;--line:#34322E;--line2:#2A2925;
+  --ink:#ECEAE4;--ink2:#A8A49C;--ink3:#9A968E;--danger-ink:#FF7A72;--brand-ink:#FF7A72;--line:#34322E;--line2:#2A2925;
   --acct:#E8272A;--cont:#8B9198;--proj:#D9DBDD;--job:#B03030;--file:#9AA0A6;
   --green:#3DA868;--yellow:#D9AE00;--orange:#E6792A;--red:#F0433D;--blue:#7FB0E6;--slate:#8B9198;
   --sh:0 1px 2px rgba(0,0,0,.5);--sh2:0 16px 44px rgba(0,0,0,.65);
@@ -457,6 +457,11 @@ td .btn,th .btn{white-space:nowrap;word-break:normal;overflow-wrap:normal}
 .card > header h2[data-cz]{cursor:pointer}
 .card.collapsed > header .cz{transform:rotate(-90deg)}
 .card.collapsed > :not(header){display:none!important}
+.updbar{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:900;display:flex;gap:10px;align-items:center;background:var(--ink,#141414);color:#fff;padding:10px 14px;border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,.25);font-size:13.5px}
+th.thsort{cursor:pointer;user-select:none}th.thsort:hover{color:var(--ink)}th.thsort[data-dir=asc]::after{content:" ▴"}th.thsort[data-dir=desc]::after{content:" ▾"}
+.updbar .btn:not(.p){background:transparent;color:#fff;border-color:rgba(255,255,255,.4)}
+/* money and counts on the right of a table never break across lines */
+td.mono[style*="text-align:right"],th[style*="text-align:right"]{white-space:nowrap}
 /* a closed files card still shows its first 2 files and the "Show more" link */
 .card.collapsed > .fgal.peek{display:grid!important}
 .card.collapsed > details.fmore.peek{display:block!important}
@@ -8379,7 +8384,16 @@ function go(h){
   if(location.hash===target){render();toTop();return}
   location.hash=target;
 }
-window.addEventListener("hashchange",()=>{S.route=parseHash();S.ptab="all";S.czOpen={};S.gsearch="";S.q="";
+// Settings: typed changes that weren't saved get a warning before you leave the page
+let SET_DIRTY=false;
+document.addEventListener("input",e=>{if(S.route&&S.route.v==="settings"&&e.target&&e.target.closest&&e.target.closest("[data-spanel]"))SET_DIRTY=true},true);
+document.addEventListener("click",e=>{const b=e.target&&e.target.closest&&e.target.closest("button");if(b&&S.route&&S.route.v==="settings"&&/save/i.test(b.textContent||""))SET_DIRTY=false},true);
+window.addEventListener("beforeunload",e=>{if(SET_DIRTY&&S.route&&S.route.v==="settings"){e.preventDefault();e.returnValue=""}});
+window.addEventListener("hashchange",()=>{
+  if(SET_DIRTY&&S.route&&S.route.v==="settings"&&parseHash().v!=="settings"){
+    if(!confirm("You have changes in Settings that aren't saved. Leave without saving?")){history.replaceState(null,"","#/settings");return}}
+  SET_DIRTY=false;
+  S.route=parseHash();S.ptab="all";S.czOpen={};S.gsearch="";S.q="";
   S.actFilter="";S.fileFilter="";S.showClosed=false;S.showArchive=false;S.noRep=false;S.fuEdit="";S.drEdit="";
   if(S.route.v!=="projects")S.projFollow=false;
   if(S.route.v!=="archive")S.archAcct="";
@@ -8656,6 +8670,28 @@ function decorateTables(){
     });
   });
 }
+// list pages: click a column heading to sort by it (again to reverse); the choice is kept while you move around
+const SORT_VIEWS={accounts:1,contacts:1,projects:1,jobs:1,vendors:1,inventory:1,files:1,audit:1,bin:1,archive:1,stencils:1};
+function sortVal(td){if(!td)return "";const d=td.getAttribute("data-sort");if(d!=null&&d!=="")return isNaN(Number(d))?d.toLowerCase():Number(d);
+  const t=td.textContent.replace(/\s+/g," ").trim();if(!t||t==="—")return null;
+  const m=t.match(/^[-$]*\$?\s*([\d,]+(?:\.\d+)?)\s*%?/);if(m&&!/^[A-Za-z]/.test(t)&&!/[A-Za-z]{3}\s\d/.test(t))return Number(m[1].replace(/,/g,""));
+  const dt=Date.parse(t.replace(/^(Shipped|Due)\s+/i,"")+(/\d{4}/.test(t)?"":" "+new Date().getFullYear()));if(!isNaN(dt)&&/[A-Z][a-z]{2}\s\d/.test(t))return dt;
+  return t.toLowerCase()}
+function sortTable(tb,col,dir){const body=tb.tBodies[0];if(!body)return;
+  const rows=[...body.rows].filter(r=>![...r.cells].some(c=>Number(c.getAttribute("colspan"))>1));
+  const rest=[...body.rows].filter(r=>rows.indexOf(r)<0);
+  rows.sort((a,b)=>{const x=sortVal(a.cells[col]),y=sortVal(b.cells[col]);if(x==null&&y==null)return 0;if(x==null)return 1;if(y==null)return -1;
+    const r=(typeof x==="number"&&typeof y==="number")?x-y:String(x).localeCompare(String(y),undefined,{numeric:true});return dir*r});
+  rows.concat(rest).forEach(r=>body.appendChild(r))}
+function decorateSorts(){const v=S.route&&S.route.v;if(!SORT_VIEWS[v])return;S.tsort=S.tsort||{};
+  document.querySelectorAll(".main table").forEach((tb,ti)=>{const ths=[...tb.querySelectorAll(":scope > thead > tr > th")];
+    if(!ths.length||tb.querySelector(".sortb")||!tb.tBodies[0]||tb.tBodies[0].rows.length<2)return;
+    const key=v+"#"+ti;
+    ths.forEach((th,ci)=>{if(!th.textContent.trim())return;th.classList.add("thsort");th.title="Sort by "+th.textContent.trim().toLowerCase();
+      th.onclick=()=>{const cur=S.tsort[key];const dir=cur&&cur.col===ci?-cur.dir:1;const first=!Object.keys(S.tsort).some(k=>k.indexOf(v+"#")===0);S.tsort[key]={col:ci,dir};
+        if(first&&v==="accounts"){render();return}   // sorting the accounts shows them all, so the order is the whole list's
+        ths.forEach(h=>h.removeAttribute("data-dir"));th.setAttribute("data-dir",dir>0?"asc":"desc");sortTable(tb,ci,dir)}});
+    const cur=S.tsort[key];if(cur&&ths[cur.col]){ths[cur.col].setAttribute("data-dir",cur.dir>0?"asc":"desc");sortTable(tb,cur.col,cur.dir)}})}
 function render(){
   applyBrand();
   // overlays live outside #root, so clear them before we draw the new ones
@@ -8673,6 +8709,7 @@ function render(){
   document.querySelectorAll(".main .cols.flow").forEach(w=>w.classList.add("placed"));
   decorateCollapsible();
   decorateTables();
+  try{decorateSorts()}catch(e){}
   decorateRows();
   decorateHeaders();
   decoratePics();
@@ -8821,7 +8858,7 @@ const NAVG=[
   {id:"shop",label:"Production",icon:"job",pages:[["jobs","job","Work orders"],["tracker","chart","Tracker"],["calendar","calendar","Calendar"],["files","file","Files"]]},
   {id:"stock",label:"Inventory",icon:"inventory",pages:[["inventory","inventory","Inventory"],["stencils","inventory","Stencils"],["vendors","vendor","Vendors"]]},
   {id:"money",label:"Reports",icon:"chart",pages:[["reports","chart","Reports"]]},
-  {id:"admin",label:"Admin",icon:"history",pages:[["archive","archive","Archive"],["audit","history","History"],["settings","history","Settings"]]}];
+  {id:"admin",label:"Admin",icon:"history",pages:[["archive","archive","Archive"],["audit","history","Change history"],["settings","history","Settings"]]}];
 /* ===== who can do what =====
    Each person on the team has an access level. Owner: everything. Office: everything but Settings.
    Sales: no costs or margins, can't delete. Shop: no prices, costs or margins, can't delete, no Settings.
@@ -9162,7 +9199,7 @@ function accountList(){
         S.mineOnly?"Showing "+esc(myInitials())+" only":"Mine ("+esc(myInitials())+")"}</button>`:""}
       <button class="btn" data-csvimport="accounts">${ic("file",14)}Import</button>
       <button class="btn p" data-new="account">New account</button></span></header>
-    ${list.length?(function(){const lim=S.acctShow||100;const cp={},cj={};
+    ${list.length?(function(){const lim=(S.tsort&&Object.keys(S.tsort).some(k=>/^accounts#/.test(k)))?1e9:(S.acctShow||100);const cp={},cj={};
       live(S.projects).forEach(p=>{if(!isClosed(p))cp[p.accountId]=(cp[p.accountId]||0)+1});
       liveJobs().forEach(j=>{if(j.status!=="shipped")cj[j.accountId]=(cj[j.accountId]||0)+1});
       const reps=repList();
@@ -9171,11 +9208,7 @@ function accountList(){
       ${list.slice(0,lim).map(a=>`<tr>
         <td><button class="lnk" data-go="account/${esc(a.id)}">${esc(a.name)}</button>
           <div class="sub">${esc([a.city,a.state].filter(Boolean).join(", "))}</div></td>
-        <td><select data-setrep="${esc(a.id)}" style="padding:4px 6px;border:1px solid ${a.repId?"var(--line)":"var(--red)"};
-          border-radius:2px;background:var(--card2);font-size:12px;font-weight:700;max-width:130px">
-          <option value="" ${a.repId?"":"selected"}>— none —</option>
-          ${reps.map(t=>`<option value="${esc(t.id)}" ${a.repId===t.id?"selected":""}>${esc(t.name)}</option>`).join("")}
-        </select></td>
+        <td>${a.repId&&reps.find(t=>t.id===a.repId)?`<span style="font-weight:700;font-size:12.5px">${esc(reps.find(t=>t.id===a.repId).name)}</span>`:`<span class="pill r" title="Open the account and press Edit to give it a rep">No rep</span>`}</td>
         <td>${esc(a.type||"—")}</td><td>${esc(a.terms||"—")}</td><td>${exemptPill(a)}</td>
         <td class="mono">${cp[a.id]||"—"}</td>
         <td class="mono">${cj[a.id]||"—"}</td></tr>`).join("")}</tbody></table>
@@ -9466,18 +9499,21 @@ function contactList(){
   let list=live(S.contacts).filter(c=>{if(!S.scope)return true;const a=acct(c.accountId);return !!a&&a.repId===S.scope});
   if(q)list=list.filter(c=>(c.name||"").toLowerCase().includes(q)||(c.email||"").toLowerCase().includes(q)||accName(c.accountId).toLowerCase().includes(q));
   list.sort((a,b)=>(a.name||"").localeCompare(b.name||""));
+  // the last call, email or meeting logged with each person
+  const last={};live(S.activity).forEach(x=>{if(!x.contactId||!/call|email|meeting/.test(String(x.type||"")))return;const t=Number(x.at)||0;if(t>(last[x.contactId]||0))last[x.contactId]=t});
   return `<div class="pad"><section class="card flush wide">
     <header><span class="oi oi-cont">${ic("contact",14)}</span><h2>Contacts</h2><span class="n">${list.length}</span>
       <span class="sp"><input class="btn" id="lq" placeholder="Filter" value="${esc(S.q)}" style="font-weight:400;width:150px">
       <button class="btn" data-csvimport="contacts">${ic("file",14)}Import</button>
       <button class="btn p" data-new="contact">New contact</button></span></header>
-    ${list.length?`<table><thead><tr><th>Name</th><th>Account</th><th>Role</th><th>Email</th><th>Phone</th></tr></thead>
+    ${list.length?`<table><thead><tr><th>Name</th><th>Account</th><th>Role</th><th>Email</th><th>Phone</th><th>Last contacted</th></tr></thead>
       <tbody>${list.map(c=>`<tr>
         <td><button class="lnk" data-go="contact/${esc(c.id)}">${esc(c.name)}</button><div class="sub">${esc(c.title||"")}</div></td>
         <td><button class="lnk" data-go="account/${esc(c.accountId)}">${esc(accName(c.accountId))}</button></td>
         <td>${esc(c.role||"—")}</td>
         <td>${cxMail(c.email,"account:"+c.accountId+":"+c.id)||"—"}</td>
-        <td style="white-space:nowrap">${cxTel(c.phone)||"—"}</td></tr>`).join("")}</tbody></table>`
+        <td style="white-space:nowrap">${cxTel(c.phone)||"—"}</td>
+        <td class="sub" style="white-space:nowrap" data-sort="${last[c.id]||0}">${last[c.id]?esc(fmtDate(isoDay(last[c.id]))):"—"}</td></tr>`).join("")}</tbody></table>`
     :`<div class="empty"><b>No contacts yet</b>Add people under an account.</div>`}</section></div>`;
 }
 function contactRec(id){
@@ -9586,7 +9622,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-59";
+const APP_VERSION="2026.11.25-60";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -10258,13 +10294,13 @@ function jobRec(num){
           <div class="sub">${p?`<button class="lnk" data-go="project/${esc(p.id)}">P-${p.num}${
               (j.desc||"").trim().toLowerCase()===(p.name||"").trim().toLowerCase()?"":" "+esc(p.name)}</button> · `:""}
             <button class="lnk" data-go="account/${esc(j.accountId)}">${esc(accName(j.accountId))}</button></div></div>
-        <div class="acts">${p?`<button class="btn backproj" data-go="project/${esc(p.id)}" title="Back to the project">← P-${p.num} ${esc(p.name)}</button>`:""}
+        <div class="acts"><button class="btn d" data-del="job:${j.num}" title="Delete this work order" style="margin-right:12px">Delete</button>
+          ${p?`<button class="btn backproj" data-go="project/${esc(p.id)}" title="Back to the project">← P-${p.num} ${esc(p.name)}</button>`:""}
           <button class="btn" data-print="${j.num}">Work order PDF</button>
           <button class="btn" data-edit="job:${j.num}">Edit</button>
           <button class="btn" data-dupjob="${j.num}">Duplicate</button>
           ${j.status!=="shipped"?`<button class="btn" data-hold="${j.num}">Hold</button>`:""}
-          ${nx?`<button class="btn p" data-adv="${j.num}:${nx}">Move to ${esc(JS[nx].label==="QC"?"QC":JS[nx].label.toLowerCase())}</button>`:""}
-          <button class="btn d" data-del="job:${j.num}">Delete</button></div></div>
+          ${nx?`<button class="btn p" data-adv="${j.num}:${nx}">Move to ${esc(JS[nx].label==="QC"?"QC":JS[nx].label.toLowerCase())}</button>`:""}</div></div>
       <div class="path">${JFLOW.map((s2,k)=>{
         const hit=sl.filter(x=>x.status===s2).pop();const at=JFLOW.indexOf(j.status);
         const prior=(sl.filter(x=>JFLOW.indexOf(x.status)>=0).pop()||{}).status;
@@ -10838,7 +10874,9 @@ function inventoryView(){
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px">
       ${tile("Items tracked",itemList().length)}
       ${tile("At or below reorder",low.length,low.length?"r":"")}
-      ${tile("Out of stock",itemList().filter(i=>onHand(i)<=0).length,itemList().filter(i=>onHand(i)<=0).length?"r":"")}
+      ${(function(){const out=itemList().filter(i=>onHand(i)<=0&&!i.sample);const watched=out.filter(i=>i.reorderPoint!==""&&i.reorderPoint!=null);
+        // only items you keep in stock (they have a reorder point) count as a problem; the rest are just not stocked
+        return tile("Out of stock",watched.length,watched.length?"r":(out.length?out.length+" more with no reorder point set":""))})()}
       ${tile("Value on hand",money(value),"at today's unit cost")}</div>
     ${low.length?`<section class="card flush" style="border-color:var(--brand)">
       <header><h2>Reorder now</h2><span class="n">${low.length}</span></header>
@@ -14572,8 +14610,14 @@ function remSyncRec(t,r){
 function remDeliver(url,force){
   const u=String(url||syncCfg().url||"").trim();if(!/^https:\/\//i.test(u))return 0;
   const all=remAll();const sent=syncSent();const td=today();let n=0;
-  live(S.team).forEach(t=>{if(!remEmailOf(t)&&!t.phone)return;
-    remFor(t,all).forEach(r=>{const key="reminder/"+t.id+":"+r.id;const prev=sent[key];
+  // each reminder is emailed or texted to ONE person: the rep it belongs to, or the owner when it has none.
+  // (Everyone still sees what's in their scope in the bell.)
+  const reach=t=>t&&!t.deleted&&String(t.name||"").trim()&&(remEmailOf(t)||t.phone);
+  const owner=live(S.team).find(t=>(t.access||"owner")==="owner"&&reach(t));
+  const whoGets=r=>{const t=r.rep?S.team.get(r.rep):null;return reach(t)?t:owner};
+  live(S.team).forEach(t=>{if(!reach(t))return;
+    remFor(t,all).forEach(r=>{const w=whoGets(r);if(!w||w.id!==t.id)return;
+      const key="reminder/"+t.id+":"+r.id;const prev=sent[key];
       if(!force&&prev&&isoDay(prev.at)===td)return;                       // once a day per person per reminder
       const rec=remSyncRec(t,r);
       if(force){syncPost(key,{event:"backfill",sent_at:new Date().toISOString(),crm_version:APP_VERSION,record:rec},u);n++}
@@ -15521,13 +15565,18 @@ function bind(){
 // but only when nobody is typing and no window is open, so nothing half-done is lost
 const CHANGELOG_SRC="https://raw.githubusercontent.com/StreetSignSupply/ssc-crm/main/CHANGELOG.md";
 async function selfUpdateCheck(){
-  if(!isHosted())return;
+  if(!isHosted()||window.sscWorker)return;   // background jobs never reload themselves mid-run
   try{const r=await fetch(CHANGELOG_SRC+"?v="+Math.floor(Date.now()/300000),{cache:"no-store"});if(!r.ok)return;
     const m=/^##\s+(\d{4}\.\d{2}\.\d{2}-\d+)/m.exec(await r.text());if(!m||m[1]===APP_VERSION)return;
     const newer=m[1].localeCompare(APP_VERSION,undefined,{numeric:true})>0;if(!newer)return;
     S._updateWaiting=m[1];
-    const tryReload=()=>{if(typing()||S.modal||(document.visibilityState==="visible"&&Date.now()-(S._lastInput||0)<120000)){setTimeout(tryReload,60000);return}
-      location.reload()};tryReload()}catch(e){}}
+    // someone at the screen gets a note and reloads when they're ready; a screen nobody is looking at
+    // (the shop computer overnight) updates itself once it's been idle and hidden for a while
+    if(!document.querySelector(".updbar")){const d=document.createElement("div");d.className="updbar";
+      d.innerHTML=`<span>A newer version of the CRM is ready.</span><button class="btn sm p" id="upd-go">Reload now</button><button class="btn sm" id="upd-later">Later</button>`;
+      document.body.appendChild(d);d.querySelector("#upd-go").onclick=()=>location.reload();d.querySelector("#upd-later").onclick=()=>d.remove()}
+    const tryReload=()=>{if(document.visibilityState==="visible"||typing()||S.modal||Date.now()-(S._lastInput||0)<600000){setTimeout(tryReload,60000);return}
+      location.reload()};setTimeout(tryReload,60000)}catch(e){}}
 try{["keydown","pointerdown"].forEach(ev=>addEventListener(ev,()=>{S._lastInput=Date.now()},true));
   setTimeout(selfUpdateCheck,60000);setInterval(selfUpdateCheck,20*60000)}catch(e){}
 function typing(){const a=document.activeElement;
