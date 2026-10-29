@@ -9955,7 +9955,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-71";
+const APP_VERSION="2026.11.25-72";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -14976,7 +14976,7 @@ function dbLockCard(){const d=S.dbLock||{};const want=d.want||"off",st=d.state||
     <p class="sub" style="margin:0 0 10px">After it's turned on, keep this page open for a few minutes: it confirms everything still opens. If nothing confirms within 20 minutes, the old rules come back by themselves. ${esc(d.note||"")}${d.error?" — last problem: "+esc(d.error):""}</p>
     ${want==="on"&&st==="on"&&d.available&&d.available!==d.liveHash?`<div class="warn" style="margin:0 0 10px"><b>Tighter rules are ready.</b> People can only change their own team record, the shop key is hidden from everyone but owners and office,
       change history can't be cut short, the shop can't change quote prices or billing, and only owners and office change what items cost. Press Apply, then keep this page open a few minutes so it can confirm.</div>`:""}
-    <div class="setrow">${want==="on"?`${st==="on"&&d.available&&d.available!==d.liveHash?`<button class="btn p" data-dblock="apply">Apply the updated rules</button>`:""}<button class="btn" data-dblock="off">Turn the lock off</button>`:`<button class="btn p" data-dblock="on">Turn the lock on</button>`}</div></div></section>`}
+    <div class="setrow">${want==="on"?`${st==="on"&&d.available&&d.available!==d.liveHash?`<button class="btn p" data-dblock="apply">Apply the updated rules</button>`:""}<details class="dd"><summary class="btn q">More</summary><div class="dd-m"><button class="danger" data-dblock="off">Turn the lock off…</button></div></details>`:`<button class="btn p" data-dblock="on">Turn the lock on</button>`}</div></div></section>`}
 async function dbLockApply(){try{await push("settings/dbLock",{apply:(S.dbLock||{}).available,askedAt:Date.now(),askedBy:me(),error:""});toast("The updated rules go on within 10 minutes — keep the CRM open so it can confirm")}catch(e){toast("That didn't save.")}}
 async function dbLockSet(want){try{await setDoc("settings/dbLock",Object.assign({},S.dbLock||{},{want,askedAt:Date.now(),askedBy:me(),error:""}));toast(want==="on"?"The lock turns on within 10 minutes — keep the CRM open so it can confirm":"The lock turns off within 10 minutes")}catch(e){toast("That didn't save.")}}
 // while the lock is being checked, any owner or office copy of the CRM that can still read and write says so
@@ -15767,7 +15767,8 @@ function bind(){
     {const x=t.closest("[data-ponew]");if(x){S.poLines=null;poModal();return}}
     {const x=t.closest("[data-poemail]");if(x){poEmail(x.dataset.poemail);return}}
     {const x=t.closest("[data-porecv]");if(x){const[a,b]=x.dataset.porecv.split("|");txModal(a,"receive","","",b);return}}
-    {const x=t.closest("[data-dblock]");if(x){const w=x.dataset.dblock;if(w==="apply"){dbLockApply();return}if(w==="on"){askConfirm("Turn the database lock on?","Only the people on your team list will be able to open the CRM. Keep this page open for a few minutes after — it confirms everything still works, and if it can't, the old rules come back by themselves within 20 minutes.","Turn it on",false,()=>dbLockSet("on"))}else dbLockSet("off");return}}
+    {const x=t.closest("[data-dblock]");if(x){const w=x.dataset.dblock;if(w==="apply"){dbLockApply();return}if(w==="on"){askConfirm("Turn the database lock on?","Only the people on your team list will be able to open the CRM. Keep this page open for a few minutes after — it confirms everything still works, and if it can't, the old rules come back by themselves within 20 minutes.","Turn it on",false,()=>dbLockSet("on"))}else{const dd0=x.closest("details");if(dd0)dd0.open=false;askConfirm("Turn the database lock off?",`<p style="margin:0">Anyone signed in with any Google account could open the CRM's data again. Only do this if the CRM stopped opening for your team.</p>
+      <p class="note" style="margin:10px 0 4px">Type <b>off</b> to confirm.</p><input data-cin="ok" data-req="Type off to confirm." style="width:100%">`,"Turn it off",true,v=>{if(String((v&&v.ok)||"").trim().toLowerCase()!=="off")return toast("Left on — type off to confirm.");dbLockSet("off")})}return}}
     {const x=t.closest("[data-stcrel]");if(x){const[sku,on]=x.dataset.stcrel.split(":");const r=Object.assign({},stcCfg().release);if(on==="1")r[sku]=true;else delete r[sku];
       stcCfgSave({release:r}).then(()=>{toast(on==="1"?"Released — it's on the quote picker now":"Held");closeModal();stcViewModal(sku);render()}).catch(()=>toast("That didn't save."));return}}
     {const x=t.closest("[data-stcfloor]");if(x){const sku=x.dataset.stcfloor;const st=stcBySku(sku);if(!st)return;
