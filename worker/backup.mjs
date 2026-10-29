@@ -74,6 +74,12 @@ if (MODE === "restore") {
   say("::notice::restore: " + done + " projects put back from " + last.name.replace("crm-backups/", ""));
   process.exit(0);
 }
+// GitHub often skips or delays a scheduled run, so the schedule fires several times a day: a scheduled run that finds
+// today's backup already made just says so and stops
+if (process.env.GITHUB_EVENT_NAME === "schedule") {
+  const ex = await gcs("/storage/v1/b/" + bucket + "/o/" + encodeURIComponent("crm-backups/" + day + ".json.gz"));
+  if (ex.ok) { say("::notice::backup: today's backup (" + day + ") is already made"); process.exit(0); }
+}
 const { out, cols } = await dumpAll();
 const n = Object.keys(out).length; if (n < 10) fail("only " + n + " documents read — not saving a backup that small");
 const body = zlib.gzipSync(Buffer.from(JSON.stringify({ project: PROJECT, at: new Date().toISOString(), collections: cols, docs: out })));

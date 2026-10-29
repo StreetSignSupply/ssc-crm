@@ -153,6 +153,11 @@ if (STEP === "qb") {
           if (cand.length === 1) { p = cand[0]; how = "customer and total"; }
           else { out.push([doc, q.txn_date, q.customer, total, "", "", "Not matched", cand.length > 1 ? "more than one CRM project fits — set the invoice number on the right one" : "no CRM project with this invoice number, or with this customer and total"]); flagged++; continue; }
         }
+        // an invoice number on a project of a different customer is a wrong match: flag it, change nothing
+        if (how === "invoice number") { const a = S.accounts.get(p.accountId) || {}; const cn = norm(q.customer);
+          const names = [a.qb, a.name].concat(T.live(S.contacts).filter((c) => c.accountId === p.accountId).map((c) => c.name)).map(norm).filter(Boolean);
+          if (cn && !names.some((n) => n === cn || n.indexOf(cn) >= 0 || cn.indexOf(n) >= 0)) {
+            out.push([doc, q.txn_date, q.customer, total, "P-" + p.num, "", "Customer differs", "This invoice number is on a project for a different customer — check which project it bills; nothing was changed"]); flagged++; continue; } }
         used.add(p.id); matched++;
         // a total far from QuickBooks' means the match itself may be wrong: flag it, change nothing
         const crm0 = (T.projValue(p) || 0) + (T.invTaxOf(p) || 0);
