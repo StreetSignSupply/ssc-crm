@@ -154,6 +154,10 @@ if (STEP === "qb") {
           else { out.push([doc, q.txn_date, q.customer, total, "", "", "Not matched", cand.length > 1 ? "more than one CRM project fits — set the invoice number on the right one" : "no CRM project with this invoice number, or with this customer and total"]); flagged++; continue; }
         }
         used.add(p.id); matched++;
+        // a total far from QuickBooks' means the match itself may be wrong: flag it, change nothing
+        const crm0 = (T.projValue(p) || 0) + (T.invTaxOf(p) || 0);
+        if (how !== "invoice number" || (total > 0 && Math.abs(crm0 - total) / total > 0.25 && Math.abs(crm0 - total) > 50)) {
+          if (how === "invoice number") { out.push([doc, q.txn_date, q.customer, total, "P-" + p.num, Math.round(crm0 * 100) / 100, "Total differs", "QuickBooks " + total.toFixed(2) + " vs CRM " + crm0.toFixed(2) + " — too far apart to update automatically; check the quote lines (and any discount) against the invoice"]); flagged++; continue; } }
         const patch = {}, notes = [];
         if (String(p.invNum || "").trim() !== doc) { patch.invNum = doc; notes.push("invoice # " + doc); }
         if (q.txn_date && p.billDate !== q.txn_date) { patch.billDate = q.txn_date; notes.push("invoiced on " + q.txn_date); }
