@@ -1,5 +1,14 @@
 # What changed
 
+## 2026.11.25-76
+- Phones (and narrow windows, up to 760px): quote lines show as cards — the item across the top, the numbers in two columns, and Edit always on screen; long material names show short (e.g. "DG3 White") with the full name on hover. Tables stack, the labelled bottom menu shows, and the breadcrumbs become one "← Back" link.
+- "A newer version of the CRM is ready" is a small note in the bottom-right corner, and it never shows over an open form.
+- Risky buttons moved away from everyday ones: re-pricing and changing the grade on every line are under "Bulk actions" on the quote lines (each opens a screen to check first); Discard on a draft and Merge in Possible duplicates are in "⋯" menus and ask first.
+- "Not yet" on the quote lines' work order column is grey, "not on a work order" counts are amber, and cards that need attention have an amber border instead of red (red is for real problems).
+- Projects: one Import menu (website orders, pipeline feed). Projects and Work orders view switches look like tabs.
+- Dashboard: My accounts shows the top 8 by open value with "See all"; the monthly charts leave out empty months.
+- Files: the Account column no longer repeats the vendor. Vendors: terms stay on one line (full text on hover). Contacts: a note in brackets after a name shows under the name. Phone numbers don't wrap.
+
 ## 2026.11.25-75
 - Find an item: results read cleanly (no "|24X12" keys on the end) and rank better — the exact code first, then names that start with what you typed, then whole words; "DOES NOT STOP" signs come after real stop signs.
 - Phones: small grey notes are 13px and darker. Files list: "by Jarom S." under the date instead of bare initials.
