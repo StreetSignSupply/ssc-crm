@@ -49,6 +49,27 @@ if (MODE === "check") {
   say("::notice::restore check: newest backup " + last.name.replace("crm-backups/", "") + " has " + inBackup + " documents and reads back cleanly; live database has " + live + " (" + missing + " added since)");
   process.exit(0);
 }
+// BACKUP_MODE=restore: put chosen fields of chosen projects back to what the newest backup has (RESTORE="2002:invTax,billDate;2010:paidDate")
+if (MODE === "restore") {
+  const ls = await (await gcs("/storage/v1/b/" + bucket + "/o?prefix=crm-backups/")).json();
+  const items = (ls.items || []).filter((x) => /\.json\.gz$/.test(x.name)).sort((a, b) => a.name.localeCompare(b.name));
+  const last = items[items.length - 1]; if (!last) fail("no backups");
+  const back = JSON.parse(zlib.gunzipSync(Buffer.from(await (await gcs("/storage/v1/b/" + bucket + "/o/" + encodeURIComponent(last.name) + "?alt=media")).arrayBuffer())).toString("utf8"));
+  let done = 0;
+  for (const part of String(process.env.RESTORE || "").split(";").filter(Boolean)) {
+    const [num, fields] = part.split(":"); const path = Object.keys(back.docs).find((p) => /^projects\//.test(p) && String(back.docs[p].num) === num);
+    if (!path) { say("project " + num + " not in the backup"); continue; }
+    const old = back.docs[path], patch = {};
+    fields.split(",").forEach((f) => { patch[f] = old[f] === undefined ? Firestore.FieldValue.delete() : old[f]; });
+    patch.updatedAt = Date.now(); await fs.doc(path).set(patch, { merge: true });
+    const hk = "history/project_" + path.split("/")[1]; const h = await fs.doc(hk).get();
+    const entries = ((h.exists && h.data().entries) || []).concat([{ f: "Fix run", o: "", n: "Restored " + fields.split(",").join(", ") + " from the " + last.name.replace("crm-backups/", "").replace(".json.gz", "") + " backup (undoing a wrong QuickBooks match)", ev: 1, w: "FIX", t: Date.now() }]);
+    if (h.exists) await fs.doc(hk).set({ entries }, { merge: true });
+    done++;
+  }
+  say("::notice::restore: " + done + " projects put back from " + last.name.replace("crm-backups/", ""));
+  process.exit(0);
+}
 const { out, cols } = await dumpAll();
 const n = Object.keys(out).length; if (n < 10) fail("only " + n + " documents read — not saving a backup that small");
 const body = zlib.gzipSync(Buffer.from(JSON.stringify({ project: PROJECT, at: new Date().toISOString(), collections: cols, docs: out })));
