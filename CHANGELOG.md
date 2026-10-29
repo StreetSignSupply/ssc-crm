@@ -1,5 +1,10 @@
 # What changed
 
+## 2026.11.25-77
+- Quote prices come from the right list for the customer. Each account has "Quote prices from": automatic (retail customers → website prices; contractors, government and resellers → your price list), or set it to price list or website. A website item picked for a price-list customer is priced from your price list for that size and material. The Add a line form says where the price came from and shows the other one beside it ("website $30.89 · use").
+- The line form breaks the cost down by part — blank, sheeting, legend, overlay, overlaminate, ink — when it's worked out from materials (a locked cost shows today's breakdown under it).
+- Parking and fire-lane signs with no picture anywhere get a plain drawing with their own words in red (the agents still replace it with a real picture).
+
 ## 2026.11.25-76
 - Phones (and narrow windows, up to 760px): quote lines show as cards — the item across the top, the numbers in two columns, and Edit always on screen; long material names show short (e.g. "DG3 White") with the full name on hover. Tables stack, the labelled bottom menu shows, and the breadcrumbs become one "← Back" link.
 - "A newer version of the CRM is ready" is a small note in the bottom-right corner, and it never shows over an open form.
