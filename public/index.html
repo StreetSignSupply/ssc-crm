@@ -8271,12 +8271,42 @@ function genericSignPic(line){if(!line||typeof line!=="object")return null;
       +'<text x="'+(L?66:54)+'" y="23.5" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="10" fill="#111" text-anchor="middle">ONE WAY</text></svg>'}
   else if(kind==="warn"){const arr=wrap(label||"WARNING",9,3);
     svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><polygon points="50,2 98,50 50,98 2,50" fill="#ffcc00" stroke="#111" stroke-width="3"/><polygon points="50,9 91,50 50,91 9,50" fill="none" stroke="#111" stroke-width="2"/>'+lines(50,50,arr,arr.length>2?9:11,"#111")+'</svg>'}
+  else if(kind==="park")svg=parkSignSvg(label,w,h);
   else{const W=100,H=Math.max(30,Math.min(300,Math.round(100*h/w)));
     const bg=kind==="guide"?"#00843d":kind==="warnrect"?"#ffcc00":"#fff",fg=kind==="guide"?"#fff":kind==="park"?"#c8102e":"#111";
     const arr=wrap(label||"",H>W?10:16,H>W?4:2);const fs=Math.max(8,Math.min(15,Math.round(Math.min(80/(Math.max(5,...arr.map(x=>x.length))*0.68),(H-20)/Math.max(1,arr.length)/1.2))));
     svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' '+H+'"><rect x="2" y="2" width="'+(W-4)+'" height="'+(H-4)+'" rx="6" fill="'+bg+'" stroke="'+fg+'" stroke-width="3"/><rect x="7" y="7" width="'+(W-14)+'" height="'+(H-14)+'" rx="4" fill="none" stroke="'+fg+'" stroke-width="2"/>'+lines(50,H/2,arr,fs,fg)+'</svg>'}
   return GENPIC[key]={img:"data:image/svg+xml;base64,"+btoa(unescape(encodeURIComponent(svg))),name:label||kind,generic:true}}
 function signPic(line){const e=picEntry(line);return e&&e.img||""}
+/* a parking / fire-lane sign drawn the way the real ones look: white face, red border, the legend in big red
+   capitals one phrase per line ("FIRE LANE" / "NO PARKING" / "ANY TIME"), each line as wide as the sign allows */
+function parkSignSvg(label,w,h){
+  const W=100,H=Math.max(60,Math.min(220,Math.round(100*(h||18)/(w||12))));
+  const PH=["FIRE LANE","NO PARKING","ANY TIME","TOW AWAY ZONE","TOW AWAY","NO STOPPING","LOADING ZONE","AT ANY TIME","VIOLATORS WILL BE TOWED","EMERGENCY VEHICLES ONLY","KEEP CLEAR","DO NOT BLOCK"];
+  let t=" "+String(label||"").toUpperCase().replace(/[^A-Z0-9 &'\-]/g," ").replace(/\s+/g," ").trim()+" ";
+  // pull the known phrases out in the order they're written, then whatever words are left
+  const found=[];PH.forEach(ph=>{const i=t.indexOf(" "+ph+" ");if(i>=0){found.push([i,ph]);t=t.slice(0,i)+" "+"\u0000".repeat(ph.length)+" "+t.slice(i+ph.length+2)}});
+  t.split(/\u0000+/).forEach((chunk,ci)=>{});
+  const rest=[];let pos=0;t.replace(/[A-Z0-9&'\-]+/g,(m,i)=>{rest.push([i,m]);return m});
+  let items=found.concat(rest).sort((x,y)=>x[0]-y[0]).map(x=>x[1]);
+  // tall signs put one word per line, like the real ones; the words of a phrase share one size so it reads as a unit
+  const tall=H>W*1.15;let rows=[];
+  items.forEach((x,pi)=>{const ws=tall?x.split(" "):(x.length>12&&x.indexOf(" ")>0?(()=>{const w2=x.split(" "),m=Math.ceil(w2.length/2);return [w2.slice(0,m).join(" "),w2.slice(m).join(" ")]})():[x]);
+    ws.forEach(wd=>rows.push({t:wd,g:pi}))});
+  rows=rows.slice(0,7);if(!rows.length)rows=[{t:"NO",g:0},{t:"PARKING",g:0}];
+  const inner=W-22,avail=H-24;
+  const grpMin={};rows.forEach(r=>{const f=Math.min(40,inner/(Math.max(2,r.t.length)*0.68));grpMin[r.g]=Math.min(grpMin[r.g]||99,f)});
+  let fs=rows.map(r=>grpMin[r.g]);
+  const gap=(i2)=>i2>0&&rows[i2].g!==rows[i2-1].g?0.25:0;
+  const totH=()=>fs.reduce((a2,b2,i2)=>a2+b2*(1.02+gap(i2)),0);
+  if(totH()>avail){const k=avail/totH();fs=fs.map(f=>f*k)}
+  let y=(H-totH())/2;
+  const gp=rows.map((r,i2)=>gap(i2));
+  rows=rows.map(r=>r.t);
+  const E=x=>String(x).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);
+  const txt=rows.map((r,i)=>{y+=fs[i]*(1.02+gp[i]);return '<text x="50" y="'+(y-fs[i]*0.16).toFixed(1)+'" font-family="Arial Black,Arial,Helvetica,sans-serif" font-weight="900" font-size="'+fs[i].toFixed(1)+'" fill="#c8102e" text-anchor="middle" textLength="'+Math.min(inner,r.length*fs[i]*0.68).toFixed(1)+'" lengthAdjust="spacingAndGlyphs">'+E(r)+'</text>'}).join("");
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' '+H+'"><rect x="1" y="1" width="'+(W-2)+'" height="'+(H-2)+'" rx="6" fill="#fff" stroke="#bbb" stroke-width="1"/>'
+    +'<rect x="5" y="5" width="'+(W-10)+'" height="'+(H-10)+'" rx="4" fill="none" stroke="#c8102e" stroke-width="3"/>'+txt+'</svg>'}
 function picFb(line){try{const g=genericSignPic(line);return g&&g.img||""}catch(e){return ""}}
 /* ===== the proof artwork uploaded to a project finds its own line =====
    A line can be pointed at a picture (Edit the line → Picture). Otherwise the file whose name matches
@@ -10050,7 +10080,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-77";
+const APP_VERSION="2026.11.25-78";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
