@@ -9248,7 +9248,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-45";
+const APP_VERSION="2026.11.25-46";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -14464,6 +14464,7 @@ function bind(){
       const l=rg.querySelector(":scope > td:first-child .lnk[data-go]");if(l){go(l.dataset.go);return}}
     const czb=t.closest("[data-cz]");
     if(czb&&!t.closest("button:not(.cz),a,input,select,textarea")){toggleCz(czb.dataset.cz);return}
+    {const ga=t.closest("[data-goarch]");if(ga){S.archAcct=ga.dataset.goarch;go("archive");return}}   // account → its archived projects
     const czh=t.closest("[data-czhead]");
     if(czh&&isPhone()&&!t.closest("button,a,input,select,textarea,label,[data-go],[data-new],[data-edit]")){toggleCz(czh.dataset.czhead);return}
     if(t.closest("[data-czall]")){czAll(t.closest("[data-czall]").dataset.czall==="open");return}

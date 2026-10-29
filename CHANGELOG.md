@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-46 — 2026-10-28
+- Fixed: the "N archived" button on an account did nothing — it now opens the Archive showing that account's closed projects
+
 ## 2026.11.25-45 — 2026-10-28
 - Long notes (accounts, contacts, vendors, items) start folded: a two-line preview with Show all notes / Hide notes
 
