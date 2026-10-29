@@ -6389,7 +6389,8 @@ function ordModal(pid,ix,pre){
   // a price you typed stays; a price that came from the item you picked (or the suggestion) follows the details
   const pe=$("#o-price");if(pe){pe.dataset.auto=(!isNew&&o.price&&String(o.price).trim())?"0":(pre&&pre.price?"pick":"1");
     pe.addEventListener("input",()=>{pe.dataset.auto=pe.value.trim()?"0":"1"})}
-  const de=$("#o-desc");if(de){de.dataset.auto=String(o.desc||"").trim()?"0":"1";de.addEventListener("input",()=>{if(!S._ordFill)de.dataset.auto=de.value.trim()?"0":"1"})}
+  {const sz=$("#o-size");if(sz){sz.dataset.auto=String(o.size||"").trim()&&!pre?"0":"1";sz.addEventListener("input",()=>{if(!S._ordFill)sz.dataset.auto=sz.value.trim()?"0":"1"})}}
+  const de=$("#o-desc");if(de){de.dataset.auto=String(o.desc||"").trim()&&!pre?"0":"1";de.addEventListener("input",()=>{if(!S._ordFill)de.dataset.auto=de.value.trim()?"0":"1"})}
   const tog=$("#o-det-tog"),dbox=$("#o-det");
   if(tog&&dbox)tog.onclick=()=>{dbox.hidden=!dbox.hidden;tog.setAttribute("aria-expanded",String(!dbox.hidden));tog.textContent=dbox.hidden?"Change details":"Hide details";if(!dbox.hidden)$("#o-code").focus()};
   // the find box: results under it; picking one fills the line in place
@@ -6407,9 +6408,15 @@ function ordModal(pid,ix,pre){
     if(S.ordPre){["sheetKey","webId","webVar","webImg","price"].forEach(k=>delete S.ordPre[k])}   // no longer the item that was picked — its price doesn't apply
     const pe0=$("#o-price");if(pe0&&pe0.dataset.auto!=="0")pe0.dataset.auto="1";
     if(id==="o-code")ordCodeTyped();ordCostHelp()})});
-  ordCodeTyped(true);
+  ordCodeTyped(true);qtyGuard("o-qty");
   focusFirst(isNew&&!pre?"o-find":"o-qty");
 }
+// a quantity box that won't take 0 or less: min 1, and a red note under it while it's wrong (Add/Save also refuse it)
+function qtyGuard(id){const q=$("#"+id);if(!q)return;q.min="1";q.step="1";
+  const note=document.createElement("div");note.className="sub";note.style.cssText="color:var(--danger-ink);font-weight:700;margin-top:4px";note.hidden=true;note.textContent="Quantity has to be 1 or more";
+  q.insertAdjacentElement("afterend",note);
+  const chk=()=>{const v=q.value.trim();const bad=v!==""&&!(Number(v)>0)||v==="";note.hidden=!bad;q.setAttribute("aria-invalid",bad?"true":"false")};
+  q.addEventListener("input",chk);q.addEventListener("blur",chk)}
 function ordCodeTyped(quiet){const ce=$("#o-code");if(!ce)return;const v=ce.value.trim();const h=$("#o-code-hint");
   const e=v?codeList().find(x=>codeNorm(x.code)===codeNorm(v)):null;
   const dl=$("#dl-o-size2");if(dl)dl.innerHTML=ordSizeOpts(e?e.code:v).map(x=>`<option value="${esc(x.v)}">${esc(x.l)}</option>`).join("");
@@ -6417,9 +6424,9 @@ function ordCodeTyped(quiet){const ce=$("#o-code");if(!ce)return;const v=ce.valu
   if(quiet||!e)return;
   const de=$("#o-desc"),sz=$("#o-size");
   // the name follows the code unless you typed your own; the size follows unless it's already one of this code's sizes
-  const prevAuto=de&&(de.dataset.auto==="1"||!de.value.trim()||codeList().some(x=>x.name&&x.name===de.value.trim()));
-  if(de&&prevAuto&&e.name){de.value=e.name;de.dataset.auto="1"}
-  if(sz&&e.sizes.length&&!e.sizes.some(z=>(normSize(z)||z)===(normSize(sz.value)||sz.value.trim())))sz.value=e.sizes[0];
+  // a name or size you typed yourself is never replaced; only empty ones, or ones the form filled in itself, follow the code
+  if(de&&(de.dataset.auto==="1"||!de.value.trim())&&e.name){de.value=e.name;de.dataset.auto="1"}
+  if(sz&&(sz.dataset.auto==="1"||!sz.value.trim())&&e.sizes.length){sz.value=e.sizes[0];sz.dataset.auto="1"}
   ordDetText();ordCostHelp()}
 function ordDetText(){const t=$("#o-det-txt");if(!t)return;const v=[$("#o-code").value.trim(),$("#o-size").value.trim()?sizeLabel($("#o-size").value.trim()):"",$("#o-grade").value.trim()].filter(Boolean).join(" · ");
   t.textContent=v||"No code, size or material yet"}
@@ -6441,8 +6448,12 @@ function ordPickFill(key){
 }
 // the one suggested price: the account's own price, else your price list / workbook / website (never under the
 // quote floor), else what it costs at the target margin. Shown as one number with one button.
-function ordSuggest(line){const dp=defaultPrice(line,S.ordAid);if(dp)return dp;
-  const pp=S.ordPre&&Number(S.ordPre.price);if(pp>0)return {price:pp,why:"the item you picked"};return null}
+function ordSuggest(line){
+  const a=S.ordAid?acct(S.ordAid):null;const cp=a?contractPrice(a,line):null;
+  if(cp)return {price:Number(cp.price),why:a.name+"'s own price for this item",contract:true};
+  // the price on the item you picked from the price list stands until you change its code, size or material
+  const pp=S.ordPre&&Number(S.ordPre.price);if(pp>0)return {price:pp,why:"the price list price for the item you picked"};
+  return defaultPrice(line,S.ordAid)}
 function ordCostHelp(){
   const box=$("#o-cost-help");if(!box)return;
   const lg=readLegends("o")||{legend:"",legends:[]};
@@ -8394,7 +8405,7 @@ function lineModal(num,ix,pre){
   ["l-qty","l-code","l-size","l-grade","l-sub","l-price","l-legs"].forEach(id=>{
     const el=$("#"+id);if(el){el.oninput=upd;el.onchange=upd}});
   upd();
-  focusFirst("l-qty");
+  qtyGuard("l-qty");focusFirst("l-qty");
 }
 async function lineSave(num,ixRaw){
   const j=job(num);if(!j)return;
@@ -8409,7 +8420,8 @@ async function lineSave(num,ixRaw){
     sheetKey:$("#l-sheetkey")?$("#l-sheetkey").value:(was.sheetKey||""),
     noLam:$("#l-nolam")?!!$("#l-nolam").checked:!!was.noLam});
   const nolamAsked=!!$("#l-nolam");
-  if(!rec.qty&&!rec.code&&!rec.desc)return toast("Give it at least a quantity, a code or a name.");
+  if(!(Number(rec.qty)>0)){toast("Put in a quantity — 1 or more.");const qe=$("#l-qty");if(qe)qe.focus();return}
+  if(!rec.code&&!rec.desc)return toast("Give it a name or a code.");
   // a new line on a project's work order goes on the project too, linked by id — code or no code
   const p0=ix<0&&j.projectId?proj(j.projectId):null;
   if(p0&&!rec.lineId){
@@ -9960,7 +9972,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-73";
+const APP_VERSION="2026.11.25-74";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -10218,7 +10230,9 @@ function projectRec(id){
         <div><div class="k">Value</div><div class="v mono">${money(projValue(p))}
           ${p.amountAuto?`<div class="sub">${valueFrom(p)}</div>`:""}</div></div>
         <div><div class="k">Cost</div><div class="v mono">${projCost(p)?money(projCost(p)):"—"}${projPulled(p)&&Math.abs(projPulled(p)-projCost(p))>1?`<div class="sub" title="Material and other costs recorded on the work orders">${money(projPulled(p))} pulled so far</div>`:""}</div></div>
-        <div><div class="k">Margin</div><div class="v">${marginPill(projMargin(p),projValue(p))}</div></div>
+        <div><div class="k">Margin</div><div class="v">${marginPill(projMargin(p),projValue(p))}${(function(){if(!can("cost"))return "";
+          const neg=orderedLines(p).filter(l=>{if(isCharge(l))return false;const pr=Number(l.price)||0;let c=0;try{c=quoteLineCost(l).cost||0}catch(e){}return pr>0&&c>0&&pr<c}).length;
+          return neg?`<div class="sub" style="color:var(--danger-ink);font-weight:700">⚠ ${neg} line${neg===1?"":"s"} below cost</div>`:""})()}</div></div>
         <div><div class="k">Billing</div><div class="v">${billPill(p)}
           ${billedEarly(p)&&p.stage!=="invoiced"&&p.stage!=="closed"?`<div class="sub">billed before production</div>`:""}</div></div>
         <div><div class="k">PO</div><div class="v">${esc(p.po||"—")}</div></div>
@@ -10852,7 +10866,7 @@ function linkTile(f,showSrc){
       <button class="btn sm" data-view="${esc(f.id)}">View</button>
       <a class="btn sm" href="${esc(driveDownload(f.url))}" target="_blank" rel="noopener" style="text-decoration:none" title="Download the file">Download</a>
       <span style="flex:1"></span>
-      ${S.canUpload?`<button class="btn sm q fdel" data-delfile="${esc(f.id)}" title="Delete this file" aria-label="Delete this file">${ic("trash",14)||"✕"}</button>`:""}</div></div>`}
+      ${S.canUpload?`<details class="dd rowm fdel"><summary class="btn sm q" aria-label="More for this file" title="More">⋯</summary><div class="dd-m"><button class="danger" data-delfile="${esc(f.id)}">Delete this file…</button></div></details>`:""}</div></div>`}
   return `<div class="ftile"><a class="th" href="${esc(f.url)}" target="_blank" rel="noopener" title="Open ${esc(f.name)}" style="text-decoration:none"><span class="ext">LINK</span></a>
     <div class="meta"><b class="nm" title="${esc(f.name)}">${esc(f.name)}</b>
       <span class="sub">${esc(f.cat||"Other")} · ${esc(linkHost(f.url))}${f.who==="AI"?" · added by the agents":""}</span>
@@ -10860,7 +10874,7 @@ function linkTile(f,showSrc){
     <div class="row" data-stop="1">
       <a class="btn sm" href="${esc(f.url)}" target="_blank" rel="noopener" style="text-decoration:none">Open link</a>
       <span style="flex:1"></span>
-      ${S.canUpload?`<button class="btn sm q fdel" data-delfile="${esc(f.id)}" title="Delete this file" aria-label="Delete this file">${ic("trash",14)||"✕"}</button>`:""}</div></div>`;
+      ${S.canUpload?`<details class="dd rowm fdel"><summary class="btn sm q" aria-label="More for this file" title="More">⋯</summary><div class="dd-m"><button class="danger" data-delfile="${esc(f.id)}">Delete this file…</button></div></details>`:""}</div></div>`;
 }
 function fileTile(f,showSrc){
   if(f.link)return linkTile(f,showSrc);
@@ -10880,7 +10894,7 @@ function fileTile(f,showSrc){
         style="text-decoration:none" title="Open in a new tab">Tab</a>
       <button class="btn sm" data-dl="${esc(f.id)}">Save</button>
       <span style="flex:1"></span>
-      ${S.canUpload?`<button class="btn sm q fdel" data-delfile="${esc(f.id)}" title="Delete this file" aria-label="Delete this file">${ic("trash",14)||"✕"}</button>`:""}</div></div>`;
+      ${S.canUpload?`<details class="dd rowm fdel"><summary class="btn sm q" aria-label="More for this file" title="More">⋯</summary><div class="dd-m"><button class="danger" data-delfile="${esc(f.id)}">Delete this file…</button></div></details>`:""}</div></div>`;
 }
 // PDF tiles show their first page: drawn once with pdf.js, kept for the session
 const PDFTH={cache:{},busy:false,failed:{}};
