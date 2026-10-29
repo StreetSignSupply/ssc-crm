@@ -1480,7 +1480,7 @@ let db=null,assets=null,downloads=null,userCap=null,sampleCap=null;
 const S={route:{v:"tracker"},me:"",ready:false,canUpload:false,
   accounts:new Map(),contacts:new Map(),projects:new Map(),jobs:new Map(),
   files:new Map(),activity:new Map(),history:new Map(),events:new Map(),team:new Map(),
-  vendors:new Map(),items:new Map(),invtx:new Map(),remarks:new Map(),viewer:null,viewerTeam:null,projFollow:false,fuEdit:"",drEdit:"",
+  vendors:new Map(),items:new Map(),invtx:new Map(),remarks:new Map(),access:new Map(),viewer:null,viewerTeam:null,projFollow:false,fuEdit:"",drEdit:"",
   brand:Object.assign({},DEF_BRAND),
   q:"",gsearch:"",jobMode:"list",projMode:"list",modal:null,viewerFile:null,wiz:null,qwo:null,csv:null,stageYes:null,notifications:new Map(),lastView:"",archAcct:"",closeOpen:null,sheet:null,sheetIdx:null,sortJ:"due",sortP:"due",discardArmed:false,noRep:false,woArchive:false,ai:false,aiState:"",aiParsed:null,prepOpen:null,showClosed:false,actFilter:"",fileFilter:"",calMonth:"",alertOff:false,showArchive:false,mineOnly:false,scope:"",
   rpt:{preset:"rev",src:"proj",basis:"billed",group:"month",metric:"value",from:"",to:"",rep:"",acct:"",stage:"",prod:""}};
@@ -9660,7 +9660,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-61";
+const APP_VERSION="2026.11.25-62";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -14663,7 +14663,25 @@ function remDeliver(url,force){
   return n;
 }
 // on load and every 15 minutes: deliver what's due, and redraw the bell when the count moved
-function remTick(){try{if(!db||!S.ready||!S.brandLoaded)return;remDeliver();
+/* Who may open the CRM, as the database checks it: one small record per team member's sign-in email and per
+   sign-in id, holding their access level. The owner's copy of the CRM keeps these matching the team list; the
+   database rules only let owners change them, and only let people with one read or write anything. */
+function accessWanted(){const want={};
+  live(S.team).forEach(t=>{if(!String(t.name||"").trim())return;const role=t.access&&ACCESS[t.access]?t.access:"owner";
+    const keys=[String(t.email||"").trim().toLowerCase()].concat(signIns(t).map(String)).filter(k=>k&&!/[\/]/.test(k)&&k.length<200);
+    keys.forEach(k=>{want[k]={role,teamId:String(t.id)}})});
+  return want}
+let ACCESS_BUSY=false;
+async function accessSync(force){if(ACCESS_BUSY||!db||!S.ready||!S.team||!S.team.size)return {n:0};
+  if(!force&&!(isHosted()&&myAccess()==="owner"&&ownerClaimed()))return {n:0};
+  ACCESS_BUSY=true;let n=0,gone=0;
+  try{const want=accessWanted();
+    for(const k of Object.keys(want)){const cur=S.access.get(k);if(cur&&cur.role===want[k].role&&cur.teamId===want[k].teamId)continue;
+      await setDoc("access/"+k,Object.assign({},want[k],{updatedAt:Date.now()}));n++}
+    for(const [k] of S.access){if(want[k])continue;try{await db.doc("access/"+k).delete();gone++}catch(e){}}}
+  finally{ACCESS_BUSY=false}
+  return {n,gone,total:Object.keys(accessWanted()).length}}
+function remTick(){try{if(!db||!S.ready||!S.brandLoaded)return;remDeliver();accessSync().catch(()=>{});
     const n=remMine().length;if(S._remN!==n){S._remN=n;if(!typing()&&!S.modal)render()}}catch(e){}}
 function bellBtn(){
   if(!S.viewerTeam)return "";
@@ -15649,7 +15667,7 @@ async function boot(){
   sub("accounts","accounts");sub("contacts","contacts");sub("projects","projects");
   sub("jobs","jobs",true);sub("files","files");sub("activity","activity");sub("history","history");
   sub("events","events");sub("team","team");
-  sub("vendors","vendors");sub("items","items");sub("invtx","invtx");sub("notifications","notifications");sub("reminders","remarks");
+  sub("vendors","vendors");sub("items","items");sub("invtx","invtx");sub("notifications","notifications");sub("reminders","remarks");sub("access","access");
   syncSentLoad();
   db.doc("settings/prodtypes").onSnapshot(s=>{if(s&&s.exists&&s.data())S.prodtypes=s.data();if(!typing()&&!S.modal)render()},()=>{});
   db.doc("settings/pricelist").onSnapshot(s=>{if(s&&s.exists&&s.data())S.pricelist=s.data();if(!typing()&&!S.modal)render()},()=>{});
