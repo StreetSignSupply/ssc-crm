@@ -2092,7 +2092,7 @@ function vendPeopleCard(v){const ps=vendPeople(v);
   return `<section class="card flush"><header><span class="oi sm oi-cont">${ic("contact",14)}</span><h2>People at ${esc(v.name||"this vendor")}</h2>
     <span class="n">${ps.length}</span><span class="sp"><button class="btn sm" data-vpadd="${esc(v.id)}">Add person</button></span></header>
     ${ps.length?`<table><tbody>${ps.map(x=>`<tr>
-      <td><b>${esc(x.name||"—")}</b><div class="sub">${esc([x.title,x.location].filter(Boolean).join(" · "))}</div></td>
+      <td><button class="lnk" data-vpview="${esc(v.id)}|${esc(x.id)}" title="See everything about ${esc(x.name||"this person")}">${esc(x.name||"—")}</button><div class="sub">${esc([x.title,x.location].filter(Boolean).join(" · "))}</div></td>
       <td>${cxLines(cxMail(x.email,"",{cc:false}),cxTel(x.phone),cxTel(x.mobile,"mobile"))||`<span class="sub">no email or phone yet</span>`}</td>
       <td style="width:130px;text-align:right;white-space:nowrap"><button class="btn sm" data-vpedit="${esc(v.id)}|${esc(x.id)}">Edit</button>
         <button class="btn sm d" data-vpdel="${esc(v.id)}|${esc(x.id)}">Remove</button></td></tr>`).join("")}</tbody></table>`
@@ -2110,6 +2110,24 @@ function vendPersonModal(vid,pid){const v=S.vendors.get(vid);if(!v)return;const 
     const all=((S.vendors.get(vid)||{}).people||[]).filter(y=>y&&y.id!==rec.id).concat([rec]);
     closeModal();await push("vendors/"+vid,{people:all,updatedAt:Date.now()});
     recordHistory("vendor",vid,[{f:"People",o:"",n:(x.id?"Edited ":"Added ")+name+(rec.location?" ("+rec.location+")":""),ev:1}]);toast(x.id?"Saved.":"Added "+name+".")}}
+// one person, everything we have on them, with Edit and "Make main rep" (swaps with the rep in Details)
+function vendPersonView(vid,pid){const v=S.vendors.get(vid);if(!v)return;const x=vendPeople(v).find(y=>y.id===pid);if(!x)return;
+  const row=(k,h)=>`<div class="fld"><div class="k">${esc(k)}</div><div class="v">${h||"—"}</div></div>`;
+  openModal(mshell(x.name||"Person","cont",
+    `<div class="fgrid">${row("Title / role",esc(x.title||""))}${row("Location / branch",esc(x.location||""))}
+      ${row("Email",cxMail(x.email,"",{cc:false}))}${row("Phone",cxTel(x.phone))}
+      ${row("Mobile",cxTel(x.mobile,"mobile"))}${row("Vendor",esc(v.name||""))}
+      <div class="fld full"><div class="k">Notes</div><div class="v" style="white-space:pre-wrap">${esc(x.notes||"—")}</div></div></div>`,
+    `<button class="btn" data-close="1">Close</button>
+     <button class="btn" id="vpmain" title="Show ${esc(x.name||"them")} as the main rep in Details; the current main rep moves to this list">Make main rep</button>
+     <button class="btn p" id="vpedit2">Edit</button>`));
+  $("#vpedit2").onclick=()=>{closeModal();vendPersonModal(vid,pid)};
+  $("#vpmain").onclick=async()=>{closeModal();const v2=S.vendors.get(vid)||v;const now=Date.now();
+    const people=(v2.people||[]).filter(y=>y&&y.id!==pid);
+    if(v2.contact||v2.email||v2.phone)people.push({id:uid("vp"),name:v2.contact||"Previous main rep",title:"",location:[v2.city,v2.state].filter(Boolean).join(", "),
+      email:v2.email||"",phone:v2.phone||"",mobile:"",notes:"",createdAt:now});
+    await push("vendors/"+vid,{contact:x.name||"",email:x.email||"",phone:x.phone||x.mobile||"",people,updatedAt:now});
+    recordHistory("vendor",vid,[{f:"Main rep",o:v2.contact||"",n:x.name||"",ev:0}]);toast((x.name||"They")+" is now the main rep.")}}
 async function vendPersonDel(vid,pid){const v=S.vendors.get(vid);if(!v)return;const x=vendPeople(v).find(y=>y.id===pid);if(!x)return;
   askConfirm("Remove "+(x.name||"this person")+"?",`<p style="margin:0">They come off ${esc(v.name||"this vendor")}'s people list. Field history keeps a note of it.</p>`,"Remove",true,async()=>{
     await push("vendors/"+vid,{people:(v.people||[]).map(y=>y&&y.id===pid?Object.assign({},y,{deleted:true,deletedAt:Date.now()}):y),updatedAt:Date.now()});
@@ -9282,7 +9300,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-55";
+const APP_VERSION="2026.11.25-56";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -15017,6 +15035,7 @@ function bind(){
     const nv=t.closest("[data-newvend]");if(nv){vendorModal(null);return}
     const evd=t.closest("[data-editvend]");if(evd){vendorModal(S.vendors.get(evd.dataset.editvend));return}
     {const x=t.closest("[data-vpadd]");if(x){vendPersonModal(x.dataset.vpadd,"");return}}
+    {const x=t.closest("[data-vpview]");if(x){const[a,b]=x.dataset.vpview.split("|");vendPersonView(a,b);return}}
     {const x=t.closest("[data-vpedit]");if(x){const[a,b]=x.dataset.vpedit.split("|");vendPersonModal(a,b);return}}
     {const x=t.closest("[data-vpdel]");if(x){const[a,b]=x.dataset.vpdel.split("|");vendPersonDel(a,b);return}}
     const dvd=t.closest("[data-delvend]");

@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-56 — 2026-10-28
+- Vendors: click a person's name to see all their details (title, location, email, phone, mobile, notes) with Edit and Make main rep — the main rep swaps into Details and the previous one moves to the People list
+
 ## 2026.11.25-55 — 2026-10-28
 - Fixed: closing Show more on a file list left the page scrolled past the first 2 files (hidden under the pinned bar) — the list now closes with the first 2 files in view
 
