@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-37 — 2026-10-28
+- Lists fit the screen: Contacts, Accounts, Projects, Vendors, Archive and the other wide lists wrap long names, accounts and emails instead of cutting off the right-hand columns
+
 ## 2026.11.25-36 — 2026-10-28
 - PDF previews: when the CRM can't read a stored PDF directly, the card shows the PDF the way the file viewer does (the browser's own view of page 1)
 

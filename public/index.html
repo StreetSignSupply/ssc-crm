@@ -239,7 +239,10 @@ table{min-width:100%;table-layout:auto}
 td,th{overflow-wrap:anywhere}
 .card.flush{overflow-x:visible}
 .card.wide{overflow-x:auto;-webkit-overflow-scrolling:touch}
-.card.wide table{min-width:max-content}
+/* wide lists fit the screen: long names, accounts and emails wrap instead of pushing columns off the right edge */
+.card.wide table{min-width:100%;width:100%}
+.card.wide td{white-space:normal}
+.card.wide td a{overflow-wrap:anywhere}
 .fgal,.act,.fgrid{min-width:0}
 .card>header{display:flex;align-items:center;gap:10px;padding:12px 16px;
   border-bottom:1px solid var(--line2);background:var(--card);flex-wrap:wrap;position:relative}
@@ -8981,8 +8984,8 @@ function contactList(){
         <td><button class="lnk" data-go="contact/${esc(c.id)}">${esc(c.name)}</button><div class="sub">${esc(c.title||"")}</div></td>
         <td><button class="lnk" data-go="account/${esc(c.accountId)}">${esc(accName(c.accountId))}</button></td>
         <td>${esc(c.role||"—")}</td>
-        <td>${c.email?`<a href="${esc(mailLink(c.email))}"${mailTarget()} data-maillog="account:${esc(c.accountId)}:${esc(c.id)}">${esc(c.email)}</a>`:"—"}</td>
-        <td>${esc(fmtPhone(c.phone)||"—")}</td></tr>`).join("")}</tbody></table>`
+        <td>${c.email?`<a href="${esc(mailLink(c.email))}"${mailTarget()} data-maillog="account:${esc(c.accountId)}:${esc(c.id)}">${esc(c.email).replace("@","@<wbr>")}</a>`:"—"}</td>
+        <td style="white-space:nowrap">${esc(fmtPhone(c.phone)||"—")}</td></tr>`).join("")}</tbody></table>`
     :`<div class="empty"><b>No contacts yet</b>Add people under an account.</div>`}</section></div>`;
 }
 function contactRec(id){
@@ -9091,7 +9094,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-36";
+const APP_VERSION="2026.11.25-37";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
