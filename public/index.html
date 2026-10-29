@@ -4366,6 +4366,7 @@ function closeState(p,r){
 function closeOpen(p){return closeList(p).filter(r=>closeState(p,r)==="open")}
 function closeCard(p){
   if(isClosed(p))return "";
+  if(!jobsOf(p.id).length)return "";        // nothing to close out until a work order is made
   const L=closeList(p), open=closeOpen(p), na=p.closeNA||{};
   const ready=open.length===0;
   const waiting=L.filter(r=>closeState(p,r)==="wait").length;
@@ -4520,7 +4521,8 @@ function billCard(p){
   const w=BILLWHEN.find(x=>x.id===billWhen(p))||BILLWHEN[0];
   const st=billState(p);
   const owed=billOwed(p);
-  return `<section class="card flush" ${!owed?`style="border-color:var(--brand)"`:""}>
+  const billEmpty=st==="none"&&!p.invNum&&!p.billDate&&!p.paidDate&&!(Number(p.depositAmt)>0);
+  return `<section class="card flush" ${!owed?`style="border-color:var(--brand)"`:""}${billEmpty?" data-defshut":""}>
     <header><h2>Billing</h2>${billPill(p)}
       <span class="sub">${esc(w.help)} The invoice number is recorded here and nowhere else.</span>
       <span class="sp"><button class="btn sm" data-billwhen="${esc(p.id)}">When we bill</button></span></header>
@@ -8054,7 +8056,7 @@ function go(h){
   if(location.hash===target){render();toTop();return}
   location.hash=target;
 }
-window.addEventListener("hashchange",()=>{S.route=parseHash();S.ptab="all";S.gsearch="";S.q="";
+window.addEventListener("hashchange",()=>{S.route=parseHash();S.ptab="all";S.czOpen={};S.gsearch="";S.q="";
   S.actFilter="";S.fileFilter="";S.showClosed=false;S.showArchive=false;S.noRep=false;S.fuEdit="";S.drEdit="";
   if(S.route.v!=="projects")S.projFollow=false;
   if(S.route.v!=="archive")S.archAcct="";
@@ -8103,7 +8105,9 @@ function decorateCollapsible(){
       h2.setAttribute("data-cz",key);
       hd.setAttribute("data-czhead",key);
     }
-    card.classList.toggle("collapsed",czIsShut(m,key,idx,total,card.hasAttribute("data-keepopen")));
+    // on a project tab (Billing, Activity, Close-out…) the cards you went to see are open
+    if(card.hasAttribute("data-defshut")&&!(S.route&&S.route.v==="project"&&S.ptab&&S.ptab!=="all"))card.classList.toggle("collapsed",!((S.czOpen||{})[key+"@"+location.hash]));
+    else card.classList.toggle("collapsed",czIsShut(m,key,idx,total,card.hasAttribute("data-keepopen")));
   });
 }
 function toggleCz(key,force){
@@ -8111,6 +8115,8 @@ function toggleCz(key,force){
   const card=document.querySelector('.card[data-czkey="'+key.replace(/"/g,'\\"')+'"]');
   const shut=card?card.classList.contains("collapsed"):!!m[key];
   const next=(force===undefined)?!shut:force;
+  if(card&&card.hasAttribute("data-defshut")){S.czOpen=S.czOpen||{};S.czOpen[key+"@"+location.hash]=!next;
+    document.querySelectorAll('.card[data-czkey="'+key.replace(/"/g,'\\"')+'"]').forEach(c=>c.classList.toggle("collapsed",!!next));return}
   if(isPhone())m[key]=next?"shut":"open";
   else{if(next)m[key]=1;else delete m[key]}
   czSave(m);
@@ -8895,7 +8901,7 @@ function accountRec(id){
         <div><div class="k">Open work orders</div><div class="v mono">${js.length}</div></div></div></div>
     <div class="cols">
       <div>
-      <section class="card flush"><header><h2>Billing</h2>
+      <section class="card flush"${!billingForAccount(a)&&!a.qb?" data-defshut":""}><header><h2>Billing</h2>
         <span class="sp"><button class="btn sm" data-billing="account:${esc(id)}">
           ${billingForAccount(a)?"Change":"Set billing contact"}</button></span></header>
         <div class="fgrid">
@@ -8956,7 +8962,7 @@ function mergeModal(fromId){const A=acct(fromId);if(!A)return;
     const k=await mergeAccounts(fromId,to);toast("Merged — "+k+" records moved");go("account/"+to)}}
 function acctEventsCard(id){
   const evs=eventsOfAcct(id);
-  return `<section class="card flush"><header><span class="oi sm">${ic("calendar",14)}</span><h2>Schedule</h2>
+  return `<section class="card flush"${evs.length?"":" data-defshut"}><header><span class="oi sm">${ic("calendar",14)}</span><h2>Schedule</h2>
     <span class="n">${evs.length}</span>
     <span class="sp"><button class="btn sm p" data-newev="${esc(today())}::${esc(id)}">Add event</button></span></header>
     ${evs.length?`<table><tbody>${evs.map(e=>{const past=daysOut(e.endDate||e.startDate)<0;const p=e.projectId?proj(e.projectId):null;
@@ -9248,7 +9254,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-46";
+const APP_VERSION="2026.11.25-47";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -9603,7 +9609,7 @@ function projectRec(id){
       </div>
     </div>
 
-    <section class="card flush"><header><h2>Schedule</h2>
+    <section class="card flush"${eventsOf(id).length?"":" data-defshut"}><header><h2>Schedule</h2>
       <span class="n">${eventsOf(id).length}</span>
       <span class="sub">Installs, deliveries, site visits and deadlines. They show on the calendar too.</span>
       <span class="sp"><button class="btn sm p" data-newev=":${esc(id)}">Add event</button></span></header>
@@ -10254,7 +10260,7 @@ function activityCard(kind,id){
 }
 function historyCard(type,id){
   const h=histOf(type,String(id)).slice().reverse();
-  return `<section class="card flush"><header><h2>Field history</h2><span class="n">${h.length}</span>
+  return `<section class="card flush" data-defshut><header><h2>Field history</h2><span class="n">${h.length}</span>
     <span class="sub" style="margin-left:auto">kept permanently</span></header>
     ${h.length?h.slice(0,60).map(e=>`<div class="hrow">
       <span class="f">${esc(e.f)}</span>
