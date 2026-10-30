@@ -50,7 +50,10 @@ const mailFrom = String(brand.mailFrom || "matt@" + DOMAIN).toLowerCase();
 let ok = false, why = "";
 try { await userToken(mailFrom, SEND); ok = true; } catch (e) { why = String(e.message || e); }
 if (!ok) {
-  let cid = ""; try { const r = await fetch("https://iam.googleapis.com/v1/projects/-/serviceAccounts/" + SA, { headers: { Authorization: "Bearer " + TOK } }); cid = (await r.json()).uniqueId || ""; } catch (e) {}
+  // the client ID Google Admin asks for: the service account's numeric id (from its own token)
+  let cid = ""; try { const r = await fetch("https://oauth2.googleapis.com/tokeninfo?access_token=" + encodeURIComponent(TOK)); const j = await r.json(); cid = j.azp || j.aud || ""; } catch (e) {}
+  if (!cid) { try { const r = await fetch("https://iam.googleapis.com/v1/projects/-/serviceAccounts/" + SA, { headers: { Authorization: "Bearer " + TOK } }); cid = (await r.json()).uniqueId || ""; } catch (e) {} }
+  if (cid) await brandRef.set({ mailClientId: String(cid) }, { merge: true });
   note("mail: sending isn't connected yet (" + why.replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "<email>").slice(0, 160) + "). Google Admin → Security → Access and data control → API controls → Domain-wide delegation → Add new: client ID " + cid + ", scopes " + SEND + "," + READ);
   if (brand.mailSendOk !== false) await brandRef.set({ mailSendOk: false, mailSendErr: why.slice(0, 160), mailSendAt: Date.now() }, { merge: true });
   process.exit(0);

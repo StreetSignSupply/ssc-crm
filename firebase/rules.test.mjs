@@ -95,8 +95,8 @@ await ok("the customer signs", updateDoc(doc(anon, "signreq/aaaaaaaaaaaaaaaaaaaa
 await no("a signed request can't be signed again", updateDoc(doc(anon, "signreq/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"), { status: "signed", signedName: "Someone Else", signedAt: 6, sigImg: PNG }));
 await no("outsiders can't make sign requests", setDoc(doc(anon, "signreq/cccccccccccccccccccccccccccccccccccccccccccccccc"), { status: "sent" }));
 await ok("the team makes a sign request", setDoc(doc(sales, "signreq/dddddddddddddddddddddddddddddddddddddddddddddddd"), { status: "sent", expiresAt: 1 }));
-await ok("the team queues a customer email", setDoc(doc(sales, "mail/m1"), { kind: "customer", status: "queued", to: ["buyer@city.gov"], from: "bob@streetsignsupply.com", message: { subject: "x", text: "y" } }));
-await no("a customer email must come from our domain", setDoc(doc(sales, "mail/m2"), { kind: "customer", status: "queued", to: ["buyer@city.gov"], from: "bob@gmail.com", message: { subject: "x" } }));
-await no("outsiders can't queue email", setDoc(doc(anon, "mail/m3"), { kind: "customer", status: "queued", to: ["a@b.com"], from: "matt@streetsignsupply.com" }));
+await ok("the team queues a customer email", setDoc(doc(sales, "mail/c1"), { kind: "customer", status: "queued", to: ["buyer@city.gov"], from: "bob@streetsignsupply.com", message: { subject: "x", text: "y" } }));
+await no("a customer email must come from our domain", setDoc(doc(sales, "mail/c2"), { kind: "customer", status: "queued", to: ["buyer@city.gov"], from: "bob@gmail.com", message: { subject: "x" } }));
+await no("outsiders can't queue email", setDoc(doc(anon, "mail/c3"), { kind: "customer", status: "queued", to: ["a@b.com"], from: "matt@streetsignsupply.com" }));
 await ok("owner hard-deletes", deleteDoc(doc(owner, "projects/p1")));
 console.log(t.join("\n")); await env.cleanup(); process.exit(t.some((x) => x.startsWith("FAIL")) ? 1 : 0);
