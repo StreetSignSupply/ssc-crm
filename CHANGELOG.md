@@ -1,5 +1,17 @@
 # What changed
 
+## 2026.11.25-90
+- Quote + proof, one signature: "Get it signed" offers Quote + proof (the default when there's both). The customer page shows the quote items and totals, then one tile per piece of artwork (size, sheeting, colors, qty) with its own Approve / Needs change and note; hardware, freight and lines with no artwork are listed as "No artwork needed". Signing is blocked until every piece is set; any "Needs change" turns the button into "Send change requests". Optional PO number (goes on the project). Proof revision shown; a newer link replaces the old one, which points to it. Full name isn't prefilled; "on behalf of" only for organizations; PDF row says Quote PDF or Proof PDF. "What happens next" at the bottom.
+- After signing: stage moves to Won, the proof is marked approved on the open work orders, a signed PDF (quote + artwork + signature) is saved to Files, it's logged in Activity, and the rep and the owner get a bell notice and an email. Opening the link is logged too.
+- The mail worker stays on: emails go out within about a minute of Send (no more "sending…" for 10+ minutes). Customer emails from Gmail are logged on the project when the subject has its P- or quote number (else the contact's latest open project). A quote emailed from Gmail with its PDF starts the follow-ups.
+- Follow-up timers start when the quote is actually sent (from the CRM or Gmail), not when it's marked quoted or the PDF is made.
+- Tasks: your own tasks ring the bell and email you too; assigning to someone with no email says so; My tasks (overdue / today / this week / later) on every dashboard; a 7 AM email with what's due; one email when a task goes overdue, to the person and whoever assigned it.
+- Dates: one named set on the project — Received, Quote due, Customer needs it by, Ship / install (from the work orders). A work order shows the project's needs-by date and has its own Production start and Ship / install date. The calendar shows Quote due, Customer needs it by, Ship / install and Shipped (no "Start"), once per job, with a legend.
+- Quote table Total row margin matches the header (lines with no cost left out). Dashboard win rate counts lost projects the same way Reports does. Test projects (TEST / do not send in the name) stay out of dashboards, reports and the forecast.
+- Quote PDF: a line with no picture gets the sign drawing or no box (never a grey square). A sign line with no grade blocks the quote until the grade is picked.
+- Price source shows on every priced line ("typed" when nothing else matches). Proof lines say "Sign face color: White". Projects list rows are real links. Stencil kits rank below signs in Find an item unless you search for a stencil.
+- Sent emails show the address they went to.
+
 ## 2026.11.25-89
 - The customer signing page is redesigned: letterhead with the logo, quote number and date; who it's for and from; each item with its picture, clean name, size and grade; charges and totals laid out like the PDF; the PDF as a tidy link (no cut-off preview); a proper signature pad; on a phone, a bar with the total and a jump to Approve. Signed copies print as a clean record.
 - Proofs can be signed too: choose "The proof" in Get it signed — the page shows every artwork picture numbered, with its line, tap to enlarge. No PDF needed.
