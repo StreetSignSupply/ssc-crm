@@ -62,6 +62,11 @@ if (!ok) {
 if (!brand.mailSendOk) note("mail: sending is connected");
 await brandRef.set({ mailSendOk: true, mailSendErr: "", mailSendAt: Date.now() }, { merge: true });
 
+// ---- the Gmail API has to be switched on in the Google Cloud project once; do it if it isn't ----
+try { const pn = "741399760463";
+  const st = await fetch("https://serviceusage.googleapis.com/v1/projects/" + pn + "/services/gmail.googleapis.com", { headers: { Authorization: "Bearer " + TOK } }).then((r) => r.json()).catch(() => ({}));
+  if (st.state !== "ENABLED") { const r = await fetch("https://serviceusage.googleapis.com/v1/projects/" + pn + "/services/gmail.googleapis.com:enable", { method: "POST", headers: { Authorization: "Bearer " + TOK, "Content-Type": "application/json" }, body: "{}" });
+    const j = await r.json().catch(() => ({})); note("mail: switching on the Gmail API answered " + r.status + (r.ok ? "" : " " + String((j.error || {}).message || "").slice(0, 140)) + " — it can take a few minutes to take effect"); } } catch (e) {}
 // ---- 1. send what's queued ----
 function mime({ from, fromName, to, cc, subject, text, atts }) {
   const bnd = "b" + Math.random().toString(36).slice(2), enc = (s) => /^[\x20-\x7e]*$/.test(s) ? s : "=?UTF-8?B?" + Buffer.from(s).toString("base64") + "?=";
