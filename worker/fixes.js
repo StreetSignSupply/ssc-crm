@@ -14,12 +14,13 @@
       await T.recordHistory("project", p5.id, [{ f: "Fix run", o: "", n: "The newest quote PDF was put back from the recycle bin", ev: 1 }]); out.p2025restored = true; } }
   for (const n of [2025, 2026]) { const p = byNum(n); if (!p) continue;
     const hasHw = T.orderedLines(p).some((l) => /telespar|anchor|post|bolt|nut|rivet/i.test(l.desc || ""));
-    const a = String(p.notes || ""); const b = a.replace(/\s*Posts\/hardware not quoted \(no listed price\)\.?/i, "");
-    if (hasHw && b !== a) { await T.fix("projects/" + p.id, { notes: b, updatedAt: now }, "Fix run: removed the note that posts and hardware weren't quoted — they are on the quote"); out["n" + n] = "note fixed"; } }
+    for (const fld of ["notes", "scope", "desc", "description"]) { const a = String(p[fld] || ""); const b = a.replace(/\s*Posts\/hardware not quoted \(no listed price\)\.?/i, "");
+      if (hasHw && b !== a) { await T.fix("projects/" + p.id, { [fld]: b, updatedAt: now }, "Fix run: removed the note that posts and hardware weren't quoted — they are on the quote"); out["n" + n] = fld; } } }
   const p8 = byNum(2028);
   if (p8) { const g = (T.orderedLines(p8).find((l) => !T.isCharge(l) && l.grade) || {}).grade || "";
-    const a = String(p8.notes || ""); const b = g ? a.replace(/Grade TBD\.?/i, "Grade: " + g + ".") : a;
-    if (b !== a) { await T.fix("projects/" + p8.id, { notes: b, updatedAt: now }, "Fix run: notes now give the grade on the lines"); out.p2028 = "grade in notes"; } }
+    for (const fld of ["notes", "scope", "desc", "description"]) { const a = String(p8[fld] || ""); const b = g ? a.replace(/Grade TBD\.?/i, "Grade: " + g + ".") : a;
+      if (b !== a) { await T.fix("projects/" + p8.id, { [fld]: b, updatedAt: now }, "Fix run: the description now gives the grade on the lines"); out.p2028 = fld; } }
+    out.p2028f = Object.keys(p8).filter((k) => typeof p8[k] === "string" && /grade tbd/i.test(p8[k])); }
   await new Promise((r) => setTimeout(r, 6000));
   return out;
 })
