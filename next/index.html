@@ -10246,7 +10246,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-90";
+const APP_VERSION="2026.11.25-91";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -15811,8 +15811,8 @@ function composeModal(o){o=o||{};const p=o.pid?proj(o.pid):null;const aid=o.aid|
       ${people.length>1?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${people.slice(0,8).map(c=>`<button type="button" class="btn sm" data-cmto="${esc(c.email)}" data-cmcid="${esc(c.id)}">+ ${esc(c.name||c.email)}</button>`).join("")}</div>`:""}</div>
     <div class="fld full"><div class="k">Cc</div><input id="cm-cc" value="${esc(o.cc||"")}" placeholder="optional"></div>
     <div class="fld"><div class="k">Start from</div><select id="cm-tpl"><option value="">— keep what's below —</option>${tpls.map(t=>`<option value="${esc(t.id)}" ${t0&&t0.id===t.id?"selected":""}>${esc(t.name)}${t.own?" (yours)":""}</option>`).join("")}</select></div>
-    <div class="fld" style="display:flex;align-items:flex-end;gap:6px">${sampleCap?`<button type="button" class="btn" id="cm-ai">${ic("email",14)}Write it with Claude</button>`:""}</div>
-    ${sampleCap?`<div class="fld full"><div class="k">What should it say? (for Claude — optional)</div><input id="cm-ask" placeholder="e.g. ask if they want the 36 inch size instead, friendly"></div>`:""}
+    <div class="fld" style="display:flex;align-items:flex-end;gap:6px">${aiDraftOn()?`<button type="button" class="btn" id="cm-ai">${ic("email",14)}Write it with AI</button>`:""}</div>
+    ${aiDraftOn()?`<div class="fld full"><div class="k">What should it say? (for the AI — optional)</div><input id="cm-ask" placeholder="e.g. ask if they want the 36 inch size instead, friendly"></div>`:""}
     <div class="fld full"><div class="k">Subject</div><input id="cm-subj" value="${esc(subj)}"></div>
     <div class="fld full"><div class="k">Message</div><textarea id="cm-body" style="min-height:220px">${esc(body)}</textarea></div>
     ${files.length?`<div class="fld full"><div class="k">Attach from this project${sendOn?"":" (attachments go only when the CRM sends it)"}</div>
@@ -15828,7 +15828,11 @@ function composeModal(o){o=o||{};const p=o.pid?proj(o.pid):null;const aid=o.aid|
   const ai=$("#cm-ai");if(ai)ai.onclick=()=>composeAI();
   const st=$("#cm-savetpl");if(st)st.onclick=()=>composeSaveTpl();
   $("#cm-open").onclick=()=>composeGo(false);const sd=$("#cm-send");if(sd)sd.onclick=()=>composeGo(true)}
-async function composeAI(){const C=S._cmp||{};const p=C.pid?proj(C.pid):null;const b=$("#cm-ai");if(!sampleCap)return;
+// AI drafting: Claude in the in-Claude copy; on the website the mail worker drafts it (GitHub's free AI models) in ~10–30 seconds
+function aiDraftOn(){return !!sampleCap||!!(window.sscHosted&&db)}
+const AI_RULES="Write a short, plain business email a real person at a small sign shop would send — friendly, direct, no hype, no exclamation marks, no AI-sounding phrases (no 'I hope this finds you well', no 'delighted', no 'don't hesitate'). Sign off with the sender's first name and the company. Keep any link exactly as given, on its own line.";
+async function composeAI(){const C=S._cmp||{};const p=C.pid?proj(C.pid):null;const b=$("#cm-ai");if(!aiDraftOn())return;
+  if(!sampleCap)return composeAIRemote();
   const ctx=[p?"Project P-"+p.num+" "+p.name+" for "+accName(p.accountId)+", stage "+((SG[p.stage]||{}).label||p.stage)+", value "+money2(projValue(p)):"",
     p?"Lines: "+linesSummary(p).slice(0,900):"",C.contact?"Writing to "+C.contact.name:"",C.signUrl?"Include this approval link on its own line: "+C.signUrl:"",
     "From "+((p&&repFor(p))||S.viewerTeam||{}).name+" at "+((S.brand||{}).name||"Street Sign Supply")+", a sign and stencil maker in Washington, Utah"].filter(Boolean).join("\n");
@@ -15837,7 +15841,19 @@ async function composeAI(){const C=S._cmp||{};const p=C.pid?proj(C.pid):null;con
   try{const out=await sampleCap.json("Write a short, plain business email a real person at a small sign shop would send — friendly, direct, no hype, no exclamation marks, no AI-sounding phrases. Sign off with the sender's first name and the company. Return JSON {\"subject\":\"...\",\"body\":\"...\"}.\n\nWhat to say: "+(ask||"(use the subject and context)")+"\nSubject so far: "+$("#cm-subj").value+"\nDraft so far:\n"+cur.slice(0,2000)+"\n\nContext:\n"+ctx,{modelTier:"default"});
     const r=out&&(out.data||out.json||out);if(r&&r.body){$("#cm-body").value=String(r.body);if(r.subject)$("#cm-subj").value=String(r.subject);S.modalTouched=true}else toast("Claude didn't send back an email — try again.")}
   catch(e){toast("Claude couldn't write it just now.")}
-  if(b){b.disabled=false;b.innerHTML=ic("email",14)+"Write it with Claude"}}
+  if(b){b.disabled=false;b.innerHTML=ic("email",14)+"Write it with AI"}}
+async function composeAIRemote(){const C=S._cmp||{};const p=C.pid?proj(C.pid):null;const b=$("#cm-ai");
+  const ctx=[p?"Project P-"+p.num+" "+p.name+" for "+accName(p.accountId)+", stage "+((SG[p.stage]||{}).label||p.stage)+", value "+money2(projValue(p)):"",
+    p?"Lines: "+linesSummary(p).slice(0,900):"",C.contact?"Writing to "+C.contact.name:"",C.signUrl?"Include this approval link on its own line: "+C.signUrl:"",
+    "From "+((p&&repFor(p))||S.viewerTeam||{}).name+" at "+((S.brand||{}).name||"Street Sign Supply")+", a sign and stencil maker in Washington, Utah"+((S.brand||{}).phone?", phone "+fmtPhone((S.brand||{}).phone):"")].filter(Boolean).join("\n");
+  const id=uid("ai");if(b){b.disabled=true;b.textContent="Writing… (10–30 seconds)"}
+  const done=(msg)=>{if(b){b.disabled=false;b.innerHTML=ic("email",14)+"Write it with AI"}if(msg)toast(msg)};
+  try{await setDoc("aidraft/"+id,{id,status:"queued",at:Date.now(),byId:meId(),rules:AI_RULES,ask:String(($("#cm-ask")||{}).value||"").slice(0,600),
+    subject:String($("#cm-subj").value||"").slice(0,200),draft:String($("#cm-body").value||"").slice(0,2500),ctx:ctx.slice(0,2500)})}catch(e){return done("Couldn't ask for a draft.")}
+  let off=null;const t=setTimeout(()=>{try{off&&off()}catch(e){}done("The AI is slow right now — try again in a minute.")},120000);
+  try{off=db.doc("aidraft/"+id).onSnapshot(sn=>{const d=sn&&sn.exists?(typeof sn.data==="function"?sn.data():sn.data):null;if(!d)return;
+    if(d.status==="done"){clearTimeout(t);try{off()}catch(e){}if(!$("#cm-body"))return done();$("#cm-body").value=String(d.body||"");if(d.subject)$("#cm-subj").value=String(d.subject);S.modalTouched=true;done()}
+    else if(d.status==="failed"){clearTimeout(t);try{off()}catch(e){}done("The AI couldn't write it: "+String(d.err||"").slice(0,80))}},()=>{})}catch(e){clearTimeout(t);done("Couldn't ask for a draft.")}}
 async function composeSaveTpl(){const name=prompt("Name for this template (e.g. 'Bid follow-up')");if(!name)return;
   const list=((S.brand||{}).mailTemplates||[]).filter(t=>t.name!==name).concat([{id:uid("tp"),name:String(name).slice(0,60),subject:$("#cm-subj").value,body:$("#cm-body").value}]);
   try{await push("settings/brand",{mailTemplates:list})}catch(e){}S.brand=Object.assign({},S.brand||{},{mailTemplates:list});toast("Template saved")}
