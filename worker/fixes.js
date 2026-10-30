@@ -1,26 +1,15 @@
-// Oct 29 night fixes (counts only in the log, no names in this file):
-// P-2025: the newest quote PDF must be the live one — if a cleanup binned it, put it back (older ones stay in the bin).
-// P-2025 / P-2026: the note "Posts/hardware not quoted (no listed price)." is wrong now that the posts and hardware are
-//   on the quote — that sentence comes out.
-// P-2028: "Grade TBD" in the notes becomes the grade on the lines.
+// Oct 30 look-only run: nothing is changed. Reads what "Find an item" returns for a few searches (catalog names only),
+// the margin the CRM shows vs the costed-lines margin on the newest project, and opens the dashboards and a project page
+// so their console errors are printed (counts and messages only, no names).
 (async (T) => {
-  const S = T.S, out = {}; const now = Date.now();
-  const byNum = (n) => [...S.projects.values()].find((x) => String(x.num) === String(n) && !x.deleted);
-  const p5 = byNum(2025);
-  if (p5) { const all = [...S.files.values()].filter((f) => f.projectId === p5.id && f.cat === "Quote" && /pdf/i.test((f.type || "") + (f.name || ""))).sort((a, b) => (Number(a.at) || 0) - (Number(b.at) || 0));
-    out.p2025 = all.map((f) => ({ at: f.at, del: !!f.deleted, by: f.deleted ? (f.deletedBy === "fix run" ? "fix" : f.supersededBy ? "replaced" : "person") : "", size: f.size || 0 }));
-    const newest = all[all.length - 1];
-    if (newest && newest.deleted) { await T.push("files/" + newest.id, { deleted: false, deletedAt: "", deletedBy: "", supersededBy: "", updatedAt: now });
-      await T.recordHistory("project", p5.id, [{ f: "Fix run", o: "", n: "The newest quote PDF was put back from the recycle bin", ev: 1 }]); out.p2025restored = true; } }
-  for (const n of [2025, 2026]) { const p = byNum(n); if (!p) continue;
-    const hasHw = T.orderedLines(p).some((l) => /telespar|anchor|post|bolt|nut|rivet/i.test(l.desc || ""));
-    for (const fld of ["notes", "scope", "desc", "description"]) { const a = String(p[fld] || ""); const b = a.replace(/\s*Posts\/hardware not quoted \(no listed price\)\.?/i, "");
-      if (hasHw && b !== a) { await T.fix("projects/" + p.id, { [fld]: b, updatedAt: now }, "Fix run: removed the note that posts and hardware weren't quoted — they are on the quote"); out["n" + n] = fld; } } }
-  const p8 = byNum(2028);
-  if (p8) { const g = (T.orderedLines(p8).find((l) => !T.isCharge(l) && l.grade) || {}).grade || "";
-    for (const fld of ["notes", "scope", "desc", "description"]) { const a = String(p8[fld] || ""); const b = g ? a.replace(/Grade TBD\.?/i, "Grade: " + g + ".") : a;
-      if (b !== a) { await T.fix("projects/" + p8.id, { [fld]: b, updatedAt: now }, "Fix run: the description now gives the grade on the lines"); out.p2028 = fld; } }
-    out.p2028f = Object.keys(p8).filter((k) => typeof p8[k] === "string" && /grade tbd/i.test(p8[k])); }
-  await new Promise((r) => setTimeout(r, 6000));
+  const S = T.S, out = {};
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  for (const q of ["stop", "R1-1", ".063"]) { try { out["f_" + q] = T.ordFindRows(q).map((r) => (r.title + " ~ " + (r.sub || "")).slice(0, 90)); } catch (e) { out["f_" + q] = "err " + String(e.message).slice(0, 80); } }
+  try { out.sheetSample = ((S.sheet && S.sheet.rows) || []).filter((r) => /stop/i.test((r.title || "") + (r.name || ""))).slice(0, 3).map((r) => ({ t: String(r.title || "").slice(0, 70), n: String(r.name || "").slice(0, 70), c: String(r.code || "").slice(0, 50), m: String(r.mutcd || "").slice(0, 20), sz: r.size })); } catch (e) {}
+  try { out.codes = T.codeList().filter((e) => /^R1-1$/i.test(e.code) || /stop/i.test(e.name)).slice(0, 5).map((e) => e.code + "|" + e.name); } catch (e) { out.codes = "err " + e.message; }
+  const ps = [...S.projects.values()].filter((p) => !p.deleted).sort((a, b) => (b.num || 0) - (a.num || 0));
+  const p30 = ps.find((p) => String(p.num) === "2030") || ps[0];
+  if (p30) { try { out.m2030 = [T.projMargin(p30), T.costedMargin(p30)]; } catch (e) { out.m2030 = "err " + e.message; } }
+  for (const r of ["home", "mybook", "project/" + (p30 ? p30.id : ""), "reports"]) { try { T.go(r); } catch (e) { out["go_" + r.split("/")[0]] = String(e.message).slice(0, 80); } await wait(4000); }
   return out;
 })

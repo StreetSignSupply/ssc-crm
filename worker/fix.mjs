@@ -40,6 +40,8 @@ setTimeout(async () => {
 }, WATCH_MIN * 60000).unref();
 const page = await (await browser.newContext()).newPage();
 page.on("pageerror", (e) => { errors++; errs.push(String(e.message || e).slice(0, 120)); });
+// console errors (what a person sees in the browser console) — emails and long ids blanked before they're printed
+const cerrs = []; page.on("console", (m) => { if (m.type() !== "error") return; const t = String(m.text() || "").replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "<email>").replace(/[A-Za-z0-9_-]{24,}/g, "<id>").slice(0, 140); if (cerrs.indexOf(t) < 0 && cerrs.length < 15) cerrs.push(t); });
 await page.exposeBinding("__wGet", async (_, p) => { const s = await fs.doc(p).get(); return { id: s.id, exists: s.exists, data: s.exists ? plain(s.data()) : null }; });
 await page.exposeBinding("__wSet", async (_, p, d) => { writes++; await fs.doc(p).set(d); });
 await page.exposeBinding("__wMerge", async (_, p, d) => { writes++; await fs.doc(p).set(d, { merge: true }); });
@@ -203,6 +205,7 @@ await page.waitForTimeout(wantAll ? 90000 : 60000);
 step("sync " + (wantAll ? "Send all finished" : "changes sent"));
 const prog = await page.evaluate(() => window.__syncProg || null).catch(() => null);
 const toast = await page.evaluate(() => [...document.querySelectorAll(".toast,[class*=toast]")].map((x) => x.innerText).join(" | ").slice(0, 200)).catch(() => "");
+if (cerrs.length) console.log("::notice::console errors (" + cerrs.length + "): " + JSON.stringify(cerrs).slice(0, 1800));
 console.log("::notice::fix step " + STEP + ": " + JSON.stringify(result).slice(0, 900) + " | sync " + sent + " | " + writes + " writes, " + errors + " page errors " + JSON.stringify(errs.slice(0, 3)) + " | " + toast + " | Send all " + JSON.stringify(prog));
 const failed = (result && result.error) || errors > 0 || (prog && prog.bad > 0);
 await browser.close(); process.exit(failed ? 1 : 0);
