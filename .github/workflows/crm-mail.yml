@@ -1,0 +1,34 @@
+name: CRM mail (send, log Gmail, signatures)
+# Every 10 minutes: sends the emails queued in the CRM from each person's own @streetsignsupply.com Gmail, logs
+# customer emails from the team's Gmail onto the right account, and tells the sender when a signature link is signed.
+# Until domain-wide delegation is set in Google Admin it only checks and prints the client ID to authorize. Counts only.
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+permissions:
+  contents: read
+  id-token: write
+concurrency: { group: crm-mail, cancel-in-progress: false }
+jobs:
+  mail:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - id: gauth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/741399760463/locations/global/workloadIdentityPools/github/providers/ssc-crm
+          service_account: firebase-adminsdk-fbsvc@ssc-crm-a7224.iam.gserviceaccount.com
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/cloud-platform
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - working-directory: worker
+        run: npm install --no-audit --no-fund --loglevel=error @google-cloud/firestore@7 2>&1 | tail -1
+      - working-directory: worker
+        env:
+          FIREBASE_PROJECT: ssc-crm-a7224
+          SA_TOKEN: ${{ steps.gauth.outputs.access_token }}
+        run: node mail.mjs
