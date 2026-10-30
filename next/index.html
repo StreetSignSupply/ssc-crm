@@ -1652,9 +1652,11 @@ function jobDuePill(j){if(j.status!=="shipped")return `<span class="pill ${dueCl
   return `<span class="pill" title="Due ${esc(fmtDate(j.due))}">${sh?"Shipped "+esc(fmtDate(isoDay(sh)).replace(/, \d{4}$/,"")):"Shipped"}</span>`}
 function fmtDate(iso){if(!iso)return "—";const d=new Date(iso+"T00:00:00");
   return isNaN(d)?"—":d.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"})}
-function fmtTs(ms){if(!ms)return "—";return new Date(ms).toLocaleString(undefined,{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}
+function fmtTs(ms){if(!ms)return "—";return new Date(ms).toLocaleString(undefined,{month:"short",day:"numeric",timeZone:BIZ_TZ,hour:"numeric",minute:"2-digit"})}
 function money(v){const n=Number(v);if(v===""||v==null||isNaN(n))return "—";
   return (n<0?"-$":"$")+Math.abs(n).toLocaleString(undefined,{maximumFractionDigits:0})}
+// times of day show in the shop's own time (Mountain), whatever time zone the viewer's computer is set to
+const BIZ_TZ="America/Denver";
 function stamp(){return fmtTs(Date.now())}
 function me(){return S.me||"??"}
 function uid(p){return p+Date.now().toString(36)+Math.random().toString(36).slice(2,5)}
@@ -10239,12 +10241,12 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-87";
+const APP_VERSION="2026.11.25-88";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
 function stampFull(ms2){return ms2?new Date(ms2).toLocaleString(undefined,{month:"short",day:"numeric",
-  year:"numeric",hour:"numeric",minute:"2-digit"}):""}
+  year:"numeric",timeZone:BIZ_TZ,hour:"numeric",minute:"2-digit"}):""}
 function taskAssignee(a){
   if(a.assigneeId)return teamById(a.assigneeId);
   if(a.whoId)return teamById(a.whoId);
@@ -15938,7 +15940,7 @@ function draftsMenu(id){
 function draftsCard(p){
   const ds=(p.drafts||[]).filter(d=>d.status!=="discarded").sort((a,b)=>(b.requestedAt||0)-(a.requestedAt||0));
   if(!ds.length)return "";const id=p.id;const c=followContact(p);
-  const tm=ms=>ms?new Date(ms).toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"}):"";
+  const tm=ms=>ms?new Date(ms).toLocaleTimeString(undefined,{timeZone:BIZ_TZ,hour:"numeric",minute:"2-digit"}):"";
   const dayTm=ms=>!ms?"":(isoDay(ms)===today()?tm(ms):fmtTs(ms));
   return `<section class="card flush"><header><h2>Drafts</h2><span class="n">${ds.length}</span>
       <span class="sub">Emails the writer drafted for this project. Read it, press Send, done.</span>
@@ -16805,7 +16807,7 @@ function bind(){
     if(pn){const id=pn.dataset.pnote;clearTimeout(deb.get("pn"+id));
       const st=$("#pnotestat");if(st)st.textContent="saving…";
       deb.set("pn"+id,setTimeout(()=>{push("projects/"+id,{notes:t.value,updatedAt:Date.now()})
-        .then(()=>{const s2=$("#pnotestat");if(s2)s2.textContent="saved "+new Date().toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"})})},900))}
+        .then(()=>{const s2=$("#pnotestat");if(s2)s2.textContent="saved "+new Date().toLocaleTimeString(undefined,{timeZone:BIZ_TZ,hour:"numeric",minute:"2-digit"})})},900))}
     const jf=t.closest("[data-jf]");
     if(jf&&t.tagName==="INPUT"){const k="jf"+jf.dataset.jf;clearTimeout(deb.get(k));
       deb.set(k,setTimeout(()=>{const[n,p]=jf.dataset.jf.split(":");jobField(n,p,t.value)},800))}
