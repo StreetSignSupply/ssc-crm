@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-88
+- Times of day (sent, logged, history, notes saved) always show in Mountain time, whatever time zone the computer viewing the CRM is set to — a browser set to Arizona or standard time showed them an hour early. Emails logged from Gmail get the Mountain date too (not the UTC date after 6 PM).
+
 ## 2026.11.25-87
 - Signature links now point to https://ssc-crm-a7224.web.app/sign.html — the signing page is hosted with the CRM, nothing to upload.
 - Email sending and Gmail logging are connected (sending from each person's Gmail; customer emails logged every 10 minutes).
