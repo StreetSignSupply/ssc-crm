@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-89
+- The customer signing page is redesigned: letterhead with the logo, quote number and date; who it's for and from; each item with its picture, clean name, size and grade; charges and totals laid out like the PDF; the PDF as a tidy link (no cut-off preview); a proper signature pad; on a phone, a bar with the total and a jump to Approve. Signed copies print as a clean record.
+- Proofs can be signed too: choose "The proof" in Get it signed — the page shows every artwork picture numbered, with its line, tap to enlarge. No PDF needed.
+
 ## 2026.11.25-88
 - Times of day (sent, logged, history, notes saved) always show in Mountain time, whatever time zone the computer viewing the CRM is set to — a browser set to Arizona or standard time showed them an hour early. Emails logged from Gmail get the Mountain date too (not the UTC date after 6 PM).
 
