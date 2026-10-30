@@ -12,6 +12,7 @@ on:
 permissions:
   contents: read
   id-token: write
+  models: read
 concurrency: { group: crm-mail, cancel-in-progress: false }
 jobs:
   mail:
@@ -39,4 +40,5 @@ jobs:
           FIREBASE_PROJECT: ssc-crm-a7224
           SA_TOKEN: ${{ steps.gauth.outputs.access_token }}
           LOOP_MIN: ${{ github.event.inputs.loop || '300' }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node mail.mjs
