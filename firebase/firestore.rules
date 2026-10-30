@@ -144,6 +144,12 @@ service cloud.firestore {
       return resource.data.status == "sent" && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["viewedAt"])
         && resource.data.get("viewedAt", 0) == 0 && request.resource.data.viewedAt is int;
     }
+    // AI email drafts: a team member asks, the mail worker writes the answer back; nobody else reads or changes them
+    match /aidraft/{id} {
+      allow read: if member();
+      allow create: if member() && request.resource.data.status == "queued";
+      allow update, delete: if false;
+    }
     match /signreq/{t} {
       allow get: if t.size() >= 32;
       allow list: if member();
