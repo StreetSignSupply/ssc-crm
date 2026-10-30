@@ -102,7 +102,7 @@ a{color:var(--blue);text-underline-offset:2px}
 .app.rail-min .rail-i{justify-content:center;padding:0;margin:2px 12px;width:40px;gap:0}
 .app.rail-min .rail-i > span:not(.pill){display:none}
 .app.rail-min .rail-i.on::before{left:-12px}
-.app.rail-min .rail-i .pill{position:absolute;top:1px;right:-4px;margin:0;padding:1px 4px 0;min-width:16px;height:16px;font-size:9.5px;justify-content:center}
+.app.rail-min .rail-i .pill{position:absolute;top:1px;right:-4px;margin:0;padding:1px 4px 0;min-width:16px;height:18px;font-size:12px;justify-content:center}
 .app.rail-min .rail-tog{flex-direction:column;margin:0 12px 6px}
 .app.rail-min .rail-tog a{flex:0 0 auto;padding:3px 2px}
 .app.rail-min .rail-tog a+a{border-left:0;border-top:1px solid var(--line)}
@@ -1200,6 +1200,10 @@ details.omore>summary{cursor:pointer;font-weight:700;padding:6px 0;color:var(--a
 .btn.segtab.on{color:var(--act);border-bottom-color:var(--act);font-weight:800}
 .cxl .cx span,.cx span{white-space:nowrap}
 .addpic{width:40px;height:40px;padding:0;justify-content:center;font-size:12px!important;line-height:1.1;border:1px dashed var(--line)!important;flex:0 0 auto}
+.linenote{display:inline-flex;gap:4px;align-items:center;max-width:340px;margin-top:3px;padding:1px 8px;border-radius:999px;background:var(--card2);border:1px solid var(--line2);font-size:12px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:1100px){.qlines [data-ordmove]{display:none}.qlines .gfull{display:none}.qlines .gshort{display:inline}}
+.qlines td:last-child{white-space:nowrap}
+.actedit{margin-left:8px;display:inline-block;vertical-align:middle}
 /* -76 design review */
 .updbar{left:auto!important;right:16px;bottom:16px!important;transform:none!important;max-width:min(360px,calc(100vw - 32px));flex-wrap:wrap;font-size:13px!important}
 body:has(.modal) .updbar{display:none!important}
@@ -1428,7 +1432,10 @@ function routeNote(j){
     t:"10 ft and 12 ft lengths are over parcel limits. Freight, our truck, or will call only. 3 ft and 4 ft anchors can go parcel."};
   return {kind:"sub",t:""};
 }
-function prodLabel(j){const x=allProd().find(y=>y.id===prodOf(j));return x?x.label:"Sign"}
+// street name blades are signs to the shop, but they're called what they are
+function isStreetName(l){return /^D3-/i.test(String(l&&l.code||""))||/street\s*name|name\s+blade|flat\s+blade|extruded\s+blade/i.test(String(l&&l.desc||""))}
+function prodLabel(j){if(prodOf(j)==="sign"){const its=woItems(j).filter(x=>Number(x.qty)>0);if(its.length&&its.every(isStreetName))return "Street name sign"}
+  const x=allProd().find(y=>y.id===prodOf(j));return x?x.label:"Sign"}
 // what kinds of thing this work order's lines actually are
 function jobKinds(j){
   const k=[];woItems(j).forEach(l=>{if(!String(l.size||"").trim()&&!String(l.grade||"").trim())return;
@@ -2321,6 +2328,10 @@ function itemModal(it,vid){
         </details></div>
       ${it.id?"":inp("i-oh","Starting quantity — how many "+(it.unit||"unit")+"s","0","number")}
       <div class="fld full sub" id="i-unithelp"></div>
+      <div class="fld full"><div class="k">Picture — shows on quote lines and quote PDFs for this item</div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">${it.img?`<img src="${esc(it.img)}" alt="" style="width:54px;height:54px;object-fit:contain;border:1px solid var(--line);border-radius:4px;background:#fff">`:""}
+        <input id="i-img" value="${esc(it.img&&!/^data:/.test(it.img)?it.img:"")}" placeholder="Picture link (https://…)" style="flex:1;min-width:200px">
+        ${assets?`<input type="file" id="i-imgfile" accept="image/*" style="flex:1 1 100%">`:""}</div></div>
       ${ta("i-notes","Notes",it.notes)}</div>`,
     `<button class="btn" data-close="1">Cancel</button><button class="btn p" id="save">Save item</button>`));
   const unitHelp=()=>{
@@ -2363,6 +2374,10 @@ function itemModal(it,vid){
       bin:$("#i-bin").value.trim(),shipClass:$("#i-ship").value,vendorId:$("#i-vend").value,cost:$("#i-cost").value,
       reorderPoint:$("#i-rp").value,reorderQty:$("#i-rq").value,notes:$("#i-notes").value.trim(),
       onHand:it.id?onHand(it):start,deleted:false,createdAt:it.createdAt||Date.now(),updatedAt:Date.now()};
+    // the item's picture: an uploaded file, else the link typed in, else what it had
+    {const fi=$("#i-imgfile");const lk=$("#i-img")?$("#i-img").value.trim():"";
+      if(fi&&fi.files&&fi.files[0]&&assets){try{const up=await assets.upload(fi.files[0]);rec.img=up.url}catch(e){toast("The picture didn't upload — the rest is saved.")}}
+      else if(lk&&/^https?:\/\//i.test(lk))rec.img=lk;else if(!lk&&it.img&&!/^data:/.test(it.img))rec.img="";else if(it.img)rec.img=it.img}
     const diffs=diffFields("item",it.id?it:null,rec);
     closeModal();
     try{await setDoc("items/"+id,mergeDoc("items/"+id,rec));
@@ -3641,7 +3656,7 @@ async function docSave(p,kind){
     +accName(p.accountId).replace(/[^A-Za-z0-9]+/g,"-").slice(0,24);
   toast("Making the PDF…");
   const ok=await deliverDoc(html,name,{w:8.5,h:11,footer:(kind==="quote"?"Quote ":"Invoice ")+no,pid:p.id,kind,docNo:String(no||"")},(kind==="quote"?"Quote ":"Invoice ")+no+" saved as a PDF");
-  if(ok!==false||true)recordHistory("project",p.id,[{f:kind==="quote"?"Quote":"Invoice",o:"",n:"Document made — "+no+", "+money2(docLines(p).reduce((t,l)=>t+l.qty*l.unit,0)),ev:1}]);
+  S._docLog={pid:p.id,f:kind==="quote"?"Quote":"Invoice",n:"PDF saved — "+no+", "+money2(docLines(p).reduce((t,l)=>t+l.qty*l.unit,0))};
 }
 
 
@@ -3835,7 +3850,7 @@ function quickWO(pid,state){
       <b style="font-size:15px">${esc(p.name)}</b>
       <div class="sub">${esc(accName(p.accountId))}${p.po?" · PO "+esc(p.po):""}${existing?" · "+existing+" work order"+(existing===1?"":"s")+" already":""}</div>
       ${kinds.length?`<div class="sub" style="margin-top:6px">${kinds.length===1
-          ?`Your quote lines are all <b>${esc(allProd().find(x=>x.id===kinds[0])?allProd().find(x=>x.id===kinds[0]).label.toLowerCase():kinds[0])}</b> — set up below, ready to go.`
+          ?`Your quote lines are all <b>${esc(kinds[0]==="sign"&&openG.sign.every(isStreetName)?"street name signs":(allProd().find(x=>x.id===kinds[0])?allProd().find(x=>x.id===kinds[0]).label.toLowerCase():kinds[0]))}</b> — set up below, ready to go.`
           :`<b>These lines aren't all the same thing.</b> Signs, decals and stencils are made from different material on different machines,
              so each kind needs its own work order. Pick one now and come back for the rest — or use <b>Make all ${kinds.length}</b> below.`}</div>`
         :last?`<div class="sub" style="margin-top:4px">Set up like work order ${last.num} — ${esc(prodLabel(last).toLowerCase())}${last.method?", "+esc(buildLabel(last).toLowerCase()):""}.</div>`:""}
@@ -3847,7 +3862,7 @@ function quickWO(pid,state){
         Change any of it on the work order afterwards.</div>
     </div>
     <div class="fgrid">
-      ${sel("qw-prod","What are we making",q.prod,allProd().map(x=>({v:x.id,l:x.label})))}
+      ${sel("qw-prod","What are we making",q.prod,allProd().map(x=>({v:x.id,l:x.id==="sign"&&openG.sign&&openG.sign.every(isStreetName)?"Street name sign":x.label})))}
       ${q.prod==="sign"?sel("qw-method","How it's made",q.method,METHOD.map(x=>({v:x.id,l:x.label}))):`<div class="fld"></div>`}
       ${inp("qw-due","Shop due date",q.due,"date")}
       <div class="fld full sub">It gets the next work order number automatically${p.po?", and carries PO "+esc(p.po)+" from the project":""}.</div>
@@ -5026,14 +5041,15 @@ function reconCard(p){
         <td><div style="display:flex;gap:10px;align-items:center">
           ${linePic(p,r)?`<img src="${esc(linePic(p,r))}" alt="" class="quotepic" data-signpic="${esc(picKey(r))}" data-picfall="1" style="width:40px;height:40px" title="Change this item's picture">`
             :r.charge?"":`<button type="button" class="btn sm q addpic" data-signpic="${esc(picKey(r))}" title="Add a photo of this item — it's used on every quote with this item">+ Photo</button>`}
-          <div><b>${esc(r.desc||signName(r)||r.code||"—")}</b>${(r.desc||signName(r))&&r.code?`<div class="sub">${esc(r.code)}</div>`:""}${r.note?`<div class="sub">${esc(r.note)}</div>`:""}</div></div></td>
-        <td>${esc(r.size?sizeLabel(r.size):"—")}</td><td title="${esc(r.grade||"")}"><span class="gfull">${esc(r.grade||"—")}</span><span class="gshort">${esc(gradeShort(r.grade)||"—")}</span>${legendsOf(r).length&&r.build!=="print"
+          <div><b>${esc(r.desc||signName(r)||r.code||"—")}</b>${(r.desc||signName(r))&&r.code?`<div class="sub">${esc(r.code)}</div>`:""}${r.note?`<div class="linenote" title="${esc(r.note)}">${ic("note",11)} ${esc(r.note)}</div>`:""}</div></div></td>
+        <td>${esc(r.size?sizeLabel(r.size):"—")}</td><td title="${esc(r.grade||"")}">${(function(){const same=String(r.grade||"").trim().toLowerCase()&&(String(r.desc||"").toLowerCase().indexOf(String(r.grade).trim().toLowerCase())===0||lineProd(r)==="posts"||lineProd(r)==="hardware");
+            return same?`<span class="sub">—</span>`:`<span class="gfull">${esc(r.grade||"—")}</span><span class="gshort">${esc(gradeShort(r.grade)||"—")}</span>`})()}${legendsOf(r).length&&r.build!=="print"
           ?`<div class="sub" title="Legend film">legend ${esc(legendText(r,true))}</div>`:""}${r.noLam?`<div class="sub" title="${esc(NOLAM_TXT)}">no overlaminate</div>`:""}</td>
         <td class="mono" style="text-align:right">${r.extra?r.sched:r.ordered}</td>
         ${(function(){const qn=Number(r.extra?r.sched:r.ordered)||0;const uc=quoteLineCost(r);
           const pr=Number(r.price)||0;const mg=(pr&&uc.cost)?((pr-uc.cost)/pr*100):null;
           return `<td class="mono" style="text-align:right" title="${esc(uc.why||"")}">${uc.src==="stcflag"?`<span class="pill r" title="${esc(uc.why||"")}">not costed</span>`:uc.cost?money2(uc.cost)+(uc.src==="locked"?`<div class="sub" style="white-space:nowrap">${ic("lock",11)} locked${r.costAt?" "+esc(fmtDate(isoDay(r.costAt))):""}</div>`:""):uc.src==="nosize"?`<span class="sub">needs a size</span>`:uc.src==="nograde"?`<span class="pill o" title="${esc(uc.why)}">needs a grade</span>`:uc.src==="noblank"?`<span class="pill o" title="${esc(uc.why)}">no blank in stock list</span>`:`<span class="sub">—</span>`}</td>
-            <td class="mono" style="text-align:right">${pr?(Math.round(pr)===pr?money(pr):money2(pr)):`<span class="sub">—</span>`}</td>
+            <td class="mono" style="text-align:right">${pr?(Math.round(pr)===pr?money(pr):money2(pr)):`<span class="sub">—</span>`}${pr&&r.priceSrc?`<div class="sub" style="white-space:nowrap;font-family:inherit">${esc(r.priceSrc)}</div>`:""}</td>
             <td class="mono" style="text-align:right;font-weight:800">${pr?money(pr*qn):""}</td>
             <td style="text-align:right">${mg==null?`<span class="sub">—</span>`
               :mg<0?`<span class="pill r" title="This line sells for less than it costs us (${esc(money2(uc.cost))} each)">⚠ ${Math.round(mg)}%</span><div class="sub" style="color:var(--danger-ink);white-space:nowrap">below cost</div>`
@@ -6519,6 +6535,7 @@ function ordPickFill(key){
 }
 // the one suggested price: the account's own price, else your price list / workbook / website (never under the
 // quote floor), else what it costs at the target margin. Shown as one number with one button.
+function priceSrcOf(sg){if(!sg)return "";const w=String(sg.why||"");return sg.contract?"their price":/website/i.test(w)?"website":/target margin/.test(w)?"cost + margin":/floor/.test(w)?"margin floor":/price list|workbook|tab 04|tab 11|your price/i.test(w)?"price list":"price list"}
 function ordSuggest(line){
   const a=S.ordAid?acct(S.ordAid):null;const cp=a?contractPrice(a,line):null;
   if(cp)return {price:Number(cp.price),why:a.name+"'s own price for this item",contract:true};
@@ -6574,7 +6591,11 @@ async function ordSave(pid,ixRaw){
   if(!(Number(rec.qty)>0)){toast("Put in a quantity — 1 or more.");const qe=$("#o-qty");if(qe)qe.focus();return}
   if(!rec.code&&!rec.desc)return toast("Give it a name or a code.");
   if(!lg.legend&&S.ordPre&&S.ordPre.legend&&!old0){rec.legend=S.ordPre.legend}
-  if(!String(rec.price||"").trim()){const sg=ordSuggest(Object.assign({},rec,{sheetKey:rec.sheetKey||(S.ordPre&&S.ordPre.sheetKey)||""}));if(sg)rec.price=Number(sg.price).toFixed(2)}
+  {const sg=ordSuggest(Object.assign({},rec,{sheetKey:rec.sheetKey||(S.ordPre&&S.ordPre.sheetKey)||""}));
+    if(!String(rec.price||"").trim()&&sg)rec.price=Number(sg.price).toFixed(2);
+    // where the price came from, shown under it on the quote lines
+    const same=sg&&Math.abs(Number(rec.price)-Number(sg.price))<0.005;
+    rec.priceSrc=!Number(rec.price)?"":same?priceSrcOf(sg):(old0&&Math.abs(Number(old0.price)-Number(rec.price))<0.005?(old0.priceSrc||""):"typed")}
   if($("#o-contract")&&$("#o-contract").checked&&Number(rec.price)>0&&acct(p.accountId)){
     const a1=acct(p.accountId);const k=contractKey(rec);
     const cp=Object.assign({},a1.contractPrices||{});cp[k]={price:Number(rec.price).toFixed(2),until:$("#o-contract-until")?$("#o-contract-until").value:"",code:rec.code||"",desc:rec.desc||"",size:rec.size||"",grade:rec.grade||"",label:[rec.desc||rec.code,rec.size?sizeLabel(rec.size):"",rec.grade?custMaterial(rec.grade):""].filter(Boolean).join(" · "),at:Date.now(),by:me()};
@@ -6992,9 +7013,15 @@ function matchItem(txt){
     .filter(w=>w&&!/^(in|x|yd|yds|inch|inches|roll|sheet|3m)$/.test(w));
   const want=toks(t);if(!want.length)return null;
   let best=null,bestScore=0;
+  // a thickness or number alone never makes a match (".063 aluminum" is not ".063 LDPE"), and a material named on
+  // the line has to be the item's material too — aluminum never matches a plastic stencil sheet, or the reverse
+  const MATS=/^(aluminum|aluminium|alum|ldpe|hdpe|vinyl|dg3|hip|eg|aegp|magnetic|magnet|coroplast|pvc|acm|steel|galv|banner)$/;
+  const wantMats=want.filter(w=>MATS.test(w)).map(w=>w.replace(/^aluminium$|^alum$/,"aluminum").replace(/^magnet$/,"magnetic"));
   list.forEach(x=>{
-    const have=toks(x.name);
-    let sc=0;want.forEach(w=>{if(have.indexOf(w)>=0)sc+=/^\d/.test(w)?2:1});   // product numbers count double
+    const have=toks(x.name).map(w=>w.replace(/^aluminium$|^alum$/,"aluminum").replace(/^magnet$/,"magnetic"));
+    if(wantMats.length&&!wantMats.some(m=>have.indexOf(m)>=0))return;
+    let sc=0,words=0;want.forEach(w=>{const ww=w.replace(/^aluminium$|^alum$/,"aluminum");if(have.indexOf(ww)>=0){if(/^[\d.]/.test(w))sc+=2;else{sc+=1;words++}}});
+    if(!words)return;
     const cover=sc/want.length;
     if(sc>bestScore&&cover>=0.5)  {bestScore=sc;best=x}
   });
@@ -8175,6 +8202,7 @@ function picEntry(line){
   for(const k of tries){const e=k&&lib[k];if(e&&e.img&&!e.web)return e}     // a picture uploaded by hand for this item wins
   {const wb=webBest(line);if(wb)return wb}                                  // the website sign that matches the words, legend and direction
   for(const k of tries){if(k&&lib[k])return lib[k]}
+  {const it0=(line&&typeof line==="object")?(itemForLine(line)):null;if(it0&&it0.img)return {img:it0.img,name:it0.name,item:true}}
   return webcatPic(line&&line.desc)||webcatPic(line&&line.title)||webSameWords(line)||webcatByWords(cd&&typeof SIGN_NAMES!=="undefined"?SIGN_NAMES[cd]:"")||mutcdPic(line,cd)||genericSignPic(line);
 }
 /* ===== MUTCD sign pictures, found by themselves =====
@@ -8302,6 +8330,11 @@ function genericSignPic(line){if(!line||typeof line!=="object")return null;
     svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' '+H+'"><rect x="2" y="2" width="'+(W-4)+'" height="'+(H-4)+'" rx="6" fill="'+bg+'" stroke="'+fg+'" stroke-width="3"/><rect x="7" y="7" width="'+(W-14)+'" height="'+(H-14)+'" rx="4" fill="none" stroke="'+fg+'" stroke-width="2"/>'+lines(50,H/2,arr,fs,fg)+'</svg>'}
   return GENPIC[key]={img:"data:image/svg+xml;base64,"+btoa(unescape(encodeURIComponent(svg))),name:label||kind,generic:true}}
 function signPic(line){const e=picEntry(line);return e&&e.img||""}
+// the inventory item a quote line is (hardware lines carry the item's name as their grade/material, or its SKU as the code)
+function itemForLine(l){if(!l)return null;const code=String(l.code||"").trim().toUpperCase();
+  const bySku=code?itemList().find(i=>String(i.sku||"").toUpperCase()===code):null;if(bySku)return bySku;
+  const g=String(l.grade||"").trim().toLowerCase(),d=String(l.desc||"").trim().toLowerCase().replace(/\s+—\s+.*$/,"");
+  return itemList().find(i=>{const n=String(i.name||"").toLowerCase();return (g&&n===g)||(d&&(n===d||n.replace(/\s+—\s+.*$/,"")===d))})||null}
 /* a parking / fire-lane sign drawn the way the real ones look: white face, red border, the legend in big red
    capitals one phrase per line ("FIRE LANE" / "NO PARKING" / "ANY TIME"), each line as wide as the sign allows */
 function parkSignSvg(label,w,h){
@@ -10105,7 +10138,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-80";
+const APP_VERSION="2026.11.25-81";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -10227,6 +10260,16 @@ async function taskToggle(taskId,done){
   const giver=a.assignedById;
   if(done&&giver&&giver!==meId())notify(giver,"task-done",a.text||"",recLink(a),taskId);
 }
+// who may change a logged note, call or email: owners and office, and the person who wrote it
+function actCanEdit(x){if(!x||x.pre)return false;const lvl=myAccess();if(lvl==="owner"||lvl==="office")return true;
+  const mine=String(x.whoId||"")===String(meId()||"-")||(String(x.who||"").toUpperCase()===String(me()).toUpperCase()&&x.who!=="AI");return !!mine}
+function actEditModal(id){const x=S.activity.get(id);if(!x||!actCanEdit(x))return;
+  openModal(mshell("Edit "+(actKind(x)==="note"?"note":"entry"),"",`<div class="fgrid">${inp("ae-subj","Subject",x.subject||"","text",1)}
+    <div class="fld full"><div class="k">Text</div><textarea id="ae-text" rows="6" style="width:100%">${esc(x.text||"")}</textarea></div></div>`,
+    `<button class="btn" data-close="1">Cancel</button><button class="btn p" id="ae-go">Save</button>`));
+  $("#ae-go").onclick=async()=>{const subj=$("#ae-subj").value.trim(),text=$("#ae-text").value;closeModal();
+    await push("activity/"+id,{subject:subj,text,editedAt:Date.now(),editedBy:me(),updatedAt:Date.now()});
+    if(x.recType&&x.recId)recordHistory(x.recType,x.recId,[{f:"Activity",o:String(x.text||"").slice(0,120),n:"Edited: "+String(text).slice(0,120),ev:1}]);toast("Saved")}}
 function activityRow(x){
   const k=actKind(x),t=ATYPE[k]||ATYPE.note;
   const c=x.contactId?S.contacts.get(x.contactId):null;
@@ -10257,7 +10300,7 @@ function activityRow(x){
             href="${esc(mailLink(as.email,"Task: "+(x.text||"").slice(0,60),(x.text||"")+"\n\n"+recTitle(x),{cc:false}))}"${mailTarget()}>Email them</a>`:""}
         </div>
         <time>assigned ${esc(stampFull(x.assignedAt||x.at))}${x.assignedByName?" by "+esc(x.assignedByName):x.who?" by "+esc(x.who):""}</time>`})()
-      :`<time>${x.when?fmtDate(x.when)+" · ":""}${fmtTs(x.at)} · ${esc(x.who||"")}</time>`}
+      :`<time>${x.when?fmtDate(x.when)+" · ":""}${fmtTs(x.at)} · ${esc(x.who||"")}</time>${actCanEdit(x)?`<span class="actedit">${rowMenu(`<button data-actedit="${esc(x.id)}">Edit this ${k==="note"?"note":"entry"}…</button><button class="danger" data-actdel="${esc(x.id)}">Delete this ${k==="note"?"note":"entry"}…</button>`)}</span>`:""}`}
     </div></li>`;
 }
 // A labelled row of actions, grouped by what they're for.
@@ -11011,6 +11054,11 @@ function linkTile(f,showSrc){
       <span style="flex:1"></span>
       ${S.canUpload?`<details class="dd rowm fdel"><summary class="btn sm q" aria-label="More for this file" title="More">⋯</summary><div class="dd-m"><button class="danger" data-delfile="${esc(f.id)}">Delete this file…</button></div></details>`:""}</div></div>`;
 }
+// quotes and invoices on a project: the newest one says "Current", older ones say so too
+function fileVersionPill(f){if(!f||!f.projectId||!/^(Quote|Invoice)$/.test(f.cat||"")||!/pdf/i.test((f.type||"")+(f.name||"")))return "";
+  const same=live(S.files).filter(x=>x.projectId===f.projectId&&x.cat===f.cat&&/pdf/i.test((x.type||"")+(x.name||"")));
+  if(same.length<2)return "";const newest=same.reduce((a2,b2)=>(Number(b2.at)||0)>(Number(a2.at)||0)?b2:a2);
+  return newest.id===f.id?` <span class="pill g">Current</span>`:` <span class="pill">Older version</span>`}
 function fileTile(f,showSrc){
   if(f.link)return linkTile(f,showSrc);
   const isImg=(f.type||"").indexOf("image/")===0;
@@ -11021,7 +11069,7 @@ function fileTile(f,showSrc){
     <div class="th" title="Open ${esc(f.name)}"${isPdf?` data-pdfth="${esc(f.id)}"`:""}>
       ${pth?`<img src="${pth}" alt="${esc(f.name)}" style="object-fit:cover;object-position:top;background:#fff">`:isImg?`<img src="${esc(f.url)}" alt="${esc(f.name)}" loading="lazy"${/svg/i.test(f.type||"")||/\.svg$/i.test(f.name||"")?` style="background:#fff"`:""}>`:`<span class="ext">${esc(ext||"FILE")}</span>`}</div>
     <div class="meta"><b class="nm" title="${esc(f.name)}">${esc(f.name)}</b>
-      <span class="sub">${esc(f.cat||"Other")} · ${bytes(f.size)}</span>
+      <span class="sub">${esc(f.cat||"Other")} · ${bytes(f.size)}${fileVersionPill(f)}</span>
       ${showSrc&&f._src?`<span class="pill" style="margin-top:3px">${esc(f._src)}</span>`:""}</div>
     <div class="row" data-stop="1">
       <button class="btn sm" data-view="${esc(f.id)}">Open</button>
@@ -12959,13 +13007,14 @@ function uploadModal(kind,id,preset){
 }
 // a quote or invoice PDF goes into the project's Files as well, and any older PDF of the same quote or invoice number
 // moves to the recycle bin — so Files never holds two different Q-1015s
-async function docToFiles(d){if(!assets||!d||!d.pid)return;const p=S.projects.get(d.pid);if(!p)return;
+async function docToFiles(d){if(!d||!d.pid)return;if(!assets)throw {code:"no file storage on this view"};const p=S.projects.get(d.pid);if(!p)return;
   const file=(typeof File!=="undefined")?new File([d.blob],d.name,{type:"application/pdf"}):d.blob;
   const up=await assets.upload(file);const fid=uid("f");const now=Date.now();
   await setDoc("files/"+fid,{id:fid,assetId:up.id,url:up.url,name:d.name,size:up.sizeBytes||(d.blob&&d.blob.size)||0,type:"application/pdf",
-    cat:d.kind==="invoice"?"Invoice":"Quote",who:me(),when:stamp(),at:now,deleted:false,accountId:p.accountId||"",projectId:p.id,jobId:""});
-  const no=String(d.docNo||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
-  if(no)for(const f of live(S.files).filter(f=>f.id!==fid&&f.projectId===p.id&&/\.pdf$/i.test(f.name||"")&&String(f.name||"").toUpperCase().replace(/[^A-Z0-9]/g,"").indexOf(no)>=0))
+    cat:d.kind==="invoice"?"Invoice":"Quote",who:me(),when:stamp(),at:now,deleted:false,accountId:p.accountId||"",projectId:p.id,jobId:"",gen:d.kind||"quote",docNo:String(d.docNo||"")});
+  // only PDFs the CRM made itself for this same quote or invoice number are replaced — never a signed quote, a PO or anything uploaded
+  const no=String(d.docNo||"");
+  if(no)for(const f of live(S.files).filter(f=>f.id!==fid&&f.projectId===p.id&&f.gen===(d.kind||"quote")&&String(f.docNo||"")===no))
     await push("files/"+f.id,{deleted:true,deletedAt:now,deletedBy:me(),supersededBy:fid,updatedAt:now});
   logEvent("project",p.id,(d.kind==="invoice"?"Invoice":"Quote")+" PDF "+d.name+" saved to Files"+(no?" (older copies moved to the bin)":""))}
 async function doUpload(files,cat,kind,id){
@@ -15127,8 +15176,9 @@ function remDeliver(url,force){
   const whoGets=r=>{const t=r.rep?S.team.get(r.rep):null;return reach(t)?t:owner};
   live(S.team).forEach(t=>{if(!reach(t))return;
     remFor(t,all).forEach(r=>{const w=whoGets(r);if(!w||w.id!==t.id)return;
-      const key="reminder/"+t.id+":"+r.id;const prev=sent[key];
-      if(!force&&prev&&isoDay(prev.at)===td)return;                       // once a day per person per reminder
+      // one row per reminder on the sheet (not one per team member), sent at most once a day from any computer
+      const key="reminder/"+r.id;const prev=sent[key]||sent["reminder/"+t.id+":"+r.id];
+      if(!force&&prev&&isoDay(prev.at)===td)return;
       const rec=remSyncRec(t,r);
       if(force){syncPost(key,{event:"backfill",sent_at:new Date().toISOString(),crm_version:APP_VERSION,record:rec},u);n++}
       else{syncPost(key,{event:"due",sent_at:new Date().toISOString(),crm_version:APP_VERSION,record:rec},u);n++}})});
@@ -15415,15 +15465,17 @@ function bind(){
     if(t.closest("[data-czall]")){czAll(t.closest("[data-czall]").dataset.czall==="open");return}
     if(t.closest("[data-mesave]")){saveMeAndGo();return}
     const cl=t.closest("[data-close]");
+    if(t.closest("[data-keepedit]")){const n=$(".discardnote");if(n)n.remove();S.discardArmed=false;return}
+    if(t.closest("[data-discardok]")){S.discardArmed=false;const pend0=!!_afterMe;_afterMe=null;closeModal();if(pend0)render();return}
     if(cl||(t.classList&&t.classList.contains("scrim"))){
-      if(modalDirty()&&!S.discardArmed){
+      // typed something? Cancel stays Cancel; a separate question on the left asks before anything is thrown away
+      if(modalDirty()){
         S.discardArmed=true;
         const fb=$(".mbox > .foot");
         if(fb&&!fb.querySelector(".discardnote"))
           fb.insertAdjacentHTML("afterbegin",
-            `<span class="discardnote" style="margin-right:auto;color:var(--red);font-weight:700;font-size:12.5px">
-              Press cancel again to throw away what you typed.</span>`);
-        if(cl){cl.textContent="Discard";cl.classList.add("d")}
+            `<span class="discardnote" style="margin-right:auto;display:inline-flex;gap:8px;align-items:center;flex-wrap:wrap;font-weight:700;font-size:13px">
+              Throw away what you typed? <button type="button" class="btn sm" data-keepedit="1">Keep editing</button><button type="button" class="btn sm d" data-discardok="1">Discard</button></span>`);
         return;
       }
       S.discardArmed=false;
@@ -15512,6 +15564,11 @@ function bind(){
     if(t.closest("[data-noteall]")){myNotes().filter(x=>!x.read).forEach(x=>push("notifications/"+x.id,{read:true,readAt:Date.now()}));
       closeModal();toast("All caught up");return}
     const tkr=t.closest("[data-tkre]");if(tkr){const a=S.activity.get(tkr.dataset.tkre);if(a)taskModal(a.recType,a.recId,a);return}
+    {const ae=t.closest("[data-actedit]");if(ae){const dd0=ae.closest("details");if(dd0)dd0.open=false;actEditModal(ae.dataset.actedit);return}}
+    {const ad=t.closest("[data-actdel]");if(ad){const dd0=ad.closest("details");if(dd0)dd0.open=false;const x=S.activity.get(ad.dataset.actdel);if(!x||!actCanEdit(x))return;
+      askConfirm("Delete this "+(actKind(x)==="note"?"note":"entry")+"?","<p style=\"margin:0\">It goes to the recycle bin with everything else that's deleted, and the change is kept in the record's history.</p>","Delete",true,async()=>{
+        await push("activity/"+x.id,{deleted:true,deletedAt:Date.now(),deletedBy:me(),updatedAt:Date.now()});
+        if(x.recType&&x.recId)recordHistory(x.recType,x.recId,[{f:"Activity",o:String(x.text||"").slice(0,120),n:"Deleted",ev:1}]);toast("Deleted")});return}}
     const tks=t.closest("[data-tksave]");if(tks){const[k,i2,ex]=tks.dataset.tksave.split("|");taskSave(k,i2,ex);return}
     if(t.closest("[data-signout]")&&typeof window.sscSignOut==="function"){window.sscSignOut();return}
     const pt=t.closest("[data-prodtype]");if(pt){prodTypeModal(pt.dataset.prodtype||"");return}
@@ -15829,8 +15886,9 @@ function bind(){
     if(t.closest("[data-docsave]")){const d=S._docPending;if(!d)return;closeModal();
       (async()=>{try{if(downloads)await downloads.save({filename:d.name,data:d.blob});
         else{const a=document.createElement("a");a.href=URL.createObjectURL(d.blob);a.download=d.name;document.body.appendChild(a);a.click();a.remove()}
-        toast(d.okMsg||"PDF saved")}catch(e){if(!(e&&e.code==="declined"))toast("Couldn't save it here.")}
-        if(d.pid)docToFiles(d).catch(()=>{})})();return}
+        toast(d.okMsg||"PDF saved");
+        if(S._docLog&&S._docLog.pid===d.pid){recordHistory("project",d.pid,[{f:S._docLog.f,o:"",n:S._docLog.n,ev:1}]);S._docLog=null}}catch(e){if(!(e&&e.code==="declined"))toast("Couldn't save it here.")}
+        if(d.pid)docToFiles(d).catch(e=>toast("The PDF saved, but it didn't go into the project's Files"+(e&&e.code?" ("+e.code+")":"")+" — upload it from the Files tab."))})();return}
     const nt=t.closest("[data-newtab]");if(nt){const f=S.files.get(nt.dataset.newtab);if(!f)return;
       (async()=>{try{let u=f.link&&driveId(f.url)?"https://drive.google.com/file/d/"+driveId(f.url)+"/view":f.url;if(/^data:/i.test(u)){const bl=await (await fetch(u)).blob();u=URL.createObjectURL(bl)}
         const w2=window.open(u,"_blank","noopener");if(!w2)toast("Your browser blocked the new tab — use Save a copy instead.")}catch(e){toast("Couldn't open it in a tab here — use Save a copy.")}})();return}
