@@ -1,5 +1,16 @@
 # What changed
 
+## 2026.11.25-82
+- Reports is rebuilt. One date range and rep filter at the top apply to the whole page (inventory has no rep). Owner snapshot: revenue this month, weighted 90-day forecast, open quotes, receivables, inventory at cost, low stock, overdue follow-ups.
+- Every report has a chart on top, the detail table below, Export CSV (the same rows and totals as the table) and click-through: a bar, slice or row opens the projects, items or work orders behind it.
+- Forecasting: weighted pipeline by expected close month and stage (stage chances editable, saved for everyone), revenue vs a monthly goal with run rate to year end, win rate and days quote-to-PO by customer type (won / lost / gone quiet), seasonality year over year.
+- Reps: scorecard and leaderboard (quotes, $ quoted, $ won, win rate, average deal, margin, overdue follow-ups) with a 6-month trend; activity (emails logged, new accounts, hours to first reply).
+- Inventory: value at cost by category, low stock for purchasing (average monthly use, days of cover, vendor; reorder points of 1 with no use are flagged as placeholders), slow movers (90+ days), committed material for open work orders vs on hand.
+- Margin by job, product and customer counts only lines that have a cost (an uncosted line no longer reads as 100% margin); jobs under the margin floor are flagged.
+- Quoted vs invoiced and receivables aging come from QuickBooks: the morning QuickBooks check now leaves a copy of the invoice list in the CRM (owners and office only). Also: top customers with reorder alerts, lost-quote reasons, production and on-time, lead source → reply → quote → win, bid calendar.
+- Closing a quote as lost now needs a reason.
+- The old group-by report is still there at the bottom ("Build your own report").
+
 ## 2026.11.25-81
 - Saving a quote or invoice PDF only replaces PDFs the CRM made for that same number — never a signed quote, PO or anything uploaded. If it can't go into Files you're told. "PDF saved" goes in the history only when it's actually saved (not on the preview).
 - Files: when a project has several quote (or invoice) PDFs, the newest says "Current" and the others "Older version".

@@ -1204,6 +1204,23 @@ details.omore>summary{cursor:pointer;font-weight:700;padding:6px 0;color:var(--a
 @media (max-width:1100px){.qlines [data-ordmove]{display:none}.qlines .gfull{display:none}.qlines .gshort{display:inline}}
 .qlines td:last-child{white-space:nowrap}
 .actedit{margin-left:8px;display:inline-block;vertical-align:middle}
+/* -82 reports */
+.rpage .rsec{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2);margin:22px 2px 10px;font-weight:800}
+.rpage .rsec:first-of-type{margin-top:14px}
+
+.rchartwrap{padding:10px 14px 4px}
+.rchart{width:100%;height:auto;max-height:260px;display:block;color:var(--ink)}
+.rchart rect[data-rdrill]:hover,.rdonut path[data-rdrill]:hover{opacity:.82}
+.rleg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--ink2);padding:4px 2px 6px}
+.rleg span{display:inline-flex;align-items:center;gap:6px}.rleg i{width:10px;height:10px;border-radius:2px;display:inline-block;flex:0 0 auto}
+.rleg.col{flex-direction:column;gap:6px}
+.rdonut{display:flex;align-items:center;gap:18px;flex-wrap:wrap}.rdonut svg{width:180px;max-width:46%;height:auto;color:var(--ink);flex:0 0 auto}
+.rtab tr.rflag td{background:color-mix(in srgb,var(--orange-text) 8%,transparent)}
+.rtab tr.rtot td{border-top:2px solid var(--line)}
+.rtabs{display:flex;flex-wrap:wrap;gap:2px}
+.rfbar select,.rfbar input[type=date]{min-height:38px}
+.rcustom{margin-top:22px}.rcustom>summary{padding:14px 16px;cursor:pointer}.rcustom>.pad{padding-top:0}
+@media (max-width:600px){.rdonut svg{max-width:60%;margin:0 auto}.rchartwrap{padding:8px 6px 2px}.rfbar .fld{flex:1 1 100%}}
 /* -76 design review */
 .updbar{left:auto!important;right:16px;bottom:16px!important;transform:none!important;max-width:min(360px,calc(100vw - 32px));flex-wrap:wrap;font-size:13px!important}
 body:has(.modal) .updbar{display:none!important}
@@ -4802,7 +4819,7 @@ async function doClose(pid,skipCheck){
 function lostModal(pid){
   const p=proj(pid);if(!p)return;
   openModal(mshell("Close P-"+p.num+" as lost","proj",
-    `<p class="note" style="margin:10px 15px">Worth thirty seconds — this is the only place the reason
+    `<p class="note" style="margin:10px 15px">Pick a reason (required) — this is the only place the reason
       gets recorded, and it's what makes the win/loss report worth reading.</p>
      <div style="padding:2px 0">
        ${LOSTWHY.map(x=>`<label class="gate" style="cursor:pointer">
@@ -4819,7 +4836,8 @@ function lostModal(pid){
 }
 async function lostSave(pid){
   const el=document.querySelector("[name=lw]:checked");
-  const why=el?el.value:"other";
+  if(!el){const box=document.querySelector("[name=lw]");if(box)box.closest("div").insertAdjacentHTML("beforebegin",document.querySelector(".lwneed")?"":'<div class="warn lwneed" style="margin:6px 15px">Pick a reason — it is required, and it is what the lost-quote report counts.</div>');toast("Pick why it was lost");return}
+  const why=el.value;
   const who=$("#lw-who")?$("#lw-who").value.trim():"";
   const note=$("#lw-note")?$("#lw-note").value.trim():"";
   closeModal();
@@ -9423,7 +9441,7 @@ function body(){
     case "job":return jobRec(r.id);
     case "files":return fileList();
     case "mybook":return myBook();
-    case "reports":return reportsView();
+    case "reports":return reportsPage();
     case "vendors":return vendorListView();
     case "vendor":return vendorRec(r.id);
     case "inventory":return inventoryView();
@@ -10138,7 +10156,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-81";
+const APP_VERSION="2026.11.25-82";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -11773,6 +11791,334 @@ function metricTxt(v,m){
   if(m==="margin")return v.toFixed(0)+"%";
   return money(v);
 }
+/* ================= REPORTS =================
+   One page: owner snapshot, then forecasting, reps, inventory and the other reports. Every report has a chart on top,
+   the detail table below (the export is that same table), and clicking a bar or a row opens the records behind it.
+   The date range and rep at the top apply to the whole page (inventory has no rep). Read only — nothing is changed. */
+const RF_PRESETS=[["month","This month"],["last30","Last 30 days"],["last90","Last 90 days"],["quarter","This quarter"],["ytd","Year to date"],["last12","Last 12 months"],["all","All time"],["custom","Custom"]];
+const RCOL=["#1F5FAD","#2F8F5B","#C77A1A","#7A4FB5","#C23B5A","#2A8C9A","#8A6D1F","#5A6470","#9C4E2F","#3E7D2E"];
+const STAGE_PROB_DEF={inquiry:10,quoted:35,won:90,production:95,shipped:100};
+function rfGet(){const f=S.rf||(S.rf={preset:"ytd",rep:""});
+  const d=new Date(),y=d.getFullYear(),m=d.getMonth();let a,b=new Date(y,m,d.getDate(),23,59,59,999);
+  if(f.preset==="month")a=new Date(y,m,1);else if(f.preset==="last30")a=new Date(Date.now()-29*864e5);else if(f.preset==="last90")a=new Date(Date.now()-89*864e5);
+  else if(f.preset==="quarter")a=new Date(y,Math.floor(m/3)*3,1);else if(f.preset==="last12")a=new Date(y-1,m+1,1);else if(f.preset==="all")a=new Date(2000,0,1);
+  else if(f.preset==="custom"){a=f.from?new Date(f.from+"T00:00:00"):new Date(y,0,1);b=f.to?new Date(f.to+"T23:59:59"):b}else a=new Date(y,0,1);
+  a.setHours(0,0,0,0);return {from:a.getTime(),to:b.getTime(),rep:f.rep||"",preset:f.preset||"ytd",fromIso:isoDay(a.getTime()),toIso:isoDay(b.getTime())}}
+const rIn=(ms,R)=>!!ms&&ms>=R.from&&ms<=R.to;
+const rMs=iso=>iso?new Date(String(iso).slice(0,10)+"T00:00:00").getTime():0;
+function rRepOk(p,R){if(!R.rep)return true;const r=repFor(p);return R.rep==="none"?!r:!!(r&&r.id===R.rep)}
+function rProjects(R){return real(live(S.projects)).filter(p=>rRepOk(p,R))}
+function stageProbs(){return Object.assign({},STAGE_PROB_DEF,(S.brand||{}).stageProb||{})}
+const OPEN_ST=["inquiry","quoted","won","production","shipped"];
+// revenue = what was invoiced (the project value, before tax), on the day it was invoiced — the same number as the billing card
+function rRevenue(p){return billedAt(p)?billedValue(p):0}
+function rRevAt(p){return billedAt(p)}
+// margin only from lines that have a cost — a line with no cost would count as 100% margin and overstate it
+function costedMargin(p){let rev=0,cost=0,un=0;orderedLines(p).forEach(l=>{const q=Number(l.qty)||0,pr=Number(l.price)||0;if(!q||!pr)return;
+  let c=0;if(isCharge(l))c=Number(l.cost)||0;else{try{c=quoteLineCost(l).cost||0}catch(e){}}
+  if(c>0||(isCharge(l)&&String(l.cost||"")!=="")){rev+=q*pr;cost+=q*c}else un+=q*pr});
+  return {rev:Math.round(rev*100)/100,cost:Math.round(cost*100)/100,uncosted:Math.round(un*100)/100,m:rev?(rev-cost)/rev*100:null}}
+function acctKind(a){if(!a)return "Unknown";const t=String(a.type||""),n=String(a.name||"");
+  if(/gov/i.test(t))return /city|town|village|county|state|department|district|public works|parks/i.test(n)?(/county/i.test(n)?"County":/state|department of/i.test(n)?"State agency":"City / town"):"Government";
+  if(/hoa|association|community|management|property|homeowner/i.test(n))return "HOA / property mgmt";
+  return t||"Other"}
+function monthsBetween(a,b){const out=[];const d=new Date(a);d.setDate(1);d.setHours(0,0,0,0);const e=new Date(b);
+  while(d<=e&&out.length<60){out.push(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"));d.setMonth(d.getMonth()+1)}return out}
+function nextMonths(k){const out=[];const d=new Date();d.setDate(1);for(let i=0;i<k;i++){const x=new Date(d);x.setMonth(d.getMonth()+i);out.push(x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0"))}return out}
+// the records behind a bar or a row, opened in a list
+const RDRILL={},RTAB={};
+function rDrill(key,title,recs){RDRILL[key]={title,recs};return key}
+function rDrillModal(key){const d=RDRILL[key];if(!d)return;
+  openModal(mshell(d.title,"",d.recs.length?`<table><thead><tr><th>Record</th><th>Detail</th><th style="text-align:right">Amount</th></tr></thead><tbody>${d.recs.map(r=>`<tr>
+    <td>${r.go?`<button class="lnk" data-go="${esc(r.go)}">${esc(r.l)}</button>`:esc(r.l)}</td><td class="sub">${esc(r.d||"")}</td><td class="mono" style="text-align:right">${r.v==null?"":esc(r.money===false?String(r.v):money2(r.v))}</td></tr>`).join("")}</tbody></table>`
+    :`<div class="empty">Nothing here.</div>`,`<button class="btn" data-close="1">Close</button>`))}
+// a table that's also the export: head is the column names, rows are plain values (numbers stay numbers)
+// which columns are dollars, per table (everything else prints as a plain number)
+const RMONEY={forecast:[5,6],goal:[1,2,3,4],win:[],reps:[2,3,5],activity:[],invval:[2],low:[9],slow:[5],committed:[],margin:[2,3,5],margincust:[2,3],
+  qbcmp:[3,4,5],aging:[5],topcust:[2],lost:[2],prod:[],source:[6],bids:[4]};
+function rTable(id,name,head,rows,opt){opt=Object.assign({},opt||{});if(!opt.money&&RMONEY[id])opt.money=RMONEY[id];RTAB[id]={name,head,rows:rows.map(r=>r.cells),total:opt.total||null,money:opt.money||[]};
+  if(!rows.length)return `<div class="empty">${esc(opt.empty||"Nothing in this range.")}</div>`;
+  const num=head.map((h,i)=>rows.every(r=>r.cells[i]==null||r.cells[i]===""||typeof r.cells[i]==="number"));
+  const fmt=(v,i)=>v==null||v===""?"—":typeof v==="number"?(opt.fmt&&opt.fmt[i]?opt.fmt[i](v):opt.money?(opt.money.indexOf(i)>=0?money2(v):String(Math.round(v*100)/100)):(/(\$|value|revenue|cost|won|quoted|margin \$|tied up|amount|total|balance|invoiced|forecast|weighted|goal|crm|qb|gap)/i.test(head[i])&&!/%|count|days|#|qty|on hand|use/i.test(head[i])?money2(v):String(Math.round(v*100)/100))):esc(v);
+  return `<div class="tw"><table class="rtab"><thead><tr>${head.map((h,i)=>`<th${num[i]?' style="text-align:right"':""}>${esc(h)}</th>`).join("")}</tr></thead><tbody>
+    ${rows.map(r=>`<tr${r.flag?' class="rflag"':""}>${r.cells.map((v,i)=>`<td${num[i]?' class="mono" style="text-align:right;white-space:nowrap"':""}>${i===0&&r.go?`<button class="lnk" data-go="${esc(r.go)}">${fmt(v,i)}</button>`
+      :i===0&&r.drill?`<button class="lnk" data-rdrill="${esc(r.drill)}">${fmt(v,i)}</button>`:fmt(v,i)}${i===0&&r.sub?`<div class="sub">${esc(r.sub)}</div>`:""}</td>`).join("")}</tr>`).join("")}
+    ${opt.total?`<tr class="rtot">${opt.total.map((v,i)=>`<td${num[i]?' class="mono" style="text-align:right;white-space:nowrap"':""}><b>${v==null||v===""?"":fmt(v,i)}</b></td>`).join("")}</tr>`:""}</tbody></table></div>`}
+async function rCSV(id){const t=RTAB[id];if(!t)return;
+  const cell=(v,i)=>typeof v==="number"?(t.money.indexOf(i)>=0?(Math.round(v*100)/100).toFixed(2):String(Math.round(v*100)/100)):(v==null?"":v);
+  const rows=[t.head].concat(t.rows.concat(t.total?[t.total]:[]).map(r=>r.map(cell)));
+  const csv=rows.map(r=>r.map(v=>{const x=String(v==null?"":v);return /[",\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x}).join(",")).join("\r\n");
+  const name=t.name.replace(/[^A-Za-z0-9]+/g,"-").toLowerCase()+"-"+today()+".csv";
+  if(downloads){try{await downloads.save({filename:name,data:csv});return}catch(e){}}
+  try{const b2=new Blob([csv],{type:"text/csv"});const a=document.createElement("a");a.href=URL.createObjectURL(b2);a.download=name;document.body.appendChild(a);a.click();a.remove()}catch(e){toast("Couldn't build the file here.")}}
+// ---- charts (plain SVG: they scale to any width) ----
+function rBars(bars,opt){opt=opt||{};if(!bars.length||!bars.some(b=>(b.parts||[{v:b.v}]).some(x=>x.v)))return `<div class="empty">No data to chart in this range.</div>`;
+  const W=rNarrow()?380:640,H=opt.h||(rNarrow()?220:200),pad=36,bw=Math.min(56,(W-pad-8)/bars.length*0.7),gap=(W-pad-8)/bars.length;
+  const tot=b=>(b.parts||[{v:b.v}]).reduce((t,x)=>t+Math.max(0,x.v||0),0);const max=Math.max(...bars.map(tot),opt.goal||0)||1;
+  const y=v=>H-24-(v/max)*(H-40);let svg="";
+  bars.forEach((b,i)=>{const x=pad+i*gap+(gap-bw)/2;let acc=0;
+    (b.parts||[{v:b.v,c:b.c}]).forEach((pt,j)=>{const v=Math.max(0,pt.v||0);if(!v)return;const y1=y(acc+v),y0=y(acc);acc+=v;
+      svg+=`<rect x="${x.toFixed(1)}" y="${y1.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(1,y0-y1).toFixed(1)}" fill="${pt.c||RCOL[j%RCOL.length]}" rx="2"${b.drill?` data-rdrill="${esc(b.drill)}" style="cursor:pointer"`:""}><title>${esc(b.label+(pt.n?" — "+pt.n:"")+": "+(opt.fmt||money)(v))}</title></rect>`});
+    svg+=`<text x="${(x+bw/2).toFixed(1)}" y="${H-8}" font-size="11" text-anchor="middle" fill="currentColor" opacity=".75">${esc(String(b.label).slice(0,10))}</text>`;
+    if(tot(b))svg+=`<text x="${(x+bw/2).toFixed(1)}" y="${(y(tot(b))-4).toFixed(1)}" font-size="11" text-anchor="middle" fill="currentColor">${esc((opt.short||rShort)(tot(b)))}</text>`});
+  if(opt.goal)svg+=`<line x1="${pad}" x2="${W-4}" y1="${y(opt.goal).toFixed(1)}" y2="${y(opt.goal).toFixed(1)}" stroke="#C23B5A" stroke-dasharray="5 4"/><text x="${W-6}" y="${(y(opt.goal)-4).toFixed(1)}" font-size="11" text-anchor="end" fill="#C23B5A">${esc(opt.goalLabel||("goal "+rShort(opt.goal)))}</text>`;
+  const leg=opt.legend?`<div class="rleg">${opt.legend.map((l,i)=>`<span><i style="background:${l.c||RCOL[i%RCOL.length]}"></i>${esc(l.l)}</span>`).join("")}</div>`:"";
+  return `<svg viewBox="0 0 ${W} ${H}" class="rchart" role="img" aria-label="${esc(opt.label||"chart")}">${svg}</svg>${leg}`}
+function rNarrow(){try{return window.innerWidth<600}catch(e){return false}}
+function rShort(v){const a=Math.abs(v);return (v<0?"-":"")+(a>=1e6?"$"+(a/1e6).toFixed(1)+"M":a>=1e4?"$"+Math.round(a/1e3)+"k":a>=1e3?"$"+(a/1e3).toFixed(1)+"k":"$"+Math.round(a))}
+function rLines(xs,series,opt){opt=opt||{};if(!xs.length||!series.some(s=>s.v.some(v=>v)))return `<div class="empty">No data to chart in this range.</div>`;
+  const W=rNarrow()?380:640,H=opt.h||(rNarrow()?230:210),pad=40;const all=series.flatMap(s=>s.v.filter(v=>v!=null));const max=Math.max(...all,1);
+  const x=i=>pad+(xs.length<2?0:i*(W-pad-12)/(xs.length-1)),y=v=>H-26-(v/max)*(H-44);let svg="";
+  [0,.5,1].forEach(f=>{svg+=`<line x1="${pad}" x2="${W-6}" y1="${y(max*f).toFixed(1)}" y2="${y(max*f).toFixed(1)}" stroke="currentColor" opacity=".12"/><text x="${pad-4}" y="${(y(max*f)+4).toFixed(1)}" font-size="10" text-anchor="end" fill="currentColor" opacity=".7">${esc((opt.short||rShort)(max*f))}</text>`});
+  series.forEach((s,k)=>{const pts=s.v.map((v,i)=>v==null?null:[x(i),y(v)]).filter(Boolean);if(!pts.length)return;const c=s.c||RCOL[k%RCOL.length];
+    svg+=`<polyline points="${pts.map(p=>p[0].toFixed(1)+","+p[1].toFixed(1)).join(" ")}" fill="none" stroke="${c}" stroke-width="2.5"${s.dash?' stroke-dasharray="6 5"':""}/>`;
+    pts.forEach((p,i)=>{svg+=`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3" fill="${c}"><title>${esc(s.name+" · "+xs[i]+": "+(opt.fmt||money)(s.v[i]))}</title></circle>`})});
+  const step=Math.max(1,Math.ceil(xs.length/8));xs.forEach((l,i)=>{if(i%step===0||i===xs.length-1)svg+=`<text x="${x(i).toFixed(1)}" y="${H-8}" font-size="11" text-anchor="middle" fill="currentColor" opacity=".75">${esc(l)}</text>`});
+  return `<svg viewBox="0 0 ${W} ${H}" class="rchart" role="img" aria-label="${esc(opt.label||"chart")}">${svg}</svg><div class="rleg">${series.map((s,k)=>`<span><i style="background:${s.c||RCOL[k%RCOL.length]}"></i>${esc(s.name)}</span>`).join("")}</div>`}
+function rDonut(parts,opt){opt=opt||{};const tot=parts.reduce((t,p)=>t+p.v,0);if(!tot)return `<div class="empty">Nothing to chart.</div>`;
+  let a=-Math.PI/2,svg="";const R=70,r=44,cx=90,cy=90;
+  parts.forEach((p,i)=>{const da=p.v/tot*Math.PI*2;const a2=a+da;const big=da>Math.PI?1:0;
+    const P=(rr,aa)=>[(cx+rr*Math.cos(aa)).toFixed(2),(cy+rr*Math.sin(aa)).toFixed(2)];
+    const d=parts.length===1?`M ${cx} ${cy-R} A ${R} ${R} 0 1 1 ${cx-0.01} ${cy-R} L ${cx-0.01} ${cy-r} A ${r} ${r} 0 1 0 ${cx} ${cy-r} Z`
+      :`M ${P(R,a)} A ${R} ${R} 0 ${big} 1 ${P(R,a2)} L ${P(r,a2)} A ${r} ${r} 0 ${big} 0 ${P(r,a)} Z`;
+    svg+=`<path d="${d}" fill="${p.c||RCOL[i%RCOL.length]}"${p.drill?` data-rdrill="${esc(p.drill)}" style="cursor:pointer"`:""}><title>${esc(p.l+": "+money(p.v))}</title></path>`;a=a2});
+  svg+=`<text x="${cx}" y="${cy+5}" font-size="15" font-weight="800" text-anchor="middle" fill="currentColor">${esc(rShort(tot))}</text>`;
+  return `<div class="rdonut"><svg viewBox="0 0 180 180" role="img" aria-label="${esc(opt.label||"chart")}">${svg}</svg><div class="rleg col">${parts.map((p,i)=>`<span${p.drill?` data-rdrill="${esc(p.drill)}" style="cursor:pointer"`:""}><i style="background:${p.c||RCOL[i%RCOL.length]}"></i>${esc(p.l)} <b class="mono">${esc(money(p.v))}</b> <span class="sub">${Math.round(p.v/tot*100)}%</span></span>`).join("")}</div></div>`}
+function rCard(id,title,sub,chart,table,extra){return `<section class="card flush rcard" id="r-${esc(id)}"><header><h2>${esc(title)}</h2>${sub?`<span class="sub">${esc(sub)}</span>`:""}
+  <span class="sp">${extra||""}${RTAB[id]&&RTAB[id].rows.length?`<button class="btn sm" data-rcsv="${esc(id)}">Export CSV</button>`:""}</span></header>
+  ${chart?`<div class="rchartwrap">${chart}</div>`:""}${table||""}</section>`}
+const pRec=p=>({l:"P-"+p.num+" "+(p.name||""),go:"project/"+p.id,d:accName(p.accountId)+" · "+((SG[p.stage]||{}).label||p.stage),v:projValue(p)});
+// ---- the QuickBooks invoice copy (kept by the daily QuickBooks check in settings/qbinv) ----
+function qbRows(){const d=S.qbinv;return d&&Array.isArray(d.rows)?d.rows:null}
+function qbNum(v){const n=Number(String(v==null?"":v).replace(/[$,\s]/g,""));return isFinite(n)?n:0}
+// ===== 0. owner snapshot =====
+function rSnapshot(R){
+  const ps=rProjects(R),ym=thisYM();
+  const revMonth=ps.filter(p=>ymOf(rRevAt(p))===ym).reduce((t,p)=>t+rRevenue(p),0);
+  const fc=rForecastRows(R);const fcv=fc.reduce((t,x)=>t+x.w,0);
+  const openQ=ps.filter(p=>["inquiry","quoted"].indexOf(p.stage)>=0);const openQv=openQ.reduce((t,p)=>t+projValue(p),0);
+  const qb=qbRows();const ar=qb?qb.filter(q=>qbNum(q.balance)>0).reduce((t,q)=>t+qbNum(q.balance),0)
+    :ps.filter(p=>billState(p)==="invoiced").reduce((t,p)=>t+projValue(p)+(invTaxOf(p)||0),0);
+  const inv=itemList().filter(i=>onHand(i)>0&&Number(i.cost)>0).reduce((t,i)=>t+onHand(i)*Number(i.cost),0);
+  const low=lowStock().length;
+  const od=rOverdueFollowups(R).length;
+  return kpiRow([kpi("Revenue this month",money2(revMonth),"invoiced (deposits count), before tax"),kpi("Weighted forecast",money2(fcv),"next 90 days"),
+    kpi("Open quotes",money2(openQv),openQ.length+" inquiry or quoted"),kpi("Receivables",money2(ar),qb?"open in QuickBooks":"invoiced, not paid (CRM)",ar>0?"o":""),
+    kpi("Inventory at cost",money2(inv),"on hand × unit cost"),kpi("Low stock",low,"at or below reorder",low?"r":""),kpi("Overdue follow-ups",od,"tasks past due",od?"r":"")])}
+function rOverdueFollowups(R){const td=today();return live(S.activity).filter(x=>actKind(x)==="task"&&!x.done&&x.due&&x.due<td).filter(x=>{if(!R.rep)return true;const as=taskAssignee(x);return as&&as.id===R.rep})}
+// ===== 1. forecasting =====
+function rCycleDays(){const d=real(live(S.projects)).map(p=>{const q=stageAt(p,"quoted"),w=stageAt(p,"won");return q&&w&&w>=q?(w-q)/864e5:null}).filter(x=>x!=null);return d.length?d.reduce((a,b)=>a+b,0)/d.length:21}
+function rForecastRows(R){const pr=stageProbs(),cyc=rCycleDays(),now=Date.now(),end=now+90*864e5;
+  return rProjects(R).filter(p=>OPEN_ST.indexOf(p.stage)>=0&&projValue(p)>0).map(p=>{
+    let when=p.due?rMs(p.due):0;if(!when){const base=stageAt(p,p.stage)||p.createdAt||now;when=base+(["inquiry","quoted"].indexOf(p.stage)>=0?cyc:14)*864e5}
+    if(when<now)when=now;return {p,when,prob:Number(pr[p.stage])||0,w:projValue(p)*(Number(pr[p.stage])||0)/100}}).filter(x=>x.when<=end)}
+function rForecastCard(R){const rows=rForecastRows(R),months=nextMonths(4),pr=stageProbs();const st=OPEN_ST;
+  const bars=months.map(m=>{const inM=rows.filter(x=>ymOf(x.when)===m);return {label:ymLabel(m),drill:rDrill("fc:"+m,"Forecast — "+ymLabel(m),inM.map(x=>Object.assign(pRec(x.p),{d:(SG[x.p.stage]||{}).label+" · "+x.prob+"% of "+money2(projValue(x.p)),v:x.w}))),
+    parts:st.map((s,i)=>({v:inM.filter(x=>x.p.stage===s).reduce((t,x)=>t+x.w,0),c:RCOL[i],n:(SG[s]||{}).label}))}});
+  const t=rTable("forecast","Weighted forecast",["Project","Account","Stage","Probability %","Expected close","Value","Weighted"],
+    rows.sort((a,b)=>a.when-b.when).map(x=>({go:"project/"+x.p.id,cells:["P-"+x.p.num+" "+(x.p.name||""),accName(x.p.accountId),(SG[x.p.stage]||{}).label,x.prob,isoDay(x.when),projValue(x.p),Math.round(x.w*100)/100]})),
+    {total:["Total","","","","",rows.reduce((t,x)=>t+projValue(x.p),0),rows.reduce((t,x)=>t+x.w,0)],empty:"No open projects expected to close in the next 90 days."});
+  const canEdit=can("settings")||myAccess()==="office";
+  return rCard("forecast","Weighted pipeline forecast — next 90 days","open value × the chance each stage closes: "+st.map(s=>(SG[s]||{}).label+" "+pr[s]+"%").join(", ")+". Expected close is the due date, else the stage date plus the usual "+Math.round(rCycleDays())+" days.",
+    rBars(bars,{legend:st.map((s,i)=>({l:(SG[s]||{}).label,c:RCOL[i]})),label:"Weighted forecast by month"}),t,canEdit?`<button class="btn sm" data-rprob="1">Stage chances</button>`:"")}
+function rProbModal(){const pr=stageProbs();openModal(mshell("Chance each stage closes","",`<div class="fgrid">${OPEN_ST.map(s=>inp("rp-"+s,(SG[s]||{}).label+" — %",String(pr[s]),"number")).join("")}
+  <div class="fld full sub">Used for the weighted forecast. Saved for everyone.</div></div>`,`<button class="btn" data-close="1">Cancel</button><button class="btn p" id="rp-go">Save</button>`));
+  $("#rp-go").onclick=async()=>{const o={};OPEN_ST.forEach(s=>{const v=Number($("#rp-"+s).value);o[s]=isFinite(v)?Math.max(0,Math.min(100,v)):STAGE_PROB_DEF[s]});closeModal();
+    try{await push("settings/brand",{stageProb:o})}catch(e){await setDoc("settings/brand",Object.assign({},S.brand||{},{stageProb:o}))}S.brand=Object.assign({},S.brand||{},{stageProb:o});render();toast("Saved")}}
+function rGoalCard(R){const y=new Date().getFullYear(),months=[];for(let m=0;m<12;m++)months.push(y+"-"+String(m+1).padStart(2,"0"));
+  const goalM=Number((S.brand||{}).revGoal)||0;const ps=rProjects(R);
+  const act=months.map(m=>ps.filter(p=>ymOf(rRevAt(p))===m).reduce((t,p)=>t+rRevenue(p),0));
+  const fc=rForecastRows(R);const fcM=months.map(m=>fc.filter(x=>ymOf(x.when)===m).reduce((t,x)=>t+x.w,0));
+  const nowM=new Date().getMonth();let ca=0,cf=0;const cumA=[],cumF=[],cumG=[];
+  months.forEach((m,i)=>{ca+=act[i];cumA.push(i<=nowM?ca:null);cf=(i<=nowM?ca:cf)+(i>=nowM?fcM[i]:0);cumF.push(i>=nowM?cf:null);cumG.push(goalM?goalM*(i+1):null)});
+  const ytd=act.slice(0,nowM+1).reduce((a,b)=>a+b,0);const run=ytd/(nowM+1)*12;
+  const series=[{name:"Invoiced (cumulative)",v:cumA,c:RCOL[0]},{name:"With forecast",v:cumF,c:RCOL[2],dash:true}].concat(goalM?[{name:"Goal",v:cumG,c:"#C23B5A",dash:true}]:[]);
+  const t=rTable("goal","Revenue vs goal",["Month","Invoiced","Weighted forecast","Goal","Invoiced vs goal"],months.map((m,i)=>({drill:rDrill("rev:"+m,"Invoiced — "+ymLabel(m),ps.filter(p=>ymOf(rRevAt(p))===m).map(p=>Object.assign(pRec(p),{v:rRevenue(p),d:accName(p.accountId)+" · "+billLabel(p)}))),
+    cells:[ymLabel(m),Math.round(act[i]*100)/100,Math.round(fcM[i]*100)/100,goalM||"",goalM?Math.round((act[i]-goalM)*100)/100:""]})),{total:["Year",act.reduce((a,b)=>a+b,0),fcM.reduce((a,b)=>a+b,0),goalM?goalM*12:"",""]});
+  return rCard("goal","Revenue vs goal — "+y,"Run rate to year end: "+money(run)+(goalM?" against a goal of "+money(goalM*12)+" ("+Math.round(run/(goalM*12)*100)+"%)":" — set a monthly goal to compare"),
+    rLines(months.map(m=>ymLabel(m).split(" ")[0]),series,{label:"Revenue vs goal"}),t,(can("settings")||myAccess()==="office")?`<button class="btn sm" data-rgoal="1">${goalM?"Goal "+money(goalM)+"/mo":"Set a goal"}</button>`:"")}
+function rGoalModal(){openModal(mshell("Monthly revenue goal","",`<div class="fgrid">${inp("rg-v","Goal per month ($, before tax)",String((S.brand||{}).revGoal||""),"number")}<div class="fld full sub">The year's goal is 12 × this.</div></div>`,
+  `<button class="btn" data-close="1">Cancel</button><button class="btn p" id="rg-go">Save</button>`));
+  $("#rg-go").onclick=async()=>{const v=Number($("#rg-v").value)||0;closeModal();try{await push("settings/brand",{revGoal:v})}catch(e){await setDoc("settings/brand",Object.assign({},S.brand||{},{revGoal:v}))}S.brand=Object.assign({},S.brand||{},{revGoal:v});render();toast("Saved")}}
+function rWinCard(R){const ps=rProjects(R),now=Date.now();
+  const quiet=p=>p.stage==="quoted"&&(stageAt(p,"quoted")||0)<now-30*864e5&&!live(S.activity).some(a=>((a.recType==="project"&&a.recId===p.id)||(a.recType==="account"&&a.recId===p.accountId))&&(a.at||0)>now-30*864e5);
+  const kinds={};ps.forEach(p=>{const k=acctKind(acct(p.accountId));const g=kinds[k]||(kinds[k]={won:[],lost:[],quiet:[],cyc:[]});
+    const w=stageAt(p,"won"),l=stageAt(p,"lost");if(rIn(w,R)){g.won.push(p);const q=stageAt(p,"quoted");if(q&&w>=q)g.cyc.push((w-q)/864e5)}
+    else if(rIn(l,R))g.lost.push(p);else if(quiet(p))g.quiet.push(p)});
+  const ks=Object.keys(kinds).filter(k=>kinds[k].won.length+kinds[k].lost.length+kinds[k].quiet.length).sort();
+  const bars=ks.map(k=>({label:k,drill:rDrill("win:"+k,"Won, lost and gone quiet — "+k,[].concat(kinds[k].won.map(p=>Object.assign(pRec(p),{d:"Won"})),kinds[k].lost.map(p=>Object.assign(pRec(p),{d:"Lost — "+((LOSTWHY.find(x=>x.id===p.lostWhy)||{}).label||"no reason")})),kinds[k].quiet.map(p=>Object.assign(pRec(p),{d:"Quoted, quiet 30+ days"})))),
+    parts:[{v:kinds[k].won.length,c:RCOL[1],n:"won"},{v:kinds[k].lost.length,c:RCOL[4],n:"lost"},{v:kinds[k].quiet.length,c:RCOL[7],n:"gone quiet"}]}));
+  const all={won:0,lost:0,quiet:0,cyc:[]};ks.forEach(k=>{all.won+=kinds[k].won.length;all.lost+=kinds[k].lost.length;all.quiet+=kinds[k].quiet.length;all.cyc=all.cyc.concat(kinds[k].cyc)});
+  const avg=a=>a.length?Math.round(a.reduce((x,y)=>x+y,0)/a.length*10)/10:"";
+  const t=rTable("win","Win rate and sales cycle",["Customer type","Won","Lost","Gone quiet","Win rate %","Avg days quote to PO"],ks.map(k=>{const g=kinds[k];return {drill:"win:"+k,cells:[k,g.won.length,g.lost.length,g.quiet.length,(g.won.length+g.lost.length)?Math.round(g.won.length/(g.won.length+g.lost.length)*100):"",avg(g.cyc)]}}),
+    {total:["All",all.won,all.lost,all.quiet,(all.won+all.lost)?Math.round(all.won/(all.won+all.lost)*100):"",avg(all.cyc)],empty:"Nothing won, lost or gone quiet in this range."});
+  return rCard("win","Win rate and sales cycle","won and lost in the range; gone quiet = quoted 30+ days with no activity",rBars(bars,{fmt:v=>String(v),short:v=>String(v),legend:[{l:"Won",c:RCOL[1]},{l:"Lost",c:RCOL[4]},{l:"Gone quiet",c:RCOL[7]}]}),t)}
+function rSeasonCard(R){const ps=rProjects(R).filter(p=>rRevenue(p)&&rRevAt(p));const years=[...new Set(ps.map(p=>new Date(rRevAt(p)).getFullYear()))].sort();
+  const mn=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const series=years.map((y,k)=>({name:String(y),v:mn.map((_,m)=>{const s=ps.filter(p=>{const d=new Date(rRevAt(p));return d.getFullYear()===y&&d.getMonth()===m}).reduce((t,p)=>t+rRevenue(p),0);return s||null})}));
+  const t=rTable("season","Seasonality",["Month"].concat(years.map(String)),mn.map((m,i)=>({cells:[m].concat(series.map(s=>s.v[i]==null?"":Math.round(s.v[i]*100)/100))})),{money:years.map((_,i)=>i+1)});
+  return rCard("season","Seasonality — invoiced by month, year over year","all time (not limited by the date range)",rLines(mn,series,{label:"Seasonality"}),t)}
+// ===== 2. reps =====
+function rReps(R){const ids=new Set();real(live(S.projects)).forEach(p=>{const r=repFor(p);if(r)ids.add(r.id)});live(S.team).forEach(t=>{if(String(t.name||"").trim()&&!t.deleted)ids.add(t.id)});
+  return [...ids].map(id=>S.team.get(id)).filter(t=>t&&!t.deleted&&(!R.rep||R.rep===t.id))}
+function rRepCard(R){const reps=rReps(R);const all=real(live(S.projects));
+  const rows=reps.map(t=>{const mine=all.filter(p=>{const r=repFor(p);return r&&r.id===t.id});
+    const q=mine.filter(p=>rIn(stageAt(p,"quoted"),R)),w=mine.filter(p=>rIn(stageAt(p,"won"),R)),l=mine.filter(p=>rIn(stageAt(p,"lost"),R));
+    const qv=q.reduce((a,p)=>a+projValue(p),0),wv=w.reduce((a,p)=>a+projValue(p),0);
+    const cm=w.map(costedMargin).reduce((a,x)=>({rev:a.rev+x.rev,cost:a.cost+x.cost}),{rev:0,cost:0});
+    const od=rOverdueFollowups({rep:t.id}).length;
+    return {t,q,w,qv,wv,wr:(w.length+l.length)?Math.round(w.length/(w.length+l.length)*100):"",avg:w.length?wv/w.length:"",m:cm.rev?Math.round((cm.rev-cm.cost)/cm.rev*1000)/10:"",od}}).sort((a,b)=>b.wv-a.wv);
+  const bars=rows.map(r=>({label:r.t.name.split(" ")[0],drill:rDrill("rep:"+r.t.id,r.t.name+" — won in range",r.w.map(pRec)),parts:[{v:r.wv,c:RCOL[1],n:"won"},{v:Math.max(0,r.qv-r.wv),c:RCOL[0],n:"quoted, not won"}]}));
+  const t=rTable("reps","Rep scorecard",["Rep","Quotes sent","$ quoted","$ won","Win rate %","Avg deal size","Avg margin %","Overdue follow-ups"],
+    rows.map(r=>({drill:"rep:"+r.t.id,cells:[r.t.name,r.q.length,Math.round(r.qv*100)/100,Math.round(r.wv*100)/100,r.wr,r.avg===""?"":Math.round(r.avg*100)/100,r.m,r.od]})));
+  // trend: won per month, last 6 months
+  const ms=lastMonths(6);const trend=rLines(ms.map(m=>ymLabel(m).split(" ")[0]),rows.map((r,k)=>({name:r.t.name.split(" ")[0],v:ms.map(m=>all.filter(p=>{const x=repFor(p);return x&&x.id===r.t.id&&ymOf(stageAt(p,"won"))===m}).reduce((a,p)=>a+projValue(p),0))})),{label:"Won per month by rep",h:170});
+  return rCard("reps","Rep scorecard and leaderboard","ranked by $ won in the range; margin only counts lines with a cost",rBars(bars,{legend:[{l:"Won",c:RCOL[1]},{l:"Quoted, not won",c:RCOL[0]}]})+`<div class="sub" style="padding:4px 2px 0">Won per month, last 6 months</div>`+trend,t)}
+function rActivityCard(R){const reps=rReps(R);
+  const rows=reps.map(t=>{const ini=String(t.initials||"").toUpperCase();const mineAct=x=>String(x.whoId||"")===String(t.id)||(ini&&String(x.who||"").toUpperCase()===ini);
+    const em=live(S.activity).filter(x=>actKind(x)==="email"&&rIn(x.at,R)&&mineAct(x));
+    const na=live(S.accounts).filter(a=>a.repId===t.id&&rIn(a.createdAt,R));
+    // response time: a new inquiry to the first call or email back on that project or its account
+    const inq=real(live(S.projects)).filter(p=>{const r=repFor(p);return r&&r.id===t.id&&rIn(p.createdAt,R)});
+    const hrs=inq.map(p=>{const f=live(S.activity).filter(a=>((a.recType==="project"&&a.recId===p.id)||(a.recType==="account"&&a.recId===p.accountId))&&/email|call/.test(actKind(a))&&a.direction!=="in"&&(a.at||0)>=(p.createdAt||0)).sort((a,b)=>a.at-b.at)[0];return f?(f.at-p.createdAt)/36e5:null}).filter(x=>x!=null).sort((a,b)=>a-b);
+    const med=hrs.length?Math.round(hrs[Math.floor(hrs.length/2)]*10)/10:"";
+    return {t,em,na,inq,med}});
+  const bars=rows.map(r=>({label:r.t.name.split(" ")[0],drill:rDrill("act:"+r.t.id,r.t.name+" — emails logged",r.em.map(x=>({l:x.subject||String(x.text||"").slice(0,60),d:fmtTs(x.at),v:null}))),parts:[{v:r.em.length,c:RCOL[0],n:"emails"},{v:r.na.length,c:RCOL[2],n:"new accounts"}]}));
+  const t=rTable("activity","Rep activity",["Rep","Emails logged","New accounts","New inquiries","Median hours to first reply"],rows.map(r=>({drill:"act:"+r.t.id,cells:[r.t.name,r.em.length,r.na.length,r.inq.length,r.med]})));
+  return rCard("activity","Rep activity","emails logged by the rep, accounts they own that were added, and how fast a new inquiry got its first call or email",rBars(bars,{fmt:v=>String(v),short:v=>String(v),legend:[{l:"Emails",c:RCOL[0]},{l:"New accounts",c:RCOL[2]}]}),t)}
+// ===== 3. inventory =====
+function rUse(i,days){const cut=Date.now()-days*864e5;return live(S.invtx).filter(t=>t.itemId===i.id&&!t.undone&&t.type==="use"&&(t.at||0)>=cut).reduce((a,t)=>a+Math.abs(Number(t.qty)||0),0)}
+function rLastMove(i){return live(S.invtx).filter(t=>t.itemId===i.id&&!t.undone).reduce((m,t)=>Math.max(m,t.at||0),0)}
+function rInvCat(i){const c=String(i.cat||"Other"),n=String(i.name||"");return /blank/i.test(c+n)?"Blanks":/post|telespar|anchor|pole/i.test(n)?"Posts":/hardware/i.test(c)?"Hardware":/sheeting|film|vinyl/i.test(c)||/3M|sheeting/i.test(n)?"Sheeting & film":/stencil/i.test(c)?"Stencil material":c}
+function rInvValueCard(){const its=itemList().filter(i=>onHand(i)>0&&Number(i.cost)>0);const by={};its.forEach(i=>{const k=rInvCat(i);(by[k]=by[k]||[]).push(i)});
+  const ks=Object.keys(by).sort((a,b)=>by[b].reduce((t,i)=>t+onHand(i)*i.cost,0)-by[a].reduce((t,i)=>t+onHand(i)*i.cost,0));
+  const parts=ks.map(k=>({l:k,v:Math.round(by[k].reduce((t,i)=>t+onHand(i)*Number(i.cost),0)*100)/100,drill:rDrill("inv:"+k,k+" on hand at cost",by[k].map(i=>({l:i.name,go:"item/"+i.id,d:stockText(i)+" × "+money2(i.cost),v:onHand(i)*Number(i.cost)})))}));
+  const noCost=itemList().filter(i=>onHand(i)>0&&!(Number(i.cost)>0)).length;
+  const t=rTable("invval","Inventory value",["Category","Items","Value at cost"],parts.map(p=>({drill:p.drill,cells:[p.l,by[p.l].length,p.v]})),{total:["Total",its.length,parts.reduce((t,p)=>t+p.v,0)]});
+  return rCard("invval","Inventory value at cost","on hand × unit cost"+(noCost?" — "+noCost+" item"+(noCost===1?"":"s")+" on hand have no cost and aren't counted":""),rDonut(parts,{label:"Inventory value by category"}),t)}
+function rLowCard(){const its=lowStock();
+  const rows=its.map(i=>{const u90=rUse(i,90),mo=u90/3,cover=mo>0?Math.round(onHand(i)/(mo/30)):"";const ph=Number(i.reorderPoint)<=1&&!u90;
+    return {go:"item/"+i.id,flag:ph,sub:ph?"reorder point "+i.reorderPoint+" with no use recorded — looks like a placeholder; set the real one":"",cells:[i.name,i.sku||"",onHand(i),i.unit||"",Number(i.reorderPoint),Math.round(mo*100)/100,cover,i.reorderQty||"",vendName(i.vendorId)==="—"?"":vendName(i.vendorId),Number(i.cost)||""]}});
+  const ph=rows.filter(r=>r.flag).length;
+  const bars=rows.slice(0,12).map(r=>({label:String(r.cells[1]||r.cells[0]).slice(0,10),parts:[{v:r.cells[2],c:RCOL[0],n:"on hand"},{v:Math.max(0,r.cells[4]-r.cells[2]),c:RCOL[4],n:"short of reorder point"}]}));
+  const t=rTable("low","Low stock — for purchasing",["Item","SKU","On hand","Unit","Reorder at","Avg monthly use","Days of cover","Order qty","Vendor","Unit cost"],rows,{empty:"Nothing is at or below its reorder point."});
+  return rCard("low","Low stock","items at or below their reorder point; use is the last 90 days"+(ph?" — "+ph+" have a reorder point of 1 or less and no use recorded, which looks like placeholder data":""),rBars(bars,{fmt:v=>String(Math.round(v*100)/100),short:v=>String(Math.round(v)),legend:[{l:"On hand",c:RCOL[0]},{l:"Short of reorder point",c:RCOL[4]}]}),t)}
+function rSlowCard(){const cut=Date.now()-90*864e5;const its=itemList().filter(i=>onHand(i)>0&&rLastMove(i)<cut);
+  const rows=its.map(i=>({go:"item/"+i.id,cells:[i.name,i.sku||"",onHand(i),i.unit||"",rLastMove(i)?isoDay(rLastMove(i)):"never",Number(i.cost)>0?Math.round(onHand(i)*Number(i.cost)*100)/100:""]})).sort((a,b)=>(Number(b.cells[5])||0)-(Number(a.cells[5])||0));
+  const bars=rows.slice(0,10).map(r=>({label:String(r.cells[1]||r.cells[0]).slice(0,10),v:Number(r.cells[5])||0}));
+  const t=rTable("slow","Slow movers",["Item","SKU","On hand","Unit","Last movement","Value tied up"],rows,{total:["Total","","","","",rows.reduce((a,r)=>a+(Number(r.cells[5])||0),0)],empty:"Everything on the shelf has moved in the last 90 days."});
+  return rCard("slow","Slow movers","on the shelf with no stock movement in 90+ days",rBars(bars),t)}
+function rCommittedCard(){const js=live(S.jobs).filter(realJob).filter(j=>j.status!=="shipped"&&j.status!=="packed"&&(()=>{const p=j.projectId?proj(j.projectId):null;return !p||["won","production","shipped"].indexOf(p.stage)>=0})());
+  const need={};js.forEach(j=>{let plan=[];try{plan=planFor(j)}catch(e){}const pulled={};jobPulls(j.num).forEach(t=>{pulled[t.itemId]=(pulled[t.itemId]||0)+Math.abs(Number(t.qty)||0)});
+    plan.forEach(r=>{if(!r.itemId)return;const left=Math.max(0,(Number(r.qty)||0)-(pulled[r.itemId]||0));if(!left)return;const g=need[r.itemId]||(need[r.itemId]={qty:0,jobs:[]});g.qty+=left;g.jobs.push(j)})});
+  const rows=Object.keys(need).map(id=>{const i=S.items.get(id);if(!i)return null;const q=Math.round(need[id].qty*1000)/1000;const short=Math.max(0,q-onHand(i));
+    return {go:"item/"+id,flag:short>0,cells:[i.name,i.sku||"",q,onHand(i),Math.round(short*1000)/1000,i.unit||"",[...new Set(need[id].jobs.map(j=>"WO "+j.num))].join(", ")]}}).filter(Boolean).sort((a,b)=>b.cells[4]-a.cells[4]);
+  const bars=rows.slice(0,10).map(r=>({label:String(r.cells[1]||r.cells[0]).slice(0,10),parts:[{v:Math.min(r.cells[2],r.cells[3]),c:RCOL[1],n:"covered"},{v:r.cells[4],c:RCOL[4],n:"short"}]}));
+  const t=rTable("committed","Committed material",["Item","SKU","Still to pull","On hand","Short","Unit","Work orders"],rows,{empty:"No open work orders need material from stock."});
+  return rCard("committed","Committed material","what won and in-progress work orders still have to pull, against what's on the shelf",rBars(bars,{fmt:v=>String(Math.round(v*100)/100),short:v=>String(Math.round(v*10)/10),legend:[{l:"Covered",c:RCOL[1]},{l:"Short",c:RCOL[4]}]}),t)}
+// ===== 4. other reports =====
+function rMarginCard(R){const floor=marginFloor();const ps=rProjects(R).filter(p=>rIn(stageAt(p,"won")||rRevAt(p),R)&&["won","production","shipped","invoiced","closed"].indexOf(p.stage)>=0);
+  const pr=ps.map(p=>({p,m:costedMargin(p)})).filter(x=>x.m.rev>0);
+  const byCat={},byCust={};ps.forEach(p=>orderedLines(p).forEach(l=>{const q=Number(l.qty)||0,pz=Number(l.price)||0;if(!q||!pz)return;let c=0;if(isCharge(l))c=Number(l.cost)||0;else{try{c=quoteLineCost(l).cost||0}catch(e){}}if(!(c>0))return;
+    const k=isCharge(l)?"Charges":((allProd().find(x=>x.id===lineProd(l))||{}).label||lineProd(l));const g=byCat[k]||(byCat[k]={rev:0,cost:0,ps:new Set()});g.rev+=q*pz;g.cost+=q*c;g.ps.add(p)}));
+  pr.forEach(x=>{const k=accName(x.p.accountId);const g=byCust[k]||(byCust[k]={rev:0,cost:0,ps:[]});g.rev+=x.m.rev;g.cost+=x.m.cost;g.ps.push(x.p)});
+  const bars=Object.keys(byCat).map(k=>({label:k,drill:rDrill("mcat:"+k,"Margin — "+k,[...byCat[k].ps].map(pRec)),v:Math.round((byCat[k].rev-byCat[k].cost)/byCat[k].rev*100)}));
+  const t=rTable("margin","Margin by job",["Job","Account","Costed revenue","Cost","Margin %","Revenue with no cost (left out)"],pr.sort((a,b)=>(a.m.m||0)-(b.m.m||0)).map(x=>({go:"project/"+x.p.id,flag:x.m.m!=null&&x.m.m<floor,sub:x.m.m!=null&&x.m.m<floor?"below your "+floor+"% floor":"",
+    cells:["P-"+x.p.num+" "+(x.p.name||""),accName(x.p.accountId),x.m.rev,x.m.cost,x.m.m==null?"":Math.round(x.m.m*10)/10,x.m.uncosted||""]})),{empty:"No won or invoiced jobs with costed lines in this range."});
+  const t2=rTable("margincust","Margin by customer",["Customer","Jobs","Costed revenue","Cost","Margin %"],Object.keys(byCust).map(k=>({drill:rDrill("mcu:"+k,"Margin — "+k,byCust[k].ps.map(pRec)),flag:(byCust[k].rev-byCust[k].cost)/byCust[k].rev*100<floor,cells:[k,byCust[k].ps.length,Math.round(byCust[k].rev*100)/100,Math.round(byCust[k].cost*100)/100,Math.round((byCust[k].rev-byCust[k].cost)/byCust[k].rev*1000)/10]})).sort((a,b)=>a.cells[4]-b.cells[4]));
+  return rCard("margin","Margin by job, product and customer","won or invoiced in the range; lines with no cost are left out (they'd count as 100% margin); jobs under your "+floor+"% floor are flagged. Bars: margin % by product.",
+    rBars(bars,{fmt:v=>v+"%",short:v=>v+"%",goal:floor,goalLabel:"floor "+floor+"%"}),t+`<div class="sub" style="padding:10px 14px 0">By customer</div>`+t2)}
+function rQbCompareCard(R){const qb=qbRows();if(!qb)return rCard("qbcmp","Quoted vs invoiced (QuickBooks)","The QuickBooks invoice copy hasn't arrived in the CRM yet — it comes with the morning QuickBooks check.","","");
+  const ps=rProjects(R).filter(p=>String(p.invNum||"").trim()||["invoiced","closed"].indexOf(p.stage)>=0);
+  const byNo={};qb.forEach(q=>{byNo[String(q.doc).replace(/^#/,"").trim()]=q});
+  const rows=ps.map(p=>{const no=String(p.invNum||"").replace(/^#/,"").trim();const q=no?byNo[no]:null;const crm=Math.round((projValue(p)+(invTaxOf(p)||0))*100)/100;const qt=q?qbNum(q.total):null;
+    const gap=qt==null?null:Math.round((crm-qt)*100)/100;return {go:"project/"+p.id,flag:qt==null||Math.abs(gap)>1,sub:qt==null?(no?"invoice "+no+" isn't in QuickBooks":"no invoice number"):Math.abs(gap)>1?"CRM and QuickBooks differ":"",
+      cells:["P-"+p.num+" "+(p.name||""),accName(p.accountId),no,crm,qt==null?"":qt,gap==null?"":gap]}}).filter(r=>{const p=proj(r.go.split("/")[1]);return p&&rIn(rRevAt(p),R)});
+  const used=new Set(ps.map(p=>String(p.invNum||"").replace(/^#/,"").trim()));
+  const orphan=qb.filter(q=>qbNum(q.total)>0&&!used.has(String(q.doc).replace(/^#/,"").trim())&&rIn(rMs(q.date),R));
+  orphan.forEach(q=>rows.push({flag:true,sub:"QuickBooks invoice with no CRM project",cells:["Invoice "+q.doc,q.customer||"",String(q.doc),"",qbNum(q.total),""]}));
+  const flagged=rows.filter(r=>r.flag);
+  const bars=[{label:"Match",v:rows.length-flagged.length,c:RCOL[1]},{label:"Gap / missing",v:flagged.length,c:RCOL[4]}];
+  const t=rTable("qbcmp","Quoted vs invoiced",["Project","Account","Invoice #","CRM total (with tax)","QuickBooks total","Gap"],rows.sort((a,b)=>(b.flag?1:0)-(a.flag?1:0)));
+  return rCard("qbcmp","Quoted vs invoiced (QuickBooks)","CRM project total with tax against the QuickBooks invoice; QuickBooks copy from "+(S.qbinv&&S.qbinv.at?fmtTs(S.qbinv.at):"—"),rBars(bars.map(b=>({label:b.label,parts:[{v:b.v,c:b.c}]})),{fmt:v=>String(v),short:v=>String(v)}),t)}
+function rAgingCard(){const qb=qbRows();const now=Date.now();let src="QuickBooks";let items;
+  if(qb)items=qb.filter(q=>qbNum(q.balance)>0).map(q=>({l:"Invoice "+q.doc,d:q.customer||"",at:rMs(q.date),due:q.due,bal:qbNum(q.balance)}));
+  else{src="CRM (QuickBooks copy not in yet)";items=real(live(S.projects)).filter(p=>billState(p)==="invoiced").map(p=>({l:"P-"+p.num+" "+(p.name||""),go:"project/"+p.id,d:accName(p.accountId),at:billedAt(p),due:payDueDate(p),bal:projValue(p)+(invTaxOf(p)||0)}))}
+  const B=[["0-30",0,30],["31-60",31,60],["61-90",61,90],["90+",91,1e9]];
+  const age=x=>Math.floor((now-(x.at||now))/864e5);
+  const parts=B.map(([l,a,b],i)=>{const inB=items.filter(x=>age(x)>=a&&age(x)<=b);return {label:l+" days",drill:rDrill("ar:"+l,"Receivables "+l+" days",inB.map(x=>({l:x.l,go:x.go,d:x.d+(x.due?" · due "+x.due:""),v:x.bal}))),parts:[{v:Math.round(inB.reduce((t,x)=>t+x.bal,0)*100)/100,c:[RCOL[1],RCOL[2],RCOL[4],"#8B1E2D"][i]}]}});
+  const t=rTable("aging","Receivables aging",["Invoice","Customer","Invoice date","Due","Days old","Balance"],items.sort((a,b)=>age(b)-age(a)).map(x=>({go:x.go,flag:age(x)>60,cells:[x.l,x.d,x.at?isoDay(x.at):"",x.due||"",age(x),Math.round(x.bal*100)/100]})),{total:["Total","","","","",items.reduce((t,x)=>t+x.bal,0)],empty:"Nothing owed."});
+  return rCard("aging","Receivables aging","open balances by days since the invoice date — from "+src+" (not limited by the date range)",rBars(parts),t)}
+function rTopCustCard(R){const by={};real(live(S.projects)).filter(p=>["won","production","shipped","invoiced","closed"].indexOf(p.stage)>=0&&rRepOk(p,R)).forEach(p=>{const k=p.accountId;if(!k)return;(by[k]=by[k]||[]).push(p)});
+  const now=Date.now();
+  const rows=Object.keys(by).map(id=>{const ps=by[id];const dates=ps.map(p=>stageAt(p,"won")||rRevAt(p)||p.createdAt).filter(Boolean).sort((a,b)=>a-b);
+    const inR=ps.filter(p=>rIn(stageAt(p,"won")||rRevAt(p),R));const val=inR.reduce((t,p)=>t+projValue(p),0);
+    const gaps=dates.slice(1).map((d,i)=>(d-dates[i])/864e5);const avg=gaps.length?gaps.reduce((a,b)=>a+b,0)/gaps.length:null;const since=dates.length?(now-dates[dates.length-1])/864e5:null;
+    const due=avg&&since>avg*1.25;
+    return {drill:rDrill("cust:"+id,accName(id)+" — orders",ps.map(pRec)),go:"account/"+id,flag:due,sub:due?"usually orders every "+Math.round(avg)+" days — it's been "+Math.round(since):"",cells:[accName(id),ps.length,Math.round(val*100)/100,dates.length?isoDay(dates[dates.length-1]):"",avg==null?"":Math.round(avg),since==null?"":Math.round(since)]}}).filter(r=>r.cells[2]>0||r.flag).sort((a,b)=>b.cells[2]-a.cells[2]);
+  const bars=rows.slice(0,10).map(r=>({label:String(r.cells[0]).slice(0,10),drill:r.drill,v:r.cells[2]}));
+  const t=rTable("topcust","Top customers and reorder alerts",["Customer","Orders (all time)","Won in range","Last order","Usual days between orders","Days since last order"],rows);
+  return rCard("topcust","Top customers and reorder alerts","flagged when it's been 25% longer than their usual gap between orders (2+ orders)",rBars(bars),t)}
+function rLostCard(R){const ps=rProjects(R).filter(p=>p.stage==="lost"&&rIn(stageAt(p,"lost"),R));const by={};ps.forEach(p=>{const k=(LOSTWHY.find(x=>x.id===p.lostWhy)||{}).label||"No reason recorded";(by[k]=by[k]||[]).push(p)});
+  const ks=Object.keys(by).sort((a,b)=>by[b].length-by[a].length);
+  const bars=ks.map((k,i)=>({label:k.split(" ").slice(0,2).join(" "),drill:rDrill("lost:"+k,"Lost — "+k,by[k].map(p=>Object.assign(pRec(p),{d:accName(p.accountId)+(p.lostTo?" · to "+p.lostTo:"")}))),parts:[{v:by[k].length,c:RCOL[i%RCOL.length]}]}));
+  const t=rTable("lost","Lost-quote reasons",["Reason","Quotes","Value lost"],ks.map(k=>({drill:"lost:"+k,cells:[k,by[k].length,Math.round(by[k].reduce((t,p)=>t+projValue(p),0)*100)/100]})),{empty:"Nothing marked lost in this range."});
+  return rCard("lost","Lost-quote reasons","a reason is now required when a quote is closed lost",rBars(bars,{fmt:v=>String(v),short:v=>String(v)}),t)}
+function rProdCard(R){const js=live(S.jobs).filter(realJob).filter(j=>{if(!R.rep)return true;const p=j.projectId?proj(j.projectId):null;return p?rRepOk(p,R):false});const td=today(),now=Date.now();
+  const open=js.filter(j=>j.status!=="shipped");const shipped=js.filter(j=>j.status==="shipped"&&rIn(shipAt(j),R)&&j.due);
+  const onTime=shipped.filter(j=>isoDay(shipAt(j))<=j.due);
+  const late=open.filter(j=>j.due&&j.due<td);
+  const ageB=[["0-7",0,7],["8-14",8,14],["15-30",15,30],["30+",31,1e9]];
+  const age=j=>Math.floor((now-(j.createdAt||now))/864e5);
+  const bars=ageB.map(([l,a,b],i)=>{const inB=open.filter(j=>age(j)>=a&&age(j)<=b);return {label:l+" days",drill:rDrill("wo:"+l,"Open work orders "+l+" days old",inB.map(j=>({l:"WO "+j.num+" "+(j.desc||""),go:"job/"+j.num,d:accName(j.accountId)+" · "+((JS[j.status]||{}).label||j.status)+(j.due?" · due "+j.due:""),v:null}))),parts:[{v:inB.filter(j=>!(j.due&&j.due<td)).length,c:RCOL[0],n:"on schedule"},{v:inB.filter(j=>j.due&&j.due<td).length,c:RCOL[4],n:"late"}]}});
+  const t=rTable("prod","Production and on-time",["Work order","Account","Status","Due","Days open","Late"],open.sort((a,b)=>String(a.due||"9").localeCompare(String(b.due||"9"))).map(j=>({go:"job/"+j.num,flag:!!(j.due&&j.due<td),cells:["WO "+j.num+" "+(j.desc||""),accName(j.accountId),(JS[j.status]||{}).label||j.status,j.due||"",age(j),j.due&&j.due<td?"late":""]})),{empty:"No open work orders."});
+  return rCard("prod","Production and on-time",open.length+" open, "+late.length+" late · on time "+(shipped.length?Math.round(onTime.length/shipped.length*100)+"% ("+onTime.length+" of "+shipped.length+" shipped in the range)":"— nothing shipped in the range"),
+    rBars(bars,{fmt:v=>String(v),short:v=>String(v),legend:[{l:"Open, on schedule",c:RCOL[0]},{l:"Late",c:RCOL[4]}]}),t)}
+function rSourceCard(R){const ps=rProjects(R).filter(p=>rIn(p.createdAt,R));const src=p=>{const s=String(p.source||"").trim();return /bid/i.test(s)?"Bids":/lead\s*bot/i.test(s)?"Lead Bot":/outreach|agent|ai/i.test(s)||p.who==="AI"?"Outreach":/website|web/i.test(s)?"Website":s||"Unknown"};
+  const by={};ps.forEach(p=>{(by[src(p)]=by[src(p)]||[]).push(p)});
+  const replied=p=>live(S.activity).some(a=>((a.recType==="project"&&a.recId===p.id)||(a.recType==="account"&&a.recId===p.accountId))&&a.direction==="in"&&(a.at||0)>=(p.createdAt||0)-864e5);
+  const ks=Object.keys(by).sort((a,b)=>by[b].length-by[a].length);
+  const rows=ks.map(k=>{const g=by[k];const r=g.filter(replied),q=g.filter(p=>stageAt(p,"quoted")||PATH.indexOf(p.stage)>=1),w=g.filter(p=>stageAt(p,"won"));
+    return {drill:rDrill("src:"+k,k+" — leads",g.map(p=>Object.assign(pRec(p),{d:(SG[p.stage]||{}).label+(replied(p)?" · replied":"")}))),cells:[k,g.length,r.length,q.length,w.length,g.length?Math.round(w.length/g.length*100):"",Math.round(w.reduce((t,p)=>t+projValue(p),0)*100)/100]}});
+  const bars=rows.map(r=>({label:r.cells[0],drill:r.drill,parts:[{v:r.cells[1]-r.cells[3],c:RCOL[7],n:"not quoted yet"},{v:r.cells[3]-r.cells[4],c:RCOL[0],n:"quoted, not won"},{v:r.cells[4],c:RCOL[1],n:"won"}]}));
+  const t=rTable("source","Lead source and outreach results",["Source","Leads","Replied","Quoted","Won","Lead to win %","$ won"],rows);
+  return rCard("source","Lead source and outreach results","projects created in the range by where they came from: lead → reply → quote → win",rBars(bars.map(b=>({label:b.label,drill:b.drill,parts:b.parts})),{fmt:v=>String(v),short:v=>String(v),legend:[{l:"Not quoted yet",c:RCOL[7]},{l:"Quoted, not won",c:RCOL[0]},{l:"Won",c:RCOL[1]}]}),t)}
+function rBidCard(R){const td=today();const ps=real(live(S.projects)).filter(p=>rRepOk(p,R)&&(/bid/i.test(String(p.source||""))||/\b(RFB|RFQ|RFP|ITB|IFB)\b|\bbid\b/i.test(String(p.name||""))));
+  const st=p=>/no-?go/i.test(p.name||"")?"No-go":p.stage==="lost"?"Lost":["won","production","shipped","invoiced","closed"].indexOf(p.stage)>=0?"Won":p.stage==="quoted"?"Submitted":(p.due&&p.due<td?"Missed / past due":"Upcoming");
+  const by={};ps.forEach(p=>{(by[st(p)]=by[st(p)]||[]).push(p)});
+  const order=["Upcoming","Submitted","Won","Lost","No-go","Missed / past due"];
+  const bars=order.filter(k=>by[k]).map((k,i)=>({label:k.split(" ")[0],drill:rDrill("bid:"+k,"Bids — "+k,by[k].map(p=>Object.assign(pRec(p),{d:(p.due?"due "+p.due+" · ":"")+accName(p.accountId)})))
+    ,parts:[{v:by[k].length,c:[RCOL[2],RCOL[0],RCOL[1],RCOL[4],RCOL[7],"#8B1E2D"][order.indexOf(k)]}]}));
+  const t=rTable("bids","Bid calendar",["Bid","Agency","Due","Status","Value"],ps.sort((a,b)=>String(a.due||"9999").localeCompare(String(b.due||"9999"))).map(p=>({go:"project/"+p.id,flag:st(p)==="Upcoming"&&p.due&&p.due<=isoDay(Date.now()+7*864e5),sub:st(p)==="Upcoming"&&p.due&&p.due<=isoDay(Date.now()+7*864e5)?"due within a week":"",
+    cells:["P-"+p.num+" "+(p.name||""),accName(p.accountId),p.due||"",st(p),projValue(p)||""]})),{empty:"No public bids in the CRM."});
+  return rCard("bids","Bid calendar","public bids (source Bid, or RFB/RFQ/RFP/ITB in the name) by due date, with what happened — all dates",rBars(bars,{fmt:v=>String(v),short:v=>String(v)}),t)}
+// ===== the page =====
+function reportsPage(){
+  Object.keys(RDRILL).forEach(k=>delete RDRILL[k]);Object.keys(RTAB).forEach(k=>delete RTAB[k]);
+  const R=rfGet();const f=S.rf;const tab=S.rtab||"all";
+  const reps=live(S.team).filter(t=>String(t.name||"").trim()).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+  const sec=(id,l)=>`<button class="btn sm segtab ${tab===id?"on":""}" data-rtab="${id}">${l}</button>`;
+  const show=id=>tab==="all"||tab===id;
+  let body="";
+  try{
+    if(show("forecast"))body+=`<h2 class="rsec">Forecasting and projections</h2>`+rForecastCard(R)+rGoalCard(R)+rWinCard(R)+rSeasonCard(R);
+    if(show("reps"))body+=`<h2 class="rsec">Reps</h2>`+rRepCard(R)+rActivityCard(R);
+    if(show("inventory"))body+=`<h2 class="rsec">Inventory</h2>`+rInvValueCard()+rLowCard()+rSlowCard()+rCommittedCard();
+    if(show("other"))body+=`<h2 class="rsec">Margin, billing and the rest</h2>`+rMarginCard(R)+rQbCompareCard(R)+rAgingCard()+rTopCustCard(R)+rLostCard(R)+rProdCard(R)+rSourceCard(R)+rBidCard(R);
+  }catch(e){body+=`<div class="warn">A report couldn't be drawn (${esc(String(e&&e.message||e))}). The rest of the page still works.</div>`}
+  return `<div class="pad rpage">
+    <div class="rfbar card"><div class="body" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+      <div class="fld" style="border:0;padding:0;min-width:150px"><div class="k">Dates</div><select data-rf="preset">${RF_PRESETS.map(([k,l])=>`<option value="${k}" ${R.preset===k?"selected":""}>${esc(l)}</option>`).join("")}</select></div>
+      ${R.preset==="custom"?`<div class="fld" style="border:0;padding:0"><div class="k">From</div><input type="date" data-rf="from" value="${esc(f.from||R.fromIso)}"></div><div class="fld" style="border:0;padding:0"><div class="k">To</div><input type="date" data-rf="to" value="${esc(f.to||R.toIso)}"></div>`
+        :`<div class="sub" style="padding-bottom:9px">${esc(fmtDate(R.fromIso))} – ${esc(fmtDate(R.toIso))}</div>`}
+      <div class="fld" style="border:0;padding:0;min-width:150px"><div class="k">Rep</div><select data-rf="rep"><option value="">Everyone</option>${reps.map(t=>`<option value="${esc(t.id)}" ${R.rep===t.id?"selected":""}>${esc(t.name)}</option>`).join("")}<option value="none" ${R.rep==="none"?"selected":""}>No rep</option></select></div>
+      <span style="flex:1"></span><div class="rtabs">${sec("all","Everything")}${sec("forecast","Forecast")}${sec("reps","Reps")}${sec("inventory","Inventory")}${sec("other","Margin & billing")}</div>
+    </div></div>
+    <h2 class="rsec">Owner snapshot</h2>${rSnapshot(R)}
+    ${body}
+    <details class="card rcustom"><summary><b>Build your own report</b> <span class="sub">— the older group-by report</span></summary>${reportsView()}</details>
+  </div>`}
+
 function reportsView(){
   if(S.scope&&S.rpt.rep!==S.scope)S.rpt=Object.assign({},S.rpt,{rep:S.scope});
   const cfg=S.rpt;
@@ -15199,6 +15545,7 @@ function dbLockCard(){const d=S.dbLock||{};const want=d.want||"off",st=d.state||
 async function dbLockApply(){try{await push("settings/dbLock",{apply:(S.dbLock||{}).available,askedAt:Date.now(),askedBy:me(),error:""});toast("The updated rules go on within 10 minutes — keep the CRM open so it can confirm")}catch(e){toast("That didn't save.")}}
 async function dbLockSet(want){try{await setDoc("settings/dbLock",Object.assign({},S.dbLock||{},{want,askedAt:Date.now(),askedBy:me(),error:""}));toast(want==="on"?"The lock turns on within 10 minutes — keep the CRM open so it can confirm":"The lock turns off within 10 minutes")}catch(e){toast("That didn't save.")}}
 // while the lock is being checked, any owner or office copy of the CRM that can still read and write says so
+function qbinvWatch(){try{db.doc("settings/qbinv").onSnapshot(sn=>{const d=sn&&sn.exists?(typeof sn.data==="function"?sn.data():sn.data):null;S.qbinv=d||null;if(S.route&&S.route.v==="reports"&&!typing()&&!S.modal)render()},()=>{})}catch(e){}}
 function secretsWatch(){try{db.doc("settings/secrets").onSnapshot(sn=>{const d=sn&&sn.exists?(typeof sn.data==="function"?sn.data():sn.data):null;S.secrets=d||{}},()=>{})}catch(e){}}
 function dbLockWatch(){try{db.doc("settings/dbLock").onSnapshot(sn=>{const d=sn&&sn.exists?(typeof sn.data==="function"?sn.data():sn.data):null;S.dbLock=d||{};
     if(d&&d.state==="pending"&&can("settings")&&!(Number(d.seenAt)>Number(d.deployedAt)))push("settings/dbLock",{seenAt:Date.now(),seenBy:me()}).catch(()=>{});
@@ -15520,6 +15867,11 @@ function bind(){
       go(g.dataset.go);return}
 
     const rc=t.closest("[data-rptcsv]");if(rc){reportCSV();return}
+    {const x=t.closest("[data-rdrill]");if(x){rDrillModal(x.dataset.rdrill);return}}
+    {const x=t.closest("[data-rcsv]");if(x){rCSV(x.dataset.rcsv);return}}
+    if(t.closest("[data-rprob]")){rProbModal();return}
+    if(t.closest("[data-rgoal]")){rGoalModal();return}
+    {const x=t.closest("[data-rtab]");if(x){S.rtab=x.dataset.rtab;render();return}}
     const aiB=t.closest("[data-ai]");
     if(aiB){const pz=aiB.dataset.ai.split(":");
       if(pz[0]==="follow")draftRequest(pz[1],"quote");
@@ -16086,6 +16438,8 @@ function bind(){
     const t=e.target;
     const gt=t.closest("[data-gate]");if(gt){const[n,k]=gt.dataset.gate.split(":");toggleGate(n,k,t.checked);return}
     const rt=t.closest("[data-route]");if(rt){const[n,k]=rt.dataset.route.split(":");toggleRoute(n,k,t.checked);return}
+    {const x=t.closest("[data-rf]");if(x){S.rf=Object.assign({},S.rf||{},{[x.dataset.rf]:t.value});
+      if(x.dataset.rf==="preset"&&t.value==="custom"){const R0=rfGet();S.rf.from=S.rf.from||R0.fromIso;S.rf.to=S.rf.to||R0.toIso}render();return}}
     if(t.id==="rpt-preset"){
       const pz=RPT_PRESETS.find(x=>x.id===t.value);
       if(pz)S.rpt=Object.assign({},S.rpt,pz,{preset:pz.id,rep:"",acct:"",stage:pz.stage||"",prod:"",from:S.rpt.from,to:S.rpt.to});
@@ -16235,7 +16589,7 @@ async function boot(){
   sub("accounts","accounts");sub("contacts","contacts");sub("projects","projects");
   sub("jobs","jobs",true);sub("files","files");sub("activity","activity");sub("history","history");
   sub("events","events");sub("team","team");
-  sub("vendors","vendors");sub("items","items");sub("invtx","invtx");sub("notifications","notifications");sub("reminders","remarks");sub("access","access");dbLockWatch();secretsWatch();
+  sub("vendors","vendors");sub("items","items");sub("invtx","invtx");sub("notifications","notifications");sub("reminders","remarks");sub("access","access");dbLockWatch();secretsWatch();qbinvWatch();
   syncSentLoad();
   db.doc("settings/prodtypes").onSnapshot(s=>{if(s&&s.exists&&s.data())S.prodtypes=s.data();if(!typing()&&!S.modal)render()},()=>{});
   db.doc("settings/pricelist").onSnapshot(s=>{if(s&&s.exists&&s.data())S.pricelist=s.data();if(!typing()&&!S.modal)render()},()=>{});
