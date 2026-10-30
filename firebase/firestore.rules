@@ -46,7 +46,7 @@ service cloud.firestore {
     // settings: owners and office; keys and tokens live in settings/secrets, which only they can read;
     // the record of what's been sent to the sheet is kept up by every copy of the CRM; the lock switch is the owner's
     match /settings/{id} {
-      allow read: if id == "secrets" ? isOffice() : member();
+      allow read: if (id == "secrets" || id == "qbinv") ? isOffice() : member();
       allow write: if id == "syncsent" ? member() : (id == "dbLock" ? isOwner()
                     : isOffice() && !(id != "secrets" && request.resource.data.get("shopToken", "") != ""));
     }

@@ -2,4 +2,4 @@ setBill quickWOGo mergeAccounts dupAccounts acctKey live liveJobs contactsOf job
 
 mergeContacts dupContactPairs remAll remEmailOf
 
-orderedLines isCharge defaultPrice
+orderedLines isCharge defaultPrice setDoc

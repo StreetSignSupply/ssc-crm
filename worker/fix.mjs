@@ -180,6 +180,9 @@ if (STEP === "qb") {
         out.push([doc, q.txn_date, q.customer, total, "P-" + p.num, crmTotal, diff ? "Total differs" : (notes.length ? "Updated" : "Matches"),
           (diff ? "QuickBooks " + total.toFixed(2) + " vs CRM " + crmTotal.toFixed(2) + " — check the quote lines against the invoice. " : "") + (notes.length ? "CRM set to QuickBooks: " + notes.join(", ") : "") + " (matched by " + how + ")"]);
       }
+      // a copy of the invoice list for the CRM's Reports page (receivables aging, quoted vs invoiced) — office-only in the rules
+      try { await T.setDoc("settings/qbinv", { at: Date.now(), rows: inv.filter((q) => num(q.total) !== 0).map((q) => ({ doc: String(q.doc_number).replace(/^#/, "").trim(), date: q.txn_date || "", due: q.due_date || "", customer: q.customer || "",
+        total: num(q.total), tax: num(q.tax), balance: num(q.balance), status: q.status || "", paid: q.paid_date || "" })) }); } catch (e) {}
       return { out, changed, matched, flagged, total: inv.length };
     }, [inv, "run " + (process.env.GITHUB_RUN_ID || "local")]);
     const head = [["Invoice", "Date", "Customer (QuickBooks)", "QuickBooks total", "CRM project", "CRM total", "Result", "What happened", "", "Checked " + new Date().toISOString().replace("T", " ").slice(0, 16) + " UTC"]];
