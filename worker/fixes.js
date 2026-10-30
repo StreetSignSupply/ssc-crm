@@ -1,17 +1,25 @@
-// P-2028: the ship-to note names the wrong community — swap that "<Word> Ranch" for the project's own community name
-// (the part of the project name before " - "). P-2025: of its two Quote PDFs, the older (the earlier, smaller quote)
-// goes to the recycle bin; the newer stays. Counts only in the log.
+// Oct 29 night fixes (counts only in the log, no names in this file):
+// P-2025: the newest quote PDF must be the live one — if a cleanup binned it, put it back (older ones stay in the bin).
+// P-2025 / P-2026: the note "Posts/hardware not quoted (no listed price)." is wrong now that the posts and hardware are
+//   on the quote — that sentence comes out.
+// P-2028: "Grade TBD" in the notes becomes the grade on the lines.
 (async (T) => {
   const S = T.S, out = {}; const now = Date.now();
   const byNum = (n) => [...S.projects.values()].find((x) => String(x.num) === String(n) && !x.deleted);
-  const p8 = byNum(2028);
-  if (p8) { const want = String(p8.name || "").split(" - ")[0].trim(); const a = String(p8.shipTo || ""); const b = want ? a.replace(/\b[A-Z][a-z]+ Ranch\b/g, want) : a;
-    if (b !== a) { await T.fix("projects/" + p8.id, { shipTo: b, updatedAt: now }, "Fix run: ship-to note now names this project's community"); out.p2028 = "ship-to fixed"; } else out.p2028 = "no change"; }
   const p5 = byNum(2025);
-  if (p5) { const pdfs = T.live(S.files).filter((f) => f.projectId === p5.id && /pdf/i.test((f.type || "") + (f.name || "")) && f.cat === "Quote").sort((x, y) => (Number(x.at) || 0) - (Number(y.at) || 0));
-    if (pdfs.length === 2) { await T.push("files/" + pdfs[0].id, { deleted: true, deletedAt: now, deletedBy: "fix run", supersededBy: pdfs[1].id, updatedAt: now });
-      await T.recordHistory("project", p5.id, [{ f: "Fix run", o: "", n: "The older quote PDF moved to the recycle bin (the newer one, with the full package, is kept)", ev: 1 }]); out.p2025 = "older PDF binned"; }
-    else out.p2025 = "left (" + pdfs.length + " quote PDFs)"; }
+  if (p5) { const all = [...S.files.values()].filter((f) => f.projectId === p5.id && f.cat === "Quote" && /pdf/i.test((f.type || "") + (f.name || ""))).sort((a, b) => (Number(a.at) || 0) - (Number(b.at) || 0));
+    out.p2025 = all.map((f) => ({ at: f.at, del: !!f.deleted, by: f.deleted ? (f.deletedBy === "fix run" ? "fix" : f.supersededBy ? "replaced" : "person") : "", size: f.size || 0 }));
+    const newest = all[all.length - 1];
+    if (newest && newest.deleted) { await T.push("files/" + newest.id, { deleted: false, deletedAt: "", deletedBy: "", supersededBy: "", updatedAt: now });
+      await T.recordHistory("project", p5.id, [{ f: "Fix run", o: "", n: "The newest quote PDF was put back from the recycle bin", ev: 1 }]); out.p2025restored = true; } }
+  for (const n of [2025, 2026]) { const p = byNum(n); if (!p) continue;
+    const hasHw = T.orderedLines(p).some((l) => /telespar|anchor|post|bolt|nut|rivet/i.test(l.desc || ""));
+    const a = String(p.notes || ""); const b = a.replace(/\s*Posts\/hardware not quoted \(no listed price\)\.?/i, "");
+    if (hasHw && b !== a) { await T.fix("projects/" + p.id, { notes: b, updatedAt: now }, "Fix run: removed the note that posts and hardware weren't quoted — they are on the quote"); out["n" + n] = "note fixed"; } }
+  const p8 = byNum(2028);
+  if (p8) { const g = (T.orderedLines(p8).find((l) => !T.isCharge(l) && l.grade) || {}).grade || "";
+    const a = String(p8.notes || ""); const b = g ? a.replace(/Grade TBD\.?/i, "Grade: " + g + ".") : a;
+    if (b !== a) { await T.fix("projects/" + p8.id, { notes: b, updatedAt: now }, "Fix run: notes now give the grade on the lines"); out.p2028 = "grade in notes"; } }
   await new Promise((r) => setTimeout(r, 6000));
   return out;
 })
