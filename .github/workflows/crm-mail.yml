@@ -1,11 +1,14 @@
 name: CRM mail (send, log Gmail, signatures)
-# Every 10 minutes: sends the emails queued in the CRM from each person's own @streetsignsupply.com Gmail, logs
-# customer emails from the team's Gmail onto the right account, and tells the sender when a signature link is signed.
+# Always on: each run loops for ~5 hours — every minute it sends the emails queued in the CRM (from each person's own
+# @streetsignsupply.com Gmail) and follows up signed links; every 10 minutes it logs customer emails from Gmail.
+# The hourly schedule starts the next run (a run waits while one is going), so there's no gap when one ends.
 # Until domain-wide delegation is set in Google Admin it only checks and prints the client ID to authorize. Counts only.
 on:
   schedule:
-    - cron: "*/10 * * * *"
-  workflow_dispatch: {}
+    - cron: "7 * * * *"
+  workflow_dispatch:
+    inputs:
+      loop: { description: "minutes to keep running (0 = one pass)", default: "300" }
 permissions:
   contents: read
   id-token: write
@@ -13,7 +16,7 @@ concurrency: { group: crm-mail, cancel-in-progress: false }
 jobs:
   mail:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 330
     steps:
       - uses: actions/checkout@v4
       - id: gauth
@@ -26,9 +29,10 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: "22" }
       - working-directory: worker
-        run: npm install --no-audit --no-fund --loglevel=error @google-cloud/firestore@7 2>&1 | tail -1
+        run: npm install --no-audit --no-fund --loglevel=error @google-cloud/firestore@7 google-auth-library@9 2>&1 | tail -1
       - working-directory: worker
         env:
           FIREBASE_PROJECT: ssc-crm-a7224
           SA_TOKEN: ${{ steps.gauth.outputs.access_token }}
+          LOOP_MIN: ${{ github.event.inputs.loop || '300' }}
         run: node mail.mjs

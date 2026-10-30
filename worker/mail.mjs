@@ -10,7 +10,11 @@
 import { Firestore, FieldValue } from "@google-cloud/firestore";
 const P = process.env.FIREBASE_PROJECT || "ssc-crm-a7224";
 const SA = process.env.SA_EMAIL || "firebase-adminsdk-fbsvc@ssc-crm-a7224.iam.gserviceaccount.com";
-const TOK = process.env.SA_TOKEN;            // the service account's own token (to sign the delegation requests)
+// the service account's own token (to sign the delegation requests): refreshed through the job's Google sign-in, so the
+// worker can keep running for hours (it loops — see the bottom), falling back to the token the workflow handed in
+let TOK = process.env.SA_TOKEN, tokAt = Date.now();
+let gauth = null; try { const { GoogleAuth } = await import("google-auth-library"); gauth = new GoogleAuth({ scopes: ["https://www.googleapis.com/auth/cloud-platform"] }); } catch (e) {}
+async function freshTok() { if (gauth && Date.now() - tokAt > 40 * 60000) { try { const t = await gauth.getAccessToken(); if (t) { TOK = typeof t === "string" ? t : t.token; tokAt = Date.now(); for (const k in tokCache) delete tokCache[k]; } } catch (e) {} } return TOK; }
 const DOMAIN = "streetsignsupply.com";
 const fs = new Firestore({ projectId: P });
 const say = (m) => console.log(m);
@@ -23,7 +27,7 @@ const b64u = (b) => Buffer.from(b).toString("base64").replace(/\+/g, "-").replac
 // ---- a Gmail token for one person (domain-wide delegation, keyless: the JWT is signed by IAM) ----
 const tokCache = {};
 async function userToken(email, scope) {
-  const k = email + "|" + scope; if (tokCache[k]) return tokCache[k];
+  await freshTok(); const k = email + "|" + scope; const c0 = tokCache[k]; if (c0 && Date.now() - c0.at < 45 * 60000) return c0.t;
   const now = Math.floor(Date.now() / 1000);
   const payload = JSON.stringify({ iss: SA, sub: email, scope, aud: "https://oauth2.googleapis.com/token", iat: now, exp: now + 3000 });
   const r = await fetch("https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/" + SA + ":signJwt", {
@@ -34,7 +38,7 @@ async function userToken(email, scope) {
     body: "grant_type=" + encodeURIComponent("urn:ietf:params:oauth:grant-type:jwt-bearer") + "&assertion=" + encodeURIComponent(j.signedJwt) });
   const tj = await t.json().catch(() => ({}));
   if (!t.ok) throw new Error("token " + t.status + " " + String(tj.error || "") + " " + String(tj.error_description || "").slice(0, 120));
-  return (tokCache[k] = tj.access_token);
+  tokCache[k] = { t: tj.access_token, at: Date.now() }; return tj.access_token;
 }
 const SEND = "https://www.googleapis.com/auth/gmail.send", READ = "https://www.googleapis.com/auth/gmail.readonly";
 async function gmail(email, scope, path, opt = {}) {
@@ -44,7 +48,7 @@ async function gmail(email, scope, path, opt = {}) {
 }
 
 const brandRef = fs.doc("settings/brand");
-const brand = (await brandRef.get()).data() || {};
+let brand = (await brandRef.get()).data() || {};
 const mailFrom = String(brand.mailFrom || "matt@" + DOMAIN).toLowerCase();
 
 // ---- 0. is delegation set up? (also prints the client ID that goes in Google Admin) ----
@@ -78,92 +82,117 @@ function mime({ from, fromName, to, cc, subject, text, atts }) {
   parts.push("--" + bnd + "--");
   return h.concat(["Content-Type: multipart/mixed; boundary=\"" + bnd + "\"", ""]).concat(parts).join("\r\n");
 }
-const queued = (await fs.collection("mail").where("status", "==", "queued").limit(40).get()).docs;
-// task notices written before there was a status field: anything from the last day that hasn't been sent
-const legacy = (await fs.collection("mail").where("at", ">", Date.now() - 864e5).get()).docs.filter((d) => !d.data().status);
-for (const d of queued.concat(legacy)) {
-  const m = d.data(); const now = Date.now();
-  const from = m.kind === "customer" ? String(m.from || "").toLowerCase() : mailFrom;
-  const to = (m.to || []).filter((x) => /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(String(x))), cc = (m.cc || []).filter((x) => /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(String(x)));
-  try {
-    if (!isOurs(from)) throw new Error("the sender has no @" + DOMAIN + " address");
-    if (!to.length) throw new Error("no one to send it to");
-    const atts = []; let tot = 0;
-    for (const a of (m.attachments || []).slice(0, 10)) { const r = await fetch(a.url); if (!r.ok) throw new Error("couldn't fetch the attachment " + String(a.name || "").slice(0, 40));
-      const b = Buffer.from(await r.arrayBuffer()); tot += b.length; if (tot > 20e6) throw new Error("attachments over 20 MB"); atts.push({ name: String(a.name || "file"), type: a.type || r.headers.get("content-type") || "", data: b }); }
-    const msg = m.message || {};
-    const raw = mime({ from, fromName: m.kind === "customer" ? m.fromName : "Street Sign Supply CRM", to, cc, subject: msg.subject, text: msg.text || String(msg.html || "").replace(/<[^>]+>/g, " "), atts });
-    const res = await gmail(from, SEND, "messages/send", { method: "POST", body: JSON.stringify({ raw: b64u(raw) }) });
-    await d.ref.set({ status: "sent", sentAt: now, gmailId: res.id || "", threadId: res.threadId || "" }, { merge: true });
-    if (m.activityId) await fs.doc("activity/" + m.activityId).set({ sendState: "sent", sentAt: now, gmailId: res.id || "", sendErr: "" }, { merge: true }).catch(() => {});
-    n.sent++;
-  } catch (e) {
-    const err = String(e.message || e).slice(0, 160);
-    await d.ref.set({ status: "failed", failedAt: now, err }, { merge: true });
-    if (m.activityId) await fs.doc("activity/" + m.activityId).set({ sendState: "failed", sendErr: err }, { merge: true }).catch(() => {});
-    n.failed++;
-  }
-}
 
-// ---- 2. log customer emails from each person's Gmail ----
-const live = async (c) => (await fs.collection(c).get()).docs.map((d) => Object.assign({ id: d.id }, d.data())).filter((x) => !x.deleted);
-const team = (await live("team")).filter((t) => isOurs(t.email));
-const contacts = await live("contacts"), accounts = await live("accounts");
-const byEmail = {}; contacts.forEach((c) => { const e = String(c.email || "").trim().toLowerCase(); if (e) byEmail[e] = c; });
-const dom = (e) => String(e || "").toLowerCase().split("@")[1] || "";
-const FREE = /^(gmail|yahoo|hotmail|outlook|aol|icloud|me|msn|live|comcast|att|sbcglobal|protonmail)\./;
-const byDomain = {}; accounts.forEach((a) => { const w = String(a.website || "").toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0]; if (w && !FREE.test(w)) byDomain[w] = a.id; });
-contacts.forEach((c) => { const d2 = dom(c.email); if (d2 && !FREE.test(d2) && c.accountId && !byDomain[d2]) byDomain[d2] = c.accountId; });
-const syncRef = fs.doc("settings/mailsync"); const sync = (await syncRef.get()).data() || {}; const seen = sync.last || {};
-const addrs = (h) => String(h || "").match(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g) || [];
-function bodyText(pl) { if (!pl) return ""; if (pl.mimeType === "text/plain" && pl.body && pl.body.data) return Buffer.from(pl.body.data, "base64").toString("utf8");
-  for (const p2 of pl.parts || []) { const t = bodyText(p2); if (t) return t; } return ""; }
-const already = new Set((await fs.collection("activity").where("at", ">", Date.now() - 10 * 864e5).get()).docs.map((d) => d.data().gmailId).filter(Boolean));
-for (const t of team) {
-  const me = String(t.email).toLowerCase();
-  try {
-    const after = Math.max(Number(seen[t.id]) || 0, Date.now() - 3 * 864e5);
-    const list = await gmail(me, READ, "messages?maxResults=100&q=" + encodeURIComponent("after:" + Math.floor(after / 1000) + " -in:chats -in:spam -in:trash"));
-    let newest = Number(seen[t.id]) || 0;
-    for (const it of (list.messages || [])) {
-      if (already.has(it.id)) continue;
-      const m = await gmail(me, READ, "messages/" + it.id + "?format=full");
-      const H = {}; (m.payload && m.payload.headers || []).forEach((h) => { H[h.name.toLowerCase()] = h.value; });
-      const at = Number(m.internalDate) || Date.now(); newest = Math.max(newest, at);
-      const from = addrs(H.from)[0] || "", others = addrs([H.to, H.cc].join(",")).concat(from ? [from] : []).map((x) => x.toLowerCase()).filter((x) => !isOurs(x));
-      if (!others.length) continue;
-      const c = others.map((x) => byEmail[x]).find(Boolean) || null;
-      const aid = c ? c.accountId : others.map((x) => byDomain[dom(x)]).find(Boolean);
-      if (!aid) continue;                                         // not a CRM customer
-      if (/^(no-?reply|notifications?|mailer-daemon)@/i.test(from)) continue;
-      const dir = isOurs(from) ? "out" : "in";
-      const text = (bodyText(m.payload) || m.snippet || "").replace(/\r/g, "").split(/\n>|\nOn .{5,80}wrote:\n/)[0].trim().slice(0, 4000);
-      const xid = "gm_" + it.id;
-      await fs.doc("activity/" + xid).set({ id: xid, recType: "account", recId: String(aid), kind: "note", type: "email", direction: dir, subject: String(H.subject || "").slice(0, 200),
-        text: text || "(no text)", contactId: c ? c.id : "", whoId: t.id, who: t.initials || "", when: new Date(at).toLocaleDateString("en-CA", { timeZone: "America/Denver" }), due: "", backOn: "", noBack: true,
-        at, done: true, deleted: false, gmailId: it.id, threadId: m.threadId || "", source: "gmail" }, { merge: true });
-      already.add(it.id); n.logged++;
+async function sendQueued() {
+  const queued = (await fs.collection("mail").where("status", "==", "queued").limit(40).get()).docs;
+  // task notices written before there was a status field: anything from the last day that hasn't been sent
+  const legacy = (await fs.collection("mail").where("at", ">", Date.now() - 864e5).get()).docs.filter((d) => !d.data().status);
+  for (const d of queued.concat(legacy)) {
+    const m = d.data(); const now = Date.now();
+    const from = m.kind === "customer" ? String(m.from || "").toLowerCase() : mailFrom;
+    const to = (m.to || []).filter((x) => /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(String(x))), cc = (m.cc || []).filter((x) => /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(String(x)));
+    try {
+      if (!isOurs(from)) throw new Error("the sender has no @" + DOMAIN + " address");
+      if (!to.length) throw new Error("no one to send it to");
+      const atts = []; let tot = 0;
+      for (const a of (m.attachments || []).slice(0, 10)) { const r = await fetch(a.url); if (!r.ok) throw new Error("couldn't fetch the attachment " + String(a.name || "").slice(0, 40));
+        const b = Buffer.from(await r.arrayBuffer()); tot += b.length; if (tot > 20e6) throw new Error("attachments over 20 MB"); atts.push({ name: String(a.name || "file"), type: a.type || r.headers.get("content-type") || "", data: b }); }
+      const msg = m.message || {};
+      const raw = mime({ from, fromName: m.kind === "customer" ? m.fromName : "Street Sign Supply CRM", to, cc, subject: msg.subject, text: msg.text || String(msg.html || "").replace(/<[^>]+>/g, " "), atts });
+      const res = await gmail(from, SEND, "messages/send", { method: "POST", body: JSON.stringify({ raw: b64u(raw) }) });
+      await d.ref.set({ status: "sent", sentAt: now, gmailId: res.id || "", threadId: res.threadId || "" }, { merge: true });
+      if (m.activityId) await fs.doc("activity/" + m.activityId).set({ sendState: "sent", sentAt: now, gmailId: res.id || "", sendErr: "" }, { merge: true }).catch(() => {});
+      n.sent++;
+    } catch (e) {
+      const err = String(e.message || e).slice(0, 160);
+      await d.ref.set({ status: "failed", failedAt: now, err }, { merge: true });
+      if (m.activityId) await fs.doc("activity/" + m.activityId).set({ sendState: "failed", sendErr: err }, { merge: true }).catch(() => {});
+      n.failed++;
     }
-    seen[t.id] = newest || after; n.users++;
-  } catch (e) { n.userErr++; const k = String(e.message || e).replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "<email>").slice(0, 90); errKinds[k] = (errKinds[k] || 0) + 1; }
-}
-await syncRef.set({ last: seen, at: Date.now() }, { merge: true });
-await brandRef.set({ mailSyncAt: Date.now(), mailSyncN: n.logged }, { merge: true });
+  }
 
-// ---- 3. signature links that were signed or turned down: tell the person who sent them ----
-const sigs = (await fs.collection("signreq").where("status", "in", ["signed", "declined"]).get()).docs.filter((d) => !d.data().notified);
-for (const d of sigs) {
-  const r = d.data(); const tm = r.createdById ? (await fs.doc("team/" + r.createdById).get()).data() : null; const now = Date.now();
-  const what = (r.kind === "proof" ? "Proof" : "Quote") + " " + (r.status === "signed" ? "signed" : "— changes asked for") + ": " + (r.pnum || "") + " by " + (r.signedName || "the customer");
-  if (tm) { const nid = "nt_sig_" + d.id.slice(0, 16);
-    await fs.doc("notifications/" + nid).set({ id: nid, toId: r.createdById, fromId: "", fromName: "Signature", kind: "sign", text: what + (r.note ? " — “" + String(r.note).slice(0, 200) + "”" : ""),
-      link: "project/" + r.projectId, at: now, read: false, deleted: false });
-    if (isOurs(tm.email)) await fs.collection("mail").add({ to: [tm.email], status: "queued", kind: "notice", at: now,
-      message: { subject: what, text: what + (r.note ? "\n\nTheir note: " + r.note : "") + "\n\nOpen it: https://crm.streetsignsupply.com/#/project/" + r.projectId } }); }
-  const xid = "sg_" + d.id.slice(0, 20);
-  await fs.doc("activity/" + xid).set({ id: xid, recType: "project", recId: String(r.projectId), kind: "note", type: "note", subject: what, text: (r.note ? "Note: " + r.note : what),
-    whoId: "", who: "Sign", when: new Date(r.signedAt || now).toLocaleDateString("en-CA", { timeZone: "America/Denver" }), at: r.signedAt || now, done: true, deleted: false, noBack: true }, { merge: true });
-  await d.ref.set({ notified: true, notifiedAt: now }, { merge: true }); n.signs++;
+
 }
-// notices queued just now go out on the next run (in 10 minutes)
-note("mail: " + n.sent + " sent, " + n.failed + " didn't send, " + n.logged + " customer emails logged from " + n.users + " inboxes" + (n.userErr ? " (" + n.userErr + " inboxes couldn't be read)" : "") + ", " + n.signs + " signature updates" + (n.userErr ? " | inbox errors: " + JSON.stringify(errKinds) : ""));
+async function logGmail() {
+  // ---- 2. log customer emails from each person's Gmail ----
+  const live = async (c) => (await fs.collection(c).get()).docs.map((d) => Object.assign({ id: d.id }, d.data())).filter((x) => !x.deleted);
+  const team = (await live("team")).filter((t) => isOurs(t.email));
+  const contacts = await live("contacts"), accounts = await live("accounts");
+  const byEmail = {}; contacts.forEach((c) => { const e = String(c.email || "").trim().toLowerCase(); if (e) byEmail[e] = c; });
+  const dom = (e) => String(e || "").toLowerCase().split("@")[1] || "";
+  const FREE = /^(gmail|yahoo|hotmail|outlook|aol|icloud|me|msn|live|comcast|att|sbcglobal|protonmail)\./;
+  const byDomain = {}; accounts.forEach((a) => { const w = String(a.website || "").toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0]; if (w && !FREE.test(w)) byDomain[w] = a.id; });
+  contacts.forEach((c) => { const d2 = dom(c.email); if (d2 && !FREE.test(d2) && c.accountId && !byDomain[d2]) byDomain[d2] = c.accountId; });
+  const syncRef = fs.doc("settings/mailsync"); const sync = (await syncRef.get()).data() || {}; const seen = sync.last || {};
+  const addrs = (h) => String(h || "").match(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g) || [];
+  function bodyText(pl) { if (!pl) return ""; if (pl.mimeType === "text/plain" && pl.body && pl.body.data) return Buffer.from(pl.body.data, "base64").toString("utf8");
+    for (const p2 of pl.parts || []) { const t = bodyText(p2); if (t) return t; } return ""; }
+  const already = new Set((await fs.collection("activity").where("at", ">", Date.now() - 10 * 864e5).get()).docs.map((d) => d.data().gmailId).filter(Boolean));
+  for (const t of team) {
+    const me = String(t.email).toLowerCase();
+    try {
+      const after = Math.max(Number(seen[t.id]) || 0, Date.now() - 3 * 864e5);
+      const list = await gmail(me, READ, "messages?maxResults=100&q=" + encodeURIComponent("after:" + Math.floor(after / 1000) + " -in:chats -in:spam -in:trash"));
+      let newest = Number(seen[t.id]) || 0;
+      for (const it of (list.messages || [])) {
+        if (already.has(it.id)) continue;
+        const m = await gmail(me, READ, "messages/" + it.id + "?format=full");
+        const H = {}; (m.payload && m.payload.headers || []).forEach((h) => { H[h.name.toLowerCase()] = h.value; });
+        const at = Number(m.internalDate) || Date.now(); newest = Math.max(newest, at);
+        const from = addrs(H.from)[0] || "", others = addrs([H.to, H.cc].join(",")).concat(from ? [from] : []).map((x) => x.toLowerCase()).filter((x) => !isOurs(x));
+        if (!others.length) continue;
+        const c = others.map((x) => byEmail[x]).find(Boolean) || null;
+        const aid = c ? c.accountId : others.map((x) => byDomain[dom(x)]).find(Boolean);
+        if (!aid) continue;                                         // not a CRM customer
+        if (/^(no-?reply|notifications?|mailer-daemon)@/i.test(from)) continue;
+        const dir = isOurs(from) ? "out" : "in";
+        const text = (bodyText(m.payload) || m.snippet || "").replace(/\r/g, "").split(/\n>|\nOn .{5,80}wrote:\n/)[0].trim().slice(0, 4000);
+        const xid = "gm_" + it.id;
+        await fs.doc("activity/" + xid).set({ id: xid, recType: "account", recId: String(aid), kind: "note", type: "email", direction: dir, subject: String(H.subject || "").slice(0, 200),
+          text: text || "(no text)", contactId: c ? c.id : "", whoId: t.id, who: t.initials || "", when: new Date(at).toLocaleDateString("en-CA", { timeZone: "America/Denver" }), due: "", backOn: "", noBack: true,
+          at, done: true, deleted: false, gmailId: it.id, threadId: m.threadId || "", source: "gmail" }, { merge: true });
+        already.add(it.id); n.logged++;
+      }
+      seen[t.id] = newest || after; n.users++;
+    } catch (e) { n.userErr++; const k = String(e.message || e).replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "<email>").slice(0, 90); errKinds[k] = (errKinds[k] || 0) + 1; }
+  }
+  await syncRef.set({ last: seen, at: Date.now() }, { merge: true });
+  await brandRef.set({ mailSyncAt: Date.now(), mailSyncN: n.logged }, { merge: true });
+
+
+}
+async function signFollow() {
+  // ---- 3. signature links that were signed or turned down: tell the person who sent them ----
+  const sigs = (await fs.collection("signreq").where("status", "in", ["signed", "declined"]).get()).docs.filter((d) => !d.data().notified);
+  for (const d of sigs) {
+    const r = d.data(); const tm = r.createdById ? (await fs.doc("team/" + r.createdById).get()).data() : null; const now = Date.now();
+    const what = (r.kind === "proof" ? "Proof" : "Quote") + " " + (r.status === "signed" ? "signed" : "— changes asked for") + ": " + (r.pnum || "") + " by " + (r.signedName || "the customer");
+    if (tm) { const nid = "nt_sig_" + d.id.slice(0, 16);
+      await fs.doc("notifications/" + nid).set({ id: nid, toId: r.createdById, fromId: "", fromName: "Signature", kind: "sign", text: what + (r.note ? " — “" + String(r.note).slice(0, 200) + "”" : ""),
+        link: "project/" + r.projectId, at: now, read: false, deleted: false });
+      if (isOurs(tm.email)) await fs.collection("mail").add({ to: [tm.email], status: "queued", kind: "notice", at: now,
+        message: { subject: what, text: what + (r.note ? "\n\nTheir note: " + r.note : "") + "\n\nOpen it: https://crm.streetsignsupply.com/#/project/" + r.projectId } }); }
+    const xid = "sg_" + d.id.slice(0, 20);
+    await fs.doc("activity/" + xid).set({ id: xid, recType: "project", recId: String(r.projectId), kind: "note", type: "note", subject: what, text: (r.note ? "Note: " + r.note : what),
+      whoId: "", who: "Sign", when: new Date(r.signedAt || now).toLocaleDateString("en-CA", { timeZone: "America/Denver" }), at: r.signedAt || now, done: true, deleted: false, noBack: true }, { merge: true });
+    // the signed record goes into the project's Files (a link to the signed page, which prints as a clean copy)
+    let filed = !!r.filed;
+    if (r.status === "signed" && !filed) { const pd = (await fs.doc("projects/" + r.projectId).get()).data() || {}; const fid = "f_sig_" + d.id.slice(0, 16);
+      const base = String(brand.signBase || "https://ssc-crm-a7224.web.app/sign.html");
+      await fs.doc("files/" + fid).set({ id: fid, url: base + "?t=" + d.id + "&view=1", link: true, size: 0, type: "text/html",
+        name: (r.kind === "proof" ? "Signed proof" : "Signed quote " + (r.quoteNo || "")) + " — " + (r.signedName || "") + " — " + new Date(r.signedAt || now).toLocaleDateString("en-CA", { timeZone: "America/Denver" }),
+        cat: r.kind === "proof" ? "Signed proof" : "Signed quote", who: "Sign", when: new Date(now).toLocaleString("en-US", { timeZone: "America/Denver" }), at: now, deleted: false,
+        accountId: pd.accountId || "", projectId: r.projectId, jobId: "" }, { merge: true }); filed = true; }
+    await d.ref.set({ notified: true, notifiedAt: now, filed }, { merge: true }); n.signs++;
+  }
+
+}
+// one job runs for most of a day's quarter: every minute it sends what's queued and follows up signatures, and every
+// 10 minutes it reads Gmail — so an email goes out within about a minute of pressing Send (the schedule starts the next one)
+const LOOP_MIN = Number(process.env.LOOP_MIN) || 0, t0 = Date.now(); let pass = 0;
+do {
+  try { await signFollow(); await sendQueued(); if (pass % 10 === 0) await logGmail(); } catch (e) { say("pass error: " + String(e.message || e).replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "<email>").slice(0, 140)); }
+  pass++;
+  if (LOOP_MIN && Date.now() - t0 < LOOP_MIN * 60000) await new Promise((r) => setTimeout(r, 60000));
+} while (LOOP_MIN && Date.now() - t0 < LOOP_MIN * 60000);
+note("mail: " + pass + " passes — " + n.sent + " sent, " + n.failed + " didn't send, " + n.logged + " customer emails logged" + (n.userErr ? " (" + n.userErr + " inbox reads failed: " + JSON.stringify(errKinds) + ")" : "") + ", " + n.signs + " signature updates");
