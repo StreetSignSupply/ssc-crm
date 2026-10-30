@@ -1,15 +1,13 @@
-// Oct 30 look-only run #3: nothing is changed. For Stop-sign quote lines, which picture the quote PDF uses and
-// whether it can be copied into the PDF. Hosts and sizes only.
+// Oct 30 look-only run #4 (after -83): nothing is changed. Find an item for "stop", P-2030's margin, and how many
+// priced lines now show a price source. Catalog names and counts only.
 (async (T) => {
-  const S = T.S, out = { pics: [] };
+  const S = T.S, out = {};
+  out.stop = T.ordFindRows("stop").map((r) => (r.title + " ~ " + (r.sub || "")).slice(0, 60));
   const ps = [...S.projects.values()].filter((p) => !p.deleted);
-  for (const p of ps) for (const l of (p.orderLines || [])) {
-    if (!l || !(/^R1-1$/i.test(String(l.code || "").trim()) || /\bstop\b/i.test(String(l.desc || "")) && !/here|ahead|when/i.test(String(l.desc || "")))) continue;
-    if (out.pics.length >= 4) break;
-    let u = ""; try { u = T.linePic(p, l) || ""; } catch (e) { u = "err " + e.message; }
-    let h = u.slice(0, 15); try { const x = new URL(u); h = x.host + " ." + (x.pathname.split(".").pop() || "").slice(0, 5) + (l.webImg ? " (webImg)" : ""); } catch (e) {}
-    let d = 0; try { d = String((await T.imgAsData(u)) || "").length; } catch (e) { d = -1; }
-    out.pics.push({ p: p.num, h, d, fb: (T.picFb(l) || "").slice(0, 22) });
-  }
+  const p30 = ps.find((p) => String(p.num) === "2030"); if (p30) { const c = T.costedMargin(p30); out.m2030 = [Math.round(T.projMargin(p30)), c.uncostedLines]; }
+  const src = {}; ps.forEach((p) => (p.orderLines || []).forEach((l) => { if (!l || !(Number(l.price) > 0) || T.isCharge(l)) return; const k = T.linePriceSrc(p, l) || "(none)"; src[k] = (src[k] || 0) + 1; }));
+  out.src = src;
+  const p28 = ps.find((p) => String(p.num) === "2028"); if (p28) out.k2028 = [...new Set((p28.orderLines || []).filter((l) => l && !T.isCharge(l)).map((l) => T.lineKind(l)))];
+  out.ph = T.placeholderReorder().length;
   return out;
 })
