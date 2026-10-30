@@ -98,5 +98,8 @@ await ok("the team makes a sign request", setDoc(doc(sales, "signreq/ddddddddddd
 await ok("the team queues a customer email", setDoc(doc(sales, "mail/c1"), { kind: "customer", status: "queued", to: ["buyer@city.gov"], from: "bob@streetsignsupply.com", message: { subject: "x", text: "y" } }));
 await no("a customer email must come from our domain", setDoc(doc(sales, "mail/c2"), { kind: "customer", status: "queued", to: ["buyer@city.gov"], from: "bob@gmail.com", message: { subject: "x" } }));
 await no("outsiders can't queue email", setDoc(doc(anon, "mail/c3"), { kind: "customer", status: "queued", to: ["a@b.com"], from: "matt@streetsignsupply.com" }));
+await ok("the team asks for an AI draft", setDoc(doc(sales, "aidraft/a1"), { status: "queued", ask: "x" }));
+await no("outsiders can't ask for AI drafts", setDoc(doc(anon, "aidraft/a2"), { status: "queued" }));
+await no("an AI draft can't be filled in from the CRM", updateDoc(doc(sales, "aidraft/a1"), { status: "done", body: "x" }));
 await ok("owner hard-deletes", deleteDoc(doc(owner, "projects/p1")));
 console.log(t.join("\n")); await env.cleanup(); process.exit(t.some((x) => x.startsWith("FAIL")) ? 1 : 0);
