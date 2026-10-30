@@ -250,12 +250,41 @@ async function taskMail() {
       text: "This task was due " + a.due + " and isn't done yet" + (a.assigneeName ? " (assigned to " + a.assigneeName + ")" : "") + ":\n\n" + line(a) } });
     await a._ref.set({ overdueNotified: Date.now() }, { merge: true }); n.overdue = (n.overdue || 0) + 1; }
 }
+// AI drafts for the website's compose screen, written with GitHub's free AI models (the workflow's own token — no key,
+// no bill; GitHub limits it to a modest number a day, plenty for a shop). Checked every few seconds while the worker waits.
+const GH = process.env.GH_TOKEN || "";
+async function aiDrafts() {
+  if (!GH) return 0; let k = 0;
+  const q = (await fs.collection("aidraft").where("status", "==", "queued").limit(5).get()).docs;
+  for (const d of q) { const r = d.data(); k++;
+    try {
+      const msgs = [{ role: "system", content: String(r.rules || "Write a short, plain business email.") + " Reply with JSON only: {\"subject\":\"...\",\"body\":\"...\"}." },
+        { role: "user", content: "What to say: " + (r.ask || "(use the subject and context)") + "\nSubject so far: " + (r.subject || "") + "\nDraft so far:\n" + (r.draft || "") + "\n\nContext:\n" + (r.ctx || "") }];
+      let res = null, err = "";
+      for (const model of ["openai/gpt-4.1-mini", "openai/gpt-4o-mini"]) {
+        const x = await fetch("https://models.github.ai/inference/chat/completions", { method: "POST", headers: { Authorization: "Bearer " + GH, "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({ model, messages: msgs, temperature: 0.5, max_tokens: 700, response_format: { type: "json_object" } }) });
+        const j = await x.json().catch(() => ({})); if (x.ok) { res = j; break; } err = x.status + " " + String((j.error || {}).message || j.message || "").slice(0, 100); }
+      if (!res) throw new Error(err || "no answer");
+      const txt = ((res.choices || [])[0] || {}).message ? res.choices[0].message.content : ""; let o = {};
+      try { o = JSON.parse(String(txt).replace(/^```(json)?|```$/g, "").trim()); } catch (e) { o = { body: String(txt || "") }; }
+      if (!o.body) throw new Error("the AI sent back nothing");
+      await d.ref.set({ status: "done", subject: String(o.subject || r.subject || "").slice(0, 200), body: String(o.body).slice(0, 5000), doneAt: Date.now() }, { merge: true }); n.ai = (n.ai || 0) + 1;
+    } catch (e) { await d.ref.set({ status: "failed", err: String(e.message || e).slice(0, 160), doneAt: Date.now() }, { merge: true }); n.aiErr = (n.aiErr || 0) + 1; }
+  }
+  return k;
+}
+async function waitAndDraft(ms) { const end = Date.now() + ms; while (Date.now() < end) { try { await aiDrafts(); } catch (e) {} await new Promise((r) => setTimeout(r, 4000)); } }
+// a quick check that the free AI answers (printed once per run, counts only)
+if (GH) { try { const x = await fetch("https://models.github.ai/inference/chat/completions", { method: "POST", headers: { Authorization: "Bearer " + GH, "Content-Type": "application/json" },
+    body: JSON.stringify({ model: "openai/gpt-4.1-mini", messages: [{ role: "user", content: "Reply with the single word OK." }], max_tokens: 5 }) });
+  note("AI drafting: GitHub Models answered " + x.status); } catch (e) { note("AI drafting: " + String(e.message || e).slice(0, 80)); } }
 // one job runs for most of a day's quarter: every minute it sends what's queued and follows up signatures, and every
 // 10 minutes it reads Gmail — so an email goes out within about a minute of pressing Send (the schedule starts the next one)
 const LOOP_MIN = Number(process.env.LOOP_MIN) || 0, t0 = Date.now(); let pass = 0;
 do {
   try { await signFollow(); if (pass % 5 === 0) await taskMail().catch((e) => say("task mail: " + String(e.message || e).slice(0, 100))); await sendQueued(); if (pass % 10 === 0) await logGmail(); } catch (e) { say("pass error: " + String(e.message || e).replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "<email>").slice(0, 140)); }
   pass++;
-  if (LOOP_MIN && Date.now() - t0 < LOOP_MIN * 60000) await new Promise((r) => setTimeout(r, 60000));
+  if (LOOP_MIN && Date.now() - t0 < LOOP_MIN * 60000) await waitAndDraft(60000); else await aiDrafts().catch(() => {});
 } while (LOOP_MIN && Date.now() - t0 < LOOP_MIN * 60000);
-note("mail: " + pass + " passes — " + n.sent + " sent, " + n.failed + " didn't send, " + n.logged + " customer emails logged" + (n.userErr ? " (" + n.userErr + " inbox reads failed: " + JSON.stringify(errKinds) + ")" : "") + ", " + n.signs + " signature updates, " + (n.digest || 0) + " task digests, " + (n.overdue || 0) + " overdue notices");
+note("mail: " + pass + " passes — " + n.sent + " sent, " + n.failed + " didn't send, " + n.logged + " customer emails logged" + (n.userErr ? " (" + n.userErr + " inbox reads failed: " + JSON.stringify(errKinds) + ")" : "") + ", " + n.signs + " signature updates, " + (n.digest || 0) + " task digests, " + (n.overdue || 0) + " overdue notices, " + (n.ai || 0) + " AI drafts" + (n.aiErr ? " (" + n.aiErr + " failed)" : ""));
