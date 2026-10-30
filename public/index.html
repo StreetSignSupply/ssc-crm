@@ -1204,6 +1204,9 @@ details.omore>summary{cursor:pointer;font-weight:700;padding:6px 0;color:var(--a
 @media (max-width:1100px){.qlines [data-ordmove]{display:none}.qlines .gfull{display:none}.qlines .gshort{display:inline}}
 .qlines td:last-child{white-space:nowrap}
 .actedit{margin-left:8px;display:inline-block;vertical-align:middle}
+.acbulk{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 15px;background:var(--act-soft,rgba(31,95,173,.07));border-bottom:1px solid var(--line2)}
+.acbulk select{min-height:34px}
+th.thsort:not([data-dir])::after{content:" ↕";opacity:.3;font-size:.9em}
 /* -82 reports */
 .rpage .rsec{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2);margin:22px 2px 10px;font-weight:800}
 .rpage .rsec:first-of-type{margin-top:14px}
@@ -1556,7 +1559,7 @@ const LBL={
     drive:"Drive folder",notes:"Notes"},
   contact:{name:"Name",accountId:"Account",role:"Role",title:"Title",email:"Email",phone:"Phone",
     mobile:"Mobile",primary:"Primary",notes:"Notes"},
-  project:{name:"Name",accountId:"Account",stage:"Stage",amount:"Value",amountAuto:"Value from lines",lostWhy:"Lost because",lostTo:"Lost to",
+  project:{name:"Name",accountId:"Account",stage:"Stage",amount:"Value",amountAuto:"Value from lines",lostWhy:"Lost because",custScope:"Scope on the quote",scope:"About this project",lostTo:"Lost to",
     lostNote:"Loss note",billWhen:"When we bill",billStatus:"Billing status",
     billDate:"Invoiced on",paidDate:"Paid on",depositAmt:"Deposit",start:"Start date",due:"Due date",po:"PO number",billingContactId:"Invoice to",repId:"Sales rep",
     quote:"Quote number",source:"Source",invNum:"Invoice number",shipTo:"Ship to",drive:"Drive folder",notes:"Notes"},
@@ -3499,7 +3502,7 @@ function docHTML(p,kind){
     <div>
       <div class="lbl">${kind==="quote"?"Terms":"Payment"}</div>
       <div class="terms">${kind==="quote"?esc(qNote):esc(b.payNote||"Please reference the invoice number with your payment.")}
-        ${p.scope?`<span class="k">Scope</span>${esc(p.scope).replace(/\n/g,"<br>")}`:""}
+        ${String(p.custScope||"").trim()?`<span class="k">Scope</span>${esc(String(p.custScope).trim()).replace(/\n/g,"<br>")}`:""}
         ${rep2?`<span class="k">Your contact</span>${esc(rep2.name)}${b.phone?" · "+esc(fmtPhone(b.phone)):""}${b.email?" · "+esc(b.email):""}`:""}
         ${lamLine?`<span class="k">Overlaminate</span>Printed signs are supplied with a clear protective overlaminate unless marked otherwise.`:""}</div>
     </div>
@@ -9376,7 +9379,7 @@ function moreNav(){
     `<button class="btn" data-close="1">Close</button>`));
 }
 const NAVG=[
-  {id:"sales",label:"Sales",icon:"project",pages:[["mybook","contact","Dashboard"],["accounts","account","Accounts"],["projects","project","Projects"],["contacts","contact","Contacts"]]},
+  {id:"sales",label:"Sales",icon:"project",pages:[["mybook","contact","Dashboard"],["accounts","account","Accounts"],["projects","project","Projects"],["contacts","contact","Contacts"],["tasks","task","Tasks"]]},
   {id:"shop",label:"Production",icon:"job",pages:[["jobs","job","Work orders"],["tracker","chart","Tracker"],["calendar","calendar","Calendar"],["files","file","Files"]]},
   {id:"stock",label:"Inventory",icon:"inventory",pages:[["inventory","inventory","Inventory"],["stencils","inventory","Stencils","sub"],["purchasing","inventory","Purchase orders","sub"],["vendors","vendor","Vendors"]]},
   {id:"money",label:"Reports",icon:"chart",pages:[["reports","chart","Reports"]]},
@@ -9490,6 +9493,7 @@ function body(){
     case "files":return fileList();
     case "mybook":return myBook();
     case "reports":return reportsPage();
+    case "tasks":return tasksView();
     case "vendors":return vendorListView();
     case "vendor":return vendorRec(r.id);
     case "inventory":return inventoryView();
@@ -9707,6 +9711,19 @@ function tile(k,v,c){
   ${note?`<div class="sub">${esc(note)}</div>`:""}</div></div>`}
 
 /* ========== accounts ========== */
+// bulk changes to the accounts ticked on the Accounts list — each one goes in that account's history
+async function acctBulk(field,val){if(!val)return;const ids=[...(S.acSel||[])].filter(id=>acct(id));if(!ids.length)return;
+  const lbl={rep:"rep",type:"type",terms:"terms"}[field];const show=field==="rep"?(val==="__none"?"no rep":((S.team.get(val)||{}).name||"")):val;
+  askConfirm("Set the "+lbl+" on "+ids.length+" account"+(ids.length===1?"":"s")+"?",`<p style="margin:0">They'll all get <b>${esc(show)}</b>. Each change goes in that account's history.</p>`,"Set it",false,async()=>{
+    for(const id of ids){const a=acct(id);const k=field==="rep"?"repId":field;const nv=field==="rep"?(val==="__none"?"":val):val;if(String(a[k]||"")===nv)continue;
+      const old=field==="rep"?((S.team.get(a.repId)||{}).name||""):String(a[k]||"");
+      await push("accounts/"+id,{[k]:nv,updatedAt:Date.now()});recordHistory("account",id,[{f:field==="rep"?"Rep":field==="type"?"Type":"Terms",o:old,n:show}])}
+    S.acSel=new Set();toast("Updated "+ids.length+" account"+(ids.length===1?"":"s"));render()});render()}
+function acctExport(){const ids=[...(S.acSel||[])].filter(id=>acct(id));const rows=[["Account","City","State","Type","Terms","Rep","Phone","Website"]].concat(ids.map(id=>{const a=acct(id);
+  return [a.name,a.city,a.state,a.type,a.terms,(S.team.get(a.repId)||{}).name||"",a.phone,a.website].map(v=>v==null?"":String(v))}));
+  const csv=rows.map(r=>r.map(x=>/[",\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x).join(",")).join("\r\n");const name="accounts-"+today()+".csv";
+  (async()=>{if(downloads){try{await downloads.save({filename:name,data:csv});return}catch(e){}}
+    try{const b2=new Blob([csv],{type:"text/csv"});const a=document.createElement("a");a.href=URL.createObjectURL(b2);a.download=name;document.body.appendChild(a);a.click();a.remove()}catch(e){toast("Couldn't build the file here.")}})()}
 function accountList(){
   const q=S.q.trim().toLowerCase();
   let list=live(S.accounts);
@@ -9730,10 +9747,16 @@ function accountList(){
       live(S.projects).forEach(p=>{if(!isClosed(p))cp[p.accountId]=(cp[p.accountId]||0)+1});
       liveJobs().forEach(j=>{if(j.status!=="shipped")cj[j.accountId]=(cj[j.accountId]||0)+1});
       const reps=repList();
-      return `<table><thead><tr><th>Account</th><th>Rep</th><th>Type</th><th>Terms</th><th>Tax exempt</th>
+      const sel=S.acSel||(S.acSel=new Set());const shown=list.slice(0,lim);const canBulk=can("del")||can("settings");
+      const bar=canBulk&&sel.size?`<div class="acbulk"><b>${sel.size} selected</b>
+        <select data-acctbulk="rep" aria-label="Set the rep"><option value="">Set the rep…</option>${reps.map(t=>`<option value="${esc(t.id)}">${esc(t.name)}</option>`).join("")}<option value="__none">No rep</option></select>
+        <select data-acctbulk="type" aria-label="Set the type"><option value="">Set the type…</option>${ACCT_TYPE.map(x=>`<option>${esc(x)}</option>`).join("")}</select>
+        <select data-acctbulk="terms" aria-label="Set the terms"><option value="">Set the terms…</option>${TERMS.map(x=>`<option>${esc(x)}</option>`).join("")}</select>
+        <button class="btn sm" data-acexport="1">Export CSV</button><button class="btn sm q" data-acclear="1">Clear</button></div>`:"";
+      return `${bar}<table><thead><tr>${canBulk?`<th style="width:34px"><input type="checkbox" data-acsel="*" aria-label="Select all shown" ${shown.length&&shown.every(a=>sel.has(a.id))?"checked":""}></th>`:""}<th>Account</th><th>Rep</th><th>Type</th><th>Terms</th><th>Tax exempt</th>
       <th>Open projects</th><th>Open WOs</th></tr></thead><tbody>
-      ${list.slice(0,lim).map(a=>`<tr>
-        <td><button class="lnk" data-go="account/${esc(a.id)}">${esc(a.name)}</button>
+      ${shown.map(a=>`<tr>${canBulk?`<td><input type="checkbox" data-acsel="${esc(a.id)}" aria-label="Select ${esc(a.name)}" ${sel.has(a.id)?"checked":""}></td>`:""}
+        <td><a class="lnk" href="#/account/${esc(a.id)}">${esc(a.name)}</a>
           <div class="sub">${esc([a.city,a.state].filter(Boolean).join(", "))}</div></td>
         <td>${a.repId&&reps.find(t=>t.id===a.repId)?`<span style="font-weight:700;font-size:12.5px">${esc(reps.find(t=>t.id===a.repId).name)}</span>`:`<span class="pill r" title="Open the account and press Edit to give it a rep">No rep</span>`}</td>
         <td>${esc(a.type||"—")}</td><td>${esc(a.terms||"—")}</td><td>${exemptPill(a)}</td>
@@ -10206,7 +10229,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-84";
+const APP_VERSION="2026.11.25-85";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -10217,6 +10240,18 @@ function taskAssignee(a){
   if(a.whoId)return teamById(a.whoId);
   return live(S.team).find(t=>(t.initials||"").toUpperCase()===(a.who||"").toUpperCase())||null;
 }
+// Tasks: everyone's open tasks in one list — mine first by default, overdue on top
+function tasksView(){const f=S.taskF||"mine",me=S.viewerTeam,td=today();
+  const all=live(S.activity).filter(a=>actKind(a)==="task");
+  const open=all.filter(a=>!a.done),mine=open.filter(a=>taskIsMine(a,me));
+  const list=(f==="mine"?mine:f==="overdue"?open.filter(a=>a.due&&a.due<td):f==="done"?all.filter(a=>a.done).sort((a,b)=>(b.doneAt||b.at||0)-(a.doneAt||a.at||0)).slice(0,60):open)
+    .slice().sort((a,b)=>f==="done"?0:String(a.due||"9999").localeCompare(String(b.due||"9999"))||(a.at||0)-(b.at||0));
+  const chip=(k,l,n)=>`<button class="btn sm segtab ${f===k?"on":""}" data-taskf="${k}">${esc(l)}${n!=null?` <span class="n">${n}</span>`:""}</button>`;
+  return `<div class="pad"><section class="card flush"><header><h2>Tasks</h2>
+    <span class="sp" style="display:flex;flex-wrap:wrap;gap:2px">${chip("mine","Mine",mine.length)}${chip("all","Everyone's open",open.length)}${chip("overdue","Overdue",open.filter(a=>a.due&&a.due<td).length)}${chip("done","Done lately")}</span></header>
+    ${me?"":`<div class="sub" style="padding:8px 15px">Sign in as yourself (your team record) to see which tasks are yours.</div>`}
+    ${list.length?`<ul class="act">${list.map(activityRow).join("")}</ul>`:`<div class="empty">${f==="mine"?"Nothing assigned to you is open.":"Nothing here."}</div>`}
+    <div class="sub" style="padding:10px 15px">Add a task from any project, account or contact (Activity → Task). The person it's for gets a bell notice${""} and an email if their team record has an address; your own tasks don't ring the bell — they're here and on the dashboard.</div></section></div>`}
 function taskIsMine(a,t){
   if(!t)return false;
   if(a.assigneeId)return a.assigneeId===t.id;
@@ -11254,12 +11289,27 @@ function auditView(){
   rows.sort((a,b)=>(b.t||0)-(a.t||0));
   if(q)rows=rows.filter(r=>(r.f||"").toLowerCase().includes(q)||(r.n||"").toLowerCase().includes(q)
     ||(r.o||"").toLowerCase().includes(q)||(r.w||"").toLowerCase().includes(q)||recLabel(r).toLowerCase().includes(q));
+  // filters: kind of record, who made the change, when, and fix runs / agents vs people
+  const af=S.auditF||(S.auditF={type:"",who:"",days:"",src:""});
+  const types=[...new Set(rows.map(r=>r.recType))].sort(),whos=[...new Set(rows.map(r=>String(r.w||"").trim()).filter(Boolean))].sort();
+  if(af.type)rows=rows.filter(r=>r.recType===af.type);
+  if(af.who)rows=rows.filter(r=>String(r.w||"").trim()===af.who);
+  if(af.days)rows=rows.filter(r=>(r.t||0)>=Date.now()-Number(af.days)*864e5);
+  if(af.src==="fix")rows=rows.filter(r=>/fix run/i.test(String(r.f||"")+" "+String(r.w||"")));else if(af.src==="people")rows=rows.filter(r=>!/fix run/i.test(String(r.f||"")+" "+String(r.w||"")));
+  const sel=(k,l,opts)=>`<select data-auditf="${k}" aria-label="${esc(l)}" style="min-height:34px"><option value="">${esc(l)}</option>${opts.map(([v,t])=>`<option value="${esc(v)}" ${af[k]===v?"selected":""}>${esc(t)}</option>`).join("")}</select>`;
+  const fbar=`<div style="display:flex;gap:8px;flex-wrap:wrap;padding:10px 15px;border-bottom:1px solid var(--line2)">
+    ${sel("type","Every kind of record",types.map(t=>[t,({account:"Accounts",contact:"Contacts",project:"Projects",job:"Work orders",item:"Inventory items",vendor:"Vendors",activity:"Activity",team:"Team"})[t]||t]))}
+    ${sel("who","Anyone",whos.map(w=>[w,w]))}
+    ${sel("days","Any time",[["1","Last 24 hours"],["7","Last 7 days"],["30","Last 30 days"],["90","Last 90 days"]])}
+    ${sel("src","People and fix runs",[["people","People only"],["fix","Fix runs only"]])}
+    ${af.type||af.who||af.days||af.src?`<button class="btn sm" data-auditclear="1">Clear filters</button>`:""}</div>`;
   return `<div class="pad"><section class="card flush wide">
     <header><h2>Change history</h2><span class="n">${rows.length}</span>
       <span class="sub">every field change, who made it, and what it was before</span>
       <span class="sp"><input class="btn" id="lq" placeholder="Filter" value="${esc(S.q)}" style="font-weight:400;width:160px">
         <button class="btn" data-backup="1">Download backup</button>
         <button class="btn" data-go="bin">Recycle bin</button></span></header>
+    ${fbar}
     ${rows.length?`<table><thead><tr><th style="width:160px">Record</th><th style="width:130px">Field</th><th>Change</th><th style="width:150px">Who / when</th></tr></thead>
       <tbody>${rows.slice(0,300).map(r=>`<tr>
         <td><button class="lnk" data-go="${recHash(r)}">${esc(recLabel(r))}</button></td>
@@ -11875,6 +11925,8 @@ function rfGet(){const f=S.rf||(S.rf={preset:"ytd",rep:""});
   else if(f.preset==="quarter")a=new Date(y,Math.floor(m/3)*3,1);else if(f.preset==="last12")a=new Date(y-1,m+1,1);else if(f.preset==="all")a=new Date(2000,0,1);
   else if(f.preset==="custom"){a=f.from?new Date(f.from+"T00:00:00"):new Date(y,0,1);b=f.to?new Date(f.to+"T23:59:59"):b}else a=new Date(y,0,1);
   a.setHours(0,0,0,0);return {from:a.getTime(),to:b.getTime(),rep:f.rep||"",preset:f.preset||"ytd",fromIso:isoDay(a.getTime()),toIso:isoDay(b.getTime())}}
+// a project closed lost whose stage log has no "lost" entry (set before the log, or by an import) still counts as lost
+function rLostAt(p){if(!p||p.stage!=="lost")return 0;return stageAt(p,"lost")||Number(p.lostAt)||Number(p.updatedAt)||Number(p.createdAt)||0}
 const rIn=(ms,R)=>!!ms&&ms>=R.from&&ms<=R.to;
 const rMs=iso=>iso?new Date(String(iso).slice(0,10)+"T00:00:00").getTime():0;
 function rRepOk(p,R){if(!R.rep)return true;const r=repFor(p);return R.rep==="none"?!r:!!(r&&r.id===R.rep)}
@@ -11970,7 +12022,7 @@ function rSnapshot(R){
   const low=lowStock().length;
   const od=rOverdueFollowups(R).length;
   return kpiRow([kpi("Revenue this month",money2(revMonth),"invoiced (deposits count), before tax"),kpi("Weighted forecast",money2(fcv),"next 90 days"),
-    kpi("Open quotes",money2(openQv),openQ.length+" inquiry or quoted"),kpi("Receivables",money2(ar),qb?"open in QuickBooks":"invoiced, not paid (CRM)",ar>0?"o":""),
+    kpi("Open quotes",money2(openQv),openQ.length+" inquiry or quoted · whole open pipeline (won and in production too) "+money(ps.filter(p=>!isClosed(p)).reduce((t,p)=>t+projValue(p),0))+" on "+ps.filter(p=>!isClosed(p)).length),kpi("Receivables",money2(ar),qb?"open in QuickBooks":"invoiced, not paid (CRM)",ar>0?"o":""),
     kpi("Inventory at cost",money2(inv),"on hand × unit cost"),kpi("Low stock",low,"at or below reorder",low?"r":""),kpi("Overdue follow-ups",od,"tasks past due",od?"r":"")])}
 function rOverdueFollowups(R){const td=today();return live(S.activity).filter(x=>actKind(x)==="task"&&!x.done&&x.due&&x.due<td).filter(x=>{if(!R.rep)return true;const as=taskAssignee(x);return as&&as.id===R.rep})}
 // ===== 1. forecasting =====
@@ -12010,7 +12062,7 @@ function rGoalModal(){openModal(mshell("Monthly revenue goal","",`<div class="fg
 function rWinCard(R){const ps=rProjects(R),now=Date.now();
   const quiet=p=>p.stage==="quoted"&&(stageAt(p,"quoted")||0)<now-30*864e5&&!live(S.activity).some(a=>((a.recType==="project"&&a.recId===p.id)||(a.recType==="account"&&a.recId===p.accountId))&&(a.at||0)>now-30*864e5);
   const kinds={};ps.forEach(p=>{const k=acctKind(acct(p.accountId));const g=kinds[k]||(kinds[k]={won:[],lost:[],quiet:[],cyc:[]});
-    const w=stageAt(p,"won"),l=stageAt(p,"lost");if(rIn(w,R)){g.won.push(p);const q=stageAt(p,"quoted");if(q&&w>=q)g.cyc.push((w-q)/864e5)}
+    const w=stageAt(p,"won"),l=rLostAt(p);if(rIn(w,R)){g.won.push(p);const q=stageAt(p,"quoted");if(q&&w>=q)g.cyc.push((w-q)/864e5)}
     else if(rIn(l,R))g.lost.push(p);else if(quiet(p))g.quiet.push(p)});
   const ks=Object.keys(kinds).filter(k=>kinds[k].won.length+kinds[k].lost.length+kinds[k].quiet.length).sort();
   const bars=ks.map(k=>({label:k,drill:rDrill("win:"+k,"Won, lost and gone quiet — "+k,[].concat(kinds[k].won.map(p=>Object.assign(pRec(p),{d:"Won"})),kinds[k].lost.map(p=>Object.assign(pRec(p),{d:"Lost — "+((LOSTWHY.find(x=>x.id===p.lostWhy)||{}).label||"no reason")})),kinds[k].quiet.map(p=>Object.assign(pRec(p),{d:"Quoted, quiet 30+ days"})))),
@@ -12030,7 +12082,7 @@ function rReps(R){const ids=new Set();real(live(S.projects)).forEach(p=>{const r
   return [...ids].map(id=>S.team.get(id)).filter(t=>t&&!t.deleted&&(!R.rep||R.rep===t.id))}
 function rRepCard(R){const reps=rReps(R);const all=real(live(S.projects));
   const rows=reps.map(t=>{const mine=all.filter(p=>{const r=repFor(p);return r&&r.id===t.id});
-    const q=mine.filter(p=>rIn(stageAt(p,"quoted"),R)),w=mine.filter(p=>rIn(stageAt(p,"won"),R)),l=mine.filter(p=>rIn(stageAt(p,"lost"),R));
+    const q=mine.filter(p=>rIn(stageAt(p,"quoted"),R)),w=mine.filter(p=>rIn(stageAt(p,"won"),R)),l=mine.filter(p=>rIn(rLostAt(p),R));
     const qv=q.reduce((a,p)=>a+projValue(p),0),wv=w.reduce((a,p)=>a+projValue(p),0);
     const cm=w.map(costedMargin).reduce((a,x)=>({rev:a.rev+x.rev,cost:a.cost+x.cost}),{rev:0,cost:0});
     const od=rOverdueFollowups({rep:t.id}).length;
@@ -12109,7 +12161,10 @@ function rQbCompareCard(R){const qb=qbRows();if(!qb)return rCard("qbcmp","Quoted
   const t=rTable("qbcmp","Quoted vs invoiced",["Project","Account","Invoice #","CRM total (with tax)","QuickBooks total","Gap"],rows.sort((a,b)=>(b.flag?1:0)-(a.flag?1:0)));
   return rCard("qbcmp","Quoted vs invoiced (QuickBooks)","CRM project total with tax against the QuickBooks invoice; QuickBooks copy from "+(S.qbinv&&S.qbinv.at?fmtTs(S.qbinv.at):"—"),rBars(bars.map(b=>({label:b.label,parts:[{v:b.v,c:b.c}]})),{fmt:v=>String(v),short:v=>String(v)}),t)}
 function rAgingCard(){const qb=qbRows();const now=Date.now();let src="QuickBooks";let items;
-  if(qb)items=qb.filter(q=>qbNum(q.balance)>0).map(q=>({l:"Invoice "+q.doc,d:q.customer||"",at:rMs(q.date),due:q.due,bal:qbNum(q.balance)}));
+  // the CRM account on the project that carries the invoice number; QuickBooks' customer name (often a person) only when none does
+  const byInv={};real(live(S.projects)).forEach(p=>{const n=String(p.invNum||"").replace(/^#/,"").trim();if(n)byInv[n]=p});
+  if(qb)items=qb.filter(q=>qbNum(q.balance)>0).map(q=>{const p=byInv[String(q.doc).replace(/^#/,"").trim()];
+    return {l:"Invoice "+q.doc+(p?" · P-"+p.num:""),go:p?"project/"+p.id:"",d:p?accName(p.accountId)+(q.customer&&norm(q.customer)!==norm(accName(p.accountId))?" (QuickBooks: "+q.customer+")":""):(q.customer||""),at:rMs(q.date),due:q.due,bal:qbNum(q.balance)}});
   else{src="CRM (QuickBooks copy not in yet)";items=real(live(S.projects)).filter(p=>billState(p)==="invoiced").map(p=>({l:"P-"+p.num+" "+(p.name||""),go:"project/"+p.id,d:accName(p.accountId),at:billedAt(p),due:payDueDate(p),bal:projValue(p)+(invTaxOf(p)||0)}))}
   const B=[["0-30",0,30],["31-60",31,60],["61-90",61,90],["90+",91,1e9]];
   const age=x=>Math.floor((now-(x.at||now))/864e5);
@@ -12126,7 +12181,7 @@ function rTopCustCard(R){const by={};real(live(S.projects)).filter(p=>["won","pr
   const bars=rows.slice(0,10).map(r=>({label:String(r.cells[0]).slice(0,10),drill:r.drill,v:r.cells[2]}));
   const t=rTable("topcust","Top customers and reorder alerts",["Customer","Orders (all time)","Won in range","Last order","Usual days between orders","Days since last order"],rows);
   return rCard("topcust","Top customers and reorder alerts","flagged when it's been 25% longer than their usual gap between orders (2+ orders)",rBars(bars),t)}
-function rLostCard(R){const ps=rProjects(R).filter(p=>p.stage==="lost"&&rIn(stageAt(p,"lost"),R));const by={};ps.forEach(p=>{const k=(LOSTWHY.find(x=>x.id===p.lostWhy)||{}).label||"No reason recorded";(by[k]=by[k]||[]).push(p)});
+function rLostCard(R){const ps=rProjects(R).filter(p=>p.stage==="lost"&&rIn(rLostAt(p),R));const by={};ps.forEach(p=>{const k=(LOSTWHY.find(x=>x.id===p.lostWhy)||{}).label||"No reason recorded";(by[k]=by[k]||[]).push(p)});
   const ks=Object.keys(by).sort((a,b)=>by[b].length-by[a].length);
   const bars=ks.map((k,i)=>({label:k.split(" ").slice(0,2).join(" "),drill:rDrill("lost:"+k,"Lost — "+k,by[k].map(p=>Object.assign(pRec(p),{d:accName(p.accountId)+(p.lostTo?" · to "+p.lostTo:"")}))),parts:[{v:by[k].length,c:RCOL[i%RCOL.length]}]}));
   const t=rTable("lost","Lost-quote reasons",["Reason","Quotes","Value lost"],ks.map(k=>({drill:"lost:"+k,cells:[k,by[k].length,Math.round(by[k].reduce((t,p)=>t+projValue(p),0)*100)/100]})),{empty:"Nothing marked lost in this range."});
@@ -13211,7 +13266,8 @@ function projectModal(p,aid,then){
       ${sel("f-prep","Sales rep — blank uses the account's",p.repId||"",
         repList().map(t=>({v:t.id,l:t.name})),1)}
       ${sel("f-billwhen","When we bill",p.billWhen||"after",BILLWHEN.map(x=>({v:x.id,l:x.label})))}
-      ${ta("f-scope","What this project is — for the customer and the shop",p.scope)}
+      ${ta("f-scope","About this project — for the team only, never printed",p.scope)}
+      ${ta("f-cscope","Scope on the quote / invoice — the customer sees this (leave empty for none)",p.custScope||"")}
       ${inp("f-ship","Ship to",p.shipTo,"text",1)}<input type="hidden" id="f-drive" value="${esc(p.drive||"")}">
       ${ta("f-notes","Working notes (internal)",p.notes)}</div>`,
     `<button class="btn" data-close="1">Cancel</button><button class="btn p" id="save">Save project</button>`));
@@ -13226,7 +13282,7 @@ function projectModal(p,aid,then){
       amount:$("#f-amt").value,start:$("#f-start").value,due:$("#f-due").value,
       po:$("#f-po").value,quote:$("#f-quote").value,source:$("#f-src").value,
       shipTo:$("#f-ship").value,drive:$("#f-drive").value,
-      scope:$("#f-scope")?$("#f-scope").value.trim():(p.scope||""),notes:$("#f-notes").value});
+      scope:$("#f-scope")?$("#f-scope").value.trim():(p.scope||""),custScope:$("#f-cscope")?$("#f-cscope").value.trim():(p.custScope||""),notes:$("#f-notes").value});
     closeModal();
     accountModal(null,newId=>{keep.accountId=newId;projectModal(keep,newId)});
   };
@@ -13244,7 +13300,7 @@ function projectModal(p,aid,then){
       po:$("#f-po").value.trim()||($("#f-ourpo")&&$("#f-ourpo").checked?"SSS-"+num:""),quote:$("#f-quote").value.trim()||(stage!=="inquiry"&&stage!=="lost"&&(!p.id||p.stage!==stage)?await nextQuote():""),
       source:$("#f-src").value,
       invNum:p.invNum||"",shipTo:$("#f-ship").value.trim(),drive:$("#f-drive").value.trim(),
-      scope:$("#f-scope")?$("#f-scope").value.trim():(p.scope||""),notes:$("#f-notes").value.trim(),stageLog:sl,reorderOf:p.reorderOf||"",
+      scope:$("#f-scope")?$("#f-scope").value.trim():(p.scope||""),custScope:$("#f-cscope")?$("#f-cscope").value.trim():(p.custScope||""),notes:$("#f-notes").value.trim(),stageLog:sl,reorderOf:p.reorderOf||"",
       contacts:p.contacts||[],repId:$("#f-prep")?$("#f-prep").value:(p.repId||""),
       amountAuto:$("#f-auto")?$("#f-auto").checked:!!p.amountAuto,
       billWhen:$("#f-billwhen")?$("#f-billwhen").value:(p.billWhen||"after"),
@@ -15935,6 +15991,11 @@ function bind(){
 
     const rc=t.closest("[data-rptcsv]");if(rc){reportCSV();return}
     if(t.closest("[data-reorderset]")){reorderSetModal();return}
+    if(t.closest("[data-auditclear]")){S.auditF={type:"",who:"",days:"",src:""};render();return}
+    if(t.closest("[data-acsel]"))return;
+    if(t.closest("[data-acclear]")){S.acSel=new Set();render();return}
+    if(t.closest("[data-acexport]")){acctExport();return}
+    {const x=t.closest("[data-taskf]");if(x){S.taskF=x.dataset.taskf;render();return}}
     {const x=t.closest("[data-rdrill]");if(x){rDrillModal(x.dataset.rdrill);return}}
     {const x=t.closest("[data-rcsv]");if(x){rCSV(x.dataset.rcsv);return}}
     if(t.closest("[data-rprob]")){rProbModal();return}
@@ -16506,6 +16567,11 @@ function bind(){
     const t=e.target;
     const gt=t.closest("[data-gate]");if(gt){const[n,k]=gt.dataset.gate.split(":");toggleGate(n,k,t.checked);return}
     const rt=t.closest("[data-route]");if(rt){const[n,k]=rt.dataset.route.split(":");toggleRoute(n,k,t.checked);return}
+    {const x=t.closest("[data-auditf]");if(x){S.auditF=Object.assign({},S.auditF||{},{[x.dataset.auditf]:t.value});render();return}}
+    {const x=t.closest("[data-acctbulk]");if(x){acctBulk(x.dataset.acctbulk,t.value);return}}
+    {const x=t.closest("[data-acsel]");if(x){S.acSel=S.acSel||new Set();const id=x.dataset.acsel;
+      if(id==="*"){const ids=[...document.querySelectorAll("[data-acsel]")].map(e=>e.dataset.acsel).filter(v=>v!=="*");if(t.checked)ids.forEach(i=>S.acSel.add(i));else S.acSel.clear()}
+      else{if(t.checked)S.acSel.add(id);else S.acSel.delete(id)}render();return}}
     {const x=t.closest("[data-rf]");if(x){S.rf=Object.assign({},S.rf||{},{[x.dataset.rf]:t.value});
       if(x.dataset.rf==="preset"&&t.value==="custom"){const R0=rfGet();S.rf.from=S.rf.from||R0.fromIso;S.rf.to=S.rf.to||R0.toIso}render();return}}
     if(t.id==="rpt-preset"){
