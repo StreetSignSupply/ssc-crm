@@ -6593,7 +6593,7 @@ function priceSrcOf(sg){if(!sg)return "";const w=String(sg.why||"");return sg.co
 function linePriceSrc(p,l){if(!l||isCharge(l)||!(Number(l.price)>0))return "";if(l.priceSrc)return l.priceSrc;
   const pr=Number(l.price),eq=v=>v!=null&&Math.abs(Number(v)-pr)<0.005;
   try{const a=acct(p&&p.accountId);const cp=a?contractPrice(a,l):null;if(cp&&eq(cp.price))return "their price";
-    if(l.webId)return "website";const d=defaultPrice(l,p&&p.accountId);if(d)return eq(d.price)?priceSrcOf(d):"typed"}catch(e){}
+    if(l.webId)return "website";const d=defaultPrice(l,p&&p.accountId);if(d)return eq(d.price)?priceSrcOf(d):"earlier price"}catch(e){}
   return ""}
 function ordSuggest(line){
   const a=S.ordAid?acct(S.ordAid):null;const cp=a?contractPrice(a,line):null;
@@ -10206,7 +10206,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-83";
+const APP_VERSION="2026.11.25-84";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
