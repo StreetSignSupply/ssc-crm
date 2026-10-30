@@ -10239,7 +10239,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-86";
+const APP_VERSION="2026.11.25-87";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -12795,7 +12795,7 @@ function settingsView(){
       ${b.mailSendOk?"":`<div class="warn" style="margin-bottom:10px"><b>One step in Google Admin turns it on</b> (an admin of streetsignsupply.com): admin.google.com → Security → Access and data control → API controls → <b>Manage Domain Wide Delegation</b> → <b>Add new</b>.<br>
         Client ID: <span class="mono">${esc(b.mailClientId||"103643158992452177708")}</span><br>OAuth scopes: <span class="mono">https://www.googleapis.com/auth/gmail.send,https://www.googleapis.com/auth/gmail.readonly</span><br>Then <b>Authorize</b>. Within 10 minutes this box turns green.</div>`}
       <div class="fgrid">${inp("b-mailfrom","Send from (when the person has no @streetsignsupply.com address)",b.mailFrom||"matt@streetsignsupply.com")}
-        ${inp("b-signbase","Signature page address",b.signBase||"https://crm.streetsignsupply.com/sign.html")}</div>
+        ${inp("b-signbase","Signature page address",b.signBase||"https://ssc-crm-a7224.web.app/sign.html")}</div>
       <div style="margin-top:8px">${ck("b-mailsend",b.mailSend!==false,"Send emails from the CRM when sending is connected","Off, Send always opens your own email")}</div>
       ${b.mailSyncAt?`<div class="sub" style="margin-top:6px">Gmail last read ${esc(fmtTs(b.mailSyncAt))}${b.mailSyncN!=null?" — "+b.mailSyncN+" customer emails logged that run":""}.</div>`:""}
     </div></section>
@@ -15845,7 +15845,7 @@ function sendBadge(x){const s=x&&x.sendState;if(!s||s==="opened")return "";
    "Get it signed" makes a private link to a page where the customer reads the quote (or proof), types their name, draws
    a signature and approves. The page writes only to that one sign request; the CRM shows it here the moment it's signed,
    the mail worker tells the rep, and "Mark won" / "Save to Files" are one click. Links last 30 days. */
-function signBase(){return String((S.brand||{}).signBase||"https://crm.streetsignsupply.com/sign.html").trim()}
+function signBase(){return String((S.brand||{}).signBase||"https://ssc-crm-a7224.web.app/sign.html").trim()}
 function signUrl(tok){return signBase()+"?t="+encodeURIComponent(tok)}
 function signView(tok){return signUrl(tok)+"&view=1"}
 function signToken(){const a=new Uint8Array(24);try{crypto.getRandomValues(a)}catch(e){for(let i=0;i<a.length;i++)a[i]=Math.floor(Math.random()*256)}
