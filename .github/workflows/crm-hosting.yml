@@ -1,0 +1,26 @@
+name: Signing page (Firebase Hosting)
+# Publishes docs/sign.html — the page customers open from a signature link — to https://ssc-crm-a7224.web.app/sign.html
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths: ["docs/**", "worker/hosting.mjs"]
+permissions: { contents: read, id-token: write }
+concurrency: { group: crm-hosting, cancel-in-progress: false }
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - id: gauth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/741399760463/locations/global/workloadIdentityPools/github/providers/ssc-crm
+          service_account: firebase-adminsdk-fbsvc@ssc-crm-a7224.iam.gserviceaccount.com
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/firebase
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - env: { HOSTING_TOKEN: "${{ steps.gauth.outputs.access_token }}" }
+        run: node worker/hosting.mjs
