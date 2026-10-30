@@ -10241,7 +10241,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-88";
+const APP_VERSION="2026.11.25-89";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -15857,27 +15857,51 @@ function signDocs(pid){return composeFiles(pid).filter(f=>/pdf|image/i.test((f.t
   .sort((a,b)=>((b.cat==="Quote"&&b.gen)?1:0)-((a.cat==="Quote"&&a.gen)?1:0)||(b.at||0)-(a.at||0))}
 function signModal(pid,fid){const p=proj(pid);if(!p)return;const docs=signDocs(pid);
   if(!window.sscHosted){toast("Signature links work from crm.streetsignsupply.com.");return}
-  if(!docs.length){toast("Save the quote PDF (or upload the proof) to Files first, then send it for signature.");return}
+  // a proof can be signed off the artwork pictures themselves — no PDF needed
+  let arts=[];try{arts=proofArt(p).concat(proofLineArts(p)).filter(f=>f&&f.url)}catch(e){}
+  if(!docs.length&&!arts.length){toast("Save the quote PDF to Files (or upload the proof artwork) first, then send it for signature.");return}
   const c=followContact(p);const d0=fid?docs.find(f=>f.id===fid)||docs[0]:docs[0];
+  const proofish=d0&&/proof|artwork/i.test(d0.cat||"");
+  const people=(p.contacts||[]).map(x=>S.contacts.get(x)).concat(contactsOf(p.accountId)).filter((x,i,a)=>x&&x.email&&a.findIndex(y=>y&&y.id===x.id)===i);
   openModal(mshell("Get it signed","file",`<div class="fgrid">
-    <div class="fld full"><div class="k">Document</div><select id="sg-doc">${docs.map(f=>`<option value="${esc(f.id)}" ${f.id===d0.id?"selected":""}>${esc(f.name)} — ${esc(f.cat||"file")}</option>`).join("")}</select></div>
-    <div class="fld"><div class="k">They're approving</div><select id="sg-kind"><option value="quote" ${/proof|artwork/i.test(d0.cat||"")?"":"selected"}>The quote (price and items)</option><option value="proof" ${/proof|artwork/i.test(d0.cat||"")?"selected":""}>The proof (artwork)</option></select></div>
-    <div class="fld"><div class="k">Who signs</div><select id="sg-who">${(p.contacts||[]).map(x=>S.contacts.get(x)).concat(contactsOf(p.accountId)).filter((x,i,a)=>x&&x.email&&a.findIndex(y=>y&&y.id===x.id)===i).map(x=>`<option value="${esc(x.id)}" ${c&&c.id===x.id?"selected":""}>${esc(x.name)} — ${esc(x.email)}</option>`).join("")||`<option value="">(no contact with an email)</option>`}</select></div>
-    <div class="fld full sub">They get a private link (good for 30 days) to read it, type their name, sign and approve. Nothing to install, no account. Next you'll see the email with the link in it.</div></div>`,
+    <div class="fld full"><div class="k">They're approving</div><select id="sg-kind">
+      <option value="quote" ${proofish||!docs.length?"":"selected"}>The quote — items and prices</option>
+      <option value="proof" ${proofish||!docs.length?"selected":""}>The proof — artwork${arts.length?" ("+arts.length+" picture"+(arts.length===1?"":"s")+")":""}</option></select></div>
+    <div class="fld full"><div class="k">Document to go with it</div><select id="sg-doc"><option value="">— none, just what's on the page —</option>${docs.map(f=>`<option value="${esc(f.id)}" ${d0&&f.id===d0.id?"selected":""}>${esc(f.name)} — ${esc(f.cat||"file")}</option>`).join("")}</select></div>
+    <div class="fld full"><div class="k">Who signs</div><select id="sg-who">${people.map(x=>`<option value="${esc(x.id)}" ${c&&c.id===x.id?"selected":""}>${esc(x.name)} — ${esc(x.email)}</option>`).join("")||`<option value="">(no contact with an email — add one first)</option>`}</select></div>
+    <div class="fld full sub">They get a private link (good for 30 days). The page shows the ${"items, pictures and prices"} — or for a proof, every artwork picture to check — and they type their name, sign and approve, or ask for changes. Next you'll see the email with the link in it.</div></div>`,
     `<button class="btn" data-close="1">Cancel</button><button class="btn p" id="sg-go">Make the link</button>`));
-  $("#sg-go").onclick=async()=>{const f=S.files.get($("#sg-doc").value);const kind=$("#sg-kind").value;const ct=S.contacts.get($("#sg-who").value)||null;if(!f)return;
-    const tok=signToken();const now=Date.now();const b=S.brand||{};
-    const rec={token:tok,kind,projectId:p.id,pnum:"P-"+p.num,title:(kind==="proof"?"Proof — ":"Quote "+(p.quote||"P-"+p.num)+" — ")+p.name,
-      company:b.name||"Street Sign Supply",companyPhone:b.phone||"",companyEmail:b.email||"",customer:accName(p.accountId),contactName:ct?ct.name:"",contactEmail:ct?ct.email:"",
-      total:kind==="quote"?money2(projValue(p)):"",lines:kind==="quote"?orderedLines(p).filter(l=>Number(l.qty)>0).slice(0,40).map(l=>({d:String(l.desc||signName(l)||l.code||"Item").slice(0,90)+(l.size?" — "+sizeLabel(l.size):""),q:Number(l.qty)||0,p:Number(l.price)||0})):[],
-      pdfUrl:f.url,pdfName:f.name,fileId:f.id,status:"sent",createdAt:now,expiresAt:now+30*864e5,createdBy:meName(),createdById:meId(),signedName:"",signedAt:0,deleted:false};
+  $("#sg-go").onclick=async()=>{const kind=$("#sg-kind").value;const f=S.files.get($("#sg-doc").value)||null;const ct=S.contacts.get($("#sg-who").value)||null;
+    if(kind==="quote"&&!orderedLines(p).some(l=>Number(l.qty)>0)){toast("The quote has no lines yet.");return}
+    if(kind==="proof"&&!arts.length&&!f){toast("No artwork on this project yet — upload the proof pictures first.");return}
+    const tok=signToken();const rec=signRec(p,kind,f,ct,arts,tok);
     try{await setDoc("signreq/"+tok,rec)}catch(e){toast("Couldn't make the link.");return}
-    logEvent("project",p.id,(kind==="proof"?"Proof":"Quote")+" sent for signature ("+f.name+")"+(ct?" to "+ct.name:""));
-    closeModal();composeModal({pid:p.id,contactId:ct?ct.id:"",tpl:kind==="proof"?"proof":"quote",signUrl:signUrl(tok),signId:tok,attach:[f.id],title:"Email the signature link"})}}
+    logEvent("project",p.id,(kind==="proof"?"Proof":"Quote")+" sent for signature"+(f?" ("+f.name+")":"")+(ct?" to "+ct.name:""));
+    closeModal();composeModal({pid:p.id,contactId:ct?ct.id:"",tpl:kind==="proof"?"proof":"quote",signUrl:signUrl(tok),signId:tok,attach:f?[f.id]:[],title:"Email the signature link"})}}
+// what the signing page shows: everything it needs is copied in, so the page never reads the CRM itself
+function signRec(p,kind,f,ct,arts,tok){const b=S.brand||{};const now=Date.now();const rep2=repFor(p)||S.viewerTeam||{};
+  const small=u=>{u=String(u||"");return /^https:\/\//.test(u)||(/^data:image\//.test(u)&&u.length<160000)?u:""};
+  const ol=orderedLines(p).filter(l=>Number(l.qty)>0);
+  const lines=kind==="quote"?ol.slice(0,60).map(l=>{const ch=isCharge(l);let img="";if(!ch){try{img=small(linePic(p,l))}catch(e){}}
+    return {d:String(ch?(l.desc||"Charge"):docTidyName(l.desc||signName(l)||l.code||"Item",l)).slice(0,110),
+      s:ch?"":[String(l.code||"").split("|")[0].trim(),l.size?sizeLabel(l.size):"",docSheeting(l.grade)].filter(Boolean).join(" · ").slice(0,140),
+      q:Number(l.qty)||0,p:Number(l.price)||0,c:ch,img}}):[];
+  let artList=[];if(kind==="proof"){const m=(function(){try{return artMatches(p)}catch(e){return {}}})();
+    artList=arts.slice(0,24).map((a,i)=>{const lo=a._line||null;return {url:small(a.url),cap:String(lo?docTidyName(lo.desc||signName(lo)||lo.code||"Item",lo):String(a.name||"").replace(/\.[a-z0-9]+$/i,"")).slice(0,100),
+      s:lo?[lo.qty?lo.qty+" pcs":"",lo.size?sizeLabel(lo.size):"",docSheeting(lo.grade)].filter(Boolean).join(" · "):""}}).filter(a=>a.url)}
+  const sub=lines.reduce((t,l)=>t+l.q*l.p,0);
+  return {token:tok,kind,projectId:p.id,pnum:"P-"+p.num,quoteNo:kind==="quote"?(p.quote||"P-"+p.num):"",project:p.name||"",
+    title:(kind==="proof"?"Proof for ":"Quote "+(p.quote||"P-"+p.num)+" — ")+(p.name||""),
+    company:b.name||"Street Sign Supply",companyPhone:b.phone?fmtPhone(b.phone):"",companyEmail:b.email||"",companyAddr:b.address||"",
+    logo:String(b.logo||"").length<200000?(b.logo||""):"",color:/^#[0-9a-f]{6}$/i.test(b.brand||"")?b.brand:"#D50101",
+    repName:rep2.name||"",repPhone:rep2.phone?fmtPhone(rep2.phone):"",repEmail:rep2.email||"",
+    customer:accName(p.accountId),contactName:ct?ct.name:"",contactEmail:ct?ct.email:"",
+    total:kind==="quote"?money2(sub):"",subtotal:kind==="quote"?Math.round(sub*100)/100:0,lines,arts:artList,
+    pdfUrl:f?f.url:"",pdfName:f?f.name:"",fileId:f?f.id:"",status:"sent",createdAt:now,expiresAt:now+30*864e5,createdBy:meName(),createdById:meId(),signedName:"",signedAt:0,deleted:false}}
 function signCard(p){const rs=signReqsFor(p.id);if(!rs.length)return "";
   return `<section class="card flush"><header><h2>Signatures</h2><span class="n">${rs.length}</span><span class="sp"><button class="btn sm" data-signreq="${esc(p.id)}">Get it signed</button></span></header>
     ${rs.map(r=>{const exp=r.status!=="signed"&&r.expiresAt&&r.expiresAt<Date.now();
-      return `<div class="rrow"><div class="rr-c"><div class="rr-t"><span>${esc(r.kind==="proof"?"Proof":"Quote")} — ${esc(r.pdfName||"")}</span>
+      return `<div class="rrow"><div class="rr-c"><div class="rr-t"><span>${esc(r.kind==="proof"?"Proof":"Quote "+(r.quoteNo||""))}${r.pdfName?" — "+esc(r.pdfName):r.arts&&r.arts.length?" — "+r.arts.length+" picture"+(r.arts.length===1?"":"s"):""}</span>
         ${r.status==="signed"?`<span class="pill g">signed ${esc(fmtTs(r.signedAt))}</span>`:r.status==="declined"?`<span class="pill r">declined</span>`:r.status==="cancelled"?`<span class="pill">cancelled</span>`:exp?`<span class="pill">link expired</span>`:`<span class="pill y">waiting${r.viewedAt?" · opened "+esc(fmtTs(r.viewedAt)):""}</span>`}</div>
         <div class="sub">${r.status==="signed"?`Signed by <b>${esc(r.signedName)}</b>${r.signedTitle?", "+esc(r.signedTitle):""}${r.note?` — “${esc(r.note)}”`:""}`
           :r.status==="declined"?`${esc(r.signedName||"They")} asked for changes${r.note?`: “${esc(r.note)}”`:""}`:`Sent to ${esc(r.contactName||r.contactEmail||"—")} by ${esc(r.createdBy||"")} ${esc(fmtTs(r.createdAt))}`}</div>
