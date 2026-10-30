@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-87
+- Signature links now point to https://ssc-crm-a7224.web.app/sign.html — the signing page is hosted with the CRM, nothing to upload.
+- Email sending and Gmail logging are connected (sending from each person's Gmail; customer emails logged every 10 minutes).
+
 ## 2026.11.25-86
 - Email from the CRM: one compose screen (Drafts → New email…, any email address in the CRM, Send on a draft or follow-up). Pick who it goes to, start from a template (send the quote, follow-up, proof, shipped, invoice, thank-you — or your own saved ones), have Claude write it (in-Claude copy), attach files from the project, and Send. Once Google Workspace delegation is on (Settings → Sending email), Send goes out from the person's own @streetsignsupply.com Gmail within 10 minutes and shows "sent" on the activity; until then it opens in your own email and is logged.
 - Gmail is read every 10 minutes (once delegation is on): every email to or from a CRM customer is logged on their account automatically, marked "Gmail".
