@@ -15,6 +15,7 @@ const DOMAIN = "streetsignsupply.com";
 const fs = new Firestore({ projectId: P });
 const say = (m) => console.log(m);
 const note = (m) => console.log("::notice::" + m);
+const errKinds = {};
 const n = { sent: 0, failed: 0, logged: 0, users: 0, userErr: 0, signs: 0 };
 const isOurs = (e) => new RegExp("@" + DOMAIN.replace(".", "[.]") + "$", "i").test(String(e || "").trim());
 const b64u = (b) => Buffer.from(b).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -140,7 +141,7 @@ for (const t of team) {
       already.add(it.id); n.logged++;
     }
     seen[t.id] = newest || after; n.users++;
-  } catch (e) { n.userErr++; }
+  } catch (e) { n.userErr++; const k = String(e.message || e).replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "<email>").slice(0, 90); errKinds[k] = (errKinds[k] || 0) + 1; }
 }
 await syncRef.set({ last: seen, at: Date.now() }, { merge: true });
 await brandRef.set({ mailSyncAt: Date.now(), mailSyncN: n.logged }, { merge: true });
@@ -161,4 +162,4 @@ for (const d of sigs) {
   await d.ref.set({ notified: true, notifiedAt: now }, { merge: true }); n.signs++;
 }
 // notices queued just now go out on the next run (in 10 minutes)
-note("mail: " + n.sent + " sent, " + n.failed + " didn't send, " + n.logged + " customer emails logged from " + n.users + " inboxes" + (n.userErr ? " (" + n.userErr + " inboxes couldn't be read)" : "") + ", " + n.signs + " signature updates");
+note("mail: " + n.sent + " sent, " + n.failed + " didn't send, " + n.logged + " customer emails logged from " + n.users + " inboxes" + (n.userErr ? " (" + n.userErr + " inboxes couldn't be read)" : "") + ", " + n.signs + " signature updates" + (n.userErr ? " | inbox errors: " + JSON.stringify(errKinds) : ""));
