@@ -1450,7 +1450,14 @@ function routeNote(j){
   return {kind:"sub",t:""};
 }
 // street name blades are signs to the shop, but they're called what they are
-function isStreetName(l){return /^D3-/i.test(String(l&&l.code||""))||/street\s*name|name\s+blade|flat\s+blade|extruded\s+blade/i.test(String(l&&l.desc||""))}
+function isStreetName(l){if(!l)return false;const c=String(l.code||""),d=String(l.desc||"")+" "+String(l.note||"");
+  if(/^D3-/i.test(c)||/street\s*name|\bblades?\b/i.test(d))return true;
+  // no MUTCD code and a blade's shape (4–9" tall, 18"+ long) with a street's name on it: a street name blade
+  const z=parseSize(l.size);if(c&&!/^D3/i.test(c))return false;
+  if(z){const sh=Math.min(z.w,z.h),lg=Math.max(z.w,z.h);if(sh>=4&&sh<=9&&lg>=18&&/\b(st|street|rd|road|dr|drive|ave|avenue|ln|lane|way|ct|court|cir|circle|blvd|pl|place|pkwy|trl|trail|loop|cv|cove|hwy|ter|terrace|n|s|e|w|north|south|east|west)\b\.?/i.test(d))return true}
+  return false}
+// the kind shown on screen: a sign line that's a street name blade reads "Street name sign"
+function lineKind(l){const k=lineProd(l);return k==="sign"&&isStreetName(l)?"street":k}
 function prodLabel(j){if(prodOf(j)==="sign"){const its=woItems(j).filter(x=>Number(x.qty)>0);if(its.length&&its.every(isStreetName))return "Street name sign"}
   const x=allProd().find(y=>y.id===prodOf(j));return x?x.label:"Sign"}
 // what kinds of thing this work order's lines actually are
@@ -1460,7 +1467,7 @@ function jobKinds(j){
   if(!k.length)k.push(prodOf(j));
   return k;
 }
-function kindLabel(k){if(k==="charge")return "Charges";const x=allProd().find(y=>y.id===k);return x?x.label:k}
+function kindLabel(k){if(k==="charge")return "Charges";if(k==="street")return "Street name sign";const x=allProd().find(y=>y.id===k);return x?x.label:k}
 function jobMixed(j){return jobKinds(j).length>1}
 function jobProdText(j){
   const k=jobKinds(j);
@@ -2848,7 +2855,16 @@ function projCost(p){if(!p)return 0;const js=jobsOf(p.id);const lines=orderedLin
 function projPulled(p){return p?jobsOf(p.id).reduce((t,j)=>t+jobCost(j),0):0}
 function valueFrom(p){return !p||!p.amountAuto?"typed in":orderedLines(p).some(l=>Number(l.price)>0)?"from the quote lines"
   :orderedLines(p).some(l=>!isCharge(l))?"no prices on the lines yet":"from the work order lines"}
-function projMargin(p){const r=projValue(p);if(!r||projCost(p)===0)return null;return (r-projCost(p))/r*100}
+// margin is read only off lines that have a cost: a sign line with no cost yet would count as 100% margin and push the
+// figure up (a charge with no cost really is nothing out of pocket, so charges always count). Extra project costs count.
+function costedMargin(p){let rev=0,cost=0,un=0,nu=0;orderedLines(p).forEach(l=>{const q=Number(l.qty)||(isCharge(l)?1:0),pr=Number(l.price)||0;if(!q||!pr)return;
+  let c=0;if(isCharge(l))c=Number(l.cost)||0;else{try{c=quoteLineCost(l).cost||0}catch(e){}}
+  if(isCharge(l)||c>0){rev+=q*pr;cost+=q*c}else{un+=q*pr;nu++}});
+  cost+=Number(p&&p.otherCost)||0;
+  return {rev:Math.round(rev*100)/100,cost:Math.round(cost*100)/100,uncosted:Math.round(un*100)/100,uncostedLines:nu,m:rev?(rev-cost)/rev*100:null}}
+function projMargin(p){if(!p)return null;
+  if(orderedLines(p).some(l=>!isCharge(l)&&Number(l.price)>0)){const c=costedMargin(p);return c.rev&&c.cost>0?c.m:null}
+  const r=projValue(p);if(!r||projCost(p)===0)return null;return (r-projCost(p))/r*100}
 function marginTxt(p){const m=projMargin(p);return m==null?"—":m.toFixed(0)+"%"}
 // "3M Diamond Grade DG3 White 4090 — 48in" → "DG3 White": the short name for a narrow screen
 function gradeShort(g){const t=String(g||"").replace(/^3M\s+/i,"").replace(/Diamond Grade\s*/i,"").replace(/High Intensity Prismatic\s*/i,"").replace(/Engineer Grade\s*/i,"")
@@ -3412,7 +3428,8 @@ function docHTML(p,kind){
     let spec="";
     if(src){const sh=docSheeting(src.grade);const sz=src.size?sizeLabel(src.size):"";
       const ga=(String(it.spec||"").match(/\.0\d\d\s*alum(?:inum)?/i)||[""])[0].replace(/alum$/i,"aluminum");
-      spec=[sz,ga||"",sh].filter(Boolean).join(", ")}
+      const tbc=!String(src.grade||"").trim()&&!src.sheetKey&&!isCharge(src)&&lineProd(src)==="sign"?"sheeting grade to be confirmed":"";
+      spec=[sz,ga||"",sh||tbc].filter(Boolean).join(", ")}
     else spec=it.spec||"";
     const said=docNorm(name+" "+spec+" "+code+" "+(src?String(src.code||"")+" "+String(src.grade||""):""));
     const sub2=String(it.sub||"").split(" · ").filter(x=>x&&said.indexOf(docNorm(x))<0&&!(src&&(docNorm(x)===docNorm(src.grade)||docNorm(x)===docNorm(src.code)))&&!/^\d+\s*["”]?\s*[x×]\s*\d+/.test(x)).join(", ");
@@ -3522,6 +3539,12 @@ async function makeDoc(pid,kind){
     askConfirm(low.length+" line"+(low.length===1?" is":"s are")+" under your "+marginFloor()+"% margin floor",
       `<p style="margin:0">${low.map(l=>esc(l.desc||l.code||"line")+" at "+money2(l.price)).join("<br>")}</p><p class="note">Change the price on the quote lines, or carry on.</p>`,
       "Make it anyway",false,()=>{S._floorOk=true;makeDoc(pid,kind).finally(()=>{S._floorOk=false})});return}
+  // a sign line with no grade is priced for a grade nobody picked — stop and say so before the customer sees a price
+  const nog=kind==="quote"?orderedLines(p).filter(l=>!isCharge(l)&&lineProd(l)==="sign"&&!String(l.grade||"").trim()&&!l.sheetKey&&Number(l.price)>0):[];
+  if(nog.length&&!S._nogOk){
+    askConfirm(nog.length+" sign line"+(nog.length===1?" has":"s have")+" no grade",
+      `<p style="margin:0">${nog.map(l=>esc(l.desc||l.code||"line")+" at "+money2(l.price)).join("<br>")}</p><p class="note">The price depends on the grade (EG, HIP, DG3…). Pick the grade on the quote line first — or make it anyway and the PDF says “sheeting grade to be confirmed” on ${nog.length===1?"that line":"those lines"}.</p>`,
+      "Make it anyway",false,()=>{S._nogOk=true;makeDoc(pid,kind).finally(()=>{S._nogOk=false})});return}
   if(unpriced){
     askConfirm(unpriced+" line"+(unpriced===1?" has":"s have")+" no price",
       `<p style="margin:0">They'll print with a dash. Price them on the quote lines first — <b>Fill in missing prices</b> puts the default on any line that has a size and material — or carry on.</p>`,
@@ -4694,7 +4717,7 @@ function closeList(p){
       :projMargin(p)==null?"No cost recorded yet"
       :projMargin(p)<0?"Costing more than it sold for"
       :projMargin(p)<marginFloor()?projMargin(p).toFixed(0)+"% — under your "+marginFloor()+"% minimum"
-      :projMargin(p).toFixed(0)+"% — "+money(projValue(p)-projCost(p)),"proj",projValue(p)<=0);
+      :projMargin(p).toFixed(0)+"% — "+money((function(){const c=costedMargin(p);return c.rev?c.rev-c.cost:projValue(p)-projCost(p)})()),"proj",projValue(p)<=0);
   (function(){const others=live(S.accounts).filter(a=>a.id!==p.accountId&&(a.name||"").length>3).map(a=>acctKey(a.name)).filter(k=>k.length>3);
     const mine=f=>{const n=String(f.name||"").toLowerCase().replace(/[^a-z0-9]/g,"");return !others.some(k=>n.indexOf(k)>=0&&n.indexOf(acctKey(accName(p.accountId)))<0)};
     const fs=projFiles(p.id).filter(mine);
@@ -5067,7 +5090,7 @@ function reconCard(p){
         ${(function(){const qn=Number(r.extra?r.sched:r.ordered)||0;const uc=quoteLineCost(r);
           const pr=Number(r.price)||0;const mg=(pr&&uc.cost)?((pr-uc.cost)/pr*100):null;
           return `<td class="mono" style="text-align:right" title="${esc(uc.why||"")}">${uc.src==="stcflag"?`<span class="pill r" title="${esc(uc.why||"")}">not costed</span>`:uc.cost?money2(uc.cost)+(uc.src==="locked"?`<div class="sub" style="white-space:nowrap">${ic("lock",11)} locked${r.costAt?" "+esc(fmtDate(isoDay(r.costAt))):""}</div>`:""):uc.src==="nosize"?`<span class="sub">needs a size</span>`:uc.src==="nograde"?`<span class="pill o" title="${esc(uc.why)}">needs a grade</span>`:uc.src==="noblank"?`<span class="pill o" title="${esc(uc.why)}">no blank in stock list</span>`:`<span class="sub">—</span>`}</td>
-            <td class="mono" style="text-align:right">${pr?(Math.round(pr)===pr?money(pr):money2(pr)):`<span class="sub">—</span>`}${pr&&r.priceSrc?`<div class="sub" style="white-space:nowrap;font-family:inherit">${esc(r.priceSrc)}</div>`:""}</td>
+            <td class="mono" style="text-align:right">${pr?(Math.round(pr)===pr?money(pr):money2(pr)):`<span class="sub">—</span>`}${pr&&linePriceSrc(p,r)?`<div class="sub" style="white-space:nowrap;font-family:inherit">${esc(linePriceSrc(p,r))}</div>`:""}</td>
             <td class="mono" style="text-align:right;font-weight:800">${pr?money(pr*qn):""}</td>
             <td style="text-align:right">${mg==null?`<span class="sub">—</span>`
               :mg<0?`<span class="pill r" title="This line sells for less than it costs us (${esc(money2(uc.cost))} each)">⚠ ${Math.round(mg)}%</span><div class="sub" style="color:var(--danger-ink);white-space:nowrap">below cost</div>`
@@ -6400,7 +6423,9 @@ function codeList(){const m=new Map();
   sheetRows().forEach(r=>{const raw=r.code||r.mutcd;if(!raw)return;const k=codeNorm(raw);if(!k)return;
     if(!m.has(k))m.set(k,{code:String(raw).split("|")[0].trim().replace(/[-_ ]?\d+(\.\d+)?[xX]\d+(\.\d+)?$/,""),name:String(r.title||r.name||"").replace(/^\d+x\d+\s*/,"").replace(/\s+—\s+\w+$/,""),sizes:new Set()});
     if(r.size)m.get(k).sizes.add(r.size)});
-  return [...m.values()].map(x=>Object.assign(x,{sizes:[...x.sizes]})).sort((a,b)=>a.code.localeCompare(b.code,undefined,{numeric:true}))}
+  // only real sign codes (R1-1, W3-1, D3-1…): a workbook row whose "code" is really its title isn't one
+  return [...m.values()].filter(x=>/^[A-Z]{1,4}\d[\w.()-]{0,12}$/i.test(String(x.code||"").trim()))
+    .map(x=>Object.assign(x,{name:String(x.name||"").replace(/^MUTCD\s+/i,"").trim()||x.name,sizes:[...x.sizes]})).sort((a,b)=>a.code.localeCompare(b.code,undefined,{numeric:true}))}
 function codeKnown(c){const k=codeNorm(c);if(!k)return true;if(codeList().some(x=>codeNorm(x.code)===k))return true;
   if(S.stc&&stcList().some(st=>String(st.sku).toUpperCase()===k))return true;
   return ["DECAL","STENCIL","BANNER"].indexOf(k)>=0}
@@ -6421,16 +6446,25 @@ function cleanTitle(t){return String(t||"").replace(/\|.*$/,"").replace(/\s{2,}/
 // and "DOES NOT STOP" goes below real stop signs
 function findScore(q,code,title){const t=String(q||"").trim().toLowerCase();if(!t)return 9;
   if(code&&codeNorm(code)===codeNorm(t))return 0;
-  const nm=cleanTitle(title).toLowerCase().replace(/^\d+(\.\d+)?\s*[x×]\s*\d+(\.\d+)?("|in)?\s*/,"");
+  const nm=cleanTitle(title).toLowerCase().replace(/^\d+(\.\d+)?\s*[x×]\s*\d+(\.\d+)?("|in)?\s*/,"").replace(/^mutcd\s+/,"");
+  // the sign that IS the word ("stop" → R1-1 Stop, "STOP R1-1") beats signs that merely start with it
+  const bare=nm.replace(/\b[a-z]{1,4}\d[\w.-]*\b/g,"").replace(/\bsign\b/g,"").replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim();
+  if(bare===t)return 0.5;
   const esc2=t.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
   let sc=nm.indexOf(t)===0?1:new RegExp("\\b"+esc2+"\\b").test(nm)?2:3;
   if(new RegExp("\\b(not|no)\\s+(\\w+\\s+){0,2}"+esc2).test(nm))sc+=3;
   return sc}
+// a workbook title reads "30X30 STOP HERE FOR PEDESTRIAN SIGN DG3 .080|30X30": size and grade are shown under it already
+function findTitle(r){let t=cleanTitle(r.title);if(r.kind!=="sign")return t;
+  t=t.replace(/^\d+(\.\d+)?\s*[xX×]\s*\d+(\.\d+)?\s+/,"");const g=cleanTitle(r.grade);
+  if(g){const i=t.toUpperCase().lastIndexOf(g.toUpperCase());if(i>0&&i+g.length>=t.length-1)t=t.slice(0,i).trim()}
+  t=t.replace(/\s+(AEGP|EG|HIP|DG3?|DG|ALUM|ALUMINUM)?\s*\.0\d\d$/i,"").trim();
+  return t.charAt(0)+t.slice(1).toLowerCase().replace(/\b(r|w|d|m|s|i|e|g|ob|om|ow)(\d)/g,(m0,a,b)=>a.toUpperCase()+b)}
 function ordFindRows(q){const t=String(q||"").trim();if(!t)return [];
   const out=[];const cq=codeNorm(t);
   codeList().filter(e=>codeNorm(e.code).indexOf(cq)===0||(t.length>2&&String(e.name).toLowerCase().indexOf(t.toLowerCase())>=0))
     .forEach(e=>out.push({key:"code:"+e.code,title:e.code+" — "+e.name,sub:e.sizes.length?"sizes "+e.sizes.slice(0,4).map(sizeLabel).join(", "):"MUTCD code",sell:null,sc:Math.min(findScore(t,e.code,e.name),findScore(t,e.code,e.code))}));
-  catRows(t,"").forEach(r=>out.push({key:r.key,title:cleanTitle(r.title),sub:[r.size?sizeLabel(r.size):"",r.kind==="sign"||r.kind==="stc"||r.kind==="web"?cleanTitle(r.grade):"",
+  catRows(t,"").forEach(r=>out.push({key:r.key,title:findTitle(r),sub:[r.size?sizeLabel(r.size):"",r.kind==="sign"||r.kind==="stc"||r.kind==="web"?cleanTitle(r.grade):"",
     r.kind==="web"?"website":r.kind==="stc"?"stencil":r.kind==="sign"?"workbook":r.byArea?"priced by size":""].filter(Boolean).join(" · "),sell:r.sell,img:r.img||"",sc:findScore(t,r.code||r.sku,r.title)+0.5}));
   const seen=new Set();return out.filter(x=>{if(seen.has(x.key))return false;seen.add(x.key);return true})
     .map((x,i)=>Object.assign(x,{i})).sort((a,b)=>a.sc-b.sc||a.i-b.i).slice(0,8)}
@@ -6554,12 +6588,23 @@ function ordPickFill(key){
 // the one suggested price: the account's own price, else your price list / workbook / website (never under the
 // quote floor), else what it costs at the target margin. Shown as one number with one button.
 function priceSrcOf(sg){if(!sg)return "";const w=String(sg.why||"");return sg.contract?"their price":/website/i.test(w)?"website":/target margin/.test(w)?"cost + margin":/floor/.test(w)?"margin floor":/price list|workbook|tab 04|tab 11|your price/i.test(w)?"price list":"price list"}
+// where a line's price came from — saved on lines added since -81; older lines are worked out by comparing the price
+// with their price, the website item they were picked from and the price list (anything else was typed in)
+function linePriceSrc(p,l){if(!l||isCharge(l)||!(Number(l.price)>0))return "";if(l.priceSrc)return l.priceSrc;
+  const pr=Number(l.price),eq=v=>v!=null&&Math.abs(Number(v)-pr)<0.005;
+  try{const a=acct(p&&p.accountId);const cp=a?contractPrice(a,l):null;if(cp&&eq(cp.price))return "their price";
+    if(l.webId)return "website";const d=defaultPrice(l,p&&p.accountId);if(d)return eq(d.price)?priceSrcOf(d):"typed"}catch(e){}
+  return ""}
 function ordSuggest(line){
   const a=S.ordAid?acct(S.ordAid):null;const cp=a?contractPrice(a,line):null;
   if(cp)return {price:Number(cp.price),why:a.name+"'s own price for this item",contract:true};
   // the price on the item you picked from the price list stands until you change its code, size or material
   const pp=S.ordPre&&Number(S.ordPre.price);const pickedWeb=!!(S.ordPre&&S.ordPre.webId);
-  if(pp>0&&!(pickedWeb&&priceBasis(a)==="list"))return {price:pp,why:pickedWeb?"the website price for the item you picked":"the price list price for the item you picked"};
+  if(pp>0&&!(pickedWeb&&priceBasis(a)==="list")){const why0=pickedWeb?"the website price for the item you picked":"the price list price for the item you picked";
+    // quantity breaks apply to a picked price too (the floor still holds)
+    const qb=qtyBreakFor(line);if(!qb)return {price:pp,why:why0};
+    let pr=Math.round(pp*(1-Number(qb.pct)/100)*100)/100;const fl=floorPrice(line);if(fl&&fl.price>pr)pr=fl.price;
+    return {price:pr,list:pp,why:why0+" — "+money2(pp)+" less "+qb.pct+"% for "+qb.min+"+ pieces"}}
   return defaultPrice(line,S.ordAid)}
 function ordCostHelp(){
   const box=$("#o-cost-help");if(!box)return;
@@ -6571,7 +6616,10 @@ function ordCostHelp(){
   const lb=$("#o-legs");if(lb){const lp0=lineProd(line);lb.style.display=(lp0==="sign"&&line.build!=="print")?"":"none"}
   {const nw=$("#o-nolam-wrap"),nl=$("#o-nolam");const pr1=linePrinted(line);if(nw)nw.style.display=pr1?"":"none";line.noLam=!!(pr1&&nl&&nl.checked)}
   const sg=ordSuggest(line);
-  if(pe&&(pe.dataset.auto==="1"||pe.dataset.auto==="pick")){pe.value=sg?Number(sg.price).toFixed(2):""}
+  // the price follows the suggestion (quantity breaks included) until someone types their own price
+  const untouched=pe&&pe.dataset.sg&&Math.abs((Number(pe.value)||0)-Number(pe.dataset.sg))<0.005;
+  if(pe&&(pe.dataset.auto==="1"||pe.dataset.auto==="pick"||untouched)){pe.value=sg?Number(sg.price).toFixed(2):""}
+  if(pe)pe.dataset.sg=sg&&pe.value&&Math.abs(Number(pe.value)-Number(sg.price))<0.005?Number(sg.price).toFixed(2):"";
   {const cw=$("#o-contract-wrap");if(cw){const a0=acct(S.ordAid);const pv=Number(pe&&pe.value)||0;
     const cur=a0?contractPrice(a0,line):null;cw.style.display=(a0&&pv>0&&!(cur&&Math.abs(Number(cur.price)-pv)<0.005))?"":"none"}}
   ordDetText();
@@ -9557,7 +9605,9 @@ function home(){
   const revYTD=invYTD.reduce((t,p2)=>t+billedValue(p2),0);
   // margin is read off fully invoiced work only — a deposit has no cost against it yet
   const fullYTD=invYTD.filter(p2=>billState(p2)!=="deposit");
-  const revFull=fullYTD.reduce((t,p2)=>t+projValue(p2),0), costYTD=fullYTD.reduce((t,p2)=>t+projCost(p2),0);
+  // only lines with a cost count toward margin (see costedMargin); a project with no quote lines uses its work-order cost
+  const mYTD=fullYTD.map(p2=>orderedLines(p2).some(l=>!isCharge(l)&&Number(l.price)>0)?costedMargin(p2):{rev:projValue(p2),cost:projCost(p2)}).filter(x=>x.cost>0);
+  const revFull=mYTD.reduce((t,x)=>t+x.rev,0), costYTD=mYTD.reduce((t,x)=>t+x.cost,0);
   const pipe=open.reduce((t,p2)=>t+projValue(p2),0);
   const late=oj.filter(isLateJob);
   const dt=oj.filter(j=>daysOut(j.due)===0);
@@ -10156,7 +10206,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-82";
+const APP_VERSION="2026.11.25-83";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -10426,7 +10476,8 @@ function projectRec(id){
         <div><div class="k">Cost</div><div class="v mono">${projCost(p)?money(projCost(p)):"—"}${projPulled(p)&&Math.abs(projPulled(p)-projCost(p))>1?`<div class="sub" title="Material and other costs recorded on the work orders">${money(projPulled(p))} pulled so far</div>`:""}</div></div>
         <div><div class="k">Margin</div><div class="v">${marginPill(projMargin(p),projValue(p))}${(function(){if(!can("cost"))return "";
           const neg=orderedLines(p).filter(l=>{if(isCharge(l))return false;const pr=Number(l.price)||0;let c=0;try{c=quoteLineCost(l).cost||0}catch(e){}return pr>0&&c>0&&pr<c}).length;
-          return neg?`<div class="sub" style="color:var(--danger-ink);font-weight:700">⚠ ${neg} line${neg===1?"":"s"} below cost</div>`:""})()}</div></div>
+          const cm=costedMargin(p);const unc=cm.uncostedLines&&projMargin(p)!=null?`<div class="sub">leaves out ${cm.uncostedLines} line${cm.uncostedLines===1?"":"s"} with no cost (${money(cm.uncosted)})</div>`:"";
+          return unc+(neg?`<div class="sub" style="color:var(--danger-ink);font-weight:700">⚠ ${neg} line${neg===1?"":"s"} below cost</div>`:"")})()}</div></div>
         <div><div class="k">Billing</div><div class="v">${billPill(p)}
           ${billedEarly(p)&&p.stage!=="invoiced"&&p.stage!=="closed"?`<div class="sub">billed before production</div>`:""}</div></div>
         <div><div class="k">PO</div><div class="v">${esc(p.po||"—")}</div></div>
@@ -10464,7 +10515,7 @@ function projectRec(id){
           return `          <div style="padding:12px 15px;border-bottom:1px solid var(--line2)">
             <div class="k" style="margin-bottom:6px;font-size:12px;font-weight:700;color:var(--ink2)">What's being made</div>
             ${lines.length?`${(function(){
-              const g={};lines.forEach(l=>{const k=lineProd(l);(g[k]=g[k]||[]).push(l)});
+              const g={};lines.forEach(l=>{const k=lineKind(l);(g[k]=g[k]||[]).push(l)});
               const order=Object.keys(g).sort((a,b)=>g[b].length-g[a].length);
               return `<div style="display:flex;flex-direction:column;gap:9px">
                 ${order.map(k=>`<div>
@@ -11416,6 +11467,23 @@ function itemRows(list){
       <td class="mono" style="text-align:right">${Number(i.cost)>0?money2(Number(i.cost)):`<span class="sub">—</span>`}${(Number(i.cost)>0&&itemSqft(i)&&/roll|sheet/i.test(i.unit||""))?`<div class="sub">${money2(Number(i.cost)/itemSqft(i))}/sq ft</div>`:""}</td>
       </tr>`).join("")}</tbody></table>`;
 }
+// reorder at 1 / order 1 (or nothing to order) is what an import leaves behind, not a real number
+function placeholderReorder(){return itemList().filter(i=>!i.sample&&i.reorderPoint!==""&&i.reorderPoint!=null&&Number(i.reorderPoint)<=1&&!(Number(i.reorderQty)>1))}
+function reorderSetModal(){const ph=placeholderReorder();const cut=Date.now()-90*864e5;
+  const use=i=>live(S.invtx).filter(t=>t.itemId===i.id&&!t.undone&&t.type==="use"&&(t.at||0)>=cut).reduce((a,t)=>a+Math.abs(Number(t.qty)||0),0)/3;
+  openModal(mshell("Set reorder points","inventory",`<p class="note" style="margin:10px 15px">For each item: when stock falls to <b>Reorder at</b>, it shows on the reorder list and the purchasing report, and <b>Order qty</b> is what to buy. Leave a row as it is to keep it. Average use is the last 90 days of stock pulled.</p>
+    <div class="tw"><table><thead><tr><th>Item</th><th style="text-align:right">On hand</th><th style="text-align:right">Avg use / month</th><th>Reorder at</th><th>Order qty</th></tr></thead><tbody>
+    ${ph.map(i=>`<tr><td>${esc(i.name)}<div class="sub mono">${esc(i.sku||"")}${i.unit?" · "+esc(i.unit):""}</div></td><td class="mono" style="text-align:right">${esc(String(onHand(i)))}</td>
+      <td class="mono" style="text-align:right">${use(i)?Math.round(use(i)*10)/10:"—"}</td>
+      <td><input type="number" min="0" step="any" data-rpid="${esc(i.id)}" value="${esc(String(i.reorderPoint))}" style="width:90px"></td>
+      <td><input type="number" min="0" step="any" data-rqid="${esc(i.id)}" value="${esc(String(i.reorderQty||""))}" style="width:90px"></td></tr>`).join("")}</tbody></table></div>`,
+    `<button class="btn" data-close="1">Cancel</button><button class="btn p" id="rs-go">Save</button>`));
+  $("#rs-go").onclick=async()=>{let n=0;
+    for(const i of ph){const a=document.querySelector('[data-rpid="'+i.id+'"]'),b=document.querySelector('[data-rqid="'+i.id+'"]');if(!a||!b)continue;
+      const rp=a.value.trim(),rq=b.value.trim();if(rp===String(i.reorderPoint)&&rq===String(i.reorderQty||""))continue;
+      await push("items/"+i.id,{reorderPoint:rp===""?"":Number(rp),reorderQty:rq===""?"":Number(rq),updatedAt:Date.now()});
+      recordHistory("item",i.id,[{f:"Reorder at",o:String(i.reorderPoint),n:rp},{f:"Reorder qty",o:String(i.reorderQty||""),n:rq}]);n++}
+    closeModal();toast(n?"Saved "+n+" item"+(n===1?"":"s"):"Nothing changed")}}
 function inventoryView(){
   const q=S.q.trim().toLowerCase();
   let list=itemList();
@@ -11431,6 +11499,9 @@ function inventoryView(){
         // only items you keep in stock (they have a reorder point) count as a problem; the rest are just not stocked
         return tile("Out of stock",watched.length,watched.length?"r":(out.length?out.length+" more with no reorder point set":""))})()}
       ${tile("Value on hand",money(value),"at today's unit cost")}</div>
+    ${(function(){const ph=placeholderReorder();return ph.length?`<div class="warn" style="margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <span style="flex:1;min-width:240px"><b>${ph.length} item${ph.length===1?" has":"s have"} a placeholder reorder point</b> (reorder at 1, order 1) — low-stock alerts and the purchasing report can't be trusted until the real numbers are in.</span>
+      <button class="btn sm p" data-reorderset="1">Set reorder points</button></div>`:""})()}
     ${low.length?`<section class="card flush" style="border-color:var(--orange)">
       <header><h2>Reorder now</h2><span class="n">${low.length}</span></header>
       <table><thead><tr><th>Item</th><th>On hand</th><th>Reorder at</th><th>Order qty</th><th>Vendor</th><th></th></tr></thead>
@@ -11814,10 +11885,6 @@ const OPEN_ST=["inquiry","quoted","won","production","shipped"];
 function rRevenue(p){return billedAt(p)?billedValue(p):0}
 function rRevAt(p){return billedAt(p)}
 // margin only from lines that have a cost — a line with no cost would count as 100% margin and overstate it
-function costedMargin(p){let rev=0,cost=0,un=0;orderedLines(p).forEach(l=>{const q=Number(l.qty)||0,pr=Number(l.price)||0;if(!q||!pr)return;
-  let c=0;if(isCharge(l))c=Number(l.cost)||0;else{try{c=quoteLineCost(l).cost||0}catch(e){}}
-  if(c>0||(isCharge(l)&&String(l.cost||"")!=="")){rev+=q*pr;cost+=q*c}else un+=q*pr});
-  return {rev:Math.round(rev*100)/100,cost:Math.round(cost*100)/100,uncosted:Math.round(un*100)/100,m:rev?(rev-cost)/rev*100:null}}
 function acctKind(a){if(!a)return "Unknown";const t=String(a.type||""),n=String(a.name||"");
   if(/gov/i.test(t))return /city|town|village|county|state|department|district|public works|parks/i.test(n)?(/county/i.test(n)?"County":/state|department of/i.test(n)?"State agency":"City / town"):"Government";
   if(/hoa|association|community|management|property|homeowner/i.test(n))return "HOA / property mgmt";
@@ -12020,7 +12087,7 @@ function rCommittedCard(){const js=live(S.jobs).filter(realJob).filter(j=>j.stat
 function rMarginCard(R){const floor=marginFloor();const ps=rProjects(R).filter(p=>rIn(stageAt(p,"won")||rRevAt(p),R)&&["won","production","shipped","invoiced","closed"].indexOf(p.stage)>=0);
   const pr=ps.map(p=>({p,m:costedMargin(p)})).filter(x=>x.m.rev>0);
   const byCat={},byCust={};ps.forEach(p=>orderedLines(p).forEach(l=>{const q=Number(l.qty)||0,pz=Number(l.price)||0;if(!q||!pz)return;let c=0;if(isCharge(l))c=Number(l.cost)||0;else{try{c=quoteLineCost(l).cost||0}catch(e){}}if(!(c>0))return;
-    const k=isCharge(l)?"Charges":((allProd().find(x=>x.id===lineProd(l))||{}).label||lineProd(l));const g=byCat[k]||(byCat[k]={rev:0,cost:0,ps:new Set()});g.rev+=q*pz;g.cost+=q*c;g.ps.add(p)}));
+    const k=isCharge(l)?"Charges":kindLabel(lineKind(l));const g=byCat[k]||(byCat[k]={rev:0,cost:0,ps:new Set()});g.rev+=q*pz;g.cost+=q*c;g.ps.add(p)}));
   pr.forEach(x=>{const k=accName(x.p.accountId);const g=byCust[k]||(byCust[k]={rev:0,cost:0,ps:[]});g.rev+=x.m.rev;g.cost+=x.m.cost;g.ps.push(x.p)});
   const bars=Object.keys(byCat).map(k=>({label:k,drill:rDrill("mcat:"+k,"Margin — "+k,[...byCat[k].ps].map(pRec)),v:Math.round((byCat[k].rev-byCat[k].cost)/byCat[k].rev*100)}));
   const t=rTable("margin","Margin by job",["Job","Account","Costed revenue","Cost","Margin %","Revenue with no cost (left out)"],pr.sort((a,b)=>(a.m.m||0)-(b.m.m||0)).map(x=>({go:"project/"+x.p.id,flag:x.m.m!=null&&x.m.m<floor,sub:x.m.m!=null&&x.m.m<floor?"below your "+floor+"% floor":"",
@@ -14136,7 +14203,7 @@ function buildWO(num){
     </div>
     <div class="pj-due"><b>${esc(due)}</b><small>DUE</small></div></div>
   <div class="pj-build">
-    ${jobKinds(j).map(k=>`<span><span class="k">${esc(kindLabel(k).toUpperCase())}</span>${esc(kindBuildText(j,k).toUpperCase())}</span>`).join("")}
+    ${jobKinds(j).map(k=>`<span><span class="k">${esc((k==="sign"&&!jobMixed(j)?prodLabel(j):kindLabel(k)).toUpperCase())}</span>${esc(kindBuildText(j,k).toUpperCase())}</span>`).join("")}
     ${jobKinds(j).indexOf("sign")>=0?`<span><span class="k">BLANKS</span>${esc(((BLANKSRC.find(x=>x.id===(j.blankSrc||"stock"))||{}).label||"").toUpperCase())}</span>`:""}
     ${(jobKinds(j).indexOf("sign")>=0&&j.method==="print")?`<span><span class="k">OVERLAY</span>${noLamState(j)==="all"?"NONE — CUSTOMER DECLINED (NO 3M WARRANTY)":noLamState(j)==="some"?"1170C CLEAR — NOT ON THE MARKED LINES":"1170C CLEAR — REQUIRED"}</span>`:""}
     ${S._woFinish&&S._woFinish.same?`<span><span class="k">FINISH</span>${esc(S._woFinish.same.toUpperCase())}</span>`:""}
@@ -14169,7 +14236,7 @@ function buildWO(num){
       <td class="q">${esc(it.qty||"")}</td>
       <td class="pic">${linePic(p,it)?`<img src="${esc(linePic(p,it))}" data-fb="${esc(picFb(it))}" alt="${esc(signName(it)||it.desc||it.code||"")}">`:(it.qty!=null?`<span class="nopic">no picture on file</span>`:"")}</td>
       <td>${it.desc||it.code?`<b>${esc(it.desc||signName(it)||it.code)}</b>`:""}
-        ${(it.desc&&it.code)||jobMixed(j)?`<div class="s">${esc([String(it.code||"").split("|")[0],jobMixed(j)?kindLabel(lineProd(it)):""].filter(Boolean).join(" · "))}</div>`:""}
+        ${(it.desc&&it.code)||jobMixed(j)?`<div class="s">${esc([String(it.code||"").split("|")[0],jobMixed(j)?kindLabel(lineKind(it)):""].filter(Boolean).join(" · "))}</div>`:""}
         ${it.note?`<div class="s">${esc(it.note)}</div>`:""}
         ${it.noLam?`<div class="s" style="font-weight:800">${esc(NOLAM_TXT)}</div>`:""}</td>
       <td>${it.size?`<b>${esc(sizeLabel(it.size))}</b>${fs?`<div class="s">${Math.round(fs*100)/100} sq ft each</div>`:""}`:""}</td>
@@ -15867,6 +15934,7 @@ function bind(){
       go(g.dataset.go);return}
 
     const rc=t.closest("[data-rptcsv]");if(rc){reportCSV();return}
+    if(t.closest("[data-reorderset]")){reorderSetModal();return}
     {const x=t.closest("[data-rdrill]");if(x){rDrillModal(x.dataset.rdrill);return}}
     {const x=t.closest("[data-rcsv]");if(x){rCSV(x.dataset.rcsv);return}}
     if(t.closest("[data-rprob]")){rProbModal();return}

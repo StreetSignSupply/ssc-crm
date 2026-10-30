@@ -1,5 +1,14 @@
 # What changed
 
+## 2026.11.25-83
+- Margin is worked out only from lines that have a cost, everywhere (project page, gate, dashboards, reports). A sign line with no cost no longer counts as 100% margin; the project page says how many lines were left out.
+- Find an item: searching "stop" puts R1-1 Stop first. Workbook rows read "Stop here for pedestrian sign" (size and grade underneath) instead of the raw "30X30 … DG3 .080|30X30", and workbook titles no longer show up as fake sign codes.
+- Every priced line shows where its price came from — older lines too (their price, website, price list, cost + margin, typed).
+- Street name blades (D3 code, "blade", or a 6–9" tall blade with a street's name) show as "Street name sign" on the project, work orders and reports.
+- Making a quote with a sign line that has no grade stops and lists the lines; if you carry on, the PDF says "sheeting grade to be confirmed" on them.
+- Add a line: the price follows the suggestion as the quantity changes (quantity breaks apply, also to a price picked from the price list or website) until you type your own price.
+- Inventory: items with a placeholder reorder point (reorder at 1, order 1) are flagged, with a "Set reorder points" screen to put the real numbers in (shows each item's average monthly use).
+
 ## 2026.11.25-82
 - Reports is rebuilt. One date range and rep filter at the top apply to the whole page (inventory has no rep). Owner snapshot: revenue this month, weighted 90-day forecast, open quotes, receivables, inventory at cost, low stock, overdue follow-ups.
 - Every report has a chart on top, the detail table below, Export CSV (the same rows and totals as the table) and click-through: a bar, slice or row opens the projects, items or work orders behind it.
