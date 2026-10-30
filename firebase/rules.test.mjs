@@ -8,7 +8,7 @@ await env.withSecurityRulesDisabled(async (c) => { const d = c.firestore();
   await setDoc(doc(d, "access/uid-shop"), { role: "shop", teamId: "t3" });
   await setDoc(doc(d, "team/t2"), { name: "Bob", access: "sales", phone: "1", email: "bob@streetsignsupply.com" });
   await setDoc(doc(d, "team/t1"), { name: "Matt", access: "owner", email: "matt@streetsignsupply.com" });
-  await setDoc(doc(d, "settings/secrets"), { shopToken: "x" }); await setDoc(doc(d, "settings/syncsent"), { a: 1 });
+  await setDoc(doc(d, "settings/secrets"), { shopToken: "x" }); await setDoc(doc(d, "settings/syncsent"), { a: 1 }); await setDoc(doc(d, "settings/qbinv"), { rows: [] });
   await setDoc(doc(d, "items/i1"), { name: "sheet", cost: "1", onHand: 2 }); await setDoc(doc(d, "history/h2"), { entries: [1, 2, 3] });
   await setDoc(doc(d, "projects/p1"), { name: "x" }); await setDoc(doc(d, "settings/brand"), { a: 1 }); await setDoc(doc(d, "history/h1"), { entries: [] });
   await setDoc(doc(d, "history/h3"), { recType: "project", recId: "p1", entries: [{ t: 1, n: "a" }, { t: 2, n: "b" }] });
@@ -41,6 +41,8 @@ await ok("sales adds history", updateDoc(doc(sales, "history/h1"), { entries: [1
 await no("sales can't edit someone else's team record", updateDoc(doc(sales, "team/t1"), { phone: "9" }));
 await no("sales can't read the secrets", getDoc(doc(sales, "settings/secrets")));
 await ok("owner reads the secrets", getDoc(doc(owner, "settings/secrets")));
+await no("sales can't read the QuickBooks invoice copy", getDoc(doc(sales, "settings/qbinv")));
+await ok("owner reads the QuickBooks invoice copy", getDoc(doc(owner, "settings/qbinv")));
 await ok("shop records what's been sent to the sheet", updateDoc(doc(shop, "settings/syncsent"), { a: 2 }));
 await no("history can't be cut short", updateDoc(doc(sales, "history/h2"), { entries: [1] }));
 await no("shop can't change quote prices", updateDoc(doc(shop, "projects/p1"), { orderLines: [] }));
