@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-84
+- Lines saved before price sources were recorded, whose price matches nothing today (price list, website, their price), say "earlier price" instead of "typed".
+
 ## 2026.11.25-83
 - Margin is worked out only from lines that have a cost, everywhere (project page, gate, dashboards, reports). A sign line with no cost no longer counts as 100% margin; the project page says how many lines were left out.
 - Find an item: searching "stop" puts R1-1 Stop first. Workbook rows read "Stop here for pedestrian sign" (size and grade underneath) instead of the raw "30X30 … DG3 .080|30X30", and workbook titles no longer show up as fake sign codes.
