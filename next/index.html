@@ -3097,7 +3097,8 @@ function proofArt(p){
   all.sort((a,b)=>(b.at||0)-(a.at||0));
   const marked=all.filter(f=>/^artwork proof$|^proof$|^artwork$/i.test((f.cat||"").trim()));
   if(marked.length)return marked;
-  return all.filter(f=>!/purchase order|invoice|packing|signed work order|po\b/i.test(f.cat||""));
+  // nothing filed as artwork: pictures that aren't paperwork or the customer's own reference photos
+  return all.filter(f=>!/purchase order|invoice|packing|signed|po\b|photo|reference|site|spec sheet|certificate|w-?9/i.test(f.cat||"")&&!/reference|site photo|existing|current sign/i.test(f.name||""));
 }
 // pictures are pasted into the file itself, so they still show when it's emailed on
 async function inlineArt(arts){
@@ -3134,11 +3135,14 @@ function proofLineArts(p){if(!p)return [];let m0={};try{m0=artMatches(p)}catch(e
   return orderedLines(p).filter(o=>!isCharge(o)&&Number(o.qty)>0&&!m0[o.id||olKey(o)]&&o.artId!=="none").map(o=>{
     let u="";try{u=linePic(p,o)}catch(e){}
     return u?{id:"ln-"+(o.id||olKey(o)),url:u,name:(o.desc||signName(o)||o.code||"Item"),type:"image/png",_line:o}:null}).filter(Boolean)}
+// the proof's revision number goes up only when what's on it changes (lines or pictures) — not each time it's opened
+function proofSig(p,arts){return JSON.stringify([proofLines(p).map(l=>[l.qty,l.name,l.spec]),(arts||[]).map(a=>a.id||a.name).sort()])}
+function proofRevFor(p,arts){const cur=Number(p.proofRev)||0;if(!cur)return 1;if(!p.proofSig)return cur;return p.proofSig&&p.proofSig===proofSig(p,arts)?cur:cur+1}
 function proofHTML(p,artsIn){
   const a=acct(p.accountId)||{},b=S.brand||DEF_BRAND,rep2=repFor(p);
   const c=(p.contacts||[]).map(x=>S.contacts.get(x)).filter(Boolean)[0]||contactsOf(p.accountId)[0]||null;
   const arts=(artsIn||proofArt(p)).concat(proofLineArts(p)), lines=proofLines(p);
-  const rev=(Number(p.proofRev)||0)+1;
+  const rev=proofRevFor(p,arts);
   const when=new Date(), f=d=>d.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"});
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Proof P-${p.num}${rev>1?" rev "+rev:""}</title>
   <style>${PROOF_CSS}</style></head><body>
@@ -3172,7 +3176,7 @@ function proofHTML(p,artsIn){
       <td style="padding:7px 0 7px 10px;border-bottom:1px solid #EDEFF2;width:90px;font-size:9.5px;color:#5B636D;white-space:nowrap"><span style="display:inline-block;width:13px;height:13px;border:1.5px solid #000;vertical-align:-2px"></span> OK</td>
     </tr>`).join("")}</tbody></table>`:`<div class="none">No lines recorded on this project yet.</div>`}
   <div class="secthead"><span class="lbl" style="margin:0">Artwork — check every one</span>
-    <span class="cnt">${arts.length} piece${arts.length===1?"":"s"}</span></div>
+    <span class="cnt">${arts.length} picture${arts.length===1?"":"s"}</span></div>
   ${arts.length?`<div class="grid">${(function(){
       // each picture captioned with the line it belongs to — matched by name or chosen on the line
       const m=artMatches(p),byId={};Object.keys(m).forEach(k=>{byId[m[k].id]=k});
@@ -3305,15 +3309,16 @@ async function makeProof(pid){
   const arts=proofArt(p);
   const go2=async()=>{
     const html=proofHTML(p,await inlineArt(arts));
+    const sig=proofSig(p,arts.concat(proofLineArts(p)));
+    const rev=proofRevFor(p,arts.concat(proofLineArts(p)));
     arts.push(...proofLineArts(p));
-    const rev=(Number(p.proofRev)||0)+1;
     const name="Proof-P-"+p.num+(rev>1?"-rev"+rev:"")+"-"+accName(p.accountId).replace(/[^A-Za-z0-9]+/g,"-").slice(0,24);
     try{
       toast("Making the PDF…");
       await deliverDoc(html,name,{w:8.5,h:11,footer:"Proof P-"+p.num+(rev>1?" rev "+rev:"")},"Proof saved as a PDF — email it, then upload the signed copy back here");
-      await push("projects/"+pid,{proofRev:rev,proofAt:Date.now(),updatedAt:Date.now()});
-      recordHistory("project",pid,[{f:"Proof",o:"",n:"Proof sheet made"+(rev>1?" (rev "+rev+")":"")+" — "+arts.length+" picture(s)",ev:1}]);
-      logEvent("project",pid,"Proof sheet made"+(rev>1?" rev "+rev:""));
+      if(rev!==(Number(p.proofRev)||0)||!p.proofSig){await push("projects/"+pid,{proofRev:rev,proofSig:sig,proofAt:Date.now(),updatedAt:Date.now()});
+        recordHistory("project",pid,[{f:"Proof",o:"",n:"Proof sheet made"+(rev>1?" (rev "+rev+")":"")+" — "+arts.length+" picture(s)",ev:1}]);
+        logEvent("project",pid,"Proof sheet made"+(rev>1?" rev "+rev:""))}
     }catch(e){toast("Couldn't build the proof here.")}
   };
   if(!arts.length&&!proofLineArts(p).length){
@@ -3350,7 +3355,7 @@ function docTitle(t){
     return w.charAt(0).toUpperCase()+w.slice(1).toLowerCase()}).join("");
 }
 function docTidyName(t,src){
-  let x=String(t||"").replace(/\s+/g," ").replace(/\s+([,.;:)])/g,"$1").replace(/\(\s+/g,"(").trim();
+  let x=String(t||"").replace(/\s+/g," ").replace(/\s+([,;:)]|\.(?!\d))/g,"$1").replace(/\(\s+/g,"(").trim();
   if(src&&!isCharge(src)){
     const code=String(src.code||"").split("|")[0].trim();
     if(src.size)x=x.replace(/^\d+(?:\.\d+)?\s*["”]?\s*[x×X]\s*\d+(?:\.\d+)?\s*["”]?\s*(?:in\.?\s*)?/,"");
@@ -6467,7 +6472,9 @@ function ordFindRows(q){const t=String(q||"").trim();if(!t)return [];
   const out=[];const cq=codeNorm(t);
   codeList().filter(e=>codeNorm(e.code).indexOf(cq)===0||(t.length>2&&String(e.name).toLowerCase().indexOf(t.toLowerCase())>=0))
     .forEach(e=>out.push({key:"code:"+e.code,title:e.code+" — "+e.name,sub:e.sizes.length?"sizes "+e.sizes.slice(0,4).map(sizeLabel).join(", "):"MUTCD code",sell:null,sc:Math.min(findScore(t,e.code,e.name),findScore(t,e.code,e.code))}));
-  catRows(t,"").forEach(r=>out.push({key:r.key,title:findTitle(r),sub:[r.size?sizeLabel(r.size):"",r.kind==="sign"||r.kind==="stc"||r.kind==="web"?cleanTitle(r.grade):"",
+  // stencil sheet stock stays out of a sign search unless you ask for it (stencil, LDPE, HDPE, poly)
+  const wantStc=/stencil|ldpe|hdpe|poly/i.test(t);
+  catRows(t,"").filter(r=>wantStc||r.kind!=="stencil").forEach(r=>out.push({key:r.key,title:findTitle(r),sub:[r.size?sizeLabel(r.size):"",r.kind==="sign"||r.kind==="stc"||r.kind==="web"?cleanTitle(r.grade):"",
     r.kind==="web"?"website":r.kind==="stc"?"stencil":r.kind==="sign"?"workbook":r.byArea?"priced by size":""].filter(Boolean).join(" · "),sell:r.sell,img:r.img||"",sc:findScore(t,r.code||r.sku,r.title)+0.5}));
   const seen=new Set();return out.filter(x=>{if(seen.has(x.key))return false;seen.add(x.key);return true})
     .map((x,i)=>Object.assign(x,{i})).sort((a,b)=>a.sc-b.sc||a.i-b.i).slice(0,8)}
@@ -7089,6 +7096,9 @@ function matchItem(txt){
   list.forEach(x=>{
     const have=toks(x.name).map(w=>w.replace(/^aluminium$|^alum$/,"aluminum").replace(/^magnet$/,"magnetic"));
     if(wantMats.length&&!wantMats.some(m=>have.indexOf(m)>=0))return;
+    // and a thickness named on the line (.063) has to be the item's thickness — .063 aluminum is never the .080 blank
+    const th=w=>w.replace(/^0(?=\.)/,"");const wantTh=want.filter(w=>/^0?\.\d{2,3}$/.test(w)).map(th);
+    if(wantTh.length&&!wantTh.some(w=>have.map(th).indexOf(w)>=0))return;
     let sc=0,words=0;want.forEach(w=>{const ww=w.replace(/^aluminium$|^alum$/,"aluminum");if(have.indexOf(ww)>=0){if(/^[\d.]/.test(w))sc+=2;else{sc+=1;words++}}});
     if(!words)return;
     const cover=sc/want.length;
@@ -10229,7 +10239,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-85";
+const APP_VERSION="2026.11.25-86";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -10388,6 +10398,7 @@ function activityRow(x){
         ${x._src?`<span class="pill">${esc(x._src)}</span>`:""}
         ${c?`<span class="sub">${esc(dir)} ${esc(c.name)}</span>`:""}
         ${x.subject?`<b style="font-size:13.5px">${esc(x.subject)}</b>`:""}
+        ${sendBadge(x)}${x.gmailId?`<span class="pill" title="Logged from Gmail">Gmail</span>`:""}
       </div>
       <div class="m ${x.done?"done":""}">${esc(x.text||"")}</div>
       ${x.pre?`<div class="sub" style="font-style:italic">sent from the CRM, details come from the mail log</div>`:""}
@@ -10722,6 +10733,7 @@ function projectRec(id){
         ${S.canUpload?"Drop proofs, POs, invoices, artwork, or photos here.":"No files. Uploading needs edit access."}</div>`}
     </section>
 
+    ${signCard(p)}
     ${draftsCard(p)}
 
     ${activityCard("project",id)}
@@ -12779,6 +12791,14 @@ function settingsView(){
       </div>
       <div style="margin-top:8px">${ck("b-crmccon",b.crmCcOn!==false,"Add the copy address to every customer email opened here","Off, emails have to be logged by hand again")}</div>
     </div></section>
+    <section class="card"><header><h2>Sending email and signatures</h2><span class="sub">${b.mailSendOk?`Sending is working — last checked ${esc(fmtTs(b.mailSendAt))}. Emails go out from each person's own @streetsignsupply.com Gmail; Gmail is also read to log customer emails automatically.`:`Not connected yet — Send falls back to opening your own email.`}</span></header><div class="body">
+      ${b.mailSendOk?"":`<div class="warn" style="margin-bottom:10px"><b>One step in Google Admin turns it on</b> (an admin of streetsignsupply.com): admin.google.com → Security → Access and data control → API controls → <b>Manage Domain Wide Delegation</b> → <b>Add new</b>.<br>
+        Client ID: <span class="mono">${esc(b.mailClientId||"103643158992452177708")}</span><br>OAuth scopes: <span class="mono">https://www.googleapis.com/auth/gmail.send,https://www.googleapis.com/auth/gmail.readonly</span><br>Then <b>Authorize</b>. Within 10 minutes this box turns green.</div>`}
+      <div class="fgrid">${inp("b-mailfrom","Send from (when the person has no @streetsignsupply.com address)",b.mailFrom||"matt@streetsignsupply.com")}
+        ${inp("b-signbase","Signature page address",b.signBase||"https://crm.streetsignsupply.com/sign.html")}</div>
+      <div style="margin-top:8px">${ck("b-mailsend",b.mailSend!==false,"Send emails from the CRM when sending is connected","Off, Send always opens your own email")}</div>
+      ${b.mailSyncAt?`<div class="sub" style="margin-top:6px">Gmail last read ${esc(fmtTs(b.mailSyncAt))}${b.mailSyncN!=null?" — "+b.mailSyncN+" customer emails logged that run":""}.</div>`:""}
+    </div></section>
     <section class="card"><header><h2>QuickBooks and invoicing</h2></header><div class="body">
       ${ck("b-qbinv",b.qbInvoicing!==false,"Invoices are made in QuickBooks","The project's Documents menu gets the lines ready for it instead of printing an invoice here")}
       ${ck("b-acctinv",b.accountantInvoices!==false,"The accountant agent invoices from the order sync","Shipped projects wait for its invoice row instead of the CSV button")}
@@ -14080,7 +14100,7 @@ async function removeSamples(){
   toast(gone?("Removed "+gone+" sample records"):"Nothing to remove");
   go("tracker");
 }
-async function saveBrand(){
+async function saveBrand(){let b2keep=null;
   const b={margin:Number($("#b-margin")&&$("#b-margin").value)||0,
     address:$("#b-addr")?$("#b-addr").value.trim():"",phone:$("#b-phone")?$("#b-phone").value.trim():"",
     email:$("#b-email")?$("#b-email").value.trim():"",taxRate:Number($("#b-tax")&&$("#b-tax").value)||0,
@@ -14114,6 +14134,9 @@ async function saveBrand(){
     mailMode:$("#b-mailmode")?$("#b-mailmode").value:((S.brand||{}).mailMode||"gmail"),
     crmCc:$("#b-crmcc")?$("#b-crmcc").value.trim():((S.brand||{}).crmCc==null?"crm@streetsignsupply.com":(S.brand||{}).crmCc),
     crmCcOn:$("#b-crmccon")?!!$("#b-crmccon").checked:((S.brand||{}).crmCcOn!==false),
+    mailFrom:$("#b-mailfrom")?$("#b-mailfrom").value.trim().toLowerCase():((S.brand||{}).mailFrom||""),
+    mailSend:$("#b-mailsend")?!!$("#b-mailsend").checked:((S.brand||{}).mailSend!==false),
+    signBase:$("#b-signbase")?$("#b-signbase").value.trim():((S.brand||{}).signBase||""),
     reminders:(function(){const cur=(S.brand||{}).reminders||{};if(!$("#rm-on-followup"))return cur;const o={};
       REM_TYPES.forEach(([k])=>{const on=$("#rm-on-"+k),ch=$("#rm-ch-"+k),md=$("#rm-md-"+k);
         o[k]={on:on?!!on.checked:((cur[k]||{}).on!==false),channel:ch?ch.value:((cur[k]||{}).channel||"email"),mode:md?md.value:((cur[k]||{}).mode||"digest")}});return o})(),
@@ -14125,7 +14148,9 @@ async function saveBrand(){
     logo:(S.brand||{}).logo||""};
   {const tk=$("#b-shoptoken")?$("#b-shoptoken").value.trim():null;
     if(tk!==null&&tk!==shopCfg().token){try{await setDoc("settings/secrets",Object.assign({},S.secrets||{},{shopToken:tk}));S.secrets=Object.assign({},S.secrets||{},{shopToken:tk})}catch(e){}}}
-  try{await setDoc("settings/brand",b);S.brand=b;applyBrand();render();toast("Settings saved")}
+  // keep everything this screen doesn't edit (stage chances, goal, templates, stencil settings, quantity breaks…)
+  {const keep=Object.assign({},S.brand||{});Object.keys(b).forEach(k=>{keep[k]=b[k]});b2keep=keep}
+  try{await setDoc("settings/brand",b2keep);S.brand=b2keep;applyBrand();render();toast("Settings saved")}
   catch(e){toast("Couldn't save the settings.")}
 }
 async function uploadLogo(){
@@ -15510,8 +15535,8 @@ async function followSend(pid,fid){
   const p=proj(pid);const f=p&&(p.followups||[]).find(x=>x.id===fid);if(!f)return;
   const c=followContact(p);if(!c||!c.email)return toast("No contact with an email on this project — assign one first.");
   const subj=f.subject||("Following up on quote "+(p.quote||"P-"+p.num)+" — "+p.name),body=f.body||"";
-  mailOpen(c.email,subj,body);preLogMail(pid,c,subj,body,"follow-up "+f.n);
-  await followSet(pid,fid,{status:"sent",sentAt:Date.now(),by:me(),subject:subj,body});
+  if(!(f.subject||f.body)){composeModal({pid,contactId:c.id,tpl:"follow",follow:{pid,id:fid},title:"Follow-up "+f.n});return}
+  composeModal({pid,contactId:c.id,subject:subj,body,follow:{pid,id:fid},title:"Follow-up "+f.n});return;
   logEvent("project",pid,"Follow-up "+f.n+" sent by "+me());
 }
 async function followSkip(pid,fid){await followSet(pid,fid,{status:"skipped",by:me()});logEvent("project",pid,"A follow-up was skipped by "+me())}
@@ -15724,6 +15749,148 @@ function remSettingsCard(b){
   </section>`;
 }
 
+/* ========== EMAIL FROM THE CRM ==========
+   One compose screen for every email to a customer: pick who it goes to, start from a template (or have Claude write
+   it in the in-Claude copy), attach files from the project, and Send. On crm.streetsignsupply.com, once sending is
+   switched on (Settings → Email), Send hands the message to the mail worker, which sends it from the rep's own
+   @streetsignsupply.com Gmail within a few minutes and logs it here; otherwise it opens in your own email. */
+const MAIL_TPL=[
+  {id:"quote",name:"Send the quote",subject:"Quote {quote} — {project}",body:"Hi {first},\n\nThanks for the chance to quote this. The quote for {project} is attached — {total} before tax.\n\n{sign_line}Let me know if anything needs to change.\n\nThanks,\n{rep}\n{company}{rep_phone_line}"},
+  {id:"follow",name:"Quote follow-up",subject:"Following up — quote {quote}",body:"Hi {first},\n\nJust checking in on the quote for {project} ({total}). Happy to adjust quantities, sizes or grades if that helps.\n\nThanks,\n{rep}\n{company}{rep_phone_line}"},
+  {id:"proof",name:"Proof for approval",subject:"Proof for approval — {project}",body:"Hi {first},\n\nThe proof for {project} is attached. Please look it over — spelling, sizes and colors — and let me know it's good to go.\n\n{sign_line}Thanks,\n{rep}\n{company}{rep_phone_line}"},
+  {id:"ship",name:"Shipped",subject:"Your order has shipped — {project}",body:"Hi {first},\n\nYour order for {project} shipped{carrier_part}.{tracking_part}\n\nThanks for the business,\n{rep}\n{company}{rep_phone_line}"},
+  {id:"invoice",name:"Invoice",subject:"Invoice {invoice} — {project}",body:"Hi {first},\n\nThe invoice for {project} is attached ({total_tax}). Let me know if you need anything else for your records.\n\nThanks,\n{rep}\n{company}{rep_phone_line}"},
+  {id:"thanks",name:"Thank you / reorder check-in",subject:"Thanks from {company}",body:"Hi {first},\n\nThanks again for the order on {project}. If you need more signs or anything else, just reply here and I'll get it quoted.\n\nThanks,\n{rep}\n{company}{rep_phone_line}"},
+  {id:"blank",name:"Blank email",subject:"",body:"Hi {first},\n\n\n\nThanks,\n{rep}\n{company}{rep_phone_line}"}];
+function mailTemplates(){const own=((S.brand||{}).mailTemplates||[]).filter(t=>t&&t.name);return own.map(t=>Object.assign({own:true},t)).concat(MAIL_TPL.filter(t=>!own.some(o=>o.id===t.id)))}
+// sending from the CRM works only on the hosted site, after the mail worker has proven it can send (it sets mailSendOk)
+function mailSendOn(){return !!(window.sscHosted&&(S.brand||{}).mailSendOk&&(S.brand||{}).mailSend!==false)}
+function myMailFrom(){const t=S.viewerTeam;const e=String((t&&t.email)||"").trim().toLowerCase();return /@streetsignsupply\.com$/.test(e)?e:String((S.brand||{}).mailFrom||"").trim().toLowerCase()}
+function mailFill(txt,ctx){const p=ctx.pid?proj(ctx.pid):null,c=ctx.contact||null,a=acct(ctx.aid||(p&&p.accountId))||{};const rep2=(p&&repFor(p))||S.viewerTeam||{};
+  const js=p?jobsOf(p.id):[];const tr=js.map(j=>(j.ship||{}).tracking).filter(Boolean).join(", "),car=js.map(j=>(j.ship||{}).carrier).filter(Boolean)[0]||"";
+  const v={first:c?String(c.name||"").split(" ")[0]:"there",name:c?c.name:"",company:(S.brand||{}).name||"Street Sign Supply",customer:a.name||"",
+    project:p?p.name:"",pnum:p?"P-"+p.num:"",quote:p?(p.quote||"P-"+p.num):"",invoice:p?(p.invNum||""):"",total:p?money2(projValue(p)):"",
+    total_tax:p?money2(projValue(p)+(invTaxOf(p)||0)):"",rep:rep2.name||meName(),rep_phone_line:(S.brand||{}).phone?"\n"+fmtPhone((S.brand||{}).phone):"",
+    tracking_part:tr?"\n\nTracking: "+tr:"",carrier_part:car?" by "+car:"",sign_line:ctx.signUrl?"You can review and approve it online here — it takes a minute:\n"+ctx.signUrl+"\n\n":""};
+  return String(txt||"").replace(/\{(\w+)\}/g,(m,k)=>v[k]!=null?v[k]:m)}
+function composeFiles(pid){if(!pid)return [];return projFiles(pid).filter(f=>f.url&&!f.link&&!f.deleted&&/^https:/.test(f.url))}
+function composeModal(o){o=o||{};const p=o.pid?proj(o.pid):null;const aid=o.aid||(p&&p.accountId)||"";
+  const people=(p?((p.contacts||[]).map(x=>S.contacts.get(x)).filter(c=>c&&!c.deleted)):[]).concat(aid?contactsOf(aid):[]).filter((c,i,a)=>c.email&&a.findIndex(x=>x.id===c.id)===i);
+  const c0=o.contactId?S.contacts.get(o.contactId):(o.to?people.find(c=>c.email===o.to):null)||(p?followContact(p):people[0])||null;
+  S._cmp={pid:o.pid||"",aid,contact:c0,signUrl:o.signUrl||"",signId:o.signId||"",kind:o.kind||"",draft:o.draft||null,follow:o.follow||null};
+  const tpls=mailTemplates();const t0=o.tpl?tpls.find(t=>t.id===o.tpl):null;
+  const subj=o.subject!=null?o.subject:t0?mailFill(t0.subject,S._cmp):"";const body=o.body!=null?o.body:t0?mailFill(t0.body,S._cmp):"";
+  const files=composeFiles(o.pid);const pre=new Set(o.attach||[]);
+  const sendOn=mailSendOn(),from=myMailFrom();
+  openModal(mshell(o.title||"Email","email",`<div class="fgrid">
+    <div class="fld full"><div class="k">To</div><input id="cm-to" value="${esc(o.to||(c0&&c0.email)||"")}" placeholder="name@company.com — several with commas">
+      ${people.length>1?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${people.slice(0,8).map(c=>`<button type="button" class="btn sm" data-cmto="${esc(c.email)}" data-cmcid="${esc(c.id)}">+ ${esc(c.name||c.email)}</button>`).join("")}</div>`:""}</div>
+    <div class="fld full"><div class="k">Cc</div><input id="cm-cc" value="${esc(o.cc||"")}" placeholder="optional"></div>
+    <div class="fld"><div class="k">Start from</div><select id="cm-tpl"><option value="">— keep what's below —</option>${tpls.map(t=>`<option value="${esc(t.id)}" ${t0&&t0.id===t.id?"selected":""}>${esc(t.name)}${t.own?" (yours)":""}</option>`).join("")}</select></div>
+    <div class="fld" style="display:flex;align-items:flex-end;gap:6px">${sampleCap?`<button type="button" class="btn" id="cm-ai">${ic("email",14)}Write it with Claude</button>`:""}</div>
+    ${sampleCap?`<div class="fld full"><div class="k">What should it say? (for Claude — optional)</div><input id="cm-ask" placeholder="e.g. ask if they want the 36 inch size instead, friendly"></div>`:""}
+    <div class="fld full"><div class="k">Subject</div><input id="cm-subj" value="${esc(subj)}"></div>
+    <div class="fld full"><div class="k">Message</div><textarea id="cm-body" style="min-height:220px">${esc(body)}</textarea></div>
+    ${files.length?`<div class="fld full"><div class="k">Attach from this project${sendOn?"":" (attachments go only when the CRM sends it)"}</div>
+      <div style="display:flex;flex-direction:column;gap:4px;max-height:160px;overflow:auto">${files.slice(0,25).map(f=>`<label style="display:flex;gap:8px;align-items:center;justify-content:flex-start;font-size:13.5px;text-align:left;font-weight:500"><input type="checkbox" data-cmatt="${esc(f.id)}" ${pre.has(f.id)?"checked":""} ${sendOn?"":"disabled"} style="width:18px;height:18px;flex:0 0 auto;margin:0"> <span style="flex:0 1 auto">${esc(f.name)}</span> <span class="sub">${esc(f.cat||"")}${f._src&&f._src!=="Project"?" · "+esc(f._src):""}</span></label>`).join("")}</div></div>`:""}
+    <div class="fld full sub">${sendOn?`Sends from <b>${esc(from||"—")}</b> through Gmail within a few minutes, and it's logged on ${p?"the project":"the account"}. Replies come to that inbox.`
+      :window.sscHosted?`Sending from the CRM isn't switched on yet — <b>Open in my email</b> opens it in your own email with this text, and it's logged here.`
+      :`This copy can't send email — <b>Open in my email</b> opens it in your own email with this text, and it's logged here.`}</div>
+    ${can("settings")||myAccess()==="office"?`<div class="fld full"><button type="button" class="lnk" id="cm-savetpl">Save this as a template…</button></div>`:""}</div>`,
+    `<button class="btn" data-close="1">Cancel</button><button class="btn" id="cm-open">Open in my email</button>${sendOn?`<button class="btn p" id="cm-send">Send</button>`:""}`));
+  const tp=$("#cm-tpl");if(tp)tp.onchange=()=>{const t=tpls.find(x=>x.id===tp.value);if(!t)return;$("#cm-subj").value=mailFill(t.subject,S._cmp);$("#cm-body").value=mailFill(t.body,S._cmp);S.modalTouched=true};
+  document.querySelectorAll("[data-cmto]").forEach(b=>b.onclick=()=>{const to=$("#cm-to");const cur=to.value.split(",").map(x=>x.trim()).filter(Boolean);
+    if(cur.indexOf(b.dataset.cmto)<0)cur.push(b.dataset.cmto);to.value=cur.join(", ");if(cur.length===1){S._cmp.contact=S.contacts.get(b.dataset.cmcid)||S._cmp.contact}});
+  const ai=$("#cm-ai");if(ai)ai.onclick=()=>composeAI();
+  const st=$("#cm-savetpl");if(st)st.onclick=()=>composeSaveTpl();
+  $("#cm-open").onclick=()=>composeGo(false);const sd=$("#cm-send");if(sd)sd.onclick=()=>composeGo(true)}
+async function composeAI(){const C=S._cmp||{};const p=C.pid?proj(C.pid):null;const b=$("#cm-ai");if(!sampleCap)return;
+  const ctx=[p?"Project P-"+p.num+" "+p.name+" for "+accName(p.accountId)+", stage "+((SG[p.stage]||{}).label||p.stage)+", value "+money2(projValue(p)):"",
+    p?"Lines: "+linesSummary(p).slice(0,900):"",C.contact?"Writing to "+C.contact.name:"",C.signUrl?"Include this approval link on its own line: "+C.signUrl:"",
+    "From "+((p&&repFor(p))||S.viewerTeam||{}).name+" at "+((S.brand||{}).name||"Street Sign Supply")+", a sign and stencil maker in Washington, Utah"].filter(Boolean).join("\n");
+  const ask=($("#cm-ask")||{}).value||"";const cur=$("#cm-body").value;
+  if(b){b.disabled=true;b.textContent="Writing…"}
+  try{const out=await sampleCap.json("Write a short, plain business email a real person at a small sign shop would send — friendly, direct, no hype, no exclamation marks, no AI-sounding phrases. Sign off with the sender's first name and the company. Return JSON {\"subject\":\"...\",\"body\":\"...\"}.\n\nWhat to say: "+(ask||"(use the subject and context)")+"\nSubject so far: "+$("#cm-subj").value+"\nDraft so far:\n"+cur.slice(0,2000)+"\n\nContext:\n"+ctx,{modelTier:"default"});
+    const r=out&&(out.data||out.json||out);if(r&&r.body){$("#cm-body").value=String(r.body);if(r.subject)$("#cm-subj").value=String(r.subject);S.modalTouched=true}else toast("Claude didn't send back an email — try again.")}
+  catch(e){toast("Claude couldn't write it just now.")}
+  if(b){b.disabled=false;b.innerHTML=ic("email",14)+"Write it with Claude"}}
+async function composeSaveTpl(){const name=prompt("Name for this template (e.g. 'Bid follow-up')");if(!name)return;
+  const list=((S.brand||{}).mailTemplates||[]).filter(t=>t.name!==name).concat([{id:uid("tp"),name:String(name).slice(0,60),subject:$("#cm-subj").value,body:$("#cm-body").value}]);
+  try{await push("settings/brand",{mailTemplates:list})}catch(e){}S.brand=Object.assign({},S.brand||{},{mailTemplates:list});toast("Template saved")}
+async function composeGo(send){const C=S._cmp||{};const to=$("#cm-to").value.split(/[,;]/).map(x=>x.trim()).filter(x=>/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(x));
+  const cc=$("#cm-cc").value.split(/[,;]/).map(x=>x.trim()).filter(x=>/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(x));
+  const subject=$("#cm-subj").value.trim(),body=$("#cm-body").value;
+  if(!to.length){toast("Put in who it goes to.");$("#cm-to").focus();return}
+  if(!subject){toast("Give it a subject.");$("#cm-subj").focus();return}
+  const atts=[...document.querySelectorAll("[data-cmatt]:checked")].map(e=>S.files.get(e.dataset.cmatt)).filter(Boolean).map(f=>({name:f.name,url:f.url,type:f.type||""}));
+  const c=C.contact&&to.indexOf(C.contact.email)>=0?C.contact:live(S.contacts).find(x=>to.indexOf(String(x.email||"").toLowerCase())>=0||to.indexOf(x.email)>=0)||null;
+  const now=Date.now(),xid=uid("ac"),mid=uid("ml");const recType=C.pid?"project":"account",recId=C.pid||C.aid||(c&&c.accountId)||"";
+  closeModal();
+  await setDoc("activity/"+xid,{id:xid,recType,recId:String(recId),kind:"note",type:"email",direction:"out",subject,text:body+(atts.length?"\n\n📎 "+atts.map(a=>a.name).join(", "):""),
+    contactId:c?c.id:"",whoId:meId(),who:me(),when:today(),due:"",backOn:"",noBack:true,at:now,done:true,deleted:false,mailId:send?mid:"",sendState:send?"queued":"opened",to:to.join(", ")});
+  if(send){await setDoc("mail/"+mid,{id:mid,kind:"customer",to,cc,from:myMailFrom(),fromName:meName(),byId:meId(),message:{subject,text:body},attachments:atts,
+      status:"queued",at:now,activityId:xid,recType,recId:String(recId),signId:C.signId||""});
+    toast("Sending — it goes out from "+myMailFrom()+" in a few minutes.")}
+  else{mailOpen(to.join(","),subject,body,{cc:false});toast("Opened in your email — it's logged here.")}
+  if(C.draft)await draftSet(C.draft.pid,C.draft.id,{status:"sent",sentAt:now,by:me(),subject,body});
+  if(C.follow)await followSet(C.follow.pid,C.follow.id,{status:"sent",sentAt:now,by:me(),subject,body});
+  if(C.pid)logEvent("project",C.pid,"Email "+(send?"sent":"opened")+" to "+to.join(", ")+" — "+subject);
+  render()}
+// what the mail worker reported back on an email sent from the CRM
+function sendBadge(x){const s=x&&x.sendState;if(!s||s==="opened")return "";
+  return s==="sent"?`<span class="pill g">sent${x.sentAt?" "+esc(fmtTs(x.sentAt)):""}</span>`:s==="queued"?`<span class="pill y">sending…</span>`
+    :`<span class="pill r" title="${esc(x.sendErr||"")}">didn't send${x.sendErr?" — "+esc(String(x.sendErr).slice(0,60)):""}</span>`}
+
+/* ========== E-SIGNATURE ==========
+   "Get it signed" makes a private link to a page where the customer reads the quote (or proof), types their name, draws
+   a signature and approves. The page writes only to that one sign request; the CRM shows it here the moment it's signed,
+   the mail worker tells the rep, and "Mark won" / "Save to Files" are one click. Links last 30 days. */
+function signBase(){return String((S.brand||{}).signBase||"https://crm.streetsignsupply.com/sign.html").trim()}
+function signUrl(tok){return signBase()+"?t="+encodeURIComponent(tok)}
+function signView(tok){return signUrl(tok)+"&view=1"}
+function signToken(){const a=new Uint8Array(24);try{crypto.getRandomValues(a)}catch(e){for(let i=0;i<a.length;i++)a[i]=Math.floor(Math.random()*256)}
+  return [...a].map(x=>x.toString(16).padStart(2,"0")).join("")}
+function signReqsFor(pid){return [...((S.signreq||new Map()).values())].filter(r=>r.projectId===pid&&!r.deleted).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))}
+function signDocs(pid){return composeFiles(pid).filter(f=>/pdf|image/i.test((f.type||"")+" "+(f.name||""))&&!/signed|photo|purchase order|invoice|packing/i.test(f.cat||""))
+  .sort((a,b)=>((b.cat==="Quote"&&b.gen)?1:0)-((a.cat==="Quote"&&a.gen)?1:0)||(b.at||0)-(a.at||0))}
+function signModal(pid,fid){const p=proj(pid);if(!p)return;const docs=signDocs(pid);
+  if(!window.sscHosted){toast("Signature links work from crm.streetsignsupply.com.");return}
+  if(!docs.length){toast("Save the quote PDF (or upload the proof) to Files first, then send it for signature.");return}
+  const c=followContact(p);const d0=fid?docs.find(f=>f.id===fid)||docs[0]:docs[0];
+  openModal(mshell("Get it signed","file",`<div class="fgrid">
+    <div class="fld full"><div class="k">Document</div><select id="sg-doc">${docs.map(f=>`<option value="${esc(f.id)}" ${f.id===d0.id?"selected":""}>${esc(f.name)} — ${esc(f.cat||"file")}</option>`).join("")}</select></div>
+    <div class="fld"><div class="k">They're approving</div><select id="sg-kind"><option value="quote" ${/proof|artwork/i.test(d0.cat||"")?"":"selected"}>The quote (price and items)</option><option value="proof" ${/proof|artwork/i.test(d0.cat||"")?"selected":""}>The proof (artwork)</option></select></div>
+    <div class="fld"><div class="k">Who signs</div><select id="sg-who">${(p.contacts||[]).map(x=>S.contacts.get(x)).concat(contactsOf(p.accountId)).filter((x,i,a)=>x&&x.email&&a.findIndex(y=>y&&y.id===x.id)===i).map(x=>`<option value="${esc(x.id)}" ${c&&c.id===x.id?"selected":""}>${esc(x.name)} — ${esc(x.email)}</option>`).join("")||`<option value="">(no contact with an email)</option>`}</select></div>
+    <div class="fld full sub">They get a private link (good for 30 days) to read it, type their name, sign and approve. Nothing to install, no account. Next you'll see the email with the link in it.</div></div>`,
+    `<button class="btn" data-close="1">Cancel</button><button class="btn p" id="sg-go">Make the link</button>`));
+  $("#sg-go").onclick=async()=>{const f=S.files.get($("#sg-doc").value);const kind=$("#sg-kind").value;const ct=S.contacts.get($("#sg-who").value)||null;if(!f)return;
+    const tok=signToken();const now=Date.now();const b=S.brand||{};
+    const rec={token:tok,kind,projectId:p.id,pnum:"P-"+p.num,title:(kind==="proof"?"Proof — ":"Quote "+(p.quote||"P-"+p.num)+" — ")+p.name,
+      company:b.name||"Street Sign Supply",companyPhone:b.phone||"",companyEmail:b.email||"",customer:accName(p.accountId),contactName:ct?ct.name:"",contactEmail:ct?ct.email:"",
+      total:kind==="quote"?money2(projValue(p)):"",lines:kind==="quote"?orderedLines(p).filter(l=>Number(l.qty)>0).slice(0,40).map(l=>({d:String(l.desc||signName(l)||l.code||"Item").slice(0,90)+(l.size?" — "+sizeLabel(l.size):""),q:Number(l.qty)||0,p:Number(l.price)||0})):[],
+      pdfUrl:f.url,pdfName:f.name,fileId:f.id,status:"sent",createdAt:now,expiresAt:now+30*864e5,createdBy:meName(),createdById:meId(),signedName:"",signedAt:0,deleted:false};
+    try{await setDoc("signreq/"+tok,rec)}catch(e){toast("Couldn't make the link.");return}
+    logEvent("project",p.id,(kind==="proof"?"Proof":"Quote")+" sent for signature ("+f.name+")"+(ct?" to "+ct.name:""));
+    closeModal();composeModal({pid:p.id,contactId:ct?ct.id:"",tpl:kind==="proof"?"proof":"quote",signUrl:signUrl(tok),signId:tok,attach:[f.id],title:"Email the signature link"})}}
+function signCard(p){const rs=signReqsFor(p.id);if(!rs.length)return "";
+  return `<section class="card flush"><header><h2>Signatures</h2><span class="n">${rs.length}</span><span class="sp"><button class="btn sm" data-signreq="${esc(p.id)}">Get it signed</button></span></header>
+    ${rs.map(r=>{const exp=r.status!=="signed"&&r.expiresAt&&r.expiresAt<Date.now();
+      return `<div class="rrow"><div class="rr-c"><div class="rr-t"><span>${esc(r.kind==="proof"?"Proof":"Quote")} — ${esc(r.pdfName||"")}</span>
+        ${r.status==="signed"?`<span class="pill g">signed ${esc(fmtTs(r.signedAt))}</span>`:r.status==="declined"?`<span class="pill r">declined</span>`:r.status==="cancelled"?`<span class="pill">cancelled</span>`:exp?`<span class="pill">link expired</span>`:`<span class="pill y">waiting${r.viewedAt?" · opened "+esc(fmtTs(r.viewedAt)):""}</span>`}</div>
+        <div class="sub">${r.status==="signed"?`Signed by <b>${esc(r.signedName)}</b>${r.signedTitle?", "+esc(r.signedTitle):""}${r.note?` — “${esc(r.note)}”`:""}`
+          :r.status==="declined"?`${esc(r.signedName||"They")} asked for changes${r.note?`: “${esc(r.note)}”`:""}`:`Sent to ${esc(r.contactName||r.contactEmail||"—")} by ${esc(r.createdBy||"")} ${esc(fmtTs(r.createdAt))}`}</div>
+        ${r.status==="signed"&&r.sigImg?`<img src="${esc(r.sigImg)}" alt="signature" style="max-height:56px;max-width:240px;margin-top:6px;background:#fff;border:1px solid var(--line2);border-radius:4px">`:""}</div>
+        <div class="rr-b">${r.status==="signed"?`${r.kind==="quote"&&["inquiry","quoted"].indexOf(p.stage)>=0?`<button class="btn sm p" data-signwon="${esc(p.id)}">Mark won</button>`:""}
+            ${r.filed?`<span class="sub">in Files</span>`:`<button class="btn sm" data-signfile="${esc(r.token)}">Save to Files</button>`}<a class="btn sm" href="${esc(signView(r.token))}" target="_blank" rel="noopener">View</a>`
+          :r.status==="sent"&&!exp?`<button class="btn sm" data-signcopy="${esc(r.token)}">Copy link</button><button class="btn sm" data-signmail="${esc(r.token)}">Email it again</button>${rowMenu(`<button class="danger" data-signcancel="${esc(r.token)}">Cancel this link…</button>`)}`
+          :`<button class="btn sm" data-signreq="${esc(p.id)}">New link</button>`}</div></div>`}).join("")}</section>`}
+async function signFile(tok){const r=(S.signreq||new Map()).get(tok);if(!r||r.status!=="signed")return;const p=proj(r.projectId);if(!p)return;
+  const fid=uid("f"),now=Date.now();
+  await setDoc("files/"+fid,{id:fid,url:signView(tok),link:true,name:(r.kind==="proof"?"Signed proof":"Signed quote")+" — "+r.signedName+" — "+isoDay(r.signedAt)+" ("+(r.pdfName||"")+")",
+    size:0,type:"text/html",cat:r.kind==="proof"?"Signed proof":"Signed quote",who:me(),when:stamp(),at:now,deleted:false,accountId:p.accountId||"",projectId:p.id,jobId:""});
+  await setDoc("signreq/"+tok,Object.assign({},r,{filed:true}));
+  recordHistory("project",p.id,[{f:r.kind==="proof"?"Proof signed":"Quote signed",o:"",n:r.signedName+" "+fmtTs(r.signedAt)+" — saved to Files",ev:1}]);toast("Saved to Files")}
+
 /* ---------- one-click drafts on the project ---------- */
 function draftReqRec(p,d){
   const a=acct(p.accountId)||S.accounts.get(p.accountId)||{};const c=followContact(p);const rep2=repFor(p);
@@ -15750,9 +15917,7 @@ async function draftSend(pid,did){
   const p=proj(pid);const d=p&&(p.drafts||[]).find(x=>x.id===did);if(!d)return;
   const c=followContact(p);if(!c||!c.email)return toast("No contact with an email on this project — assign one first.");
   const subj=d.subject||(DRAFT_KINDS[d.kind]+" — "+p.name),body=d.body||"";
-  mailOpen(c.email,subj,body);preLogMail(pid,c,subj,body,d.kind);
-  await draftSet(pid,did,{status:"sent",sentAt:Date.now(),by:me(),subject:subj,body});
-  logEvent("project",pid,DRAFT_KINDS[d.kind]+" sent by "+me());
+  composeModal({pid,contactId:c.id,subject:subj,body,draft:{pid,id:did},title:"Send: "+(DRAFT_KINDS[d.kind]||"draft")});
 }
 async function draftSave(pid,did){const sj=$("#dr-subj-"+did),bd=$("#dr-body-"+did);
   await draftSet(pid,did,{subject:sj?sj.value.trim():"",body:bd?bd.value:"",status:"drafted",draftedAt:Date.now()});S.drEdit="";render()}
@@ -15764,6 +15929,8 @@ async function draftLogSent(p,subject,body,feedId,when){
 }
 function draftsMenu(id){
   return `<details class="dd"><summary class="btn">${ic("email",14)}Drafts</summary><div class="dd-m">
+    <button data-compose="project:${esc(id)}">${ic("email",14)}New email…</button>
+    <button data-signreq="${esc(id)}">${ic("file",14)}Get it signed…</button>
     <div class="dd-h">Ask the writer for</div>
     ${["proof","shipping","invoice","quote","thanks"].map(k=>`<button data-draftreq="${esc(id)}:${k}">${ic("email",14)}${esc(DRAFT_KINDS[k])}</button>`).join("")}
   </div></details>`;
@@ -15833,7 +16000,12 @@ function bind(){
   }};
   function onClickBody(e){
     const t=e.target;
-    {const ml=t.closest("a[data-maillog]");if(ml)mailPreLog(ml.dataset.maillog)}   // noted, and the link opens as usual
+    {const ml=t.closest("a[data-maillog]");
+      // an email address in the CRM opens the compose screen (Ctrl/⌘-click still opens your own email)
+      if(ml&&!(e.ctrlKey||e.metaKey||e.shiftKey)){e.preventDefault();const [sc,rid,cid]=String(ml.dataset.maillog).split(":");const em=(ml.getAttribute("href")||"").match(/(?:to=|mailto:)([^&?]+)/);
+        const to0=em?decodeURIComponent(em[1]):"";
+        composeModal(sc==="project"?{pid:rid,contactId:cid,to:to0,tpl:"blank"}:{aid:sc==="account"?rid:"",contactId:cid,to:to0,tpl:"blank"});return}
+      if(ml)mailPreLog(ml.dataset.maillog)}   // noted, and the link opens as usual
     if(t.closest("[data-del]")&&!can("del")){toast("Your access level can't delete — ask the owner.");return}
     if(t.closest("[data-go=settings]")&&!can("settings")){toast("Settings are for the owner.");return}
     const ptb=t.closest("[data-ptab]");if(ptb){S.ptab=ptb.dataset.ptab;render();return}
@@ -15991,6 +16163,13 @@ function bind(){
 
     const rc=t.closest("[data-rptcsv]");if(rc){reportCSV();return}
     if(t.closest("[data-reorderset]")){reorderSetModal();return}
+    {const x=t.closest("[data-compose]");if(x){const [sc,id]=x.dataset.compose.split(":");const dd=x.closest("details");if(dd)dd.open=false;composeModal(sc==="project"?{pid:id,tpl:"blank"}:{aid:id,tpl:"blank"});return}}
+    {const x=t.closest("[data-signreq]");if(x){const dd=x.closest("details");if(dd)dd.open=false;signModal(x.dataset.signreq);return}}
+    {const x=t.closest("[data-signwon]");if(x){setStage(x.dataset.signwon,"won");return}}
+    {const x=t.closest("[data-signfile]");if(x){signFile(x.dataset.signfile);return}}
+    {const x=t.closest("[data-signcopy]");if(x){const u=signUrl(x.dataset.signcopy);try{navigator.clipboard.writeText(u);toast("Link copied")}catch(e2){prompt("Copy the link",u)}return}}
+    {const x=t.closest("[data-signmail]");if(x){const r=(S.signreq||new Map()).get(x.dataset.signmail);if(r)composeModal({pid:r.projectId,to:r.contactEmail,tpl:r.kind==="proof"?"proof":"quote",signUrl:signUrl(r.token),signId:r.token,attach:r.fileId?[r.fileId]:[],title:"Email the signature link"});return}}
+    {const x=t.closest("[data-signcancel]");if(x){const r=(S.signreq||new Map()).get(x.dataset.signcancel);if(r)askConfirm("Cancel this signature link?","<p style=\"margin:0\">The link stops working. You can make a new one any time.</p>","Cancel the link",true,async()=>{await setDoc("signreq/"+r.token,Object.assign({},r,{status:"cancelled"}));render()});return}}
     if(t.closest("[data-auditclear]")){S.auditF={type:"",who:"",days:"",src:""};render();return}
     if(t.closest("[data-acsel]"))return;
     if(t.closest("[data-acclear]")){S.acSel=new Set();render();return}
@@ -16723,7 +16902,7 @@ async function boot(){
   sub("accounts","accounts");sub("contacts","contacts");sub("projects","projects");
   sub("jobs","jobs",true);sub("files","files");sub("activity","activity");sub("history","history");
   sub("events","events");sub("team","team");
-  sub("vendors","vendors");sub("items","items");sub("invtx","invtx");sub("notifications","notifications");sub("reminders","remarks");sub("access","access");dbLockWatch();secretsWatch();qbinvWatch();
+  sub("vendors","vendors");sub("items","items");sub("invtx","invtx");sub("notifications","notifications");sub("reminders","remarks");sub("access","access");dbLockWatch();secretsWatch();qbinvWatch();if(window.sscHosted)sub("signreq","signreq");
   syncSentLoad();
   db.doc("settings/prodtypes").onSnapshot(s=>{if(s&&s.exists&&s.data())S.prodtypes=s.data();if(!typing()&&!S.modal)render()},()=>{});
   db.doc("settings/pricelist").onSnapshot(s=>{if(s&&s.exists&&s.data())S.pricelist=s.data();if(!typing()&&!S.modal)render()},()=>{});

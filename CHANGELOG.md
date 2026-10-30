@@ -1,5 +1,15 @@
 # What changed
 
+## 2026.11.25-86
+- Email from the CRM: one compose screen (Drafts → New email…, any email address in the CRM, Send on a draft or follow-up). Pick who it goes to, start from a template (send the quote, follow-up, proof, shipped, invoice, thank-you — or your own saved ones), have Claude write it (in-Claude copy), attach files from the project, and Send. Once Google Workspace delegation is on (Settings → Sending email), Send goes out from the person's own @streetsignsupply.com Gmail within 10 minutes and shows "sent" on the activity; until then it opens in your own email and is logged.
+- Gmail is read every 10 minutes (once delegation is on): every email to or from a CRM customer is logged on their account automatically, marked "Gmail".
+- Task notices are actually emailed (by the same mail worker).
+- E-signature: Drafts → Get it signed… makes a private link (30 days) to a page where the customer reads the quote or proof, types their name, draws a signature and approves — or asks for changes. The project's Signatures card shows waiting / opened / signed, with Mark won and Save to Files; whoever sent it gets a bell notice and an email.
+- Proofs: customer reference photos no longer print as artwork (the count now says "pictures"); ".063 aluminum" keeps its space; the revision number only goes up when the lines or pictures change, not each time it's opened.
+- ".063 aluminum" never matches the .080 blank (a thickness on the line has to match the item's).
+- Find an item leaves stencil sheet stock out of sign searches (type stencil, LDPE or HDPE to see it).
+- Saving Settings no longer drops settings that screen doesn't show (stage chances, goal, templates, stencil settings).
+
 ## 2026.11.25-85
 - Quote and invoice PDFs no longer print "About this project" — that's for the team only. Projects have a separate "Scope on the quote / invoice" box (Edit the project); only that prints as Scope.
 - Reports: a project closed lost counts as lost even when its stage log has no "lost" entry (win rate was showing 100%). Receivables aging shows the CRM account on the project that carries the invoice (QuickBooks' customer name in brackets when it differs). The Open quotes card also shows the whole open pipeline, which is what the dashboard's "Open pipeline" counts.
