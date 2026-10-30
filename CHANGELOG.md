@@ -1,5 +1,12 @@
 # What changed
 
+## 2026.11.25-85
+- Quote and invoice PDFs no longer print "About this project" — that's for the team only. Projects have a separate "Scope on the quote / invoice" box (Edit the project); only that prints as Scope.
+- Reports: a project closed lost counts as lost even when its stage log has no "lost" entry (win rate was showing 100%). Receivables aging shows the CRM account on the project that carries the invoice (QuickBooks' customer name in brackets when it differs). The Open quotes card also shows the whole open pipeline, which is what the dashboard's "Open pipeline" counts.
+- New Tasks page (Sales → Tasks): Mine, Everyone's open, Overdue, Done lately.
+- Accounts: tick accounts to set the rep, type or terms on all of them at once (each goes in the account's history) or export them; names are real links (open in a new tab). Every column header sorts — they now show ↕.
+- Change history: filter by kind of record, who, when, and people vs fix runs.
+
 ## 2026.11.25-84
 - Lines saved before price sources were recorded, whose price matches nothing today (price list, website, their price), say "earlier price" instead of "typed".
 
