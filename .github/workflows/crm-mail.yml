@@ -30,6 +30,10 @@ jobs:
         with: { node-version: "22" }
       - working-directory: worker
         run: npm install --no-audit --no-fund --loglevel=error @google-cloud/firestore@7 google-auth-library@9 2>&1 | tail -1
+      # headless Chrome, to save each signed quote/proof as a PDF in the project's Files
+      - working-directory: worker
+        continue-on-error: true
+        run: npx playwright install --with-deps chromium 2>&1 | tail -2
       - working-directory: worker
         env:
           FIREBASE_PROJECT: ssc-crm-a7224

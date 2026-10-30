@@ -9,173 +9,214 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-:root{--brand:#D50101;--ink:#111418;--ink2:#4b5361;--ink3:#7a828e;--line:#e6e8ec;--line2:#f0f1f4;--bg:#f5f6f8;--card:#fff;--ok:#1e7a46;--okbg:#eef8f2;--warnbg:#fff7ed}
-*{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%}
+:root{--brand:#D50101;--ink:#111418;--ink2:#4b5361;--ink3:#7a828e;--line:#e6e8ec;--line2:#f0f1f4;--bg:#f3f4f6;--card:#fff;--ok:#1e7a46;--okbg:#eef8f2;--bad:#b42318;--badbg:#fdf2f1;--warnbg:#fff7ed}
+*{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-feature-settings:"tnum" 1}
 .bar{height:5px;background:var(--brand)}
-.wrap{max-width:780px;margin:0 auto;padding:28px 18px 120px}
-.doc{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.06);overflow:hidden}
-.sec{padding:26px 30px;border-top:1px solid var(--line2)}.sec:first-child{border-top:0}
+.wrap{max-width:820px;margin:0 auto;padding:26px 18px 110px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 1px 2px rgba(16,24,40,.04),0 6px 20px rgba(16,24,40,.05);margin-bottom:16px;padding:26px 30px}
 .head{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}
 .co{display:flex;gap:14px;align-items:center}.co img{height:46px;width:auto}.co .n{font-weight:800;font-size:16px;letter-spacing:-.01em}.co .a{color:var(--ink3);font-size:12.5px;line-height:1.45}
-.dtype{text-align:right}.dtype .k{font-size:11px;font-weight:700;letter-spacing:.14em;color:var(--brand);text-transform:uppercase}.dtype .no{font-size:22px;font-weight:800;letter-spacing:-.02em;margin-top:2px}.dtype .d{color:var(--ink3);font-size:12.5px}
-h1{font-size:22px;line-height:1.25;letter-spacing:-.02em;margin:0 0 4px;font-weight:800}
-.meta{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:18px}
-.meta .k{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin-bottom:3px}.meta .v{font-weight:600;font-size:14px}.meta .s{color:var(--ink2);font-size:13px}
-.lbl{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);margin:0 0 12px}
-.item{display:grid;grid-template-columns:56px 1fr auto;gap:14px;align-items:center;padding:12px 0;border-top:1px solid var(--line2)}.item:first-of-type{border-top:0}
-.th{width:56px;height:56px;border-radius:10px;background:#f7f8fa;border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;overflow:hidden}.th img{max-width:48px;max-height:48px;object-fit:contain}
-.th.ch{background:#fafafa}.th svg{width:22px;height:22px;color:var(--ink3)}
-.it .t{font-weight:600;line-height:1.35}.it .s{color:var(--ink3);font-size:12.5px;margin-top:1px}.it .q{color:var(--ink2);font-size:12.5px;margin-top:2px}
-.amt{text-align:right;font-weight:700;white-space:nowrap}
-.tot{margin-top:6px;border-top:1px solid var(--line);padding-top:14px;display:flex;justify-content:flex-end}
-.tot table{border-collapse:collapse;min-width:260px}.tot td{padding:4px 0;font-size:14px}.tot td:last-child{text-align:right;padding-left:28px;font-weight:600}
-.tot tr.g td{font-size:18px;font-weight:800;padding-top:10px;border-top:1px solid var(--line)}
-.note{color:var(--ink3);font-size:12.5px;margin-top:8px;text-align:right}
-.file{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;text-decoration:none;color:var(--ink);background:#fff}
-.file:hover{border-color:#cfd3da}.file .ic{width:36px;height:36px;border-radius:8px;background:#fdecec;color:var(--brand);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex:0 0 auto}
-.file .fn{font-weight:600;font-size:14px;word-break:break-word}.file .fs{color:var(--ink3);font-size:12px}.file .go{margin-left:auto;color:var(--ink3);font-size:13px;white-space:nowrap}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
-.art{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff;cursor:zoom-in}
-.art .pic{aspect-ratio:4/3;background:#f7f8fa;display:flex;align-items:center;justify-content:center;padding:10px;position:relative}.art .pic img{max-width:100%;max-height:100%;object-fit:contain}
-.art .no{position:absolute;top:8px;left:8px;background:#111;color:#fff;font-size:11px;font-weight:700;border-radius:999px;width:22px;height:22px;display:flex;align-items:center;justify-content:center}
-.art .cap{padding:10px 12px}.art .cap b{display:block;font-size:13.5px;line-height:1.3}.art .cap span{color:var(--ink3);font-size:12px}
-.appr h2{font-size:18px;margin:0 0 4px;letter-spacing:-.01em}.appr p.i{color:var(--ink2);margin:0 0 18px;font-size:14px}
-label.f{display:block;font-weight:600;font-size:13px;margin:16px 0 6px;color:var(--ink2)}
+.dtype{text-align:right}.dtype .k{font-size:11px;font-weight:700;letter-spacing:.14em;color:var(--brand);text-transform:uppercase}.dtype .no{font-size:20px;font-weight:800;letter-spacing:-.02em;margin-top:2px}.dtype .d{color:var(--ink3);font-size:12.5px}
+.meta{display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr;gap:16px;margin-top:20px;padding-top:18px;border-top:1px solid var(--line2)}
+.k2{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin-bottom:3px}.meta .v{font-weight:600;font-size:14px}.meta .s{color:var(--ink2);font-size:13px}
+h2{display:flex;align-items:center;gap:10px;font-size:17px;margin:0 0 4px;letter-spacing:-.01em}
+h2 .num{width:24px;height:24px;border-radius:50%;background:var(--ink);color:#fff;font-size:12.5px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
+.lead{color:var(--ink3);font-size:13px;margin:0 0 16px 34px}
+table.items{width:100%;border-collapse:collapse;margin-top:10px}
+table.items th{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);text-align:left;padding:8px 6px;border-bottom:1px solid var(--line)}
+table.items td{padding:12px 6px;border-bottom:1px solid var(--line2);vertical-align:top;font-size:14px}
+table.items .r{text-align:right;white-space:nowrap}table.items .t{font-weight:600}table.items .s{color:var(--ink3);font-size:12.5px;margin-top:1px}
+.tot{display:flex;justify-content:flex-end;margin-top:6px}.tot table{border-collapse:collapse;min-width:280px}.tot td{padding:5px 6px;font-size:14px}.tot td:last-child{text-align:right;font-weight:600}
+.tot tr.g td{font-size:18px;font-weight:800;padding-top:10px;border-top:2px solid var(--ink)}
+.taxn{text-align:right;color:var(--ink3);font-size:12.5px;margin-top:6px}
+.dl{display:inline-flex;align-items:center;gap:8px;margin-top:16px;padding:10px 14px;border:1px solid #cfd4db;border-radius:10px;color:var(--ink);text-decoration:none;font-weight:600;font-size:14px;background:#fff}
+.dl:hover{border-color:var(--ink)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.tile{border:1px solid var(--line);border-radius:12px;padding:14px;background:#fff;transition:border-color .15s}
+.tile.ok{border-color:#9fd3b4}.tile.bad{border-color:#f1b4ae}
+.tile .pic{aspect-ratio:4/3;background:#f6f7f9;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:14px;cursor:zoom-in;overflow:hidden}
+.tile .pic img{max-width:100%;max-height:100%;object-fit:contain}.tile .pic .none{color:var(--ink3);font-size:13px;text-align:center;cursor:default}
+.tile .cap{font-weight:700;margin:12px 0 6px;line-height:1.3}
+.tile dl{display:grid;grid-template-columns:auto 1fr;gap:3px 14px;margin:0 0 12px;font-size:13px}.tile dt{color:var(--ink3)}.tile dd{margin:0}
+.seg{display:grid;grid-template-columns:1fr 1fr;border:1px solid #cfd4db;border-radius:9px;overflow:hidden}
+.seg button{font:inherit;font-size:13.5px;font-weight:700;padding:10px 6px;border:0;background:#fff;color:var(--ink);cursor:pointer;min-height:42px}
+.seg button+button{border-left:1px solid #cfd4db}
+.seg button.on.okb{background:var(--ink);color:#fff}.seg button.on.badb{background:var(--bad);color:#fff}
+.tile textarea{margin-top:10px;min-height:58px;font-size:14px}
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;border-radius:999px;padding:4px 10px}.badge.ok{background:var(--okbg);color:var(--ok)}.badge.bad{background:var(--badbg);color:var(--bad)}
+.noart{margin-top:16px;border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:13.5px;color:var(--ink2);background:#fafbfc}.noart b{color:var(--ink)}
+label.f{display:block;font-weight:600;font-size:13px;margin:0 0 6px;color:var(--ink2)}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:16px}
 input[type=text],textarea{width:100%;font:inherit;font-size:16px;padding:11px 13px;border:1px solid #d5d9df;border-radius:10px;background:#fff;color:var(--ink);outline:none}
 input[type=text]:focus,textarea:focus{border-color:var(--ink);box-shadow:0 0 0 3px rgba(17,20,24,.08)}
-textarea{min-height:76px;resize:vertical}
-.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}.two label.f{margin-top:0}
-.pad{position:relative;border:1px solid #d5d9df;border-radius:12px;background:#fff;overflow:hidden}
+textarea{min-height:72px;resize:vertical}
+.pad{position:relative;border:1px dashed #b9bfc8;border-radius:12px;background:#fff;overflow:hidden}
 .pad canvas{width:100%;height:170px;display:block;touch-action:none;cursor:crosshair}
-.pad .base{position:absolute;left:22px;right:22px;bottom:38px;border-bottom:1.5px solid #c9ced6;pointer-events:none}
-.pad .x{position:absolute;left:22px;bottom:42px;font-size:18px;color:#b2b8c1;pointer-events:none}
-.pad .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#a8aeb8;font-size:14px;pointer-events:none}
+.pad .base{position:absolute;left:22px;right:22px;bottom:36px;border-bottom:1.5px solid #c9ced6;pointer-events:none}
+.pad .x{position:absolute;left:22px;bottom:40px;font-size:18px;color:#b2b8c1;pointer-events:none}
+.pad .ph{position:absolute;left:22px;bottom:12px;color:#a8aeb8;font-size:12.5px;pointer-events:none}
 .pad .clr{position:absolute;top:8px;right:8px;border:1px solid var(--line);background:#fff;border-radius:8px;font:inherit;font-size:12.5px;padding:5px 10px;cursor:pointer;color:var(--ink2)}
-.chk{display:flex;gap:12px;align-items:flex-start;margin-top:16px;font-size:14px;color:var(--ink2);cursor:pointer}.chk input{width:20px;height:20px;margin:1px 0 0;accent-color:var(--ink);flex:0 0 auto}
-.acts{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 22px;border-radius:10px;border:1px solid #d5d9df;background:#fff;color:var(--ink);font:inherit;font-weight:700;font-size:15px;cursor:pointer;text-decoration:none}
-.btn.p{background:var(--ink);border-color:var(--ink);color:#fff;flex:1 1 220px}.btn:disabled{opacity:.5;cursor:default}
-.msg{color:#b42318;font-size:13.5px;margin-top:10px;min-height:1em}
-.legal{color:var(--ink3);font-size:12px;margin-top:14px;line-height:1.5}
+.chk{display:flex;gap:12px;align-items:flex-start;margin:16px 0;font-size:14px;color:var(--ink2);cursor:pointer}.chk input{width:20px;height:20px;margin:1px 0 0;accent-color:var(--ink);flex:0 0 auto}
+.sum{border-left:3px solid var(--ink);background:#f5f6f8;border-radius:0 10px 10px 0;padding:12px 14px;font-size:14px;margin:16px 0}
+.sum.bad{border-left-color:var(--bad);background:var(--badbg)}
+.acts{display:flex;gap:10px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 22px;border-radius:10px;border:1px solid #cfd4db;background:#fff;color:var(--ink);font:inherit;font-weight:700;font-size:15px;cursor:pointer;text-decoration:none}
+.btn.p{background:var(--ink);border-color:var(--ink);color:#fff}.btn.p.bad{background:var(--bad);border-color:var(--bad)}.btn:disabled{opacity:.45;cursor:default}
+.msg{color:var(--bad);font-size:13.5px;margin-top:10px;min-height:1em}
+.legal{color:var(--ink3);font-size:12px;margin-top:12px;line-height:1.5}
+.next{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}.next>div{border:1px solid var(--line);border-radius:10px;padding:12px 14px}.next b{display:block;font-size:14px}.next span{color:var(--ink3);font-size:12.5px}
 .done{background:var(--okbg);border:1px solid #cfe9d9;border-radius:12px;padding:20px 22px}
 .done .t{display:flex;gap:10px;align-items:center;font-weight:800;font-size:17px;color:var(--ok)}
 .done .t i{width:26px;height:26px;border-radius:50%;background:var(--ok);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-style:normal;font-size:15px}
 .done .sig{margin-top:14px;background:#fff;border:1px solid #dfe9e3;border-radius:10px;padding:10px 14px;display:inline-block}.done .sig img{height:70px;display:block}
 .done dl{display:grid;grid-template-columns:auto 1fr;gap:4px 16px;margin:14px 0 0;font-size:13.5px}.done dt{color:var(--ink3)}.done dd{margin:0;font-weight:600}
 .chg{background:var(--warnbg);border:1px solid #fde3c3;border-radius:12px;padding:20px 22px}
-.foot{text-align:center;color:var(--ink3);font-size:12.5px;margin-top:22px;line-height:1.6}.foot a{color:var(--ink2)}
+.foot{text-align:center;color:var(--ink3);font-size:12.5px;margin-top:8px;line-height:1.6}.foot a{color:var(--ink2)}
 .sticky{position:fixed;left:0;right:0;bottom:0;background:rgba(255,255,255,.96);backdrop-filter:blur(8px);border-top:1px solid var(--line);padding:12px 18px calc(12px + env(safe-area-inset-bottom));display:none;z-index:5}
-.sticky .in{max-width:780px;margin:0 auto;display:flex;gap:12px;align-items:center}.sticky .sum{flex:1;font-size:13px;color:var(--ink2);line-height:1.3}.sticky .sum b{display:block;color:var(--ink);font-size:16px}
+.sticky .in{max-width:820px;margin:0 auto;display:flex;gap:12px;align-items:center}.sticky .sm{flex:1;font-size:13px;color:var(--ink2);line-height:1.3}.sticky .sm b{display:block;color:var(--ink);font-size:16px}
 .zoom{position:fixed;inset:0;background:rgba(10,12,15,.9);display:none;align-items:center;justify-content:center;z-index:9;padding:20px}.zoom img{max-width:100%;max-height:100%;background:#fff;border-radius:8px}
-.err{text-align:center;padding:60px 24px}.err h1{font-size:20px}.err p{color:var(--ink2)}
-.sk{height:14px;background:linear-gradient(90deg,#eef0f3,#f6f7f9,#eef0f3);border-radius:6px;margin:10px 0}
-@media (max-width:640px){
-  .wrap{padding:16px 12px 120px}.sec{padding:20px 18px}
-  .head{flex-direction:column;gap:16px}.dtype{text-align:left;border-top:1px solid var(--line2);padding-top:14px;width:100%}
-  .meta{grid-template-columns:1fr 1fr}.meta>div:last-child{grid-column:1/-1}
-  .two{grid-template-columns:1fr}.two>div+div label.f{margin-top:14px}
-  .item{grid-template-columns:48px 1fr auto;gap:12px}.th{width:48px;height:48px}.th img{max-width:40px;max-height:40px}
-  .tot table{min-width:0;width:100%}.grid{grid-template-columns:1fr 1fr;gap:10px}
-  .sticky.on{display:block}.acts .btn{flex:1 1 100%}
+.err{text-align:center;padding:50px 24px}.err h1{font-size:20px}.err p{color:var(--ink2)}
+.sk{height:14px;background:#eef0f3;border-radius:6px;margin:10px 0}
+@media (max-width:680px){
+  .wrap{padding:14px 12px 110px}.card{padding:20px 18px;border-radius:12px}
+  .head{flex-direction:column;gap:14px}.dtype{text-align:left}
+  .meta{grid-template-columns:1fr 1fr}.meta>div:first-child{grid-column:1/-1}
+  .grid{grid-template-columns:1fr}.row3{grid-template-columns:1fr}.next{grid-template-columns:1fr}
+  .lead{margin-left:0}
+  table.items th:nth-child(3),table.items td:nth-child(3){display:none}
+  .tot table{min-width:0;width:100%}.acts .btn{flex:1 1 100%}
+  .sticky.on{display:block}
 }
-@media print{body{background:#fff}.bar,.sticky,.acts,.pad .clr,.noprint{display:none!important}.wrap{padding:0}.doc{border:0;box-shadow:none}}
+@media print{body{background:#fff}.bar,.sticky,.acts,.pad .clr,.noprint,.seg,.tile textarea{display:none!important}.wrap{padding:0}.card{border:0;box-shadow:none;padding:12px 0;page-break-inside:avoid}}
 </style>
 </head>
 <body>
-<div class="bar" id="bar"></div>
-<div class="wrap" id="app"><div class="doc"><div class="sec"><div class="sk" style="width:40%"></div><div class="sk" style="width:70%;height:22px"></div><div class="sk"></div><div class="sk" style="width:85%"></div></div></div></div>
-<div class="sticky" id="sticky"><div class="in"><div class="sum" id="ssum"></div><a class="btn p" href="#approve" style="flex:0 0 auto">Review &amp; approve</a></div></div>
+<div class="bar"></div>
+<div class="wrap" id="app"><div class="card"><div class="sk" style="width:40%"></div><div class="sk" style="width:70%;height:22px"></div><div class="sk"></div><div class="sk" style="width:85%"></div></div></div>
+<div class="sticky" id="sticky"><div class="in"><div class="sm" id="ssum"></div><a class="btn p" href="#approve" style="flex:0 0 auto">Review &amp; approve</a></div></div>
 <div class="zoom" id="zoom"><img alt=""></div>
 <script>
-/* The customer's page for one quote or proof. It reads only the sign request named in the link, and the database lets it
-   change only that request — once — from "sent" to "signed" (or "changes asked for"). */
+/* The customer's page for a quote, a proof, or both with one signature. It reads only the sign request named in the
+   link, and the database lets it change only that request — once — to signed or "changes asked for". */
 (function(){
   var P="ssc-crm-a7224",BASE="https://firestore.googleapis.com/v1/projects/"+P+"/databases/(default)/documents/signreq/";
   var q=new URLSearchParams(location.search),T=(q.get("t")||"").replace(/[^a-f0-9]/gi,""),VIEW=q.get("view")==="1";
-  var app=document.getElementById("app");
+  var app=document.getElementById("app"),R=null,pieces=[];
   function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
   function val(v){if(!v)return null;if("stringValue" in v)return v.stringValue;if("integerValue" in v)return Number(v.integerValue);if("doubleValue" in v)return v.doubleValue;
     if("booleanValue" in v)return v.booleanValue;if("nullValue" in v)return null;if("timestampValue" in v)return Date.parse(v.timestampValue);
     if("arrayValue" in v)return (v.arrayValue.values||[]).map(val);if("mapValue" in v){var o={},f=v.mapValue.fields||{};for(var k in f)o[k]=val(f[k]);return o}return null}
   function money(n){return "$"+Number(n||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,",")}
   var TZ="America/Denver";
-  function day(ms){try{return new Date(ms).toLocaleDateString("en-US",{timeZone:TZ,month:"long",day:"numeric",year:"numeric"})}catch(e){return ""}}
+  function day(ms){try{return new Date(typeof ms==="string"?ms+"T12:00:00":ms).toLocaleDateString("en-US",{timeZone:TZ,month:"long",day:"numeric",year:"numeric"})}catch(e){return ""}}
   function when(ms){try{return new Date(ms).toLocaleString("en-US",{timeZone:TZ,month:"long",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit"})+" MT"}catch(e){return ""}}
-  function fail(h,t){app.innerHTML='<div class="doc"><div class="sec err"><h1>'+esc(h)+'</h1><p>'+esc(t)+'</p></div></div>'}
+  function fail(h,t,extra){app.innerHTML='<div class="card err"><h1>'+esc(h)+'</h1><p>'+esc(t)+'</p>'+(extra||"")+'</div>'}
   if(!T||T.length<20){fail("This link isn't complete","Open it again from the email, or reply to us for a new one.");return}
-  var R=null;
   fetch(BASE+T).then(function(r){if(r.status===404||r.status===403)throw new Error("gone");if(!r.ok)throw new Error("net");return r.json()}).then(function(doc){
     var f=doc.fields||{};R={};for(var k in f)R[k]=val(f[k]);
     if(/^#[0-9a-f]{6}$/i.test(R.color||""))document.documentElement.style.setProperty("--brand",R.color);
-    document.title=(R.kind==="proof"?"Proof":"Quote "+(R.quoteNo||""))+" — "+(R.company||"");
+    document.title=label()+" — "+(R.company||"");
+    pieces=(R.arts||[]).map(function(a,i){var x=(R.pieces||[]).find(function(p){return p&&p.i===i});return {i:i,ok:x?x.ok:null,note:x?x.note||"":""}});
     show();
     if(!VIEW&&R.status==="sent"&&!R.viewedAt)patch({viewedAt:{integerValue:String(Date.now())}},["viewedAt"]).catch(function(){});
   }).catch(function(e){e.message==="gone"?fail("This link is no longer active","It was cancelled or replaced with a newer one. Reply to our email and we'll send a fresh link."):fail("We couldn't load this just now","Check your connection and refresh the page.")});
   function patch(fields,keys){var u=BASE+T+"?"+keys.map(function(k){return "updateMask.fieldPaths="+k}).join("&")+"&currentDocument.exists=true";
     return fetch(u,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({fields:fields})}).then(function(r){if(!r.ok)throw new Error("save "+r.status);return r.json()})}
-  var CHG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h13v10H3zM16 10h3l2 3v4h-5"/><circle cx="7" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/></svg>';
-  function docHTML(){var isQ=R.kind!=="proof";var lines=(R.lines||[]),items=lines.filter(function(l){return !l.c}),chg=lines.filter(function(l){return l.c});
-    var h='<div class="doc"><div class="sec"><div class="head"><div class="co">'+(R.logo?'<img src="'+esc(R.logo)+'" alt="">':'')+'<div><div class="n">'+esc(R.company)+'</div><div class="a">'+esc(R.companyAddr||"")+(R.companyPhone?'<br>'+esc(R.companyPhone):"")+(R.companyEmail?' · '+esc(R.companyEmail):"")+'</div></div></div>'
-      +'<div class="dtype"><div class="k">'+(isQ?"Quote":"Artwork proof")+'</div><div class="no">'+esc(isQ?(R.quoteNo||R.pnum||""):(R.pnum||""))+'</div><div class="d">'+esc(day(R.createdAt))+'</div></div></div>'
-      +'<h1 style="margin-top:22px">'+esc(R.project||R.title||"")+'</h1>'
-      +'<div class="meta"><div><div class="k">Prepared for</div><div class="v">'+esc(R.customer||"")+'</div>'+(R.contactName&&R.contactName!==R.customer?'<div class="s">'+esc(R.contactName)+'</div>':"")+'</div>'
-      +'<div><div class="k">Prepared by</div><div class="v">'+esc(R.repName||R.company)+'</div>'+(R.repPhone||R.companyPhone?'<div class="s">'+esc(R.repPhone||R.companyPhone)+'</div>':"")+'</div>'
-      +'<div><div class="k">'+(R.status==="sent"?"Respond by":"Status")+'</div><div class="v">'+(R.status==="sent"?esc(day(R.expiresAt)):R.status==="signed"?"Approved":"Changes asked for")+'</div></div></div></div>';
-    if(isQ&&items.length){h+='<div class="sec"><div class="lbl">Items</div>'+items.map(function(l){return '<div class="item"><div class="th">'+(l.img?'<img src="'+esc(l.img)+'" alt="" loading="lazy" onerror="this.remove()">':"")+'</div><div class="it"><div class="t">'+esc(l.d)+'</div>'+(l.s?'<div class="s">'+esc(l.s)+'</div>':"")+'<div class="q">'+esc(l.q)+' × '+money(l.p)+'</div></div><div class="amt">'+money(l.q*l.p)+'</div></div>'}).join("")
-      +chg.map(function(l){return '<div class="item"><div class="th ch">'+CHG+'</div><div class="it"><div class="t">'+esc(l.d)+'</div>'+(l.q!==1?'<div class="q">'+esc(l.q)+' × '+money(l.p)+'</div>':"")+'</div><div class="amt">'+money(l.q*l.p)+'</div></div>'}).join("")
-      +'<div class="tot"><table><tbody>'+(chg.length?'<tr><td>Items</td><td>'+money(items.reduce(function(t,l){return t+l.q*l.p},0))+'</td></tr><tr><td>'+(chg.length===1?esc(chg[0].d.split(/\s+[—-]\s+/)[0]):"Other charges")+'</td><td>'+money(chg.reduce(function(t,l){return t+l.q*l.p},0))+'</td></tr>':"")
-      +'<tr class="g"><td>Total</td><td>'+money(lines.reduce(function(t,l){return t+l.q*l.p},0))+'</td></tr></tbody></table></div><div class="note">Plus sales tax where it applies.</div></div>'}
-    if(!isQ&&(R.arts||[]).length){h+='<div class="sec"><div class="lbl">Artwork — check each one</div><div class="grid">'+R.arts.map(function(a,i){return '<div class="art" data-z="'+esc(a.url)+'"><div class="pic"><span class="no">'+(i+1)+'</span><img src="'+esc(a.url)+'" alt="" loading="lazy"></div><div class="cap"><b>'+esc(a.cap)+'</b>'+(a.s?'<span>'+esc(a.s)+'</span>':"")+'</div></div>'}).join("")+'</div>'
-      +'<p class="legal" style="margin-top:12px">Check spelling, sizes, colors and layout. We make exactly what is shown once you approve.</p></div>'}
-    if(R.pdfUrl)h+='<div class="sec"><a class="file" href="'+esc(R.pdfUrl)+'" target="_blank" rel="noopener"><span class="ic">PDF</span><span><span class="fn">'+esc(R.pdfName||"Document")+'</span><br><span class="fs">The full '+(isQ?"quote":"proof")+' — open or download</span></span><span class="go">Open ›</span></a></div>';
-    return h}
-  function show(){var isQ=R.kind!=="proof",what=isQ?"quote":"proof";var st=document.getElementById("sticky");st.className="sticky";
-    var foot='<div class="foot">Questions? '+(R.repName?esc(R.repName.split(" ")[0])+" at ":"")+esc(R.company)+(R.repPhone||R.companyPhone?' · <a href="tel:'+esc(String(R.repPhone||R.companyPhone).replace(/[^\d+]/g,""))+'">'+esc(R.repPhone||R.companyPhone)+'</a>':"")+(R.repEmail||R.companyEmail?' · <a href="mailto:'+esc(R.repEmail||R.companyEmail)+'">'+esc(R.repEmail||R.companyEmail)+'</a>':"")+'<br>Secure approval link · reference '+esc(T.slice(0,8).toUpperCase())+'</div>';
-    if(R.status==="signed"){app.innerHTML=docHTML()+'<div class="sec appr" id="approve"><div class="done"><div class="t"><i>✓</i>Approved'+(VIEW?"":" — thank you")+'</div>'
+  function hasQ(){return R.kind!=="proof"&&(R.lines||[]).length>0}
+  function hasP(){return R.kind!=="quote"&&((R.arts||[]).length>0||(R.noArt||[]).length>0)}
+  function label(){return R.kind==="both"?"Quote "+(R.quoteNo||"")+" + proof rev "+(R.proofRev||1):R.kind==="proof"?"Proof rev "+(R.proofRev||1):"Quote "+(R.quoteNo||"")}
+  function what(){return R.kind==="both"?"quote and artwork":R.kind==="proof"?"artwork proof":"quote"}
+  function total(){return (R.lines||[]).reduce(function(t,l){return t+l.q*l.p},0)}
+  function head(){return '<div class="card"><div class="head"><div class="co">'+(R.logo?'<img src="'+esc(R.logo)+'" alt="">':'')+'<div><div class="n">'+esc(R.company)+'</div><div class="a">'+esc(R.companyAddr||"")+(R.companyPhone?'<br>'+esc(R.companyPhone):"")+(R.companyEmail?' · '+esc(R.companyEmail):"")+'</div></div></div>'
+      +'<div class="dtype"><div class="k">'+(R.kind==="both"?"Quote + proof":R.kind==="proof"?"Artwork proof":"Quote")+'</div><div class="no">'+esc(R.kind==="both"?(R.quoteNo||"")+" · Proof rev "+(R.proofRev||1):R.kind==="proof"?(R.pnum||"")+" · Proof rev "+(R.proofRev||1):(R.quoteNo||""))+'</div><div class="d">'+esc(day(R.createdAt))+'</div></div></div>'
+      +'<div class="meta"><div><div class="k2">Project</div><div class="v">'+esc(R.project||"")+'</div></div><div><div class="k2">Prepared for</div><div class="v">'+esc(R.customer||"")+'</div>'+(R.contactName&&R.contactName!==R.customer?'<div class="s">'+esc(R.contactName)+'</div>':"")+'</div>'
+      +'<div><div class="k2">Prepared by</div><div class="v">'+esc(R.repName||R.company)+'</div>'+(R.repPhone?'<div class="s">'+esc(R.repPhone)+'</div>':"")+'</div>'
+      +'<div><div class="k2">'+(R.status==="sent"?"Respond by":"Status")+'</div><div class="v">'+(R.status==="sent"?esc(day(R.expiresAt)):R.status==="signed"?"Approved":R.status==="declined"?"Changes asked for":"Replaced")+'</div></div></div></div>'}
+  var n=0;function sec(t,lead){n++;return '<h2><span class="num">'+n+'</span>'+esc(t)+'</h2>'+(lead?'<p class="lead">'+esc(lead)+'</p>':"")}
+  function quoteSec(){var L=R.lines||[],items=L.filter(function(l){return !l.c}),chg=L.filter(function(l){return l.c});
+    return '<div class="card">'+sec("Quote items")+'<table class="items"><thead><tr><th>Item</th><th class="r">Qty</th><th class="r">Unit</th><th class="r">Amount</th></tr></thead><tbody>'
+      +items.map(function(l){return '<tr><td><div class="t">'+esc(l.d)+'</div>'+(l.s?'<div class="s">'+esc(l.s)+'</div>':"")+'</td><td class="r">'+esc(l.q)+'</td><td class="r">'+money(l.p)+'</td><td class="r">'+money(l.q*l.p)+'</td></tr>'}).join("")+'</tbody></table>'
+      +'<div class="tot"><table><tbody>'+(chg.length?'<tr><td>Items</td><td>'+money(items.reduce(function(t,l){return t+l.q*l.p},0))+'</td></tr>'+chg.map(function(l){return '<tr><td>'+esc(l.d)+'</td><td>'+money(l.q*l.p)+'</td></tr>'}).join(""):"")
+      +'<tr class="g"><td>Total</td><td>'+money(total())+'</td></tr></tbody></table></div><div class="taxn">Plus sales tax where it applies</div>'
+      +(R.pdfUrl&&R.pdfKind!=="proof"?'<a class="dl noprint" href="'+esc(R.pdfUrl)+'" target="_blank" rel="noopener">↓ Download quote PDF ('+esc(R.pdfName||"")+')</a>':"")+'</div>'}
+  function artSec(locked){var A=R.arts||[];
+    return '<div class="card">'+sec(locked?"Artwork":"Artwork — check each one","Proof rev "+(R.proofRev||1)+". Colors on screen are approximate.")+(A.length?'<div class="grid">'+A.map(function(a,i){var pc=pieces[i]||{};
+        return '<div class="tile '+(pc.ok===true?"ok":pc.ok===false?"bad":"")+'" id="tile'+i+'"><div class="pic"'+(a.url?' data-z="'+esc(a.url)+'"':"")+'>'+(a.url?'<img src="'+esc(a.url)+'" alt="'+esc(a.cap)+'" loading="lazy">':'<div class="none">No picture here — see the PDF</div>')+'</div>'
+          +'<div class="cap">'+esc(a.cap)+'</div><dl>'+(a.size?'<dt>Size</dt><dd>'+esc(a.size)+'</dd>':"")+(a.sheet?'<dt>Sheeting</dt><dd>'+esc(a.sheet)+'</dd>':"")+(a.colors?'<dt>Colors</dt><dd>'+esc(a.colors.charAt(0).toUpperCase()+a.colors.slice(1))+'</dd>':"")+(a.q?'<dt>Qty</dt><dd>'+esc(a.q)+'</dd>':"")+'</dl>'
+          +(locked?(pc.ok===true?'<span class="badge ok">✓ Approved</span>':pc.ok===false?'<span class="badge bad">Needs change</span>'+(pc.note?'<div class="legal" style="margin-top:6px">“'+esc(pc.note)+'”</div>':""):"")
+            :'<div class="seg" role="group" aria-label="Approve or change this piece"><button type="button" class="okb '+(pc.ok===true?"on":"")+'" data-ok="'+i+'">Approve</button><button type="button" class="badb '+(pc.ok===false?"on":"")+'" data-bad="'+i+'">Needs change</button></div>'
+              +'<textarea data-note="'+i+'" placeholder="'+(pc.ok===false?"What should change?":"Note for this artwork (optional)")+'">'+esc(pc.note||"")+'</textarea>')+'</div>'}).join("")+'</div>':"")
+      +((R.noArt||[]).length?'<div class="noart"><b>No artwork needed:</b> '+esc(R.noArt.join(", "))+'</div>':"")
+      +(R.pdfUrl&&R.pdfKind==="proof"?'<a class="dl noprint" href="'+esc(R.pdfUrl)+'" target="_blank" rel="noopener">↓ Download proof PDF ('+esc(R.pdfName||"")+')</a>':"")+'</div>'}
+  function nextSec(){return '<div class="card"><h2 style="margin-bottom:0">What happens next</h2><div class="next"><div><b>1. Signed copy saved</b><span>A signed copy is kept on file with your order, and you can print it from this page.</span></div>'
+      +'<div><b>2. Order goes to production</b><span>'+(hasP()?"Made exactly as approved in proof rev "+(R.proofRev||1)+".":"We schedule it in the shop.")+'</span></div>'
+      +'<div><b>3. '+(R.shipBy?"Needed by "+esc(day(R.shipBy)):"We confirm the ship date")+'</b><span>'+(R.shipBy?"We plan around your date and confirm shipping.":"You'll hear from "+esc((R.repName||"us").split(" ")[0])+".")+'</span></div></div></div>'}
+  function foot(){return '<div class="foot">Questions? '+(R.repName?esc(R.repName.split(" ")[0])+" at ":"")+esc(R.company)+(R.repPhone||R.companyPhone?' · <a href="tel:'+esc(String(R.repPhone||R.companyPhone).replace(/[^\d+]/g,""))+'">'+esc(R.repPhone||R.companyPhone)+'</a>':"")+(R.repEmail||R.companyEmail?' · <a href="mailto:'+esc(R.repEmail||R.companyEmail)+'">'+esc(R.repEmail||R.companyEmail)+'</a>':"")+'<br>Secure approval link · reference '+esc(T.slice(0,8).toUpperCase())+'</div>'}
+  function show(){n=0;var st=document.getElementById("sticky");st.className="sticky";
+    if(R.status==="replaced"){fail("There's a newer version","This "+what()+" was updated. Please review the latest one.",R.replacedBy?'<p><a class="btn p" href="'+esc(R.replacedBy)+'">Open the latest version</a></p>':"");return}
+    if(R.status==="cancelled"){fail("This link is no longer active","Reply to our email and we'll send a fresh link.");return}
+    if(R.status==="sent"&&R.expiresAt&&R.expiresAt<Date.now()&&!VIEW){fail("This link has expired","Reply to our email and we'll send a fresh one.");return}
+    var locked=R.status!=="sent"||VIEW;
+    var h=head()+(hasQ()?quoteSec():"")+(hasP()?artSec(locked):"");
+    if(R.status==="signed"){h+='<div class="card" id="approve"><div class="done"><div class="t"><i>✓</i>Approved'+(VIEW?"":" — thank you")+'</div>'
         +'<div class="sig">'+(R.sigImg?'<img src="'+esc(R.sigImg)+'" alt="Signature">':"")+'</div>'
-        +'<dl><dt>Signed by</dt><dd>'+esc(R.signedName)+(R.signedTitle?", "+esc(R.signedTitle):"")+'</dd><dt>For</dt><dd>'+esc(R.customer||"")+'</dd><dt>Date</dt><dd>'+esc(when(R.signedAt))+'</dd>'+(R.note?'<dt>Note</dt><dd>'+esc(R.note)+'</dd>':"")+'<dt>Reference</dt><dd>'+esc(T.slice(0,8).toUpperCase())+'</dd></dl>'
-        +'<div class="acts noprint" style="margin-top:16px"><button class="btn" type="button" onclick="window.print()">Print or save a copy</button></div>'
-        +(VIEW?"":'<p class="legal">We\'ve been notified and will be in touch about next steps. A record of this approval is kept with your order.</p>')+'</div></div></div>'+foot;bindZoom();return}
-    if(R.status==="declined"){app.innerHTML=docHTML()+'<div class="sec"><div class="chg"><div style="font-weight:800;font-size:17px">Changes asked for</div><p style="margin:6px 0 0;color:#4b5361">'+esc(R.signedName||"")+' · '+esc(when(R.signedAt))+(R.note?'<br>“'+esc(R.note)+'”':"")+'</p><p class="legal">We\'ll send an updated '+what+' shortly.</p></div></div></div>'+foot;bindZoom();return}
-    if(R.status!=="sent"){fail("This link is no longer active","It was cancelled or replaced with a newer one. Reply to our email and we'll send a fresh link.");return}
-    if(R.expiresAt&&R.expiresAt<Date.now()){fail("This link has expired","Reply to our email and we'll send a fresh one.");return}
-    if(VIEW){app.innerHTML=docHTML()+'<div class="sec"><p class="legal" style="margin:0">Waiting for approval.</p></div></div>'+foot;bindZoom();return}
-    app.innerHTML=docHTML()+'<div class="sec appr" id="approve"><h2>Approve this '+what+'</h2><p class="i">'+(isQ?"Approving tells us to go ahead with the order as quoted above.":"Approving tells us the artwork is correct and ready to make.")+' Prefer changes? Use “Request changes” instead.</p>'
-      +'<div class="two"><div><label class="f" for="nm">Full name</label><input type="text" id="nm" autocomplete="name" value="'+esc(R.contactName||"")+'"></div><div><label class="f" for="tt">Title <span style="font-weight:400;color:#7a828e">(optional)</span></label><input type="text" id="tt" autocomplete="organization-title" placeholder="e.g. Public Works Director"></div></div>'
-      +'<label class="f">Signature</label><div class="pad"><canvas id="cv" aria-label="Signature pad — draw your signature"></canvas><span class="x">×</span><div class="base"></div><div class="ph" id="ph">Sign here with your finger or mouse</div><button class="clr" type="button" id="clr">Clear</button></div>'
-      +'<label class="chk"><input type="checkbox" id="ag"><span>I approve this '+what+' on behalf of <b>'+esc(R.customer||"my organization")+'</b> and agree that my electronic signature is the legal equivalent of my handwritten signature.</span></label>'
-      +'<label class="f" for="nt">Note <span style="font-weight:400;color:#7a828e">(optional — required if you\'re requesting changes)</span></label><textarea id="nt" placeholder="Anything we should know"></textarea>'
+        +'<dl><dt>Signed by</dt><dd>'+esc(R.signedName)+(R.signedTitle?", "+esc(R.signedTitle):"")+'</dd><dt>For</dt><dd>'+esc(R.customer||"")+'</dd><dt>Approved</dt><dd>'+esc(label())+(hasQ()?" — "+money(total())+" plus tax":"")+'</dd>'+(R.po?'<dt>PO</dt><dd>'+esc(R.po)+'</dd>':"")+'<dt>Date</dt><dd>'+esc(when(R.signedAt))+'</dd>'+(R.note?'<dt>Note</dt><dd>'+esc(R.note)+'</dd>':"")+'<dt>Reference</dt><dd>'+esc(T.slice(0,8).toUpperCase())+'</dd></dl>'
+        +'<div class="acts noprint" style="margin-top:16px"><button class="btn" type="button" onclick="window.print()">Print or save a copy</button></div></div></div>'+nextSec()+foot();app.innerHTML=h;bindZoom();return}
+    if(R.status==="declined"){h+='<div class="card"><div class="chg"><div style="font-weight:800;font-size:17px">Changes asked for</div><p style="margin:6px 0 0;color:#4b5361">'+esc(R.signedName||"")+' · '+esc(when(R.signedAt))+(R.note?'<br>“'+esc(R.note)+'”':"")+'</p><p class="legal">We\'ll send an updated '+esc(what())+' shortly.</p></div></div>'+foot();app.innerHTML=h;bindZoom();return}
+    if(VIEW){app.innerHTML=h+'<div class="card"><p class="legal" style="margin:0">Waiting for approval.</p></div>'+foot();bindZoom();return}
+    var org=R.customerOrg!==false&&R.customer;
+    h+='<div class="card" id="approve">'+sec("Approve "+what())
+      +'<div class="row3"><div><label class="f" for="nm">Full name</label><input type="text" id="nm" autocomplete="name" placeholder="Your full name"></div><div><label class="f" for="tt">Title <span style="font-weight:400;color:#7a828e">(optional)</span></label><input type="text" id="tt" autocomplete="organization-title" placeholder="e.g. Public Works Manager"></div>'
+      +(hasQ()?'<div><label class="f" for="po">PO number <span style="font-weight:400;color:#7a828e">(optional)</span></label><input type="text" id="po" autocomplete="off"></div>':"<div></div>")+'</div>'
+      +'<label class="f">Signature</label><div class="pad"><canvas id="cv" aria-label="Signature pad — draw your signature"></canvas><span class="x">×</span><div class="base"></div><div class="ph">Sign with your finger or mouse</div><button class="clr" type="button" id="clr">Clear</button></div>'
+      +'<label class="chk"><input type="checkbox" id="ag"><span>I agree to sign electronically'+(org?' and I am authorized to approve this order for <b>'+esc(R.customer)+'</b>':' and approve this order')+'.</span></label>'
+      +'<label class="f" for="nt">Note <span style="font-weight:400;color:#7a828e">(optional)</span></label><textarea id="nt" placeholder="Anything we should know"></textarea>'
+      +'<div class="sum" id="sumbox"></div>'
       +'<div class="acts"><button class="btn p" type="button" id="go">Approve and sign</button><button class="btn" type="button" id="no">Request changes</button></div><div class="msg" id="msg"></div>'
-      +'<p class="legal">Signing records your name, signature, the date and time, and your device. You can print a copy afterwards.</p></div></div>'+foot;
-    bindZoom();
-    // phone: a bar at the bottom with the total and a jump to the approval
-    var tot=(R.lines||[]).reduce(function(t,l){return t+l.q*l.p},0);document.getElementById("ssum").innerHTML=isQ?'Total<b>'+money(tot)+'</b>':'Proof<b>'+(R.arts||[]).length+' picture'+((R.arts||[]).length===1?"":"s")+'</b>';
+      +'<p class="legal">Signing records your name, signature, the date and time, and your device. You can print a copy afterwards.</p></div>'+nextSec()+foot();
+    app.innerHTML=h;bindZoom();bindPieces();summary();
+    document.getElementById("ssum").innerHTML=hasQ()?'Total<b>'+money(total())+'</b>':'Proof<b>'+(R.arts||[]).length+' piece'+((R.arts||[]).length===1?"":"s")+'</b>';
     var ap=document.getElementById("approve");function vis(){var r=ap.getBoundingClientRect();st.classList.toggle("on",r.top>window.innerHeight*0.85)}window.addEventListener("scroll",vis,{passive:true});vis();
-    var cv=document.getElementById("cv"),cx=cv.getContext("2d"),drawn=false,down=false,last=null,ph=document.getElementById("ph");
+    var cv=document.getElementById("cv"),cx=cv.getContext("2d"),drawn=false,down=false,last=null;
     function size(){var r=cv.getBoundingClientRect(),d=window.devicePixelRatio||1;cv.width=Math.round(r.width*d);cv.height=Math.round(r.height*d);cx.setTransform(d,0,0,d,0,0);cx.lineWidth=2.6;cx.lineCap="round";cx.lineJoin="round";cx.strokeStyle="#0b1220"}
     size();
     function pt(e){var r=cv.getBoundingClientRect();return [e.clientX-r.left,e.clientY-r.top]}
-    cv.addEventListener("pointerdown",function(e){down=true;last=pt(e);cv.setPointerCapture(e.pointerId);ph.style.display="none";e.preventDefault()});
+    cv.addEventListener("pointerdown",function(e){down=true;last=pt(e);cv.setPointerCapture(e.pointerId);e.preventDefault()});
     cv.addEventListener("pointermove",function(e){if(!down)return;var p=pt(e);cx.beginPath();cx.moveTo(last[0],last[1]);var mx=(last[0]+p[0])/2,my=(last[1]+p[1])/2;cx.quadraticCurveTo(last[0],last[1],mx,my);cx.lineTo(p[0],p[1]);cx.stroke();last=p;drawn=true});
     cv.addEventListener("pointerup",function(){down=false});cv.addEventListener("pointercancel",function(){down=false});
-    document.getElementById("clr").onclick=function(){cx.clearRect(0,0,cv.width,cv.height);drawn=false;ph.style.display=""};
+    document.getElementById("clr").onclick=function(){cx.clearRect(0,0,cv.width,cv.height);drawn=false};
     var msg=document.getElementById("msg");
     function small(){var w=Math.min(700,cv.width),h=Math.round(cv.height*w/cv.width),c=document.createElement("canvas");c.width=w;c.height=h;var g=c.getContext("2d");g.fillStyle="#fff";g.fillRect(0,0,w,h);g.drawImage(cv,0,0,w,h);return c.toDataURL("image/png")}
-    function send(status){var nm=document.getElementById("nm").value.trim(),tt=document.getElementById("tt").value.trim(),nt=document.getElementById("nt").value.trim();msg.textContent="";
+    function send(status){var nm=document.getElementById("nm").value.trim(),tt=document.getElementById("tt").value.trim(),nt=document.getElementById("nt").value.trim(),poE=document.getElementById("po"),po=poE?poE.value.trim():"";msg.textContent="";
+      var unset=pieces.filter(function(p){return p.ok===null}),bad=pieces.filter(function(p){return p.ok===false});
+      if(bad.length)status="declined";
       if(nm.length<2){msg.textContent="Please type your full name.";document.getElementById("nm").focus();return}
+      if(status==="signed"&&unset.length){msg.textContent="Approve or flag each piece of artwork first ("+unset.length+" left).";var t0=document.getElementById("tile"+unset[0].i);if(t0)t0.scrollIntoView({behavior:"smooth",block:"center"});return}
       if(status==="signed"&&!drawn){msg.textContent="Please sign in the box.";return}
       if(status==="signed"&&!document.getElementById("ag").checked){msg.textContent="Please tick the box to approve.";return}
-      if(status==="declined"&&!nt){msg.textContent="Tell us what to change in the note.";document.getElementById("nt").focus();return}
+      if(status==="declined"&&!nt&&!bad.some(function(p){return p.note})){msg.textContent="Tell us what to change — in the note on the piece, or the note below.";return}
       var now=Date.now(),f={status:{stringValue:status},signedName:{stringValue:nm.slice(0,110)},signedTitle:{stringValue:tt.slice(0,80)},signedAt:{integerValue:String(now)},note:{stringValue:nt.slice(0,800)},ua:{stringValue:navigator.userAgent.slice(0,200)}};
-      var keys=["status","signedName","signedTitle","signedAt","note","ua"];if(status==="signed"){f.sigImg={stringValue:small()};keys.push("sigImg")}
-      var go=document.getElementById("go"),no=document.getElementById("no");go.disabled=no.disabled=true;go.textContent=status==="signed"?"Saving…":go.textContent;
-      patch(f,keys).then(function(){R.status=status;R.signedName=nm;R.signedTitle=tt;R.signedAt=now;R.note=nt;R.sigImg=f.sigImg?f.sigImg.stringValue:"";show();
-          var a=document.getElementById("approve");if(a)a.scrollIntoView({behavior:"smooth",block:"start"});else window.scrollTo(0,0)})
-        .catch(function(){msg.textContent="That didn't save. Check your connection and try again — or reply to our email.";go.disabled=no.disabled=false;go.textContent="Approve and sign"})}
+      var keys=["status","signedName","signedTitle","signedAt","note","ua"];if(status==="signed"){f.sigImg={stringValue:small()};keys.push("sigImg")}if(po){f.po={stringValue:po.slice(0,60)};keys.push("po")}
+      if(pieces.length){f.pieces={arrayValue:{values:pieces.map(function(p){return {mapValue:{fields:{i:{integerValue:String(p.i)},ok:p.ok===null?{nullValue:null}:{booleanValue:!!p.ok},note:{stringValue:String(p.note||"").slice(0,400)}}}}})}};keys.push("pieces")}
+      var go=document.getElementById("go"),no=document.getElementById("no");go.disabled=no.disabled=true;var lbl=go.textContent;go.textContent="Saving…";
+      // older database rules don't take the PO or the per-piece answers on their own: they ride along in the note instead
+      patch(f,keys).catch(function(e){if(!po&&!pieces.length)throw e;var extra=[];if(po)extra.push("PO "+po);pieces.forEach(function(p){var a=(R.arts||[])[p.i]||{};if(p.ok===false||p.note)extra.push((a.cap||"Artwork "+(p.i+1))+": "+(p.ok===false?"needs change":"OK")+(p.note?" — "+p.note:""))});
+          delete f.po;delete f.pieces;keys=keys.filter(function(k){return k!=="po"&&k!=="pieces"});f.note={stringValue:[nt].concat(extra).filter(Boolean).join(" | ").slice(0,800)};return patch(f,keys)})
+        .then(function(){R.status=status;R.signedName=nm;R.signedTitle=tt;R.signedAt=now;R.note=f.note.stringValue;R.sigImg=f.sigImg?f.sigImg.stringValue:"";R.po=po;show();window.scrollTo(0,0)})
+        .catch(function(){msg.textContent="That didn't save. Check your connection and try again — or reply to our email.";go.disabled=no.disabled=false;go.textContent=lbl})}
     document.getElementById("go").onclick=function(){send("signed")};document.getElementById("no").onclick=function(){send("declined")};
   }
+  function summary(){var box=document.getElementById("sumbox"),go=document.getElementById("go");if(!box||!go)return;var bad=pieces.filter(function(p){return p.ok===false}).length,unset=pieces.filter(function(p){return p.ok===null}).length;
+    var nob=document.getElementById("no");if(nob)nob.style.display=bad?"none":"";
+    if(bad){box.className="sum bad";box.innerHTML=bad+" piece"+(bad===1?" needs":"s need")+" a change — we'll send those notes to "+esc((R.repName||"us").split(" ")[0])+" and update the "+esc(what())+".";go.textContent="Send change requests";go.className="btn p bad";return}
+    box.className="sum";go.className="btn p";go.textContent="Approve and sign";
+    box.innerHTML="Signing approves "+(R.kind==="both"?"<b>both</b> quote "+esc(R.quoteNo||"")+" ("+money(total())+" plus applicable tax) <b>and</b> artwork proof rev "+esc(R.proofRev||1):R.kind==="proof"?"artwork proof rev "+esc(R.proofRev||1):"quote "+esc(R.quoteNo||"")+" ("+money(total())+" plus applicable tax)")+"."+(unset?' <span style="color:#7a828e">'+unset+' piece'+(unset===1?"":"s")+' still to check above.</span>':"")}
+  function bindPieces(){[].forEach.call(document.querySelectorAll("[data-ok],[data-bad]"),function(b){b.onclick=function(){var i=Number(b.getAttribute("data-ok")!=null?b.getAttribute("data-ok"):b.getAttribute("data-bad"));
+      pieces[i].ok=b.hasAttribute("data-ok");var t=document.getElementById("tile"+i);t.className="tile "+(pieces[i].ok?"ok":"bad");
+      t.querySelector(".okb").classList.toggle("on",pieces[i].ok);t.querySelector(".badb").classList.toggle("on",!pieces[i].ok);
+      var ta=t.querySelector("textarea");ta.placeholder=pieces[i].ok?"Note for this artwork (optional)":"What should change?";if(!pieces[i].ok)ta.focus();summary()}});
+    [].forEach.call(document.querySelectorAll("[data-note]"),function(ta){ta.oninput=function(){pieces[Number(ta.getAttribute("data-note"))].note=ta.value}})}
   function bindZoom(){var z=document.getElementById("zoom");[].forEach.call(document.querySelectorAll("[data-z]"),function(el){el.onclick=function(){z.querySelector("img").src=el.getAttribute("data-z");z.style.display="flex"}});z.onclick=function(){z.style.display="none"}}
 })();
 </script>
