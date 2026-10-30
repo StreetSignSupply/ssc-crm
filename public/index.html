@@ -1117,7 +1117,7 @@ th .sortb.on{color:var(--ink2);border-bottom-color:var(--act)}
 .callegend{display:flex;flex-wrap:wrap;gap:14px;align-items:center;padding:8px 16px 10px;font-size:12px;color:var(--ink2);border-top:1px solid var(--line2)}
 .callegend span{display:inline-flex;align-items:center;gap:6px}
 .callegend i{width:10px;height:10px;border-radius:3px;display:inline-block}
-.lg-start{background:var(--blue)}.lg-due{background:var(--orange)}.lg-late{background:var(--red)}.lg-ship{background:var(--green)}.lg-ev{background:#7A4FB5}
+.lg-wo{background:#2A8C9A}.ev.wo{border-left-color:#2A8C9A;background:color-mix(in srgb,#2A8C9A 9%,var(--card))}.lg-start{background:var(--blue)}.lg-due{background:var(--orange)}.lg-late{background:var(--red)}.lg-ship{background:var(--green)}.lg-ev{background:#7A4FB5}
 @media (max-width:760px){.ev .evk{display:none}.cal .day{min-height:84px;padding:4px}.ev .evn{-webkit-line-clamp:3;font-size:12px}}
 /* ===== polish: contact details with icons, and one type scale =====
    labels 12 · secondary text 13 · body 14 · card titles 15; nothing on screen under 11 */
@@ -1561,9 +1561,9 @@ const LBL={
     mobile:"Mobile",primary:"Primary",notes:"Notes"},
   project:{name:"Name",accountId:"Account",stage:"Stage",amount:"Value",amountAuto:"Value from lines",lostWhy:"Lost because",custScope:"Scope on the quote",scope:"About this project",lostTo:"Lost to",
     lostNote:"Loss note",billWhen:"When we bill",billStatus:"Billing status",
-    billDate:"Invoiced on",paidDate:"Paid on",depositAmt:"Deposit",start:"Start date",due:"Due date",po:"PO number",billingContactId:"Invoice to",repId:"Sales rep",
+    billDate:"Invoiced on",paidDate:"Paid on",depositAmt:"Deposit",start:"Received",quoteDue:"Quote due",due:"Customer needs it by",po:"PO number",billingContactId:"Invoice to",repId:"Sales rep",
     quote:"Quote number",source:"Source",invNum:"Invoice number",shipTo:"Ship to",drive:"Drive folder",notes:"Notes"},
-  job:{desc:"Description",projectId:"Project",due:"Due date",source:"Source",prod:"Product",
+  job:{desc:"Description",projectId:"Project",due:"Ship / install date",prodStart:"Production start",source:"Source",prod:"Product",
     blankSrc:"Blanks",method:"Build method",stencilMat:"Stencil material",bannerFin:"Finishing",
     decalMethod:"How it's made",postFin:"How it ships",rush:"Rush",
     needsProof:"Needs proof",drive:"Drive folder",notes:"Notes",status:"Status"},
@@ -1803,7 +1803,9 @@ const filesUnder=pid=>live(S.files).filter(f=>f.projectId===String(pid)).length;
 const actOf=(k,id)=>live(S.activity).filter(a=>a.recType===k&&a.recId===String(id)).sort((a,b)=>(b.at||0)-(a.at||0));
 const isClosed=p=>p.stage==="closed"||p.stage==="lost";
 // sample records stay out of every total, badge and report — they still show in the lists with their pill
-const real=list=>list.filter(x=>!x.sample);
+// sample records and test projects (TEST / do not send / dry run in the name) stay out of every count, forecast and report
+const isTestRec=x=>!!x&&(x.sample||/\bTEST\b|do not send|dry ?run/.test(String(x.name||"")));
+const real=list=>list.filter(x=>!isTestRec(x));
 // a project's due date is for the shipment — once it has shipped (or been invoiced) it can't be late any more
 const stillDue=p=>!isClosed(p)&&p.stage!=="shipped"&&p.stage!=="invoiced";
 const realJob=j=>!j.sample&&!((S.projects.get(j.projectId)||{}).sample);
@@ -3173,7 +3175,7 @@ function proofHTML(p,artsIn){
     <tbody>${lines.map(l=>`<tr>
       <td style="padding:7px 10px 7px 0;border-bottom:1px solid #EDEFF2;font-weight:800;width:46px;text-align:right">${esc(String(l.qty||""))}</td>
       <td style="padding:7px 0;border-bottom:1px solid #EDEFF2"><b>${esc(l.name)}</b>${l.spec?`<div style="color:#5B636D;font-size:10.5px;margin-top:2px">${esc(l.spec)}</div>`:""}
-        ${l.sw||(l.lg&&l.lg.length)?`<div style="margin-top:4px;display:flex;gap:6px;align-items:center;font-size:9.5px;color:#5B636D">${l.sw?`<span style="display:inline-block;width:12px;height:12px;border-radius:50%;border:1px solid #999;background:${l.sw}"></span>${esc(l.swName||"")} face`:""}
+        ${l.sw||(l.lg&&l.lg.length)?`<div style="margin-top:4px;display:flex;gap:6px;align-items:center;font-size:9.5px;color:#5B636D">${l.sw?`<span style="display:inline-block;width:12px;height:12px;border-radius:50%;border:1px solid #999;background:${l.sw}"></span>Sign face color: ${esc(l.swName||"")}`:""}
           ${(l.lg||[]).map(c=>`<span style="display:inline-block;width:12px;height:12px;border-radius:50%;border:1px solid #999;background:${c}"></span>`).join("")}${l.lg&&l.lg.length?"legend":""}</div>`:""}</td>
       <td style="padding:7px 0 7px 10px;border-bottom:1px solid #EDEFF2;width:90px;font-size:9.5px;color:#5B636D;white-space:nowrap"><span style="display:inline-block;width:13px;height:13px;border:1.5px solid #000;vertical-align:-2px"></span> OK</td>
     </tr>`).join("")}</tbody></table>`:`<div class="none">No lines recorded on this project yet.</div>`}
@@ -3429,7 +3431,7 @@ function docHTML(p,kind){
   const save=(function(){if(!a.showSavings)return 0;return lines.reduce((t,l)=>{if(!l.unit||!l.src||isCharge(l.src))return t;
         const lp=listPrice(l.src);return t+(lp&&lp.price>l.unit?(lp.price-l.unit)*l.qty:0)},0)})();
   const row=(l,ix)=>{const it=docItem(l,fnote);const chg=l.src&&isCharge(l.src);
-    const pic=!chg&&l.src&&b.quotePics!==false?linePic(p,l.src):"";
+    let pic=!chg&&l.src&&b.quotePics!==false?linePic(p,l.src):"";if(!pic&&!chg&&l.src&&b.quotePics!==false){try{pic=picFb(l.src)||""}catch(e){}}
     const src=l.src&&!chg?l.src:null;
     const name=src?docTidyName(it.name,src):(chg&&(l.src.charge==="freight"||/ship|freight|deliver/i.test(it.name))?String(it.name).replace(/^\s*(delivery|freight|shipping)\b\s*(?:[-–—:]\s*)?/i,"Shipping ").replace(/^Shipping\s+(to\b)/i,"Shipping $1").trim():it.name);
     const code=src?String(src.code||"").split("|")[0].trim():"";
@@ -3551,10 +3553,10 @@ async function makeDoc(pid,kind){
       "Make it anyway",false,()=>{S._floorOk=true;makeDoc(pid,kind).finally(()=>{S._floorOk=false})});return}
   // a sign line with no grade is priced for a grade nobody picked — stop and say so before the customer sees a price
   const nog=kind==="quote"?orderedLines(p).filter(l=>!isCharge(l)&&lineProd(l)==="sign"&&!String(l.grade||"").trim()&&!l.sheetKey&&Number(l.price)>0):[];
-  if(nog.length&&!S._nogOk){
-    askConfirm(nog.length+" sign line"+(nog.length===1?" has":"s have")+" no grade",
-      `<p style="margin:0">${nog.map(l=>esc(l.desc||l.code||"line")+" at "+money2(l.price)).join("<br>")}</p><p class="note">The price depends on the grade (EG, HIP, DG3…). Pick the grade on the quote line first — or make it anyway and the PDF says “sheeting grade to be confirmed” on ${nog.length===1?"that line":"those lines"}.</p>`,
-      "Make it anyway",false,()=>{S._nogOk=true;makeDoc(pid,kind).finally(()=>{S._nogOk=false})});return}
+  if(nog.length){
+    openModal(mshell(nog.length+" sign line"+(nog.length===1?" has":"s have")+" no grade","proj",
+      `<p style="margin:10px 15px">${nog.map(l=>"<b>"+esc(l.desc||l.code||"line")+"</b> at "+money2(l.price)).join("<br>")}</p><p class="note" style="margin:0 15px 12px">The price depends on the grade (EG, HIP, DG3…), so the quote can't go out with a price for a grade nobody picked. Edit ${nog.length===1?"the line":"those lines"} and pick the grade — then make the quote.</p>`,
+      `<button class="btn p" data-close="1">OK</button>`));return}
   if(unpriced){
     askConfirm(unpriced+" line"+(unpriced===1?" has":"s have")+" no price",
       `<p style="margin:0">They'll print with a dash. Price them on the quote lines first — <b>Fill in missing prices</b> puts the default on any line that has a size and material — or carry on.</p>`,
@@ -5118,8 +5120,8 @@ function reconCard(p){
         const cost=rows.reduce((t,r)=>t+(quoteLineCost(r).cost||0)*(Number(r.extra?r.sched:r.ordered)||0),0);
         // a stencil that can't be costed would make the margin look better than it is — say so instead
         const uncosted=rows.filter(r=>!r.charge&&quoteLineCost(r).src==="stcflag").length;
-        const mg=(tot&&cost&&!uncosted)?((tot-cost)/tot*100):null;
-        return `<tr style="background:var(--card2)"><td colspan="3"><b>Total</b>${uncosted?` <span class="sub">— margin waits on ${uncosted} line${uncosted===1?"":"s"} that can't be costed yet</span>`:""}</td><td class="mono" style="text-align:right"><b>${pcs}</b></td>
+        const cmT=costedMargin(p);const mg=(!uncosted&&cmT.rev&&cmT.cost>0)?cmT.m:null;
+        return `<tr style="background:var(--card2)"><td colspan="3"><b>Total</b>${uncosted?` <span class="sub">— margin waits on ${uncosted} line${uncosted===1?"":"s"} that can't be costed yet</span>`:cmT.uncostedLines&&mg!=null?` <span class="sub">— margin leaves out ${cmT.uncostedLines} line${cmT.uncostedLines===1?"":"s"} with no cost</span>`:""}</td><td class="mono" style="text-align:right"><b>${pcs}</b></td>
           <td class="mono" style="text-align:right">${cost?money(cost):""}</td><td></td>
           <td class="mono" style="text-align:right;font-weight:800;font-size:15px">${tot?money(tot):`<span class="sub">no prices yet</span>`}</td>
           <td style="text-align:right">${mg==null?"":`<span class="pill ${mg>=35?"g":mg>=20?"o":"r"}">${Math.round(mg)}%</span>`}</td><td colspan="2"></td></tr>
@@ -5529,6 +5531,7 @@ function autoPass(){
   // never before your settings have loaded — writing then would overwrite them with the defaults
   if(!S.brandLoaded)return;
   try{if(can("cost"))lockPass()}catch(e){}
+  try{signAutoPass()}catch(e){}
   if(!b.autoSince){if(!S._autoSinceSet){S._autoSinceSet=1;const at=Date.now();
     push("settings/brand",{autoSince:at}).then(()=>{S.brand=Object.assign({},S.brand||{},{autoSince:at})})
       .catch(()=>{const b2=Object.assign({},S.brand||{},{autoSince:at});setDoc("settings/brand",b2).then(()=>{S.brand=b2}).catch(()=>{})})}return}
@@ -6476,10 +6479,10 @@ function ordFindRows(q){const t=String(q||"").trim();if(!t)return [];
     .forEach(e=>out.push({key:"code:"+e.code,title:e.code+" — "+e.name,sub:e.sizes.length?"sizes "+e.sizes.slice(0,4).map(sizeLabel).join(", "):"MUTCD code",sell:null,sc:Math.min(findScore(t,e.code,e.name),findScore(t,e.code,e.code))}));
   // stencil sheet stock stays out of a sign search unless you ask for it (stencil, LDPE, HDPE, poly)
   const wantStc=/stencil|ldpe|hdpe|poly/i.test(t);
-  catRows(t,"").filter(r=>wantStc||r.kind!=="stencil").forEach(r=>out.push({key:r.key,title:findTitle(r),sub:[r.size?sizeLabel(r.size):"",r.kind==="sign"||r.kind==="stc"||r.kind==="web"?cleanTitle(r.grade):"",
+  catRows(t,"").filter(r=>wantStc||r.kind!=="stencil").forEach(r=>out.push({key:r.key,title:findTitle(r),stcDemote:!wantStc&&r.kind==="stc",sub:[r.size?sizeLabel(r.size):"",r.kind==="sign"||r.kind==="stc"||r.kind==="web"?cleanTitle(r.grade):"",
     r.kind==="web"?"website":r.kind==="stc"?"stencil":r.kind==="sign"?"workbook":r.byArea?"priced by size":""].filter(Boolean).join(" · "),sell:r.sell,img:r.img||"",sc:findScore(t,r.code||r.sku,r.title)+0.5}));
   const seen=new Set();return out.filter(x=>{if(seen.has(x.key))return false;seen.add(x.key);return true})
-    .map((x,i)=>Object.assign(x,{i})).sort((a,b)=>a.sc-b.sc||a.i-b.i).slice(0,8)}
+    .map((x,i)=>Object.assign(x,{i,sc:x.sc+(x.stcDemote?4:0)})).sort((a,b)=>a.sc-b.sc||a.i-b.i).slice(0,8)}
 // what picking a catalog row puts on the line (the same as the price list browser)
 function catalogPre(key){const r=catRows("").find(x=>x.key===key);if(!r)return null;
   if(r.kind==="stc")return {code:r.sku,size:r.size,grade:r.grade,price:r.sell?Number(r.sell).toFixed(2):"",title:r.title,desc:r.title,legend:"",webImg:r.img||""};
@@ -6606,7 +6609,8 @@ function linePriceSrc(p,l){if(!l||isCharge(l)||!(Number(l.price)>0))return "";if
   const pr=Number(l.price),eq=v=>v!=null&&Math.abs(Number(v)-pr)<0.005;
   try{const a=acct(p&&p.accountId);const cp=a?contractPrice(a,l):null;if(cp&&eq(cp.price))return "their price";
     if(l.webId)return "website";const d=defaultPrice(l,p&&p.accountId);if(d)return eq(d.price)?priceSrcOf(d):"earlier price"}catch(e){}
-  return ""}
+  // nothing to compare it with (no list or website price for this item): it was typed in
+  return S.pricelist||S.sheet?"typed":""}
 function ordSuggest(line){
   const a=S.ordAid?acct(S.ordAid):null;const cp=a?contractPrice(a,line):null;
   if(cp)return {price:Number(cp.price),why:a.name+"'s own price for this item",contract:true};
@@ -9164,7 +9168,7 @@ function decoratePics(){
 }
 function decorateRows(){
   document.querySelectorAll(".main tbody tr, .mbox tbody tr").forEach(tr=>{
-    const first=tr.querySelector(":scope > td:first-child .lnk[data-go]");
+    const first=tr.querySelector(":scope > td:first-child .lnk[data-go], :scope > td:first-child a.lnk[href^='#/']");
     if(first&&!tr.querySelector("input,select,textarea"))tr.classList.add("rowgo");
   });
 }
@@ -9701,6 +9705,7 @@ function home(){
         <span class="sp"><a class="btn sm" href="#/jobs">Open work orders</a></span></header>
         ${jobTable(oj.filter(j=>(JS[j.status]||{}).shop).sort(byDue).slice(0,10),true)}</section>
       <div>
+        ${myTasksCard()}
         <section class="card flush"><header><h2>Open tasks</h2><span class="n">${tasks.length}</span></header>
           ${tasks.length?`<ul class="act">${tasks.map(activityRow).join("")}</ul>`
           :`<div class="empty">Nothing open.</div>`}</section>
@@ -10050,7 +10055,7 @@ function projRows(ps,arch){
   return `<table><thead><tr><th>${sortBtn("num","Project",cp,"p")}</th>
     <th>${sortBtn("stage","Stage",cp,"p")}</th><th>${sortBtn("value","Value",cp,"p")}</th>
     <th>${sortBtn("due","Due",cp,"p")}</th><th>Billing</th><th>Work orders</th><th>Files</th></tr></thead><tbody>
-    ${ps.map(p=>`<tr><td><button class="lnk" data-go="project/${esc(p.id)}">${esc(p.name)}</button>
+    ${ps.map(p=>`<tr><td><a class="lnk" href="#/project/${esc(p.id)}">${esc(p.name)}</a>
       <div class="sub mono">P-${p.num}${p.po?" · PO "+esc(p.po):""}${p.reorderOf?" · reorder":""}</div></td>
       <td><span class="pill ${stageCls(p.stage)}">${esc((SG[p.stage]||{}).label||"")}</span></td>
       <td class="mono">${money(projValue(p))}</td>
@@ -10208,8 +10213,8 @@ function projectList(){
   return `<div class="pad"><section class="card flush wide">${head}
     ${list.length?`<table><thead><tr><th>Project</th><th>Account</th><th>Rep</th><th>Stage</th><th>Value</th><th>Due</th><th>WOs</th></tr></thead>
       <tbody>${list.map(p=>`<tr>
-        <td><button class="lnk" data-go="project/${esc(p.id)}">${esc(p.name)}</button><div class="sub mono">P-${p.num}</div></td>
-        <td><button class="lnk" data-go="account/${esc(p.accountId)}">${esc(accName(p.accountId))}</button></td>
+        <td><a class="lnk" href="#/project/${esc(p.id)}">${esc(p.name)}</a><div class="sub mono">P-${p.num}</div></td>
+        <td><a class="lnk" href="#/account/${esc(p.accountId)}">${esc(accName(p.accountId))}</a></td>
         <td>${(function(){const t=repFor(p);return t?esc(t.name):`<span class="sub">unassigned</span>`})()}</td>
         <td><span class="pill ${stageCls(p.stage)}">${esc((SG[p.stage]||{}).label||"")}</span></td>
         <td class="mono">${money(projValue(p))}</td>
@@ -10241,7 +10246,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-89";
+const APP_VERSION="2026.11.25-90";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -10253,6 +10258,13 @@ function taskAssignee(a){
   return live(S.team).find(t=>(t.initials||"").toUpperCase()===(a.who||"").toUpperCase())||null;
 }
 // Tasks: everyone's open tasks in one list — mine first by default, overdue on top
+// My tasks on every dashboard: overdue, today, this week, later — the signed-in person's own
+function myTasksCard(){const me=S.viewerTeam;if(!me)return "";const td=today(),wk=addDays(td,7);
+  const mine=live(S.activity).filter(a=>actKind(a)==="task"&&!a.done&&taskIsMine(a,me)).sort((a,b)=>String(a.due||"9999").localeCompare(String(b.due||"9999")));
+  const g=[["Overdue",mine.filter(a=>a.due&&a.due<td),"r"],["Today",mine.filter(a=>a.due===td),"o"],["This week",mine.filter(a=>a.due&&a.due>td&&a.due<=wk),""],["Later / no date",mine.filter(a=>!a.due||a.due>wk),""]].filter(x=>x[1].length);
+  return `<section class="card flush"><header><h2>My tasks</h2><span class="n">${mine.length}</span><span class="sp"><a class="btn sm" href="#/tasks">All tasks</a></span></header>
+    ${g.length?g.map(([l,list,c])=>`<div style="padding:8px 15px 0;font-size:12px;font-weight:800;color:${c==="r"?"var(--red)":c==="o"?"var(--orange-text)":"var(--ink2)"}">${esc(l)} · ${list.length}</div><ul class="act">${list.slice(0,8).map(activityRow).join("")}</ul>`).join("")
+      :`<div class="empty">Nothing assigned to you is open.</div>`}</section>`}
 function tasksView(){const f=S.taskF||"mine",me=S.viewerTeam,td=today();
   const all=live(S.activity).filter(a=>actKind(a)==="task");
   const open=all.filter(a=>!a.done),mine=open.filter(a=>taskIsMine(a,me));
@@ -10352,7 +10364,7 @@ async function taskSave(kind,id,existingId){
     await push("activity/"+existingId,{assigneeId:toId,assigneeName:to?to.name:"",assignedById:meId(),
       assignedByName:meName(),assignedAt:now,due});
     recordHistory(a.recType,a.recId,[{f:"Task",o:was,n:"Reassigned to "+(to?to.name:"")+" — "+a.text.slice(0,60),ev:1}]);
-    if(toId&&toId!==meId())notify(toId,"task-assigned",a.text,recLink(a),existingId);
+    if(toId)notify(toId,"task-assigned",a.text+(a.due?" — due "+fmtDate(a.due):""),recLink(a),existingId);
     toast("Reassigned to "+(to?to.name:""));return;
   }
   const text=($("#tk-text")?$("#tk-text").value:"").trim();
@@ -10364,8 +10376,9 @@ async function taskSave(kind,id,existingId){
   closeModal();
   try{await setDoc("activity/"+aid,rec)}catch(e){return toast("That didn't save.")}
   recordHistory(kind,String(id),[{f:"Task",o:"",n:"Assigned to "+(to?to.name:"")+" — "+text.slice(0,60),ev:1}]);
-  if(toId&&toId!==meId())notify(toId,"task-assigned",text+(recTitle(rec)?" ("+recTitle(rec)+")":""),recLink(rec),aid);
-  toast(to&&toId!==meId()?"Assigned to "+to.name:"Task added");
+  // everyone gets the bell and the email — your own tasks too, so a reminder is never silent
+  if(toId)notify(toId,"task-assigned",text+(due?" — due "+fmtDate(due):"")+(recTitle(rec)?" ("+recTitle(rec)+")":""),recLink(rec),aid);
+  toast((to&&toId!==meId()?"Assigned to "+to.name:"Task added")+(to&&!String(to.email||"").includes("@")?" — "+to.name+" has no email on file, so it's the bell only":" — they'll get a bell notice and an email"));
 }
 async function taskToggle(taskId,done){
   const a=S.activity.get(taskId);if(!a)return;
@@ -10398,7 +10411,7 @@ function activityRow(x){
         <span class="pill ${t.c}">${ic(t.i,12)} ${esc(t.l)}</span>
         ${k!=="task"?`<span class="sub mono" style="font-size:12px">${esc(x.who||"")}</span>`:""}
         ${x._src?`<span class="pill">${esc(x._src)}</span>`:""}
-        ${c?`<span class="sub">${esc(dir)} ${esc(c.name)}</span>`:""}
+        ${x.to&&!(c&&String(x.to).toLowerCase().indexOf(String(c.email||"~").toLowerCase())>=0)?`<span class="sub">to ${esc(x.to)}</span>`:c?`<span class="sub">${esc(dir)} ${esc(c.name)}</span>`:""}
         ${x.subject?`<b style="font-size:13.5px">${esc(x.subject)}</b>`:""}
         ${sendBadge(x)}${x.gmailId?`<span class="pill" title="Logged from Gmail">Gmail</span>`:""}
       </div>
@@ -10529,8 +10542,10 @@ function projectRec(id){
         <div><div class="k">Billing</div><div class="v">${billPill(p)}
           ${billedEarly(p)&&p.stage!=="invoiced"&&p.stage!=="closed"?`<div class="sub">billed before production</div>`:""}</div></div>
         <div><div class="k">PO</div><div class="v">${esc(p.po||"—")}</div></div>
-        <div><div class="k">Start</div><div class="v">${fmtDate(p.start)}</div></div>
-        <div><div class="k">Due</div><div class="v">${stillDue(p)?`<span class="pill ${dueCls(p.due,false)}">${dueTxt(p.due)}</span>`:`${fmtDate(p.due)} ${projDuePill(p)}`}</div></div>
+        <div><div class="k">Received</div><div class="v">${fmtDate(p.start||(p.createdAt?isoDay(p.createdAt):""))}</div></div>
+        ${p.quoteDue&&["inquiry","quoted"].indexOf(p.stage)>=0?`<div><div class="k">Quote due</div><div class="v">${p.quoteSentAt?`<span class="pill g">sent ${esc(fmtDate(isoDay(p.quoteSentAt)))}</span>`:`<span class="pill ${dueCls(p.quoteDue,false)}">${dueTxt(p.quoteDue)}</span>`}</div></div>`:""}
+        <div><div class="k">Customer needs it by</div><div class="v">${stillDue(p)?`<span class="pill ${dueCls(p.due,false)}">${dueTxt(p.due)}</span>`:`${fmtDate(p.due)} ${projDuePill(p)}`}</div></div>
+        ${projShipDates(p).length?`<div><div class="k">Ship / install</div><div class="v">${esc(projShipDates(p).map(fmtDate).join(", "))}</div></div>`:""}
         <div><div class="k">Quote lines</div><div class="v">${(function(){const st=reconStatus(p);
           const ol=orderedLines(p);const pcs=ol.filter(l=>!isCharge(l)).reduce((t,l)=>t+(Number(l.qty)||0),0);
           const q=quoteState(p);
@@ -11343,6 +11358,8 @@ function recLabel(r){
 }
 function recHash(r){return r.recType+"/"+r.recId}
 
+// a project's ship / install dates: its open work orders' dates (or when they shipped)
+function projShipDates(p){return [...new Set(jobsOf(p.id).map(j=>j.status==="shipped"?(shippedAt(j)?isoDay(shippedAt(j)):""):j.due).filter(Boolean))].sort()}
 function calendarView(){
   const base=S.calMonth?new Date(S.calMonth+"-01T00:00:00"):new Date();
   const y=base.getFullYear(),mo=base.getMonth();
@@ -11354,8 +11371,9 @@ function calendarView(){
   const add=(d,e)=>{if(!d)return;(ev[d]=ev[d]||[]).push(e)};
   live(S.projects).forEach(p=>{
     const closed=isClosed(p);
-    if(p.start)add(p.start,{c:"start",k:"Start",n:p.name,t:"Start · P-"+p.num+" "+p.name,h:"project/"+p.id});
-    if(p.due){const c=!stillDue(p)?"ship":(daysOut(p.due)<0?"late":"due");add(p.due,{c,k:c==="ship"?"Done":c==="late"?"Late":"Due",n:p.name,t:"Due · P-"+p.num+" "+p.name+(c==="ship"?" (done)":""),h:"project/"+p.id})}
+    if(p.quoteDue&&["inquiry","quoted"].indexOf(p.stage)>=0&&!(p.quoteSentAt))add(p.quoteDue,{c:"start",k:"Quote due",n:p.name,t:"Quote due · P-"+p.num+" "+p.name,h:"project/"+p.id});
+    // needs-by: shown once — not again when an open work order ships that same day (that entry says it)
+    if(p.due&&!closed&&projShipDates(p).indexOf(p.due)<0){const c=!stillDue(p)?"ship":(daysOut(p.due)<0?"late":"due");add(p.due,{c,k:c==="ship"?"Done":c==="late"?"Late":"Needs by",n:p.name,t:"Customer needs it by · P-"+p.num+" "+p.name+(c==="ship"?" (done)":""),h:"project/"+p.id})}
   });
   live(S.events).forEach(e=>{
     const p2=e.projectId?S.projects.get(e.projectId):null;
@@ -11369,7 +11387,7 @@ function calendarView(){
     if(j.status==="shipped"){const sa=shippedAt(j);
       if(sa)add(isoDay(sa),{c:"ship",k:"Shipped",n:"WO "+j.num+(j.desc?" · "+j.desc:""),t:"Shipped · Work order "+j.num+(j.desc?" · "+j.desc:""),h:"job/"+j.num});
       return}
-    if(j.due){const late=daysOut(j.due)<0;add(j.due,{c:late?"late":"due",k:late?"Late":"WO due",n:"WO "+j.num+(j.desc?" · "+j.desc:""),t:"Work order "+j.num+" due · "+(j.desc||""),h:"job/"+j.num})}
+    if(j.due){const late=daysOut(j.due)<0;const pn=(proj(j.projectId)||{}).due===j.due;add(j.due,{c:late?"late":"wo",k:late?"Late":"Ship / install",n:"WO "+j.num+(j.desc?" · "+j.desc:""),t:"Ship / install · Work order "+j.num+" · "+(j.desc||"")+(pn?" (the day the customer needs it)":""),h:"job/"+j.num})}
   });
   const cells=[];
   for(let i=startDow-1;i>=0;i--)cells.push({d:prevDim-i,off:1,iso:iso(mo===0?y-1:y,mo===0?11:mo-1,prevDim-i)});
@@ -11389,7 +11407,7 @@ function calendarView(){
         <span class="sp"><button class="btn sm p" data-newev="${esc(tISO)}">New event</button>
           <button class="btn sm" data-ics="all">Export to calendar (.ics)</button>
           <button class="btn sm" data-remind="1">Email this list</button></span></header>
-      <div class="callegend"><span><i class="lg-start"></i>Start</span><span><i class="lg-due"></i>Due</span><span><i class="lg-late"></i>Late</span>
+      <div class="callegend"><span><i class="lg-start"></i>Quote due</span><span><i class="lg-due"></i>Customer needs it by</span><span><i class="lg-wo"></i>Ship / install</span><span><i class="lg-late"></i>Late</span>
         <span><i class="lg-ship"></i>Done / shipped</span><span><i class="lg-ev"></i>Event</span><span class="sub" style="margin-left:auto">Hover an item for its full name · click to open</span></div>
       <div class="cal">
         ${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((d,i)=>`<div class="dow${i===0||i===6?" we":""}">${d}</div>`).join("")}
@@ -11693,7 +11711,7 @@ function sinceDays(ms2){return ms2?Math.floor((Date.now()-ms2)/86400000):null}
 function winRate(list,days){
   const cut=Date.now()-days*86400000;
   const w=list.filter(p2=>{const a=stageAt(p2,"won");return a&&a>=cut}).length;
-  const l=list.filter(p2=>{const a=stageAt(p2,"lost");return a&&a>=cut}).length;
+  const l=list.filter(p2=>{const a=p2.stage==="lost"?(stageAt(p2,"lost")||Number(p2.lostAt)||Number(p2.updatedAt)||0):0;return a&&a>=cut}).length;
   return (w+l)?Math.round(w/(w+l)*100):null;
 }
 function kpi(label,value,sub,color){
@@ -11816,9 +11834,7 @@ function myBook(){
               others?others+" "+(others===1?"is":"are")+" on someone else's book":""}.
               <div style="margin-top:12px"><button class="btn p" data-fixrep="1">Assign accounts</button></div></div>`})()}
         </section>
-        <section class="card flush"><header><h2>My open tasks</h2><span class="n">${tasks.length}</span></header>
-          ${tasks.length?`<ul class="act">${tasks.slice(0,12).map(activityRow).join("")}</ul>`
-          :`<div class="empty">Nothing open.</div>`}</section>
+        ${myTasksCard()}
       </div>
     </div>
     <section class="card flush"><header><span class="oi sm oi-job">${ic("job",14)}</span><h2>Work orders on my projects</h2>
@@ -13270,7 +13286,9 @@ function projectModal(p,aid,then){
     <div class="fgrid">${sel("f-acct","Account — every project belongs to one",p.accountId||aid||accs[0].v,withNew(accs,"Add a new account…")).replace('<div class="fld">','<div class="fld full">')}
       ${inp("f-name","Project name",p.name,"text",1)}
       ${sel("f-stage","Stage",p.stage||"inquiry",STAGES.map(s=>({v:s.id,l:s.label})))}
-      ${inp("f-start","Start date",p.id?p.start:(p.start||today()),"date")}${inp("f-due","Due date",p.due,"date")}
+      ${inp("f-start","Received — when the request came in",p.id?(p.start||(p.createdAt?isoDay(p.createdAt):"")):(p.start||today()),"date")}${inp("f-qdue","Quote due — when they expect the quote",p.quoteDue||"","date")}
+      ${inp("f-due","Customer needs it by — the date that matters",p.due,"date")}
+      <div class="fld"><div class="k">Ship / install — from the work orders</div><div class="v" style="padding-top:6px">${(function(){const d=projShipDates(p);return d.length?esc(d.map(fmtDate).join(", ")):`<span class="sub">set on the work order</span>`})()}</div></div>
       <div class="fld"><div class="k">PO number — from the customer's purchase order</div>
         <input id="f-po" value="${esc(p.po||"")}" placeholder="Their PO number">
         <label style="display:flex;gap:7px;align-items:center;margin-top:6px;font-size:12.5px;cursor:pointer">
@@ -13301,7 +13319,7 @@ function projectModal(p,aid,then){
   if(pae)pae.onchange=()=>{
     if(pae.value!==NEWOPT)return;
     const keep=Object.assign({},p,{name:$("#f-name").value,stage:$("#f-stage").value,
-      amount:$("#f-amt").value,start:$("#f-start").value,due:$("#f-due").value,
+      amount:$("#f-amt").value,start:$("#f-start").value,quoteDue:$("#f-qdue")?$("#f-qdue").value:(p.quoteDue||""),due:$("#f-due").value,
       po:$("#f-po").value,quote:$("#f-quote").value,source:$("#f-src").value,
       shipTo:$("#f-ship").value,drive:$("#f-drive").value,
       scope:$("#f-scope")?$("#f-scope").value.trim():(p.scope||""),custScope:$("#f-cscope")?$("#f-cscope").value.trim():(p.custScope||""),notes:$("#f-notes").value});
@@ -13318,7 +13336,7 @@ function projectModal(p,aid,then){
     let sl=(p.stageLog||[]).slice();
     if(!p.id||p.stage!==stage)sl.push({stage,at:Date.now(),who:me()});
     const rec={id,num,name,accountId:$("#f-acct").value,stage,amount:$("#f-amt").value,
-      start:$("#f-start").value,due:$("#f-due").value,
+      start:$("#f-start").value,quoteDue:$("#f-qdue")?$("#f-qdue").value:(p.quoteDue||""),due:$("#f-due").value,
       po:$("#f-po").value.trim()||($("#f-ourpo")&&$("#f-ourpo").checked?"SSS-"+num:""),quote:$("#f-quote").value.trim()||(stage!=="inquiry"&&stage!=="lost"&&(!p.id||p.stage!==stage)?await nextQuote():""),
       source:$("#f-src").value,
       invNum:p.invNum||"",shipTo:$("#f-ship").value.trim(),drive:$("#f-drive").value.trim(),
@@ -13365,7 +13383,9 @@ function jobModal(j,pid){
     `${j.num?"":`<p class="note" style="margin:10px 14px">${j.dupOf?("Copying work order "+j.dupOf+" — its line items come along. Pick the project this run belongs to. Files do not copy.").replace(/"/g,"&quot;"):"A work order is one batch of physical work: what the shop builds, what gets printed and carried on the floor."}</p>`}
     <div class="sub" style="padding:2px 15px 10px">Route: ${esc(routeFor(j).map(r=>r.label).join(" \u2192 "))}</div>
     <div class="fgrid">${projSelect("f-proj","Project",j.projectId||pid||ps[0].v,true)}
-      ${inp("f-due","Due date",j.due||((proj(j.projectId||pid)||{}).due||""),"date")}
+      ${(function(){const pp=proj(j.projectId||pid)||{};return `<div class="fld"><div class="k">Customer needs it by — from the project</div><div class="v" style="padding-top:6px">${pp.due?esc(fmtDate(pp.due)):`<span class="sub">not set on the project</span>`}</div></div>`})()}
+      ${inp("f-pstart","Production start",j.prodStart||"","date")}
+      ${inp("f-due","Ship / install date",j.due||((proj(j.projectId||pid)||{}).due||""),"date")}
       <div class="fld full"><div class="k">Description — optional</div>
         <input id="f-desc" value="${esc(j.desc||"")}" placeholder="Leave blank to use the project name"></div>
       ${sel("f-prod","What are we making",prodOf(j),allProd().map(x=>({v:x.id,l:x.label})))}
@@ -13401,7 +13421,7 @@ function jobModal(j,pid){
   const jpe=$("#f-proj");
   if(jpe)jpe.onchange=()=>{
     if(jpe.value!==NEWOPT)return;
-    const keep=Object.assign({},j,{desc:$("#f-desc").value,due:$("#f-due").value,
+    const keep=Object.assign({},j,{desc:$("#f-desc").value,due:$("#f-due").value,prodStart:$("#f-pstart")?$("#f-pstart").value:(j.prodStart||""),
       notes:$("#f-notes")?$("#f-notes").value:"",
       drive:$("#f-drive")?$("#f-drive").value:"",rush:$("#f-rush").checked,
       needsProof:$("#f-proof").checked,prod:$("#f-prod")?$("#f-prod").value:prodOf(j)});
@@ -13412,7 +13432,7 @@ function jobModal(j,pid){
     const el=$("#"+id);
     if(el)el.onchange=()=>{
       const cur=Object.assign({},j,{
-        desc:$("#f-desc").value,due:$("#f-due").value,
+        desc:$("#f-desc").value,due:$("#f-due").value,prodStart:$("#f-pstart")?$("#f-pstart").value:(j.prodStart||""),
         notes:$("#f-notes")?$("#f-notes").value:"",drive:$("#f-drive")?$("#f-drive").value:"",
         rush:$("#f-rush").checked,needsProof:$("#f-proof").checked,
         prod:$("#f-prod")?$("#f-prod").value:prodOf(j),
@@ -13432,7 +13452,7 @@ function jobModal(j,pid){
     const desc=$("#f-desc").value.trim()||(pr?pr.name:"Work order");
     if(j.num){
       const moved=j.projectId!==pid2;
-      const patch={desc,projectId:pid2,accountId:pr?pr.accountId:"",due:$("#f-due").value,
+      const patch={desc,projectId:pid2,accountId:pr?pr.accountId:"",due:$("#f-due").value,prodStart:$("#f-pstart")?$("#f-pstart").value:(j.prodStart||""),
         prod:$("#f-prod").value,
         blankSrc:$("#f-blank")?$("#f-blank").value:(j.blankSrc||"stock"),
         method:$("#f-method")?$("#f-method").value:(j.method||"film"),
@@ -15500,8 +15520,10 @@ function followContact(p){if(!p)return null;
 function linesSummary(p){return orderedLines(p).filter(l=>l&&!isCharge(l)&&(Number(l.qty)>0||l.desc||l.code))
   .map(l=>(l.qty||1)+" × "+(l.desc||syncTxt(()=>signName(l))||l.code||"item")+(l.code&&l.desc?" ("+l.code+")":"")+(l.size?" "+syncTxt(()=>sizeLabel(l.size)):"")+(l.grade?" "+l.grade:"")).join("; ")}
 // plan the three touches the first time a project has a quote number — not if it's past quoting or was stopped
-async function followPlan(pid,fromIso){
-  const p=proj(pid);if(!p||(p.followups||[]).length||p.followStop||(p.stage!=="quoted"&&p.stage!=="inquiry"))return null;
+async function followPlan(pid,fromIso,sent){
+  const p0=proj(pid);if(!p0)return null;
+  if(!sent&&!p0.quoteSentAt)return null;   // not sent yet: the timers wait for the email that carries the quote
+  const p=p0;if(!p||(p.followups||[]).length||p.followStop||(p.stage!=="quoted"&&p.stage!=="inquiry"))return null;
   if(!quoteState(p).ok)return null;           // no follow-ups on a quote with no prices
   {const fc=followContact(p);if(!fc||!fc.email)return null}   // nobody to send them to
   if(/dry ?run|do not submit/i.test((p.name||"")+" "+(p.scope||"")+" "+(p.notes||"")))return null;
@@ -15779,7 +15801,7 @@ function composeFiles(pid){if(!pid)return [];return projFiles(pid).filter(f=>f.u
 function composeModal(o){o=o||{};const p=o.pid?proj(o.pid):null;const aid=o.aid||(p&&p.accountId)||"";
   const people=(p?((p.contacts||[]).map(x=>S.contacts.get(x)).filter(c=>c&&!c.deleted)):[]).concat(aid?contactsOf(aid):[]).filter((c,i,a)=>c.email&&a.findIndex(x=>x.id===c.id)===i);
   const c0=o.contactId?S.contacts.get(o.contactId):(o.to?people.find(c=>c.email===o.to):null)||(p?followContact(p):people[0])||null;
-  S._cmp={pid:o.pid||"",aid,contact:c0,signUrl:o.signUrl||"",signId:o.signId||"",kind:o.kind||"",draft:o.draft||null,follow:o.follow||null};
+  S._cmp={pid:o.pid||"",aid,contact:c0,signUrl:o.signUrl||"",signId:o.signId||"",kind:o.kind||"",draft:o.draft||null,follow:o.follow||null,tplUsed:o.tpl||""};
   const tpls=mailTemplates();const t0=o.tpl?tpls.find(t=>t.id===o.tpl):null;
   const subj=o.subject!=null?o.subject:t0?mailFill(t0.subject,S._cmp):"";const body=o.body!=null?o.body:t0?mailFill(t0.body,S._cmp):"";
   const files=composeFiles(o.pid);const pre=new Set(o.attach||[]);
@@ -15795,12 +15817,12 @@ function composeModal(o){o=o||{};const p=o.pid?proj(o.pid):null;const aid=o.aid|
     <div class="fld full"><div class="k">Message</div><textarea id="cm-body" style="min-height:220px">${esc(body)}</textarea></div>
     ${files.length?`<div class="fld full"><div class="k">Attach from this project${sendOn?"":" (attachments go only when the CRM sends it)"}</div>
       <div style="display:flex;flex-direction:column;gap:4px;max-height:160px;overflow:auto">${files.slice(0,25).map(f=>`<label style="display:flex;gap:8px;align-items:center;justify-content:flex-start;font-size:13.5px;text-align:left;font-weight:500"><input type="checkbox" data-cmatt="${esc(f.id)}" ${pre.has(f.id)?"checked":""} ${sendOn?"":"disabled"} style="width:18px;height:18px;flex:0 0 auto;margin:0"> <span style="flex:0 1 auto">${esc(f.name)}</span> <span class="sub">${esc(f.cat||"")}${f._src&&f._src!=="Project"?" · "+esc(f._src):""}</span></label>`).join("")}</div></div>`:""}
-    <div class="fld full sub">${sendOn?`Sends from <b>${esc(from||"—")}</b> through Gmail within a few minutes, and it's logged on ${p?"the project":"the account"}. Replies come to that inbox.`
+    <div class="fld full sub">${sendOn?`Sends from <b>${esc(from||"—")}</b> through Gmail within about a minute, and it's logged on ${p?"the project":"the account"}. Replies come to that inbox.`
       :window.sscHosted?`Sending from the CRM isn't switched on yet — <b>Open in my email</b> opens it in your own email with this text, and it's logged here.`
       :`This copy can't send email — <b>Open in my email</b> opens it in your own email with this text, and it's logged here.`}</div>
     ${can("settings")||myAccess()==="office"?`<div class="fld full"><button type="button" class="lnk" id="cm-savetpl">Save this as a template…</button></div>`:""}</div>`,
     `<button class="btn" data-close="1">Cancel</button><button class="btn" id="cm-open">Open in my email</button>${sendOn?`<button class="btn p" id="cm-send">Send</button>`:""}`));
-  const tp=$("#cm-tpl");if(tp)tp.onchange=()=>{const t=tpls.find(x=>x.id===tp.value);if(!t)return;$("#cm-subj").value=mailFill(t.subject,S._cmp);$("#cm-body").value=mailFill(t.body,S._cmp);S.modalTouched=true};
+  const tp=$("#cm-tpl");if(tp)tp.onchange=()=>{const t=tpls.find(x=>x.id===tp.value);if(!t)return;S._cmp.tplUsed=t.id;$("#cm-subj").value=mailFill(t.subject,S._cmp);$("#cm-body").value=mailFill(t.body,S._cmp);S.modalTouched=true};
   document.querySelectorAll("[data-cmto]").forEach(b=>b.onclick=()=>{const to=$("#cm-to");const cur=to.value.split(",").map(x=>x.trim()).filter(Boolean);
     if(cur.indexOf(b.dataset.cmto)<0)cur.push(b.dataset.cmto);to.value=cur.join(", ");if(cur.length===1){S._cmp.contact=S.contacts.get(b.dataset.cmcid)||S._cmp.contact}});
   const ai=$("#cm-ai");if(ai)ai.onclick=()=>composeAI();
@@ -15825,18 +15847,24 @@ async function composeGo(send){const C=S._cmp||{};const to=$("#cm-to").value.spl
   if(!to.length){toast("Put in who it goes to.");$("#cm-to").focus();return}
   if(!subject){toast("Give it a subject.");$("#cm-subj").focus();return}
   const atts=[...document.querySelectorAll("[data-cmatt]:checked")].map(e=>S.files.get(e.dataset.cmatt)).filter(Boolean).map(f=>({name:f.name,url:f.url,type:f.type||""}));
-  const c=C.contact&&to.indexOf(C.contact.email)>=0?C.contact:live(S.contacts).find(x=>to.indexOf(String(x.email||"").toLowerCase())>=0||to.indexOf(x.email)>=0)||null;
+  const tl=to.map(x=>x.toLowerCase()),hit=x=>x&&x.email&&tl.indexOf(String(x.email).toLowerCase())>=0;
+  const pA=C.pid?(proj(C.pid)||{}).accountId:C.aid;
+  const c=hit(C.contact)?C.contact:(contactsOf(pA||"").find(hit)||live(S.contacts).find(hit)||null);
   const now=Date.now(),xid=uid("ac"),mid=uid("ml");const recType=C.pid?"project":"account",recId=C.pid||C.aid||(c&&c.accountId)||"";
   closeModal();
   await setDoc("activity/"+xid,{id:xid,recType,recId:String(recId),kind:"note",type:"email",direction:"out",subject,text:body+(atts.length?"\n\n📎 "+atts.map(a=>a.name).join(", "):""),
     contactId:c?c.id:"",whoId:meId(),who:me(),when:today(),due:"",backOn:"",noBack:true,at:now,done:true,deleted:false,mailId:send?mid:"",sendState:send?"queued":"opened",to:to.join(", ")});
   if(send){await setDoc("mail/"+mid,{id:mid,kind:"customer",to,cc,from:myMailFrom(),fromName:meName(),byId:meId(),message:{subject,text:body},attachments:atts,
       status:"queued",at:now,activityId:xid,recType,recId:String(recId),signId:C.signId||""});
-    toast("Sending — it goes out from "+myMailFrom()+" in a few minutes.")}
+    toast("Sending — it goes out from "+myMailFrom()+" within about a minute.")}
   else{mailOpen(to.join(","),subject,body,{cc:false});toast("Opened in your email — it's logged here.")}
   if(C.draft)await draftSet(C.draft.pid,C.draft.id,{status:"sent",sentAt:now,by:me(),subject,body});
   if(C.follow)await followSet(C.follow.pid,C.follow.id,{status:"sent",sentAt:now,by:me(),subject,body});
   if(C.pid)logEvent("project",C.pid,"Email "+(send?"sent":"opened")+" to "+to.join(", ")+" — "+subject);
+  // the quote went to the customer (its PDF attached, the quote template, or a signature link for it): that's when follow-ups start
+  {const pq=C.pid?proj(C.pid):null;const quoteOut=pq&&(atts.some(a=>/quote/i.test(a.name))||C.tplUsed==="quote"||(C.signId&&((S.signreq||new Map()).get(C.signId)||{}).kind!=="proof"));
+    if(pq&&(quoteOut||C.kind==="quote")){const at=now;await push("projects/"+pq.id,{quoteSentAt:pq.quoteSentAt||at,quoteSentTo:to.join(", "),updatedAt:at});pq.quoteSentAt=pq.quoteSentAt||at;
+      if(["inquiry","quoted"].indexOf(pq.stage)>=0)try{await followPlan(pq.id,today(),true)}catch(e){}}}
   render()}
 // what the mail worker reported back on an email sent from the CRM
 function sendBadge(x){const s=x&&x.sendState;if(!s||s==="opened")return "";
@@ -15864,52 +15892,83 @@ function signModal(pid,fid){const p=proj(pid);if(!p)return;const docs=signDocs(p
   const proofish=d0&&/proof|artwork/i.test(d0.cat||"");
   const people=(p.contacts||[]).map(x=>S.contacts.get(x)).concat(contactsOf(p.accountId)).filter((x,i,a)=>x&&x.email&&a.findIndex(y=>y&&y.id===x.id)===i);
   openModal(mshell("Get it signed","file",`<div class="fgrid">
-    <div class="fld full"><div class="k">They're approving</div><select id="sg-kind">
-      <option value="quote" ${proofish||!docs.length?"":"selected"}>The quote — items and prices</option>
-      <option value="proof" ${proofish||!docs.length?"selected":""}>The proof — artwork${arts.length?" ("+arts.length+" picture"+(arts.length===1?"":"s")+")":""}</option></select></div>
+    ${(function(){const hasQ=orderedLines(p).some(l=>!isCharge(l)&&Number(l.qty)>0),hasA=orderedLines(p).some(signNeedsArt)||arts.length;const def=hasQ&&hasA?"both":hasQ?"quote":"proof";
+      return `<div class="fld full"><div class="k">They're approving</div><select id="sg-kind">
+      ${hasQ&&hasA?`<option value="both" ${def==="both"?"selected":""}>Quote + proof — one signature for both</option>`:""}
+      ${hasQ?`<option value="quote" ${def==="quote"?"selected":""}>The quote only — items and prices</option>`:""}
+      <option value="proof" ${def==="proof"?"selected":""}>The proof only — artwork</option></select></div>`})()}
     <div class="fld full"><div class="k">Document to go with it</div><select id="sg-doc"><option value="">— none, just what's on the page —</option>${docs.map(f=>`<option value="${esc(f.id)}" ${d0&&f.id===d0.id?"selected":""}>${esc(f.name)} — ${esc(f.cat||"file")}</option>`).join("")}</select></div>
     <div class="fld full"><div class="k">Who signs</div><select id="sg-who">${people.map(x=>`<option value="${esc(x.id)}" ${c&&c.id===x.id?"selected":""}>${esc(x.name)} — ${esc(x.email)}</option>`).join("")||`<option value="">(no contact with an email — add one first)</option>`}</select></div>
     <div class="fld full sub">They get a private link (good for 30 days). The page shows the ${"items, pictures and prices"} — or for a proof, every artwork picture to check — and they type their name, sign and approve, or ask for changes. Next you'll see the email with the link in it.</div></div>`,
     `<button class="btn" data-close="1">Cancel</button><button class="btn p" id="sg-go">Make the link</button>`));
   $("#sg-go").onclick=async()=>{const kind=$("#sg-kind").value;const f=S.files.get($("#sg-doc").value)||null;const ct=S.contacts.get($("#sg-who").value)||null;
-    if(kind==="quote"&&!orderedLines(p).some(l=>Number(l.qty)>0)){toast("The quote has no lines yet.");return}
+    if(kind!=="proof"&&!orderedLines(p).some(l=>Number(l.qty)>0)){toast("The quote has no lines yet.");return}
     if(kind==="proof"&&!arts.length&&!f){toast("No artwork on this project yet — upload the proof pictures first.");return}
     const tok=signToken();const rec=signRec(p,kind,f,ct,arts,tok);
     try{await setDoc("signreq/"+tok,rec)}catch(e){toast("Couldn't make the link.");return}
-    logEvent("project",p.id,(kind==="proof"?"Proof":"Quote")+" sent for signature"+(f?" ("+f.name+")":"")+(ct?" to "+ct.name:""));
-    closeModal();composeModal({pid:p.id,contactId:ct?ct.id:"",tpl:kind==="proof"?"proof":"quote",signUrl:signUrl(tok),signId:tok,attach:f?[f.id]:[],title:"Email the signature link"})}}
-// what the signing page shows: everything it needs is copied in, so the page never reads the CRM itself
+    // older links still waiting on this project now point to this one
+    for(const o of signReqsFor(p.id).filter(o=>o.token!==tok&&o.status==="sent"))await setDoc("signreq/"+o.token,Object.assign({},o,{status:"replaced",replacedBy:signUrl(tok)})).catch(()=>{});
+    logEvent("project",p.id,(kind==="both"?"Quote + proof":kind==="proof"?"Proof":"Quote")+" sent for signature"+(f?" ("+f.name+")":"")+(ct?" to "+ct.name:""));
+    closeModal();composeModal({pid:p.id,contactId:ct?ct.id:"",tpl:kind==="proof"?"proof":"quote",signUrl:signUrl(tok),signId:tok,attach:f?[f.id]:[],title:"Email the signature link",kind:kind==="proof"?"":"quote"})}}
+// what the signing page shows: everything it needs is copied in, so the page never reads the CRM itself.
+// kind "both" (the quote and its artwork, one signature), "quote" or "proof"
+function signNeedsArt(l){if(!l||isCharge(l)||l.artId==="none")return false;const k=lineProd(l);
+  return ["sign","decal","letter","banner","stencil"].indexOf(k)>=0&&!!(l.size||l.grade||l.code||l.sheetKey||l.webImg)}
+function signColor(t){const m=String(t||"").toUpperCase().match(/FLUORESCENT YELLOW GREEN|FYG|FLUORESCENT ORANGE|WHITE|YELLOW|RED|BLUE|GREEN|ORANGE|BROWN|BLACK|SILVER|GOLD/);
+  return m?m[0].toLowerCase().replace("fyg","fluorescent yellow-green"):""}
 function signRec(p,kind,f,ct,arts,tok){const b=S.brand||{};const now=Date.now();const rep2=repFor(p)||S.viewerTeam||{};
   const small=u=>{u=String(u||"");return /^https:\/\//.test(u)||(/^data:image\//.test(u)&&u.length<160000)?u:""};
   const ol=orderedLines(p).filter(l=>Number(l.qty)>0);
-  const lines=kind==="quote"?ol.slice(0,60).map(l=>{const ch=isCharge(l);let img="";if(!ch){try{img=small(linePic(p,l))}catch(e){}}
+  const withQ=kind!=="proof",withP=kind!=="quote";
+  const lines=withQ?ol.slice(0,60).map(l=>{const ch=isCharge(l);
     return {d:String(ch?(l.desc||"Charge"):docTidyName(l.desc||signName(l)||l.code||"Item",l)).slice(0,110),
-      s:ch?"":[String(l.code||"").split("|")[0].trim(),l.size?sizeLabel(l.size):"",docSheeting(l.grade)].filter(Boolean).join(" · ").slice(0,140),
-      q:Number(l.qty)||0,p:Number(l.price)||0,c:ch,img}}):[];
-  let artList=[];if(kind==="proof"){const m=(function(){try{return artMatches(p)}catch(e){return {}}})();
-    artList=arts.slice(0,24).map((a,i)=>{const lo=a._line||null;return {url:small(a.url),cap:String(lo?docTidyName(lo.desc||signName(lo)||lo.code||"Item",lo):String(a.name||"").replace(/\.[a-z0-9]+$/i,"")).slice(0,100),
-      s:lo?[lo.qty?lo.qty+" pcs":"",lo.size?sizeLabel(lo.size):"",docSheeting(lo.grade)].filter(Boolean).join(" · "):""}}).filter(a=>a.url)}
-  const sub=lines.reduce((t,l)=>t+l.q*l.p,0);
-  return {token:tok,kind,projectId:p.id,pnum:"P-"+p.num,quoteNo:kind==="quote"?(p.quote||"P-"+p.num):"",project:p.name||"",
-    title:(kind==="proof"?"Proof for ":"Quote "+(p.quote||"P-"+p.num)+" — ")+(p.name||""),
+      s:ch?"":[l.size?sizeLabel(l.size):"",docSheeting(l.grade)].filter(Boolean).join(" · ").slice(0,140),q:Number(l.qty)||0,p:Number(l.price)||0,c:ch}}):[];
+  // one artwork tile for each line that's made with artwork (signs, decals, banners, stencils); the rest are listed as no artwork needed
+  let artList=[],noArt=[];
+  if(withP){ol.filter(l=>!isCharge(l)).forEach(l=>{const name=docTidyName(l.desc||signName(l)||l.code||"Item",l);
+      if(!signNeedsArt(l)){noArt.push(name+(Number(l.qty)>1?" (×"+l.qty+")":""));return}
+      let u="";try{u=small(linePic(p,l))}catch(e){}if(!u){try{u=small(picFb(l))}catch(e){}}
+      const face=signColor(l.grade),leg=[...new Set((legendsOf(l)||[]).map(x=>signColor(x.film)).filter(Boolean))];
+      artList.push({url:u,cap:String(name).slice(0,100),size:l.size?sizeLabel(l.size):"",sheet:docSheeting(l.grade)||"",
+        colors:[leg.length?leg.join(" and ")+" on ":"",face||""].join("").replace(/ on $/,"")||"",q:Number(l.qty)||0,line:l.id||""})});
+    // pictures uploaded as proofs that didn't match a line still go on the page
+    (arts||[]).filter(a=>a&&!a._line&&a.url&&!artList.some(x=>x.url===a.url)).slice(0,12).forEach(a=>artList.push({url:small(a.url),cap:String(a.name||"Artwork").replace(/\.[a-z0-9]+$/i,"").slice(0,100),size:"",sheet:"",colors:"",q:0,line:""}))}
+  artList=artList.filter(a=>a.url||a.line).slice(0,30);
+  const sub=lines.reduce((t,l)=>t+l.q*l.p,0);const a=acct(p.accountId)||{};
+  // an organization is signed for "on behalf of"; a person buying for themselves just approves
+  const org=!/retail|individual|homeowner/i.test(a.type||"")&&!(ct&&String(ct.name||"").trim().toLowerCase()===String(a.name||"").trim().toLowerCase());
+  const rev=Number(p.proofRev)||1;const qn=p.quote||("P-"+p.num);
+  return {token:tok,kind,projectId:p.id,pnum:"P-"+p.num,quoteNo:withQ?qn:"",proofRev:withP?rev:0,project:p.name||"",
+    title:(kind==="both"?"Quote "+qn+" + proof rev "+rev:kind==="proof"?"Proof rev "+rev:"Quote "+qn)+" — "+(p.name||""),
     company:b.name||"Street Sign Supply",companyPhone:b.phone?fmtPhone(b.phone):"",companyEmail:b.email||"",companyAddr:b.address||"",
     logo:String(b.logo||"").length<200000?(b.logo||""):"",color:/^#[0-9a-f]{6}$/i.test(b.brand||"")?b.brand:"#D50101",
     repName:rep2.name||"",repPhone:rep2.phone?fmtPhone(rep2.phone):"",repEmail:rep2.email||"",
-    customer:accName(p.accountId),contactName:ct?ct.name:"",contactEmail:ct?ct.email:"",
-    total:kind==="quote"?money2(sub):"",subtotal:kind==="quote"?Math.round(sub*100)/100:0,lines,arts:artList,
-    pdfUrl:f?f.url:"",pdfName:f?f.name:"",fileId:f?f.id:"",status:"sent",createdAt:now,expiresAt:now+30*864e5,createdBy:meName(),createdById:meId(),signedName:"",signedAt:0,deleted:false}}
+    customer:a.name||accName(p.accountId),customerOrg:org,contactName:ct?ct.name:"",contactEmail:ct?ct.email:"",
+    total:withQ?money2(sub):"",subtotal:withQ?Math.round(sub*100)/100:0,lines,arts:artList,noArt,
+    shipBy:p.due||"",pdfUrl:f?f.url:"",pdfName:f?f.name:"",pdfKind:f?(/proof|artwork/i.test(f.cat||"")?"proof":"quote"):"",fileId:f?f.id:"",
+    status:"sent",createdAt:now,expiresAt:now+30*864e5,createdBy:meName(),createdById:meId(),signedName:"",signedAt:0,deleted:false}}
 function signCard(p){const rs=signReqsFor(p.id);if(!rs.length)return "";
   return `<section class="card flush"><header><h2>Signatures</h2><span class="n">${rs.length}</span><span class="sp"><button class="btn sm" data-signreq="${esc(p.id)}">Get it signed</button></span></header>
     ${rs.map(r=>{const exp=r.status!=="signed"&&r.expiresAt&&r.expiresAt<Date.now();
-      return `<div class="rrow"><div class="rr-c"><div class="rr-t"><span>${esc(r.kind==="proof"?"Proof":"Quote "+(r.quoteNo||""))}${r.pdfName?" — "+esc(r.pdfName):r.arts&&r.arts.length?" — "+r.arts.length+" picture"+(r.arts.length===1?"":"s"):""}</span>
-        ${r.status==="signed"?`<span class="pill g">signed ${esc(fmtTs(r.signedAt))}</span>`:r.status==="declined"?`<span class="pill r">declined</span>`:r.status==="cancelled"?`<span class="pill">cancelled</span>`:exp?`<span class="pill">link expired</span>`:`<span class="pill y">waiting${r.viewedAt?" · opened "+esc(fmtTs(r.viewedAt)):""}</span>`}</div>
+      return `<div class="rrow"><div class="rr-c"><div class="rr-t"><span>${esc(r.kind==="both"?"Quote "+(r.quoteNo||"")+" + proof rev "+(r.proofRev||1):r.kind==="proof"?"Proof rev "+(r.proofRev||1):"Quote "+(r.quoteNo||""))}${r.pdfName?" — "+esc(r.pdfName):r.arts&&r.arts.length?" — "+r.arts.length+" picture"+(r.arts.length===1?"":"s"):""}</span>
+        ${r.status==="signed"?`<span class="pill g">signed ${esc(fmtTs(r.signedAt))}</span>`:r.status==="declined"?`<span class="pill r">declined</span>`:r.status==="cancelled"?`<span class="pill">cancelled</span>`:r.status==="replaced"?`<span class="pill">replaced by a newer link</span>`:exp?`<span class="pill">link expired</span>`:`<span class="pill y">waiting${r.viewedAt?" · opened "+esc(fmtTs(r.viewedAt)):""}</span>`}</div>
         <div class="sub">${r.status==="signed"?`Signed by <b>${esc(r.signedName)}</b>${r.signedTitle?", "+esc(r.signedTitle):""}${r.note?` — “${esc(r.note)}”`:""}`
-          :r.status==="declined"?`${esc(r.signedName||"They")} asked for changes${r.note?`: “${esc(r.note)}”`:""}`:`Sent to ${esc(r.contactName||r.contactEmail||"—")} by ${esc(r.createdBy||"")} ${esc(fmtTs(r.createdAt))}`}</div>
+          :r.status==="declined"?`${esc(r.signedName||"They")} asked for changes${r.note?`: “${esc(r.note)}”`:""}${(r.pieces||[]).filter(x=>x&&x.ok===false).map(x=>`<div>• <b>${esc(((r.arts||[])[x.i]||{}).cap||"Artwork "+(x.i+1))}</b>${x.note?" — "+esc(x.note):""}</div>`).join("")}`:`Sent to ${esc(r.contactName||r.contactEmail||"—")} by ${esc(r.createdBy||"")} ${esc(fmtTs(r.createdAt))}`}</div>
         ${r.status==="signed"&&r.sigImg?`<img src="${esc(r.sigImg)}" alt="signature" style="max-height:56px;max-width:240px;margin-top:6px;background:#fff;border:1px solid var(--line2);border-radius:4px">`:""}</div>
-        <div class="rr-b">${r.status==="signed"?`${r.kind==="quote"&&["inquiry","quoted"].indexOf(p.stage)>=0?`<button class="btn sm p" data-signwon="${esc(p.id)}">Mark won</button>`:""}
+        <div class="rr-b">${r.status==="signed"?`${r.kind!=="proof"&&["inquiry","quoted"].indexOf(p.stage)>=0?`<button class="btn sm p" data-signwon="${esc(p.id)}">Mark won</button>`:""}
             ${r.filed?`<span class="sub">in Files</span>`:`<button class="btn sm" data-signfile="${esc(r.token)}">Save to Files</button>`}<a class="btn sm" href="${esc(signView(r.token))}" target="_blank" rel="noopener">View</a>`
           :r.status==="sent"&&!exp?`<button class="btn sm" data-signcopy="${esc(r.token)}">Copy link</button><button class="btn sm" data-signmail="${esc(r.token)}">Email it again</button>${rowMenu(`<button class="danger" data-signcancel="${esc(r.token)}">Cancel this link…</button>`)}`
           :`<button class="btn sm" data-signreq="${esc(p.id)}">New link</button>`}</div></div>`}).join("")}</section>`}
+function signAutoPass(){if(!window.sscHosted||!db||!S.signreq||!(can("del")||can("settings")||myAccess()==="sales"))return;S._signDone=S._signDone||{};
+  S.signreq.forEach(r=>{if(r.status!=="signed"||S._signDone[r.token])return;S._signDone[r.token]=1;const p=proj(r.projectId);if(!p)return;
+    if(r.kind!=="proof"&&!r.wonSet&&["inquiry","quoted"].indexOf(p.stage)>=0){setStage(p.id,"won","quote signed online by "+(r.signedName||"the customer")).then(()=>setDoc("signreq/"+r.token,Object.assign({},r,{wonSet:true}))).catch(()=>{})}
+    else if(r.kind!=="proof"&&!r.wonSet){setDoc("signreq/"+r.token,Object.assign({},r,{wonSet:true})).catch(()=>{})}
+    // the PO they gave when signing goes on the project if it has none
+    if(r.po&&!String(p.po||"").trim()){push("projects/"+p.id,{po:String(r.po).slice(0,60),updatedAt:Date.now()});recordHistory("project",p.id,[{f:"PO",o:"",n:String(r.po).slice(0,60)+" (given when signing)"}])}
+    // an approved proof ticks "Proof approved" on the project's open work orders, so production can start
+    if(r.kind!=="quote"&&!r.gateSet){jobsOf(p.id).filter(j=>j.status!=="shipped"&&!((j.gates||{}).proof)).forEach(j=>{push("jobs/"+j.num,{gates:Object.assign({},j.gates||{},{proof:true}),updatedAt:Date.now()});
+        recordHistory("job",String(j.num),[{f:"Prep",o:"",n:"✓ Proof approved — signed online by "+(r.signedName||"the customer"),ev:1}])});
+      setDoc("signreq/"+r.token,Object.assign({},r,{gateSet:true})).catch(()=>{})}})}
 async function signFile(tok){const r=(S.signreq||new Map()).get(tok);if(!r||r.status!=="signed")return;const p=proj(r.projectId);if(!p)return;
   const fid=uid("f"),now=Date.now();
   await setDoc("files/"+fid,{id:fid,url:signView(tok),link:true,name:(r.kind==="proof"?"Signed proof":"Signed quote")+" — "+r.signedName+" — "+isoDay(r.signedAt)+" ("+(r.pdfName||"")+")",
@@ -16124,7 +16183,7 @@ function bind(){
       if(box)box.dispatchEvent(new Event("input",{bubbles:true}));S.modalTouched=true;return}
     const rg=t.closest("tr.rowgo");
     if(rg&&!t.closest("button,a,input,select,label,textarea,details,summary,[data-go],[data-edit],[data-sort]")){
-      const l=rg.querySelector(":scope > td:first-child .lnk[data-go]");if(l){go(l.dataset.go);return}}
+      const l=rg.querySelector(":scope > td:first-child .lnk[data-go], :scope > td:first-child a.lnk[href^='#/']");if(l){go(l.dataset.go||l.getAttribute("href").slice(2));return}}
     const czb=t.closest("[data-cz]");
     if(czb&&!t.closest("button:not(.cz),a,input,select,textarea")){toggleCz(czb.dataset.cz);return}
     {const ga=t.closest("[data-goarch]");if(ga){S.archAcct=ga.dataset.goarch;go("archive");return}}   // account → its archived projects
