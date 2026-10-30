@@ -126,7 +126,7 @@ service cloud.firestore {
     // signature requests: the link's long random code is the key. Anyone with the link can read that one request (never
     // list them), and the customer can change it once — from "sent" to signed or "changes asked for", before it expires —
     // touching only the signature fields; opening it can stamp viewedAt once. The team makes, cancels and files them.
-    function signFields() { return ["status", "signedName", "signedTitle", "signedAt", "sigImg", "ua", "note"]; }
+    function signFields() { return ["status", "signedName", "signedTitle", "signedAt", "sigImg", "ua", "note", "po", "pieces"]; }
     function publicSign() {
       return resource.data.status == "sent" && request.time.toMillis() < resource.data.get("expiresAt", 0)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(signFields())
@@ -134,6 +134,8 @@ service cloud.firestore {
         && request.resource.data.signedName is string && request.resource.data.signedName.size() >= 2 && request.resource.data.signedName.size() <= 120
         && request.resource.data.signedAt is int
         && request.resource.data.get("note", "") is string && request.resource.data.get("note", "").size() <= 1000
+        && request.resource.data.get("po", "") is string && request.resource.data.get("po", "").size() <= 80
+        && request.resource.data.get("pieces", []) is list && request.resource.data.get("pieces", []).size() <= 40
         && (request.resource.data.status == "declined"
             || (request.resource.data.get("sigImg", "") is string && request.resource.data.get("sigImg", "").size() <= 200000
                 && request.resource.data.get("sigImg", "").matches("^data:image/png;base64,[A-Za-z0-9+/=]+$")));
