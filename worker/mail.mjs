@@ -140,7 +140,7 @@ for (const t of team) {
       const text = (bodyText(m.payload) || m.snippet || "").replace(/\r/g, "").split(/\n>|\nOn .{5,80}wrote:\n/)[0].trim().slice(0, 4000);
       const xid = "gm_" + it.id;
       await fs.doc("activity/" + xid).set({ id: xid, recType: "account", recId: String(aid), kind: "note", type: "email", direction: dir, subject: String(H.subject || "").slice(0, 200),
-        text: text || "(no text)", contactId: c ? c.id : "", whoId: t.id, who: t.initials || "", when: new Date(at).toISOString().slice(0, 10), due: "", backOn: "", noBack: true,
+        text: text || "(no text)", contactId: c ? c.id : "", whoId: t.id, who: t.initials || "", when: new Date(at).toLocaleDateString("en-CA", { timeZone: "America/Denver" }), due: "", backOn: "", noBack: true,
         at, done: true, deleted: false, gmailId: it.id, threadId: m.threadId || "", source: "gmail" }, { merge: true });
       already.add(it.id); n.logged++;
     }
@@ -162,7 +162,7 @@ for (const d of sigs) {
       message: { subject: what, text: what + (r.note ? "\n\nTheir note: " + r.note : "") + "\n\nOpen it: https://crm.streetsignsupply.com/#/project/" + r.projectId } }); }
   const xid = "sg_" + d.id.slice(0, 20);
   await fs.doc("activity/" + xid).set({ id: xid, recType: "project", recId: String(r.projectId), kind: "note", type: "note", subject: what, text: (r.note ? "Note: " + r.note : what),
-    whoId: "", who: "Sign", when: new Date(r.signedAt || now).toISOString().slice(0, 10), at: r.signedAt || now, done: true, deleted: false, noBack: true }, { merge: true });
+    whoId: "", who: "Sign", when: new Date(r.signedAt || now).toLocaleDateString("en-CA", { timeZone: "America/Denver" }), at: r.signedAt || now, done: true, deleted: false, noBack: true }, { merge: true });
   await d.ref.set({ notified: true, notifiedAt: now }, { merge: true }); n.signs++;
 }
 // notices queued just now go out on the next run (in 10 minutes)
