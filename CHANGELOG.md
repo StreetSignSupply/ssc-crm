@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-91
+- AI drafting on the website: "Write it with AI" in the email screen. The mail worker writes the draft with GitHub's free AI models (no key, no bill) in about 10–30 seconds, in the shop's plain voice; type what it should say, or leave it to the subject and the project. The in-Claude copy keeps using Claude.
+
 ## 2026.11.25-90
 - Quote + proof, one signature: "Get it signed" offers Quote + proof (the default when there's both). The customer page shows the quote items and totals, then one tile per piece of artwork (size, sheeting, colors, qty) with its own Approve / Needs change and note; hardware, freight and lines with no artwork are listed as "No artwork needed". Signing is blocked until every piece is set; any "Needs change" turns the button into "Send change requests". Optional PO number (goes on the project). Proof revision shown; a newer link replaces the old one, which points to it. Full name isn't prefilled; "on behalf of" only for organizations; PDF row says Quote PDF or Proof PDF. "What happens next" at the bottom.
 - After signing: stage moves to Won, the proof is marked approved on the open work orders, a signed PDF (quote + artwork + signature) is saved to Files, it's logged in Activity, and the rep and the owner get a bell notice and an email. Opening the link is logged too.
