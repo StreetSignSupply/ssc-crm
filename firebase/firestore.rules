@@ -110,13 +110,44 @@ service cloud.firestore {
                             && request.resource.data.qty == resource.data.get("qtyWas", null))));
       allow delete: if isOffice();
     }
-    // email the CRM sends: one message to one person on the team (task notices); nothing edits or removes it afterwards
+    // email the CRM sends: a task notice to one person on the team, or a customer email the team wrote (queued for the
+    // mail worker, from a @streetsignsupply.com address, up to 10 people). Only the worker marks it sent; nothing edits it here.
     match /mail/{id} {
       allow read: if isOffice();
-      allow create: if member() && request.resource.data.to is list && request.resource.data.to.size() == 1
-                    && request.resource.data.to[0] is string
-                    && exists(/databases/$(db)/documents/access/$(request.resource.data.to[0].lower()));
+      allow create: if member() && request.resource.data.to is list && (
+                      (request.resource.data.to.size() == 1 && request.resource.data.to[0] is string
+                       && exists(/databases/$(db)/documents/access/$(request.resource.data.to[0].lower())))
+                   || (request.resource.data.get("kind", "") == "customer" && request.resource.data.get("status", "") == "queued"
+                       && request.resource.data.to.size() >= 1 && request.resource.data.to.size() <= 10
+                       && request.resource.data.get("from", "") is string
+                       && request.resource.data.get("from", "").matches("^[a-z0-9._%+-]+@streetsignsupply[.]com$")));
       allow update, delete: if false;
+    }
+    // signature requests: the link's long random code is the key. Anyone with the link can read that one request (never
+    // list them), and the customer can change it once — from "sent" to signed or "changes asked for", before it expires —
+    // touching only the signature fields; opening it can stamp viewedAt once. The team makes, cancels and files them.
+    function signFields() { return ["status", "signedName", "signedTitle", "signedAt", "sigImg", "ua", "note"]; }
+    function publicSign() {
+      return resource.data.status == "sent" && request.time.toMillis() < resource.data.get("expiresAt", 0)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(signFields())
+        && request.resource.data.status in ["signed", "declined"]
+        && request.resource.data.signedName is string && request.resource.data.signedName.size() >= 2 && request.resource.data.signedName.size() <= 120
+        && request.resource.data.signedAt is int
+        && request.resource.data.get("note", "") is string && request.resource.data.get("note", "").size() <= 1000
+        && (request.resource.data.status == "declined"
+            || (request.resource.data.get("sigImg", "") is string && request.resource.data.get("sigImg", "").size() <= 200000
+                && request.resource.data.get("sigImg", "").matches("^data:image/png;base64,[A-Za-z0-9+/=]+$")));
+    }
+    function publicView() {
+      return resource.data.status == "sent" && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["viewedAt"])
+        && resource.data.get("viewedAt", 0) == 0 && request.resource.data.viewedAt is int;
+    }
+    match /signreq/{t} {
+      allow get: if t.size() >= 32;
+      allow list: if member();
+      allow create: if member() && t.size() >= 32 && request.resource.data.status == "sent";
+      allow update: if member() || publicSign() || publicView();
+      allow delete: if isOffice();
     }
     // number counters only go up; the fix-run record is for background jobs only
     match /meta/{id} {
