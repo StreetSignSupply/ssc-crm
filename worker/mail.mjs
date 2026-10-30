@@ -8,6 +8,7 @@
 // nothing is sent and the CRM keeps opening emails in people's own mail. The log shows counts only — never addresses,
 // names, subjects or text (the repo is public).
 import { Firestore, FieldValue } from "@google-cloud/firestore";
+import crypto from "node:crypto";
 const P = process.env.FIREBASE_PROJECT || "ssc-crm-a7224";
 const SA = process.env.SA_EMAIL || "firebase-adminsdk-fbsvc@ssc-crm-a7224.iam.gserviceaccount.com";
 // the service account's own token (to sign the delegation requests): refreshed through the job's Google sign-in, so the
@@ -47,6 +48,19 @@ async function gmail(email, scope, path, opt = {}) {
   const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error("gmail " + r.status + " " + String((j.error || {}).message || "").slice(0, 100)); return j;
 }
 
+
+// the signed page printed to a PDF (headless Chrome), and a file put in the CRM's storage with a download link
+let _browser = null;
+async function signedPdf(url) { if (!_browser) { const { chromium } = await import("playwright"); _browser = await chromium.launch(); }
+  const pg = await _browser.newPage({ viewport: { width: 900, height: 1200 } });
+  try { await pg.goto(url, { waitUntil: "networkidle", timeout: 45000 }); await pg.waitForTimeout(1500);
+    return await pg.pdf({ format: "Letter", printBackground: true, margin: { top: "0.4in", bottom: "0.5in", left: "0.4in", right: "0.4in" } }); } finally { await pg.close(); } }
+async function toStorage(name, buf, type) { await freshTok(); const B = "ssc-crm-a7224.firebasestorage.app", tok = crypto.randomUUID();
+  const r = await fetch("https://storage.googleapis.com/upload/storage/v1/b/" + B + "/o?uploadType=media&name=" + encodeURIComponent(name), { method: "POST", headers: { Authorization: "Bearer " + TOK, "Content-Type": type }, body: buf });
+  if (!r.ok) throw new Error("upload " + r.status);
+  const m = await fetch("https://storage.googleapis.com/storage/v1/b/" + B + "/o/" + encodeURIComponent(name), { method: "PATCH", headers: { Authorization: "Bearer " + TOK, "Content-Type": "application/json" }, body: JSON.stringify({ metadata: { firebaseStorageDownloadTokens: tok } }) });
+  if (!m.ok) throw new Error("token " + m.status);
+  return "https://firebasestorage.googleapis.com/v0/b/" + B + "/o/" + encodeURIComponent(name) + "?alt=media&token=" + tok; }
 const brandRef = fs.doc("settings/brand");
 let brand = (await brandRef.get()).data() || {};
 const mailFrom = String(brand.mailFrom || "matt@" + DOMAIN).toLowerCase();
@@ -117,7 +131,14 @@ async function logGmail() {
   // ---- 2. log customer emails from each person's Gmail ----
   const live = async (c) => (await fs.collection(c).get()).docs.map((d) => Object.assign({ id: d.id }, d.data())).filter((x) => !x.deleted);
   const team = (await live("team")).filter((t) => isOurs(t.email));
-  const contacts = await live("contacts"), accounts = await live("accounts");
+  const contacts = await live("contacts"), accounts = await live("accounts"), projects = await live("projects");
+  // the project an email is about: a P- or quote number in the subject, else that contact's (or account's) latest open project
+  const OPEN = ["inquiry", "quoted", "won", "production", "shipped"];
+  const projFor = (subj, c, aid) => { const m = String(subj || "").match(/\b(?:P-?\s?(\d{4})|Q-?\s?(\d{4}))\b/i);
+    if (m) { const hit = projects.find((p) => (m[1] && String(p.num) === m[1]) || (m[2] && String(p.quote || "").replace(/\D/g, "") === m[2])); if (hit && (!aid || hit.accountId === aid)) return hit; }
+    const open = projects.filter((p) => p.accountId === aid && OPEN.indexOf(p.stage) >= 0);
+    const byC = c ? open.filter((p) => (p.contacts || []).indexOf(c.id) >= 0) : [];
+    return (byC.length ? byC : open).sort((x, y) => (y.updatedAt || 0) - (x.updatedAt || 0))[0] || null; };
   const byEmail = {}; contacts.forEach((c) => { const e = String(c.email || "").trim().toLowerCase(); if (e) byEmail[e] = c; });
   const dom = (e) => String(e || "").toLowerCase().split("@")[1] || "";
   const FREE = /^(gmail|yahoo|hotmail|outlook|aol|icloud|me|msn|live|comcast|att|sbcglobal|protonmail)\./;
@@ -148,7 +169,12 @@ async function logGmail() {
         const dir = isOurs(from) ? "out" : "in";
         const text = (bodyText(m.payload) || m.snippet || "").replace(/\r/g, "").split(/\n>|\nOn .{5,80}wrote:\n/)[0].trim().slice(0, 4000);
         const xid = "gm_" + it.id;
-        await fs.doc("activity/" + xid).set({ id: xid, recType: "account", recId: String(aid), kind: "note", type: "email", direction: dir, subject: String(H.subject || "").slice(0, 200),
+        const pj = projFor(H.subject, c, aid);
+        // a quote that went out from Gmail itself (its PDF attached or its number in the subject) starts the follow-ups too
+        if (pj && dir === "out" && !pj.quoteSentAt && ["inquiry", "quoted"].indexOf(pj.stage) >= 0) {
+          const files = []; (function walk(x) { if (!x) return; if (x.filename) files.push(x.filename); (x.parts || []).forEach(walk); })(m.payload);
+          if (files.some((f) => /quote/i.test(f)) || (pj.quote && String(H.subject || "").indexOf(String(pj.quote)) >= 0)) { await fs.doc("projects/" + pj.id).set({ quoteSentAt: at, quoteSentTo: others.join(", ").slice(0, 200) }, { merge: true }); pj.quoteSentAt = at; } }
+        await fs.doc("activity/" + xid).set({ id: xid, recType: pj ? "project" : "account", recId: String(pj ? pj.id : aid), accountId: String(aid), kind: "note", type: "email", direction: dir, subject: String(H.subject || "").slice(0, 200),
           text: text || "(no text)", contactId: c ? c.id : "", whoId: t.id, who: t.initials || "", when: new Date(at).toLocaleDateString("en-CA", { timeZone: "America/Denver" }), due: "", backOn: "", noBack: true,
           at, done: true, deleted: false, gmailId: it.id, threadId: m.threadId || "", source: "gmail" }, { merge: true });
         already.add(it.id); n.logged++;
@@ -162,37 +188,74 @@ async function logGmail() {
 
 }
 async function signFollow() {
+  // opened: one Activity line the first time the customer opens the link
+  for (const d of (await fs.collection("signreq").where("status", "==", "sent").get()).docs) { const r = d.data(); if (!r.viewedAt || r.viewLogged) continue;
+    const xid = "sv_" + d.id.slice(0, 20);
+    await fs.doc("activity/" + xid).set({ id: xid, recType: "project", recId: String(r.projectId), kind: "note", type: "note", subject: (r.kind === "proof" ? "Proof" : "Quote " + (r.quoteNo || "")) + " opened by the customer",
+      text: "The signature link was opened" + (r.contactName ? " (sent to " + r.contactName + ")" : "") + ".", whoId: "", who: "Sign", when: mtDay(r.viewedAt), at: r.viewedAt, done: true, deleted: false, noBack: true }, { merge: true });
+    await d.ref.set({ viewLogged: true }, { merge: true }); }
   // ---- 3. signature links that were signed or turned down: tell the person who sent them ----
   const sigs = (await fs.collection("signreq").where("status", "in", ["signed", "declined"]).get()).docs.filter((d) => !d.data().notified);
   for (const d of sigs) {
     const r = d.data(); const tm = r.createdById ? (await fs.doc("team/" + r.createdById).get()).data() : null; const now = Date.now();
-    const what = (r.kind === "proof" ? "Proof" : "Quote") + " " + (r.status === "signed" ? "signed" : "— changes asked for") + ": " + (r.pnum || "") + " by " + (r.signedName || "the customer");
-    if (tm) { const nid = "nt_sig_" + d.id.slice(0, 16);
-      await fs.doc("notifications/" + nid).set({ id: nid, toId: r.createdById, fromId: "", fromName: "Signature", kind: "sign", text: what + (r.note ? " — “" + String(r.note).slice(0, 200) + "”" : ""),
-        link: "project/" + r.projectId, at: now, read: false, deleted: false });
-      if (isOurs(tm.email)) await fs.collection("mail").add({ to: [tm.email], status: "queued", kind: "notice", at: now,
-        message: { subject: what, text: what + (r.note ? "\n\nTheir note: " + r.note : "") + "\n\nOpen it: https://crm.streetsignsupply.com/#/project/" + r.projectId } }); }
+    const kindL = r.kind === "both" ? "Quote " + (r.quoteNo || "") + " + proof rev " + (r.proofRev || 1) : r.kind === "proof" ? "Proof rev " + (r.proofRev || 1) : "Quote " + (r.quoteNo || "");
+    const flagged = (r.pieces || []).filter((x) => x && x.ok === false).map((x) => "• " + (((r.arts || [])[x.i] || {}).cap || "Artwork " + (x.i + 1)) + (x.note ? " — " + x.note : "")).join("\n");
+    const what = kindL + " " + (r.status === "signed" ? "signed" : "— changes asked for") + ": " + (r.pnum || "") + " by " + (r.signedName || "the customer");
+    const body = what + (flagged ? "\n\nArtwork that needs a change:\n" + flagged : "") + (r.po ? "\n\nTheir PO: " + r.po : "") + (r.note ? "\n\nTheir note: " + r.note : "") + "\n\nOpen it: https://crm.streetsignsupply.com/#/project/" + r.projectId;
+    // the person who sent the link and the owner both hear about it (bell + email)
+    const owners = (await fs.collection("team").get()).docs.map((x) => Object.assign({ id: x.id }, x.data())).filter((t) => !t.deleted && (t.id === r.createdById || (t.access || "owner") === "owner"));
+    for (const t of owners) { const nid = "nt_sig_" + d.id.slice(0, 12) + "_" + t.id.slice(0, 8);
+      await fs.doc("notifications/" + nid).set({ id: nid, toId: t.id, fromId: "", fromName: "Signature", kind: "sign", text: what + (flagged ? " — artwork changes asked for" : "") + (r.note ? " — “" + String(r.note).slice(0, 200) + "”" : ""),
+        link: "project/" + r.projectId, at: now, read: false, deleted: false }); }
+    const tos = [...new Set(owners.map((t) => String(t.email || "").toLowerCase()).filter(isOurs))];
+    if (tos.length) await fs.collection("mail").add({ to: tos, status: "queued", kind: "notice", at: now, message: { subject: what, text: body } });
     const xid = "sg_" + d.id.slice(0, 20);
-    await fs.doc("activity/" + xid).set({ id: xid, recType: "project", recId: String(r.projectId), kind: "note", type: "note", subject: what, text: (r.note ? "Note: " + r.note : what),
+    await fs.doc("activity/" + xid).set({ id: xid, recType: "project", recId: String(r.projectId), kind: "note", type: "note", subject: what, text: body.replace(/\n\nOpen it:.*$/s, "").replace(/^[^\n]*\n*/, "") || what,
       whoId: "", who: "Sign", when: new Date(r.signedAt || now).toLocaleDateString("en-CA", { timeZone: "America/Denver" }), at: r.signedAt || now, done: true, deleted: false, noBack: true }, { merge: true });
-    // the signed record goes into the project's Files (a link to the signed page, which prints as a clean copy)
+    // the signed copy goes into the project's Files as a PDF (quote, artwork and signature page), or as a link if the PDF can't be made
     let filed = !!r.filed;
     if (r.status === "signed" && !filed) { const pd = (await fs.doc("projects/" + r.projectId).get()).data() || {}; const fid = "f_sig_" + d.id.slice(0, 16);
-      const base = String(brand.signBase || "https://ssc-crm-a7224.web.app/sign.html");
-      await fs.doc("files/" + fid).set({ id: fid, url: base + "?t=" + d.id + "&view=1", link: true, size: 0, type: "text/html",
-        name: (r.kind === "proof" ? "Signed proof" : "Signed quote " + (r.quoteNo || "")) + " — " + (r.signedName || "") + " — " + new Date(r.signedAt || now).toLocaleDateString("en-CA", { timeZone: "America/Denver" }),
-        cat: r.kind === "proof" ? "Signed proof" : "Signed quote", who: "Sign", when: new Date(now).toLocaleString("en-US", { timeZone: "America/Denver" }), at: now, deleted: false,
-        accountId: pd.accountId || "", projectId: r.projectId, jobId: "" }, { merge: true }); filed = true; }
+      const base = String(brand.signBase || "https://ssc-crm-a7224.web.app/sign.html"), view = base + "?t=" + d.id + "&view=1";
+      const nm = (r.kind === "both" ? "Signed quote " + (r.quoteNo || "") + " + proof rev " + (r.proofRev || 1) : r.kind === "proof" ? "Signed proof rev " + (r.proofRev || 1) : "Signed quote " + (r.quoteNo || "")) + " — " + (r.signedName || "") + " — " + mtDay(r.signedAt || now);
+      let url = view, link = true, size = 0, type = "text/html";
+      try { const pdf = await signedPdf(view); if (pdf && pdf.length > 1000) { url = await toStorage("signed/" + d.id + ".pdf", pdf, "application/pdf"); link = false; size = pdf.length; type = "application/pdf"; } } catch (e) { say("signed pdf: " + String(e.message || e).slice(0, 100)); }
+      await fs.doc("files/" + fid).set({ id: fid, url, link, size, type, name: nm + (link ? "" : ".pdf"), cat: r.kind === "proof" ? "Signed proof" : "Signed quote", who: "Sign",
+        when: new Date(now).toLocaleString("en-US", { timeZone: "America/Denver" }), at: now, deleted: false, accountId: pd.accountId || "", projectId: r.projectId, jobId: "" }, { merge: true }); filed = true; }
     await d.ref.set({ notified: true, notifiedAt: now, filed }, { merge: true }); n.signs++;
   }
 
+}
+// tasks: a 7 AM (Mountain) email to each person with what's due today and overdue, and one email when a task goes overdue
+// (to the person it's for and whoever assigned it)
+const mtDay = (ms) => new Date(ms).toLocaleDateString("en-CA", { timeZone: "America/Denver" });
+const mtHour = () => Number(new Date().toLocaleString("en-US", { timeZone: "America/Denver", hour: "numeric", hour12: false }));
+async function taskMail() {
+  const today = mtDay(Date.now()); const syncRef = fs.doc("settings/mailsync"); const sy = (await syncRef.get()).data() || {};
+  const tasks = (await fs.collection("activity").where("kind", "==", "task").get()).docs.map((d) => Object.assign({ _ref: d.ref, id: d.id }, d.data())).filter((t) => !t.done && !t.deleted);
+  const team = (await fs.collection("team").get()).docs.map((d) => Object.assign({ id: d.id }, d.data())).filter((t) => !t.deleted && isOurs(t.email));
+  const mine = (t, a) => a.assigneeId ? a.assigneeId === t.id : a.whoId ? a.whoId === t.id : String(a.who || "").toUpperCase() === String(t.initials || "").toUpperCase();
+  const link = (a) => "https://crm.streetsignsupply.com/#/" + (a.recType === "project" ? "project/" : a.recType === "job" ? "job/" : a.recType === "contact" ? "contact/" : "account/") + a.recId;
+  const line = (a) => "• " + String(a.text || "").slice(0, 140) + (a.due ? " (due " + a.due + ")" : "") + "\n  " + link(a);
+  if (mtHour() >= 7 && sy.digestDay !== today) {
+    for (const t of team) { const due = tasks.filter((a) => mine(t, a) && a.due && a.due <= today); if (!due.length) continue;
+      const over = due.filter((a) => a.due < today), now0 = due.filter((a) => a.due === today);
+      await fs.collection("mail").add({ to: [t.email], status: "queued", kind: "notice", at: Date.now(), message: { subject: "Your tasks today — " + now0.length + " due" + (over.length ? ", " + over.length + " overdue" : ""),
+        text: (over.length ? "Overdue:\n" + over.map(line).join("\n") + "\n\n" : "") + (now0.length ? "Due today:\n" + now0.map(line).join("\n") + "\n\n" : "") + "All your tasks: https://crm.streetsignsupply.com/#/tasks" } }); n.digest = (n.digest || 0) + 1; }
+    await syncRef.set({ digestDay: today }, { merge: true }); }
+  for (const a of tasks.filter((x) => x.due && x.due < today && !x.overdueNotified)) {
+    // long-overdue ones from before this existed are marked quietly (no flood of emails the first time)
+    if (a.due < mtDay(Date.now() - 3 * 864e5)) { await a._ref.set({ overdueNotified: Date.now() }, { merge: true }); continue; }
+    const to = [...new Set(team.filter((t) => mine(t, a) || t.id === a.assignedById).map((t) => t.email))];
+    if (to.length) await fs.collection("mail").add({ to, status: "queued", kind: "notice", at: Date.now(), message: { subject: "Overdue task: " + String(a.text || "").slice(0, 70),
+      text: "This task was due " + a.due + " and isn't done yet" + (a.assigneeName ? " (assigned to " + a.assigneeName + ")" : "") + ":\n\n" + line(a) } });
+    await a._ref.set({ overdueNotified: Date.now() }, { merge: true }); n.overdue = (n.overdue || 0) + 1; }
 }
 // one job runs for most of a day's quarter: every minute it sends what's queued and follows up signatures, and every
 // 10 minutes it reads Gmail — so an email goes out within about a minute of pressing Send (the schedule starts the next one)
 const LOOP_MIN = Number(process.env.LOOP_MIN) || 0, t0 = Date.now(); let pass = 0;
 do {
-  try { await signFollow(); await sendQueued(); if (pass % 10 === 0) await logGmail(); } catch (e) { say("pass error: " + String(e.message || e).replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "<email>").slice(0, 140)); }
+  try { await signFollow(); if (pass % 5 === 0) await taskMail().catch((e) => say("task mail: " + String(e.message || e).slice(0, 100))); await sendQueued(); if (pass % 10 === 0) await logGmail(); } catch (e) { say("pass error: " + String(e.message || e).replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "<email>").slice(0, 140)); }
   pass++;
   if (LOOP_MIN && Date.now() - t0 < LOOP_MIN * 60000) await new Promise((r) => setTimeout(r, 60000));
 } while (LOOP_MIN && Date.now() - t0 < LOOP_MIN * 60000);
-note("mail: " + pass + " passes — " + n.sent + " sent, " + n.failed + " didn't send, " + n.logged + " customer emails logged" + (n.userErr ? " (" + n.userErr + " inbox reads failed: " + JSON.stringify(errKinds) + ")" : "") + ", " + n.signs + " signature updates");
+note("mail: " + pass + " passes — " + n.sent + " sent, " + n.failed + " didn't send, " + n.logged + " customer emails logged" + (n.userErr ? " (" + n.userErr + " inbox reads failed: " + JSON.stringify(errKinds) + ")" : "") + ", " + n.signs + " signature updates, " + (n.digest || 0) + " task digests, " + (n.overdue || 0) + " overdue notices");
