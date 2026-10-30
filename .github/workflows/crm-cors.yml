@@ -1,0 +1,25 @@
+name: File storage — let the CRM read its own files
+# Run by hand (Matt OK'd 10/30). Lets pages on crm.streetsignsupply.com read the files uploaded to the CRM's Firebase
+# Storage — PDF previews, pictures in quote PDFs, downloads. Read only (GET/HEAD), only from the CRM's own address;
+# each file's own access token is still needed.
+on: { workflow_dispatch: {} }
+permissions: { contents: read, id-token: write }
+jobs:
+  cors:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - id: gauth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/741399760463/locations/global/workloadIdentityPools/github/providers/ssc-crm
+          service_account: firebase-adminsdk-fbsvc@ssc-crm-a7224.iam.gserviceaccount.com
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/devstorage.full_control
+      - env: { TOK: "${{ steps.gauth.outputs.access_token }}" }
+        run: |
+          B=ssc-crm-a7224.firebasestorage.app
+          body='{"cors":[{"origin":["https://crm.streetsignsupply.com","https://streetsignsupply.github.io"],"method":["GET","HEAD"],"responseHeader":["Content-Type","Content-Length","Content-Disposition"],"maxAgeSeconds":3600}]}'
+          code=$(curl -s -o out.json -w "%{http_code}" -X PATCH -H "Authorization: Bearer $TOK" -H "Content-Type: application/json" "https://storage.googleapis.com/storage/v1/b/$B?fields=cors" -d "$body")
+          echo "::notice::storage read setting answered $code: $(head -c 300 out.json | tr '\n' ' ')"
+          [ "$code" = "200" ]
