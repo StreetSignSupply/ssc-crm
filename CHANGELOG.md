@@ -1,5 +1,16 @@
 # What changed
 
+## 2026.11.25-81
+- Saving a quote or invoice PDF only replaces PDFs the CRM made for that same number — never a signed quote, PO or anything uploaded. If it can't go into Files you're told. "PDF saved" goes in the history only when it's actually saved (not on the preview).
+- Files: when a project has several quote (or invoice) PDFs, the newest says "Current" and the others "Older version".
+- The material matcher no longer matches on a thickness alone (".063 aluminum" isn't ".063 LDPE"), and a material named on a line (aluminum, LDPE, HIP…) has to be the item's material.
+- Notes, calls and emails can be edited or deleted (⋯ on the entry) by owners, office and whoever wrote them; the change goes in the record's history.
+- Inventory items have a picture (link or upload). Quote lines for that item — posts, anchors, hardware — show it, and so do quote PDFs.
+- Reminders go to the sheet once per reminder (not once per team member).
+- Street name blades are called "Street name sign" on work orders.
+- Cancel stays Cancel after you've typed: a separate "Throw away what you typed? Keep editing / Discard" appears on the left.
+- Quote lines: each price says where it came from (price list, website, their price, cost + margin, typed). Hardware lines show "—" for grade instead of repeating the name. Long line notes are a one-line badge (full text on hover). On screens up to 1100px the grade is shortened and the ↑↓ buttons step aside so Edit stays visible.
+
 ## 2026.11.25-80
 - Quote and invoice PDFs: when you save one, it also goes into the project's Files, and any older PDF of the same quote or invoice number moves to the recycle bin — no more two different Q-1015s side by side.
 - Quote lines with no picture (posts, anchors, bolts, custom items) have a "+ Photo" button: add a link or upload a picture once and every quote with that item uses it.
