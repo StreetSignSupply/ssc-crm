@@ -91,7 +91,7 @@ await no("signing needs a signature picture", updateDoc(doc(anon, "signreq/aaaaa
 await no("an expired link can't be signed", updateDoc(doc(anon, "signreq/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"), { status: "signed", signedName: "Jo Doe", signedAt: 5, sigImg: PNG }));
 await ok("opening the link stamps viewedAt once", updateDoc(doc(anon, "signreq/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"), { viewedAt: 7 }));
 await no("viewedAt only once", updateDoc(doc(anon, "signreq/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"), { viewedAt: 8 }));
-await ok("the customer signs", updateDoc(doc(anon, "signreq/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"), { status: "signed", signedName: "Jo Doe", signedAt: 5, sigImg: PNG, note: "" }));
+await ok("the customer signs", updateDoc(doc(anon, "signreq/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"), { status: "signed", signedName: "Jo Doe", signedAt: 5, sigImg: PNG, note: "", po: "PO 77", pieces: [{ i: 0, ok: true, note: "" }] }));
 await no("a signed request can't be signed again", updateDoc(doc(anon, "signreq/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"), { status: "signed", signedName: "Someone Else", signedAt: 6, sigImg: PNG }));
 await no("outsiders can't make sign requests", setDoc(doc(anon, "signreq/cccccccccccccccccccccccccccccccccccccccccccccccc"), { status: "sent" }));
 await ok("the team makes a sign request", setDoc(doc(sales, "signreq/dddddddddddddddddddddddddddddddddddddddddddddddd"), { status: "sent", expiresAt: 1 }));
