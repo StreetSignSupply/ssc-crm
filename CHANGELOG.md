@@ -1,5 +1,10 @@
 # What changed
 
+## 2026.11.25-106 (Lead stage)
+- New first stage, **Lead** (violet): we found or got a lead and reached out — they haven't asked for a quote yet. **Inquiry** now means they reached out and want a quote; **Quoted** means we sent the quote.
+- A lead's next step button is "Next: they asked for a quote" (moves it to Inquiry). Leads get no quote number, count as open pipeline (forecast weight 3%), have their own column on the board, and stay out of quote follow-ups.
+- Stage automation and every "before it's won" check include Lead.
+
 ## 2026.11.25-105
 - Activity colours: each type has its own colour — Call blue, Email teal, Meeting violet, Note yellow, Task orange. The Log call / Log email / Note / Task buttons, the filter chips (the picked one fills in) and the tag on each entry all match.
 

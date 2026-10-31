@@ -148,7 +148,7 @@ async function logGmail() {
   const team = (await live("team")).filter((t) => isOurs(t.email));
   const contacts = await live("contacts"), accounts = await live("accounts"), projects = await live("projects");
   // the project an email is about: a P- or quote number in the subject, else that contact's (or account's) latest open project
-  const OPEN = ["inquiry", "quoted", "won", "production", "shipped"];
+  const OPEN = ["lead", "inquiry", "quoted", "won", "production", "shipped"];
   const projFor = (subj, c, aid) => { const m = String(subj || "").match(/\b(?:P-?\s?(\d{4})|Q-?\s?(\d{4}))\b/i);
     if (m) { const hit = projects.find((p) => (m[1] && String(p.num) === m[1]) || (m[2] && String(p.quote || "").replace(/\D/g, "") === m[2])); if (hit && (!aid || hit.accountId === aid)) return hit; }
     const open = projects.filter((p) => p.accountId === aid && OPEN.indexOf(p.stage) >= 0);
