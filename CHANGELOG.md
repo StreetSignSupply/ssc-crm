@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-112
+- "Show N more" (sign pictures, files) is handled on the click itself and remembered per card, so a page redraw arriving at the same moment can't close it again; it also opens a folded card.
+
 ## 2026.11.25-111
 - Project stage path is a chevron bar like Salesforce's: finished stages green with a ✓, the current stage solid blue with white text, what's next grey; Closed lost shows solid red.
 
