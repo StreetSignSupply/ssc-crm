@@ -6104,6 +6104,10 @@ function stcDims(s){if(!s)return {};const n=String(s.n||"");
   // a sheet no bigger than the painted area means the catalog's sheet size is a guess
   const fits=!(sw&&sh&&H)||(W?((sw>=W&&sh>=H)||(sw>=H&&sh>=W)):(sh>=H||sw>=H));
   return {H,W,pc,sw,sh,chars,kit,onePiece,fits}}
+document.addEventListener("toggle",e=>{const d=e.target;if(!d||!d.matches||!d.matches("details.fmore"))return;const c=d.closest(".card");const k=c&&c.getAttribute("data-czkey");
+  S._fmOpen=S._fmOpen||{};if(k)S._fmOpen[k+"@"+location.hash]=d.open;
+  // a folded card shows only its first pictures — opening "Show more" opens the card too
+  if(d.open&&c&&c.classList.contains("collapsed")&&k){try{toggleCz(k,false)}catch(e2){c.classList.remove("collapsed")}d.open=true}},true);
 document.addEventListener("toggle",e=>{if(e.target&&e.target.id==="stc-how")S.stcHowShut=!e.target.open},true);
 function stcWhat(s){const d=stcDims(s);
   if(d.kit&&d.chars)return "Kit of "+d.pc+" pieces — one "+(/number/i.test(s.n)&&!/alphabet/i.test(s.n)?"number":"character")+" a piece";
@@ -9507,6 +9511,7 @@ function render(){
     const g2=document.createElement("div");g2.className="fgal";rest.forEach(x=>g2.appendChild(x));d.appendChild(g2);g.insertAdjacentElement("afterend",d)});
   document.querySelectorAll(".main .card").forEach(c=>{const g=c.querySelector(":scope > .fgal");if(!g)return;g.classList.add("peek");
     const n=g.nextElementSibling;if(n&&n.matches("details.fmore"))n.classList.add("peek")});
+  document.querySelectorAll(".main .card").forEach(c=>{const k=c.getAttribute("data-czkey");if(k&&(S._fmOpen||{})[k+"@"+location.hash])c.querySelectorAll("details.fmore").forEach(d=>{d.open=true})});
   decorateHelp();
   if(S.saveFail&&S.saveFail.length&&!document.querySelector(".savefail")){const m=document.querySelector(".main");if(m)m.insertAdjacentHTML("afterbegin",
     `<div class="alert savefail" style="margin:10px 16px">${S.saveFail.map(f=>esc(f.what)+" ("+esc(f.why)+")").join("<br>")}<span class="sp"><button class="btn sm" data-conntest="1">Check the database</button><button class="btn sm" data-savefailok="1">Dismiss</button></span></div>`)}
@@ -9644,7 +9649,7 @@ function moreNav(){
     `<button class="btn" data-close="1">Close</button>`));
 }
 const NAVG=[
-  {id:"sales",label:"Sales",icon:"project",pages:[["mybook","contact","Dashboard"],["accounts","account","Accounts"],["projects","project","Projects"],["contacts","contact","Contacts"],["tasks","task","Tasks"]]},
+  {id:"sales",label:"Sales",icon:"project",pages:[["mybook","contact","Dashboard"],["accounts","account","Accounts"],["contacts","contact","Contacts"],["projects","project","Projects"],["tasks","task","Tasks"]]},
   {id:"shop",label:"Production",icon:"job",pages:[["jobs","job","Work orders"],["tracker","chart","Tracker"],["calendar","calendar","Calendar"],["files","file","Files"]]},
   {id:"stock",label:"Inventory",icon:"inventory",pages:[["inventory","inventory","Inventory"],["stencils","inventory","Stencils","sub"],["purchasing","inventory","Purchase orders","sub"],["vendors","vendor","Vendors"]]},
   {id:"money",label:"Reports",icon:"chart",pages:[["reports","chart","Reports"]]},
@@ -10519,7 +10524,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-109";
+const APP_VERSION="2026.11.25-110";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
