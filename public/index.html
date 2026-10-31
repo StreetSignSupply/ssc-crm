@@ -8649,7 +8649,7 @@ function genericSignPic(line){if(!line||typeof line!=="object")return null;
     return out.length>rows?out.slice(0,rows-1).concat([out.slice(rows-1).join(" ").slice(0,max)]):out};
   const lines=(cx,cy,arr,fs,fill)=>arr.map((l,i)=>'<text x="'+cx+'" y="'+(cy+(i-(arr.length-1)/2)*fs*1.12+fs*0.35).toFixed(1)+'" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="'+fs+'" fill="'+fill+'" text-anchor="middle">'+E(l)+'</text>').join("");
   let svg;
-  if(kind==="stop")svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><polygon points="29,2 71,2 98,29 98,71 71,98 29,98 2,71 2,29" fill="#c8102e"/><polygon points="31,7 69,7 93,31 93,69 69,93 31,93 7,69 7,31" fill="none" stroke="#fff" stroke-width="3"/><text x="50" y="61" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="28" fill="#fff" text-anchor="middle">STOP</text></svg>';
+  if(kind==="stop")svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><polygon points="29.5,0.5 70.5,0.5 99.5,29.5 99.5,70.5 70.5,99.5 29.5,99.5 0.5,70.5 0.5,29.5" fill="#C8102E"/><polygon points="30.4,2.6 69.6,2.6 97.4,30.4 97.4,69.6 69.6,97.4 30.4,97.4 2.6,69.6 2.6,30.4" fill="#fff"/><polygon points="31.4,5.1 68.6,5.1 94.9,31.4 94.9,68.6 68.6,94.9 31.4,94.9 5.1,68.6 5.1,31.4" fill="#C8102E"/><text x="50" y="62.6" font-family="Arial Narrow,Roboto Condensed,Helvetica Neue,Arial,sans-serif" font-stretch="condensed" font-weight="700" font-size="35" textLength="74" lengthAdjust="spacingAndGlyphs" fill="#fff" text-anchor="middle">STOP</text></svg>';
   else if(kind==="yield")svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 90"><polygon points="2,4 98,4 50,88" fill="#c8102e"/><polygon points="20,14 80,14 50,66" fill="#fff"/><text x="50" y="34" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="13" fill="#c8102e" text-anchor="middle">YIELD</text></svg>';
   else if(kind==="oneway"){const L=dir==="L";
     svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 40"><rect x="1" y="1" width="118" height="38" rx="3" fill="#111" stroke="#fff" stroke-width="1.5"/>'
@@ -10019,11 +10019,12 @@ function accountList(){
         <select data-acctbulk="type" aria-label="Set the type"><option value="">Set the type…</option>${ACCT_TYPE.map(x=>`<option>${esc(x)}</option>`).join("")}</select>
         <select data-acctbulk="terms" aria-label="Set the terms"><option value="">Set the terms…</option>${TERMS.map(x=>`<option>${esc(x)}</option>`).join("")}</select>
         <button class="btn sm" data-acexport="1">Export CSV</button><button class="btn sm q" data-acclear="1">Clear</button></div>`:"";
-      return `${bar}<table><thead><tr>${canBulk?`<th style="width:34px"><input type="checkbox" data-acsel="*" aria-label="Select all shown" ${shown.length&&shown.every(a=>sel.has(a.id))?"checked":""}></th>`:""}<th>Account</th><th>Rep</th><th>Type</th><th>Terms</th><th>Tax exempt</th>
+      return `${bar}<table><thead><tr>${canBulk?`<th style="width:34px"><input type="checkbox" data-acsel="*" aria-label="Select all shown" ${shown.length&&shown.every(a=>sel.has(a.id))?"checked":""}></th>`:""}<th>Account</th><th>Stage</th><th>Rep</th><th>Type</th><th>Terms</th><th>Tax exempt</th>
       <th>Open projects</th><th>Open WOs</th></tr></thead><tbody>
       ${shown.map(a=>`<tr>${canBulk?`<td><input type="checkbox" data-acsel="${esc(a.id)}" aria-label="Select ${esc(a.name)}" ${sel.has(a.id)?"checked":""}></td>`:""}
         <td><a class="lnk" href="#/account/${esc(a.id)}">${esc(a.name)}</a>
           <div class="sub">${esc([a.city,a.state].filter(Boolean).join(", "))}</div></td>
+        <td>${acctStagePill(a)}</td>
         <td>${a.repId&&reps.find(t=>t.id===a.repId)?`<span style="font-weight:700;font-size:12.5px">${esc(reps.find(t=>t.id===a.repId).name)}</span>`:`<span class="pill r" title="Open the account and press Edit to give it a rep">No rep</span>`}</td>
         <td>${esc(a.type||"—")}</td><td>${esc(a.terms||"—")}</td><td>${exemptPill(a)}</td>
         <td class="mono">${cp[a.id]||"—"}</td>
@@ -10051,6 +10052,25 @@ function exemptPill(a){
   if(a.type==="Government agency"||a.certNeeded)return `<span class="pill r" title="Taxable until their exemption certificate is filed">Certificate needed</span>`;
   return "—";
 }
+
+/* ---- where an account stands ----
+   Worked out from its projects (you can set it by hand on Edit): Lead — found and reached out, nothing asked for yet;
+   Inquired — asked for a quote, hasn't bought; Active — bought in the last 12 months or has an order open; Inactive —
+   bought before, nothing in 12 months (worth a call); Do not contact — set by hand only. */
+const ACCT_STAGES=[{id:"lead",l:"Lead",c:"v",help:"We found them and reached out — they haven't asked for anything yet"},
+  {id:"inquired",l:"Inquired",c:"y",help:"They've asked for a quote — no order yet"},
+  {id:"active",l:"Active",c:"g",help:"Bought from us in the last 12 months, or has an order open"},
+  {id:"inactive",l:"Inactive",c:"o",help:"Bought before, but nothing in the last 12 months — worth a call"},
+  {id:"dnc",l:"Do not contact",c:"r",help:"Asked us not to, or not a fit — set by hand"}];
+function acctStageAuto(a){if(!a)return "lead";const ps=real(projectsOf(a.id));const yr=Date.now()-365*864e5;
+  const wonI=PATH.indexOf("won");const isWon=p=>p.stage!=="lost"&&PATH.indexOf(p.stage)>=wonI;
+  if(ps.some(p=>isWon(p)&&(!isClosed(p)||Math.max(Number(stageAt(p,"won"))||0,Number(p.updatedAt)||0,Number(p.createdAt)||0)>=yr)))return "active";
+  if(ps.some(isWon))return "inactive";
+  if(ps.some(p=>["inquiry","quoted","lost"].indexOf(p.stage)>=0))return "inquired";
+  return "lead"}
+function acctStage(a){const set=a&&a.stageSet;return set&&ACCT_STAGES.some(x=>x.id===set)?set:acctStageAuto(a)}
+function acctStagePill(a,withHow){const id=acctStage(a);const st=ACCT_STAGES.find(x=>x.id===id)||ACCT_STAGES[0];
+  return `<span class="pill ${st.c}" title="${esc(st.help)}${a&&a.stageSet?" — set by hand":" — worked out from its projects"}">${esc(st.l)}</span>${withHow?`<span class="sub" style="font-size:12px">${a&&a.stageSet?"set by hand":"automatic"}</span>`:""}`}
 function accountRec(id){
   const a=acct(id);if(!a)return notFound("Account");
   const ps=projectsOf(id),cs=contactsOf(id),js=jobsOfAcct(id).filter(j=>j.status!=="shipped");
@@ -10070,6 +10090,7 @@ function accountRec(id){
           <div class="dd-sep"></div>
           <button class="danger" data-del="account:${esc(id)}">Delete this account</button></div></details></div></div>
       <div class="hl-facts">
+        <div><div class="k">Stage</div><div class="v" style="font-size:13px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">${acctStagePill(a,true)}</div></div>
         <div><div class="k">Sales rep</div><div class="v" style="font-size:13px;display:flex;
           align-items:center;gap:6px;flex-wrap:wrap">
           ${(function(){const t=repOfAccount(a);return t?`<b>${esc(t.name)}</b>`
@@ -10498,7 +10519,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-108";
+const APP_VERSION="2026.11.25-109";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -10862,7 +10883,7 @@ function projectRec(id){
             const rep=repOfAccount(a);const prim=contactsOf(a.id).find(c=>c.primary)||contactsOf(a.id)[0];
             const addr=[a.street,[a.city,a.state].filter(Boolean).join(", "),a.zip].filter(Boolean).join(" ");
             return `<div style="padding:12px 15px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--line2)">
-                ${a.type?`<span class="pill b">${esc(a.type)}</span>`:""}${isExempt(a)?`<span class="pill g" title="Exemption certificate on file">Tax exempt</span>`:a.exempt?(a.exemptExp?`<span class="pill r" title="The exemption certificate has expired — get a new one">Cert expired</span>`:`<span class="pill y" title="Bills taxable until the certificate expiry date is entered">Add cert date</span>`):""}
+                ${acctStagePill(a)}${a.type?`<span class="pill b">${esc(a.type)}</span>`:""}${isExempt(a)?`<span class="pill g" title="Exemption certificate on file">Tax exempt</span>`:a.exempt?(a.exemptExp?`<span class="pill r" title="The exemption certificate has expired — get a new one">Cert expired</span>`:`<span class="pill y" title="Bills taxable until the certificate expiry date is entered">Add cert date</span>`):""}
                 ${rep?`<span class="sub">Rep: <b style="color:var(--ink)">${esc(rep.name)}</b></span>`:""}
                 ${since!==Infinity?`<span class="sub" style="margin-left:auto">Customer since ${esc(new Date(since).toLocaleDateString(undefined,{month:"short",year:"numeric"}))}</span>`:""}</div>
               <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-bottom:1px solid var(--line2)">
@@ -13427,6 +13448,7 @@ function accountModal(a,then){
   openModal(mshell(a.id?"Edit account":"New account","acct",
     `${a.id?"":`<p class="note" style="margin:10px 14px">An account is the customer organization. Its projects and jobs hang off it forever.</p>`}
     <div class="fgrid">${inp("f-name","Account name",a.name,"text",1)}
+      ${sel("f-astage","Stage",a.stageSet||"",[{v:"",l:"Automatic — "+((ACCT_STAGES.find(x=>x.id===acctStageAuto(a))||{}).l||"Lead")+" now, from its projects"}].concat(ACCT_STAGES.map(x=>({v:x.id,l:x.l+" (set by hand)"}))))}
       ${sel("f-type","Type",a.type||ACCT_TYPE[0],ACCT_TYPE)}${sel("f-terms","Terms",a.terms||TERMS[2],a.terms&&TERMS.indexOf(a.terms)<0?TERMS.concat([a.terms]):TERMS)}
       ${inp("f-phone","Phone",a.phone,"tel")}${inp("f-web","Website",a.website)}
       ${inp("f-street","Street",a.street,"text",1)}
@@ -13449,7 +13471,7 @@ function accountModal(a,then){
   $("#save").onclick=async()=>{
     const name=$("#f-name").value.trim();if(!name){$("#f-name").focus();return toast("Name is required.")}
     const id=a.id||uid("a");
-    const rec={id,name,type:$("#f-type").value,terms:$("#f-terms").value,phone:$("#f-phone").value.trim(),
+    const rec={id,name,stageSet:$("#f-astage")?$("#f-astage").value:(a.stageSet||""),type:$("#f-type").value,terms:$("#f-terms").value,phone:$("#f-phone").value.trim(),
       website:$("#f-web").value.trim(),street:$("#f-street").value.trim(),city:$("#f-city").value.trim(),
       state:$("#f-state").value.trim(),zip:$("#f-zip").value.trim(),qb:$("#f-qb").value.trim(),
       exempt:$("#f-ex").checked,exemptExp:$("#f-exp").value,drive:$("#f-drive").value.trim(),
