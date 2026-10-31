@@ -308,10 +308,10 @@ async function aiDrafts() {
           try {
             const x = await fetch("https://models.github.ai/inference/chat/completions", { method: "POST", headers: { Authorization: "Bearer " + GH, "Content-Type": "application/json", Accept: "application/json" },
               body: JSON.stringify(Object.assign({ model, messages: msgs, temperature: 0.5, max_tokens: 900 }, fmt ? { response_format: { type: "json_object" } } : {})) });
-            const j = await x.json().catch(() => ({}));
+            const raw = await x.text().catch(() => ""); let j = {}; try { j = JSON.parse(raw); } catch (e) {}
             if (!x.ok) { err = model + " " + x.status + " " + String((j.error || {}).message || j.message || "").slice(0, 80); break; }
             const ch = (j.choices || [])[0] || {}; o = pick(ch.message && ch.message.content);
-            if (o) break; err = model + " sent back nothing (" + (ch.finish_reason || "no reason") + ")";
+            if (o) break; err = model + " sent back nothing (" + (ch.finish_reason || "no reason") + "; " + String(raw).replace(/\s+/g, " ").slice(0, 160) + ")";
           } catch (e) { err = model + " " + String(e.message || e).slice(0, 80); }
         }
         if (o) break; }
