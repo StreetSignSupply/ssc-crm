@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-113
+- Account page: finished projects have their own card, **Project archive** (closed won and closed lost, newest first), under **Projects**, which now shows only what's open.
+
 ## 2026.11.25-112
 - "Show N more" (sign pictures, files) is handled on the click itself and remembered per card, so a page redraw arriving at the same moment can't close it again; it also opens a folded card.
 
