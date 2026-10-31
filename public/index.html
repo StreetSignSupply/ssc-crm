@@ -10066,7 +10066,8 @@ function accountRec(id){
         </section>`})()}
       <section class="card flush"><header><h2>Details</h2>
         <span class="sp"><button class="btn sm" data-edit="account:${esc(id)}">Edit</button></span></header>
-        <div class="fgrid">${fldH("Phone",cxTel(a.phone))}${fldH("Website",cxWeb(a.website))}
+        <div class="fgrid">${fldFull("Account name",a.name)}
+          ${fldH("Phone",cxTel(a.phone))}${fldH("Website",cxWeb(a.website))}
           ${(function(){const ad=[a.street,[a.city,[a.state,a.zip].filter(Boolean).join(" ")].filter(Boolean).join(", ")].filter(Boolean).join(", ");
             return fldHFull("Address",ad?cxAddr(ad):`<span class="sub">Not on file — <button class="lnk" data-edit="account:${esc(id)}">add it</button></span>`)})()}
           ${fld("Created",fmtTs(a.createdAt))}
@@ -10455,7 +10456,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-101";
+const APP_VERSION="2026.11.25-102";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
