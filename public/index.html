@@ -443,18 +443,21 @@ td .btn,th .btn{white-space:nowrap;word-break:normal;overflow-wrap:normal}
 :root[data-theme="dark"] .step.cur{--sb:#2F72C4}
 .path > details{margin-left:18px!important}
 .path > details{flex:0 0 auto;margin-left:auto;align-self:center}
-/* work order status: one progress bar — finished steps dark with a check, the current one red, what's next grey */
-.path{gap:6px;padding:14px 20px 12px}
-.path>button{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:3px;
-  background:none;border:0;border-top:5px solid var(--line);border-radius:0;box-shadow:none;
-  padding:9px 4px 2px 0;text-align:left;line-height:1.15;font-size:13px;font-weight:700;color:var(--ink3);cursor:pointer}
-.path>button small{display:block;font-size:12px;font-weight:500;color:var(--ink3)}
-.path>button:hover{border-top-color:var(--ink3);background:none}
-.path>button.done{border-top-color:var(--ink);color:var(--ink)}
-.path>button .ck{color:var(--green,#1f8a4c);font-weight:800}
-.path>button.done small{color:var(--ink2)}
-.path>button.cur{border-top-color:var(--act);color:var(--ink)}
-.path>button.cur small{color:var(--act);font-weight:700}
+/* work order status: the same chevron path as projects — finished green with a check, the current one solid blue, what's next grey */
+.path{gap:0;padding:12px 20px}
+.path>button{--sb:var(--card2);--sf:var(--ink3);--ss:var(--ink3);flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;
+  background:var(--sb);border:0;border-radius:0;box-shadow:none;min-height:44px;margin-right:-9px;
+  padding:8px 10px 7px 24px;text-align:left;line-height:1.15;font-size:13px;font-weight:800;color:var(--sf);cursor:pointer;
+  clip-path:polygon(0 0,calc(100% - 13px) 0,100% 50%,calc(100% - 13px) 100%,0 100%,13px 50%)}
+.path>button:first-child{clip-path:polygon(0 0,calc(100% - 13px) 0,100% 50%,calc(100% - 13px) 100%,0 100%);border-radius:8px 0 0 8px;padding-left:14px}
+.path>button small{display:block;font-size:12px;font-weight:500;color:var(--ss)}
+.path>button:hover{filter:brightness(.96)}
+.path>button.done{--sb:#DCEFE3;--sf:#146B38;--ss:#2F7A4C}
+.path>button .ck{color:inherit;font-weight:900}
+.path>button.cur{--sb:#1F5FAD;--sf:#fff;--ss:#E3EDFA;flex:1.4 1 0}
+.path>button.cur small{font-weight:700}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .path>button.done{--sb:#17392A;--sf:#8FE0AE;--ss:#8FE0AE}:root:not([data-theme="light"]) .path>button.cur{--sb:#2F72C4}}
+:root[data-theme="dark"] .path>button.done{--sb:#17392A;--sf:#8FE0AE;--ss:#8FE0AE}:root[data-theme="dark"] .path>button.cur{--sb:#2F72C4}
 .path>button:focus-visible{outline:2px solid var(--act);outline-offset:3px}
 
 .card > header .cz{width:26px;height:26px;padding:0;margin:0 2px 0 -4px;border-radius:50%;cursor:pointer;
@@ -7847,7 +7850,8 @@ function lamCostFor(line){try{const d=parseSize(line.size);if(!d)return 0;const 
   return Math.round(d.w*d.h/144*Number(lam.cost)/per*(1+WASTE_DEFAULT/100)*100)/100}catch(e){return 0}}
 // where a customer's quote prices come from: the account's own choice, else retail customers pay website prices and
 // everyone else (contractors, government, resellers) our price list. The other price is still shown beside it.
-function priceBasis(a){const v=a&&a.priceBasis;if(v==="list"||v==="web")return v;return a&&/retail|individual|homeowner/i.test(a.type||"")?"web":"list"}
+// every quote starts from the website's suggested price (Matt, 31 Oct); an account set to "Our price list" keeps that
+function priceBasis(a){const v=a&&a.priceBasis;if(v==="list"||v==="web")return v;return "web"}
 function listPrice(line,basis){const r=listPrice0(line,basis);
   if(!(r&&line&&lamOff(line)&&linePrinted(line)))return r;
   const lc=lamCostFor(line);if(!lc)return Object.assign({},r,{why:r.why+" (no overlaminate)"});
@@ -10548,7 +10552,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-114";
+const APP_VERSION="2026.11.25-115";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -13492,7 +13496,7 @@ function accountModal(a,then){
       ${sel("f-plevel","Pricing level",a.priceLevel||"",[{v:"",l:"List price — no discount"}].concat(priceLevels().map(l=>({v:l.id,l:l.name+" — "+l.pct+"% off"}))))}
       ${inp("f-disc","Or their own % off (overrides the level)",a.discountPct==null?"":a.discountPct,"number")}
       ${chk("f-savings","Show list price and their savings on quotes",a.showSavings)}
-      ${sel("f-pbasis","Quote prices from",a.priceBasis||"",[{v:"",l:"Automatic — retail: website, everyone else: price list"},{v:"list",l:"Our price list (contractor pricing)"},{v:"web",l:"The website (retail pricing)"}])}
+      ${sel("f-pbasis","Quote prices from",a.priceBasis||"",[{v:"",l:"Automatic — the website's suggested price (the default)"},{v:"list",l:"Our price list (contractor pricing)"},{v:"web",l:"The website (retail pricing)"}])}
       <div class="fld"></div>
       ${a.id&&contactsOf(a.id).length?sel("f-bc","Billing contact — invoices go here",a.billingContactId||"",
         contactsOf(a.id).map(c=>({v:c.id,l:c.name+(c.role?" — "+c.role:"")})),1)
@@ -16127,6 +16131,7 @@ function composeModal(o){o=o||{};const p=o.pid?proj(o.pid):null;const aid=o.aid|
   const tpls=mailTemplates();const t0=o.tpl?tpls.find(t=>t.id===o.tpl):null;
   const subj=o.subject!=null?o.subject:t0?mailFill(t0.subject,S._cmp):"";const body=o.body!=null?o.body:t0?mailFill(t0.body,S._cmp):"";
   const files=composeFiles(o.pid);const pre=new Set(o.attach||[]);
+  if(!pre.size&&(o.kind==="quote"||o.tpl==="quote")){const q=files.filter(f=>/^(Quote|Signed quote)$/.test(f.cat||"")&&/pdf/i.test((f.type||"")+(f.name||""))).sort((a,b)=>(b.at||0)-(a.at||0))[0];if(q)pre.add(q.id)}
   const sendOn=mailSendOn(),from=myMailFrom();
   openModal(mshell(o.title||"Email","email",`<div class="fgrid">
     <div class="fld full"><div class="k">To</div><input id="cm-to" value="${esc(o.to||(c0&&c0.email)||"")}" placeholder="name@company.com — several with commas">
@@ -16241,8 +16246,14 @@ function signModal(pid,fid){const p=proj(pid);if(!p)return;const docs=signDocs(p
     <div class="fld full"><div class="k">Who signs</div><select id="sg-who">${people.map(x=>`<option value="${esc(x.id)}" ${c&&c.id===x.id?"selected":""}>${esc(x.name)} — ${esc(x.email)}</option>`).join("")||`<option value="">(no contact with an email — add one first)</option>`}</select></div>
     <div class="fld full sub">They get a private link (good for 30 days). The page shows the ${"items, pictures and prices"} — or for a proof, every artwork picture to check — and they type their name, sign and approve, or ask for changes. Next you'll see the email with the link in it.</div></div>`,
     `<button class="btn" data-close="1">Cancel</button><button class="btn p" id="sg-go">Make the link</button>`));
-  $("#sg-go").onclick=async()=>{const kind=$("#sg-kind").value;const f=S.files.get($("#sg-doc").value)||null;const ct=S.contacts.get($("#sg-who").value)||null;
+  $("#sg-go").onclick=async()=>{const kind=$("#sg-kind").value;let f=S.files.get($("#sg-doc").value)||null;const ct=S.contacts.get($("#sg-who").value)||null;
     if(kind!=="proof"&&!orderedLines(p).some(l=>Number(l.qty)>0)){toast("The quote has no lines yet.");return}
+    // a quote always goes with its PDF: if none was picked, the quote PDF is made now, saved to Files and attached
+    if(kind!=="proof"&&!f&&assets){toast("Making the quote PDF to attach…");S._docPending=null;
+      try{await makeDoc(p.id,"quote");let d=null;for(let i=0;i<60&&!d;i++){await new Promise(r=>setTimeout(r,500));if(S._docPending&&S._docPending.pid===p.id)d=S._docPending}
+        if(d){closeModal();await docToFiles(d);await new Promise(r=>setTimeout(r,800));
+          f=live(S.files).filter(x=>x.projectId===p.id&&x.cat==="Quote"&&/pdf/i.test((x.type||"")+(x.name||""))).sort((a,b)=>(b.at||0)-(a.at||0))[0]||null}
+        else toast("The quote PDF couldn't be made — the link still goes; attach the PDF yourself.")}catch(e){toast("The quote PDF couldn't be made — the link still goes; attach the PDF yourself.")}}
     if(kind==="proof"&&!arts.length&&!f){toast("No artwork on this project yet — upload the proof pictures first.");return}
     const tok=signToken();const rec=signRec(p,kind,f,ct,arts,tok);
     try{await setDoc("signreq/"+tok,rec)}catch(e){toast("Couldn't make the link.");return}
