@@ -303,10 +303,13 @@ async function aiDrafts() {
           const body = j[k("body")] || j[k("email")] || j[k("message")] || j[k("text")] || j[k("content")] || "";
           if (String(body).trim()) return { subject: String(j[k("subject")] || ""), body: String(body) }; return null; }
         return { subject: "", body: t }; };
-      for (const model of ["openai/gpt-4.1-mini", "openai/gpt-4o-mini", "openai/gpt-4.1"]) {
+      // GitHub's model endpoint first, then its older Azure-hosted one (same free GitHub token)
+      const tries = [["https://models.github.ai/inference/chat/completions", "openai/gpt-4.1-mini"], ["https://models.github.ai/inference/chat/completions", "openai/gpt-4o-mini"],
+        ["https://models.inference.ai.azure.com/chat/completions", "gpt-4o-mini"], ["https://models.inference.ai.azure.com/chat/completions", "gpt-4o"]];
+      for (const [url, model] of tries) {
         for (const fmt of [true, false]) {
           try {
-            const x = await fetch("https://models.github.ai/inference/chat/completions", { method: "POST", headers: { Authorization: "Bearer " + GH, "Content-Type": "application/json", Accept: "application/json" },
+            const x = await fetch(url, { method: "POST", headers: { Authorization: "Bearer " + GH, "Content-Type": "application/json", Accept: "application/json" },
               body: JSON.stringify(Object.assign({ model, messages: msgs, temperature: 0.5, max_tokens: 900 }, fmt ? { response_format: { type: "json_object" } } : {})) });
             const raw = await x.text().catch(() => ""); let j = {}; try { j = JSON.parse(raw); } catch (e) {}
             if (!x.ok) { err = model + " " + x.status + " " + String((j.error || {}).message || j.message || "").slice(0, 80); break; }

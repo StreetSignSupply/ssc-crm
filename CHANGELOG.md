@@ -1,5 +1,10 @@
 # What changed
 
+## 2026.11.25-110
+- Sidebar: Accounts, Contacts, Projects — the order you create them in.
+- "Show N more" under sign pictures and files now opens the rest even when the card is folded (it opens the card too), and stays open when the page redraws.
+- Write it with AI: the mail worker also tries GitHub's Azure-hosted model endpoint when the main one answers with nothing.
+
 ## 2026.11.25-109
 - Accounts have a stage: Lead (found and reached out, nothing asked for yet), Inquired (asked for a quote, no order yet), Active (bought in the last 12 months or has an order open), Inactive (bought before, nothing in 12 months), and Do not contact (by hand only). It's worked out from the account's projects; Edit can set it by hand. Shown in the account header, on the account card on projects, and as a column on the Accounts list.
 - STOP drawing redrawn to MUTCD proportions: white border inset from the edge, big condensed STOP letters across about three-quarters of the face — used on quote PDFs.
