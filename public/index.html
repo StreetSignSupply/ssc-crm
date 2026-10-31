@@ -764,7 +764,7 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
 .kc .nm{font-weight:800;font-size:13.5px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;white-space:normal;line-height:1.3}
 .kc .r2{font-size:12px;color:var(--ink2);margin:3px 0 7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .kc .r3{display:flex;gap:5px;flex-wrap:wrap}
-.kw-slate h3{background:#4F5964;color:#fff}.kw-blue h3{background:#255CA3;color:#fff}
+.kw-slate h3{background:#4F5964;color:#fff}.kw-violet h3{background:#6B3A8C;color:#fff}.kw-blue h3{background:#255CA3;color:#fff}
 .kw-yellow h3{background:#F4C542;color:#1F1A00}
 .kw-orange h3{background:#A94E07;color:#fff}.kw-green h3{background:#1F7A42;color:#fff}.kw-red h3{background:#B8231C;color:#fff}
 .kdone h3{background:var(--plate);color:#fff;box-shadow:inset 0 -3px 0 var(--green)}
@@ -1299,7 +1299,8 @@ window.claude={use:function(n){return p.then(function(c){return c.use(n)})}};})(
 
 /* ========== config ========== */
 const STAGES=[
-  {id:"inquiry",label:"Inquiry",color:"slate",help:"Request in, not yet quoted"},
+  {id:"lead",label:"Lead",color:"violet",help:"We found or got a lead and reached out — they haven't asked for a quote yet"},
+  {id:"inquiry",label:"Inquiry",color:"slate",help:"They reached out and want a quote — not quoted yet"},
   {id:"quoted",label:"Quoted",color:"blue",help:"Price out, waiting on them"},
   {id:"won",label:"Won",color:"green",help:"PO or payment in hand"},
   {id:"production",label:"Production",color:"orange",help:"Work orders released to the shop"},
@@ -1308,7 +1309,7 @@ const STAGES=[
   {id:"closed",label:"Closed won",color:"green",help:"Shipped and paid — goes to the archive"},
   {id:"lost",label:"Closed lost",color:"red",help:"Didn't win it — goes to the archive"}
 ];
-const PATH=["inquiry","quoted","won","production","shipped","invoiced","closed"];
+const PATH=["lead","inquiry","quoted","won","production","shipped","invoiced","closed"];
 const SG=Object.fromEntries(STAGES.map(s=>[s.id,s]));
 const JSTAT=[
   {id:"new",label:"New",color:"slate",shop:false},
@@ -3998,7 +3999,7 @@ function quickWO(pid,state){
   const guessMethod=guess==="sign"?(last&&last.method?last.method:"film"):"";
   const q=Object.assign({prod:guess,method:guessMethod||"film",
     blankSrc:last&&last.blankSrc?last.blankSrc:"stock",stencilMat:last?last.stencilMat:"",
-    due:p.due||"",copy:true,won:p.stage==="inquiry"||p.stage==="quoted",
+    due:p.due||"",copy:true,won:p.stage==="lead"||p.stage==="inquiry"||p.stage==="quoted",
     only:state&&state.only!==undefined?state.only:(kinds.length?kinds[0]:"")},state||{});
   S.qwo={pid,q};
   const ol=orderedLines(p).filter(l=>!isCharge(l));
@@ -4034,7 +4035,7 @@ function quickWO(pid,state){
         <span><b>Copy ${q.only&&openG[q.only]?openG[q.only].length+" "+((allProd().find(x=>x.id===q.only)||{label:q.only}).label.toLowerCase())+" line"+(openG[q.only].length===1?"":"s"):ol.length+" ordered line"+(ol.length===1?"":"s")} onto it</b>
           <span class="sub" style="display:block">${esc((q.only&&openG[q.only]?openG[q.only]:ol).slice(0,3).map(l=>(l.qty||"")+" × "+(l.desc||l.code||"")+" "+(l.size?sizeLabel(l.size):"")).join(" · "))}${(q.only&&openG[q.only]?openG[q.only]:ol).length>3?" …":""}</span></span></label>`
         :`<div class="fld full sub">No ordered lines on the project yet — you'll add the lines on the work order.</div>`}
-      ${(p.stage==="inquiry"||p.stage==="quoted")?`<label class="fld full" style="display:flex;gap:9px;align-items:center;cursor:pointer">
+      ${(p.stage==="lead"||p.stage==="lead"||p.stage==="inquiry"||p.stage==="quoted")?`<label class="fld full" style="display:flex;gap:9px;align-items:center;cursor:pointer">
         <input type="checkbox" id="qw-won" ${q.won?"checked":""} style="width:18px;height:18px;accent-color:var(--act)">
         <span><b>Mark the project Won</b><span class="sub" style="display:block">It's still ${esc((SG[p.stage]||{}).label||"")} — if the shop's making it, it's won.</span></span></label>`:""}
     </div>`,
@@ -4079,7 +4080,7 @@ async function quickWOGo(pid,preset){
       statusLog:[{status:"new",at:now,who:me()}],deleted:false,createdAt:now,updatedAt:now});
     logEvent("job",String(num),"Created from P-"+p.num+(items.length?" with "+items.length+" line(s) copied":""));
     recordHistory("project",pid,[{f:"Work orders",o:"",n:"Work order "+num+" created"+(items.length?" — "+items.length+" line(s) copied":""),ev:1}]);
-    if(q.won&&(p.stage==="inquiry"||p.stage==="quoted"))await setStage(pid,"won","work order created");
+    if(q.won&&(p.stage==="lead"||p.stage==="lead"||p.stage==="inquiry"||p.stage==="quoted"))await setStage(pid,"won","work order created");
     S.qwo=null;
     if(q.quiet)return num;
     go("job/"+num);
@@ -4632,7 +4633,7 @@ function wizRender(){
     title="Step 3 — The project";
     body=`<p class="note" style="margin:12px 15px 0">One quote, bid or package. It gets the PO, the value and, at the end, the invoice.</p>
       <div class="fgrid">${inp("wz-pn","What is it — e.g. School zone signs, fall",w.proj.name,"text",1)}
-        ${sel("wz-ps","Where it stands",w.proj.stage,STAGES.filter(x=>["inquiry","quoted","won"].indexOf(x.id)>=0).map(x=>({v:x.id,l:x.label})))}
+        ${sel("wz-ps","Where it stands",w.proj.stage,STAGES.filter(x=>["lead","inquiry","quoted","won"].indexOf(x.id)>=0).map(x=>({v:x.id,l:x.label})))}
         ${inp("wz-po","PO number, if you have one",w.proj.po)}
         ${inp("wz-pd","When they need it",w.proj.due,"date")}
         ${sel("wz-pb","When we bill",w.proj.billWhen,BILLWHEN.map(x=>({v:x.id,l:x.label})))}
@@ -4640,7 +4641,7 @@ function wizRender(){
   }
   if(w.step===4){
     title="Step 4 — The first work order";
-    const quoting=w.proj.stage==="inquiry"||w.proj.stage==="quoted";
+    const quoting=w.proj.stage==="lead"||w.proj.stage==="inquiry"||w.proj.stage==="quoted";
     body=`<p class="note" style="margin:12px 15px 0">One batch the shop builds — it gets a number, a printed sheet and its own route.
       ${quoting?"This project is still a quote, so you can leave this until it's won.":""}</p>`+
       seg("wo",w.woMode,[["new","Create it now"],["skip",quoting?"Not yet — still a quote":"Add it later"]])+
@@ -5163,11 +5164,11 @@ function reconCard(p){
   const noneYet=!ord.length&&!rows.length;
   const notOn=rows.filter(r=>!r.extra&&!r.charge&&r.sched<r.ordered).length;
   return `<section class="card flush" ${st.state==="off"?`style="border-color:var(--orange)"`:""}>
-    <header><h2>${(p.stage==="inquiry"||p.stage==="quoted")?"Quote lines":"Quote lines"}</h2>
+    <header><h2>${(p.stage==="lead"||p.stage==="lead"||p.stage==="inquiry"||p.stage==="quoted")?"Quote lines":"Quote lines"}</h2>
       ${ord.length?(st.state==="ok"?`<span class="pill g">All on work orders</span>`
         :`<span class="pill o">${notOn} not fully on a work order</span>`)
         :rows.length?`<span class="pill o">Only on work orders</span>`:""}
-      <span class="sub">${(p.stage==="inquiry"||p.stage==="quoted")
+      <span class="sub">${(p.stage==="lead"||p.stage==="lead"||p.stage==="inquiry"||p.stage==="quoted")
         ?"One line per item. The quote PDF and, once it's won, the work orders come off these lines."
         :"The master list of what they ordered. Each line shows the work order it's on."}</span>
       <span class="sp">${p.stage==="quoted"&&can("cost")&&(p.orderLines||[]).some(l=>lockedCostOf(l)!==null)?`<button class="btn sm" data-costrefresh="${esc(p.id)}" title="Retake every line's cost at today's material costs — only while the quote is open">Refresh costs</button>`:""}
@@ -5640,7 +5641,8 @@ function woLine(j,it){
 function woItems(j){return ((j&&j.items)||[]).map(x=>{const y=woLine(j,x);return y===x?Object.assign({},x,{noLam:x.lam!==true}):y})}
 // Older records: give every quote line an id and point every work order line at its quote line
 // by that id. Runs quietly after a redraw; each record is only touched once per change.
-const STAGE_ORDER=["inquiry","quoted","won","production","shipped","invoiced","closed"];
+const SO=k=>STAGE_ORDER.indexOf(k);
+const STAGE_ORDER=["lead","inquiry","quoted","won","production","shipped","invoiced","closed"];
 function autoPass(){
   if(!db||!S.ready)return;const b=S.brand||{};
   // automations only act on what changes from now on. Older projects are caught up by hand —
@@ -5664,11 +5666,11 @@ function autoPass(){
     const last=(p.stageLog||[]).slice(-1)[0];
     if(last&&!last.auto&&last.who!=="auto"&&(Number(last.at)||0)>=Math.max(0,...jobsOf(p.id).map(j=>Number(j.updatedAt)||0)))return;
     const js=jobsOf(p.id);let want=at,why="";
-    if(js.length&&want<2){want=2;why="a work order was made"}
-    if(js.some(j=>["released","production","qc","packed","shipped"].indexOf(j.status)>=0)&&want<3){want=3;why="a work order is in the shop"}
-    if(js.length&&js.every(j=>j.status==="shipped")&&want<4){want=4;why="every work order has shipped"}
+    if(js.length&&want<SO("won")){want=SO("won");why="a work order was made"}
+    if(js.some(j=>["released","production","qc","packed","shipped"].indexOf(j.status)>=0)&&want<SO("production")){want=SO("production");why="a work order is in the shop"}
+    if(js.length&&js.every(j=>j.status==="shipped")&&want<SO("shipped")){want=SO("shipped");why="every work order has shipped"}
     const billed=["invoiced","paid"].indexOf(billState(p))>=0;
-    if(want>=4&&billed&&want<5){want=5;why="shipped and invoiced"}
+    if(want>=SO("shipped")&&billed&&want<SO("invoiced")){want=SO("invoiced");why="shipped and invoiced"}
     if(want<=at)return;
     const k="st:"+p.id+":"+STAGE_ORDER[want];if(done.has(k))return;done.set(k,1);
     setStage(p.id,STAGE_ORDER[want],"moved itself — "+why);
@@ -5745,6 +5747,7 @@ function acctInvoices(){return (S.brand||{}).accountantInvoices!==false}
 function nextStepFor(p){
   const id=p.id;const js=jobsOf(id);const ol=orderedLines(p).filter(l=>!isCharge(l));
   if(p.stage==="closed"||p.stage==="lost")return "";
+  if(p.stage==="lead")return `<button class="btn p" data-stage="${esc(id)}:inquiry">Next: they asked for a quote</button>`;
   if(!ol.length)return `<button class="btn p" data-ordadd="${esc(id)}">Next: add the quote lines</button>`;
   if(!quoteState(p).ok&&["inquiry","quoted","won","production"].indexOf(p.stage)>=0)return `<button class="btn p" data-ptabgo="${esc(id)}">Next: finish the quote</button>`;
   if(p.stage==="inquiry")return `<button class="btn p" data-doc="${esc(id)}:quote">Next: send the quote</button>`;
@@ -5806,10 +5809,10 @@ function paletteOpen(){
 function catchUpList(){const out=[];
   live(S.projects).forEach(p=>{const at=STAGE_ORDER.indexOf(p.stage);if(at<0||p.stage==="closed"||p.stage==="lost")return;
     const js=jobsOf(p.id);let want=at;
-    if(js.length&&want<2)want=2;
-    if(js.some(j=>["released","production","qc","packed","shipped"].indexOf(j.status)>=0)&&want<3)want=3;
-    if(js.length&&js.every(j=>j.status==="shipped")&&want<4)want=4;
-    if(want>=4&&["invoiced","paid"].indexOf(billState(p))>=0&&want<5)want=5;
+    if(js.length&&want<SO("won"))want=SO("won");
+    if(js.some(j=>["released","production","qc","packed","shipped"].indexOf(j.status)>=0)&&want<SO("production"))want=SO("production");
+    if(js.length&&js.every(j=>j.status==="shipped")&&want<SO("shipped"))want=SO("shipped");
+    if(want>=SO("shipped")&&["invoiced","paid"].indexOf(billState(p))>=0&&want<SO("invoiced"))want=SO("invoiced");
     if(want>at)out.push({p,to:STAGE_ORDER[want]})});return out}
 function linkBackfill(){
   if(!db||!S.ready)return;
@@ -9028,7 +9031,7 @@ function projDuePill(p){
   if(p.stage==="shipped")return bs==="paid"?`<span class="pill g">Paid</span>`:bs==="invoiced"?`<span class="pill y">Invoiced</span>`:`<span class="pill">Shipped</span>`;
   return `<span class="pill ${dueCls(p.due,false)}">${dueTxt(p.due)}</span>`;
 }
-const stageCls=s=>({slate:"s",blue:"b",green:"g",orange:"o",red:"r",yellow:"y"}[(SG[s]||{}).color]||"s");
+const stageCls=s=>({violet:"v",slate:"s",blue:"b",green:"g",orange:"o",red:"r",yellow:"y"}[(SG[s]||{}).color]||"s");
 const jobCls=s=>({slate:"s",blue:"b",green:"g",orange:"o",red:"r",yellow:"y"}[(JS[s]||{}).color]||"s");
 
 /* ========== numbering ========== */
@@ -10479,7 +10482,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-105";
+const APP_VERSION="2026.11.25-106";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -10777,7 +10780,7 @@ function projectRec(id){
           ${billedEarly(p)&&p.stage!=="invoiced"&&p.stage!=="closed"?`<div class="sub">billed before production</div>`:""}</div></div>
         <div><div class="k">PO</div><div class="v">${esc(p.po||"—")}</div></div>
         <div><div class="k">Received</div><div class="v">${fmtDate(p.start||(p.createdAt?isoDay(p.createdAt):""))}</div></div>
-        ${p.quoteDue&&["inquiry","quoted"].indexOf(p.stage)>=0?`<div><div class="k">Quote due</div><div class="v">${p.quoteSentAt?`<span class="pill g">sent ${esc(fmtDate(isoDay(p.quoteSentAt)))}</span>`:`<span class="pill ${dueCls(p.quoteDue,false)}">${dueTxt(p.quoteDue)}</span>`}</div></div>`:""}
+        ${p.quoteDue&&["lead","inquiry","quoted"].indexOf(p.stage)>=0?`<div><div class="k">Quote due</div><div class="v">${p.quoteSentAt?`<span class="pill g">sent ${esc(fmtDate(isoDay(p.quoteSentAt)))}</span>`:`<span class="pill ${dueCls(p.quoteDue,false)}">${dueTxt(p.quoteDue)}</span>`}</div></div>`:""}
         <div><div class="k">Customer needs it by</div><div class="v">${stillDue(p)?`<span class="pill ${dueCls(p.due,false)}">${dueTxt(p.due)}</span>`:`${fmtDate(p.due)} ${projDuePill(p)}`}</div></div>
         ${projShipDates(p).length?`<div><div class="k">Ship / install</div><div class="v">${esc(projShipDates(p).map(fmtDate).join(", "))}</div></div>`:""}
         <div><div class="k">Quote lines</div><div class="v">${(function(){const st=reconStatus(p);
@@ -10819,7 +10822,7 @@ function projectRec(id){
                   <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:2px">${esc(kindLabel(k))}</div>
                   ${g[k].map(l=>`<div style="font-size:13.5px;line-height:1.5">${Number(l.qty)>0?`<b>${esc(String(l.qty))}</b> × `:`<span class="sub">no qty —</span> `}${esc(l.desc||signName(l)||l.code||"custom")}${l.size?` <span class="sub">${esc(sizeLabel(l.size))}</span>`:""}${l.grade?` <span class="sub">· ${esc(l.grade)}</span>`:""}</div>`).join("")}
                 </div>`).join("")}
-                <div class="sub">${(function(){const n=lines.reduce((t,l)=>t+(Number(l.qty)||0),0);return n+" piece"+(n===1?"":"s")})()}, ${lines.length} line${lines.length===1?"":"s"} — details under ${(p.stage==="inquiry"||p.stage==="quoted")?"Quote lines":"Quote lines"}</div></div>`})()}`
+                <div class="sub">${(function(){const n=lines.reduce((t,l)=>t+(Number(l.qty)||0),0);return n+" piece"+(n===1?"":"s")})()}, ${lines.length} line${lines.length===1?"":"s"} — details under ${(p.stage==="lead"||p.stage==="lead"||p.stage==="inquiry"||p.stage==="quoted")?"Quote lines":"Quote lines"}</div></div>`})()}`
               :`<div class="sub" style="font-size:13px">No lines yet. <button class="lnk" data-ordadd="${esc(p.id)}">Add a quote line</button>.</div>`}
           </div>
           <div class="fgrid">
@@ -11605,7 +11608,7 @@ function calendarView(){
   const add=(d,e)=>{if(!d)return;(ev[d]=ev[d]||[]).push(e)};
   live(S.projects).forEach(p=>{
     const closed=isClosed(p);
-    if(p.quoteDue&&["inquiry","quoted"].indexOf(p.stage)>=0&&!(p.quoteSentAt))add(p.quoteDue,{c:"start",k:"Quote due",n:p.name,t:"Quote due · P-"+p.num+" "+p.name,h:"project/"+p.id});
+    if(p.quoteDue&&["lead","inquiry","quoted"].indexOf(p.stage)>=0&&!(p.quoteSentAt))add(p.quoteDue,{c:"start",k:"Quote due",n:p.name,t:"Quote due · P-"+p.num+" "+p.name,h:"project/"+p.id});
     // needs-by: shown once — not again when an open work order ships that same day (that entry says it)
     if(p.due&&!closed&&projShipDates(p).indexOf(p.due)<0){const c=!stillDue(p)?"ship":(daysOut(p.due)<0?"late":"due");add(p.due,{c,k:c==="ship"?"Done":c==="late"?"Late":"Needs by",n:p.name,t:"Customer needs it by · P-"+p.num+" "+p.name+(c==="ship"?" (done)":""),h:"project/"+p.id})}
   });
@@ -12187,7 +12190,7 @@ function metricTxt(v,m){
    The date range and rep at the top apply to the whole page (inventory has no rep). Read only — nothing is changed. */
 const RF_PRESETS=[["month","This month"],["last30","Last 30 days"],["last90","Last 90 days"],["quarter","This quarter"],["ytd","Year to date"],["last12","Last 12 months"],["all","All time"],["custom","Custom"]];
 const RCOL=["#1F5FAD","#2F8F5B","#C77A1A","#7A4FB5","#C23B5A","#2A8C9A","#8A6D1F","#5A6470","#9C4E2F","#3E7D2E"];
-const STAGE_PROB_DEF={inquiry:10,quoted:35,won:90,production:95,shipped:100};
+const STAGE_PROB_DEF={lead:3,inquiry:10,quoted:35,won:90,production:95,shipped:100};
 function rfGet(){const f=S.rf||(S.rf={preset:"ytd",rep:""});
   const d=new Date(),y=d.getFullYear(),m=d.getMonth();let a,b=new Date(y,m,d.getDate(),23,59,59,999);
   if(f.preset==="month")a=new Date(y,m,1);else if(f.preset==="last30")a=new Date(Date.now()-29*864e5);else if(f.preset==="last90")a=new Date(Date.now()-89*864e5);
@@ -12201,7 +12204,7 @@ const rMs=iso=>iso?new Date(String(iso).slice(0,10)+"T00:00:00").getTime():0;
 function rRepOk(p,R){if(!R.rep)return true;const r=repFor(p);return R.rep==="none"?!r:!!(r&&r.id===R.rep)}
 function rProjects(R){return real(live(S.projects)).filter(p=>rRepOk(p,R))}
 function stageProbs(){return Object.assign({},STAGE_PROB_DEF,(S.brand||{}).stageProb||{})}
-const OPEN_ST=["inquiry","quoted","won","production","shipped"];
+const OPEN_ST=["lead","inquiry","quoted","won","production","shipped"];
 // revenue = what was invoiced (the project value, before tax), on the day it was invoiced — the same number as the billing card
 function rRevenue(p){return billedAt(p)?billedValue(p):0}
 function rRevAt(p){return billedAt(p)}
@@ -12284,7 +12287,7 @@ function rSnapshot(R){
   const ps=rProjects(R),ym=thisYM();
   const revMonth=ps.filter(p=>ymOf(rRevAt(p))===ym).reduce((t,p)=>t+rRevenue(p),0);
   const fc=rForecastRows(R);const fcv=fc.reduce((t,x)=>t+x.w,0);
-  const openQ=ps.filter(p=>["inquiry","quoted"].indexOf(p.stage)>=0);const openQv=openQ.reduce((t,p)=>t+projValue(p),0);
+  const openQ=ps.filter(p=>["lead","inquiry","quoted"].indexOf(p.stage)>=0);const openQv=openQ.reduce((t,p)=>t+projValue(p),0);
   const qb=qbRows();const ar=qb?qb.filter(q=>qbNum(q.balance)>0).reduce((t,q)=>t+qbNum(q.balance),0)
     :ps.filter(p=>billState(p)==="invoiced").reduce((t,p)=>t+projValue(p)+(invTaxOf(p)||0),0);
   const inv=itemList().filter(i=>onHand(i)>0&&Number(i.cost)>0).reduce((t,i)=>t+onHand(i)*Number(i.cost),0);
@@ -12298,7 +12301,7 @@ function rOverdueFollowups(R){const td=today();return live(S.activity).filter(x=
 function rCycleDays(){const d=real(live(S.projects)).map(p=>{const q=stageAt(p,"quoted"),w=stageAt(p,"won");return q&&w&&w>=q?(w-q)/864e5:null}).filter(x=>x!=null);return d.length?d.reduce((a,b)=>a+b,0)/d.length:21}
 function rForecastRows(R){const pr=stageProbs(),cyc=rCycleDays(),now=Date.now(),end=now+90*864e5;
   return rProjects(R).filter(p=>OPEN_ST.indexOf(p.stage)>=0&&projValue(p)>0).map(p=>{
-    let when=p.due?rMs(p.due):0;if(!when){const base=stageAt(p,p.stage)||p.createdAt||now;when=base+(["inquiry","quoted"].indexOf(p.stage)>=0?cyc:14)*864e5}
+    let when=p.due?rMs(p.due):0;if(!when){const base=stageAt(p,p.stage)||p.createdAt||now;when=base+(["lead","inquiry","quoted"].indexOf(p.stage)>=0?cyc:14)*864e5}
     if(when<now)when=now;return {p,when,prob:Number(pr[p.stage])||0,w:projValue(p)*(Number(pr[p.stage])||0)/100}}).filter(x=>x.when<=end)}
 function rForecastCard(R){const rows=rForecastRows(R),months=nextMonths(4),pr=stageProbs();const st=OPEN_ST;
   const bars=months.map(m=>{const inM=rows.filter(x=>ymOf(x.when)===m);return {label:ymLabel(m),drill:rDrill("fc:"+m,"Forecast — "+ymLabel(m),inM.map(x=>Object.assign(pRec(x.p),{d:(SG[x.p.stage]||{}).label+" · "+x.prob+"% of "+money2(projValue(x.p)),v:x.w}))),
@@ -12469,7 +12472,7 @@ function rSourceCard(R){const ps=rProjects(R).filter(p=>rIn(p.createdAt,R));cons
   const by={};ps.forEach(p=>{(by[src(p)]=by[src(p)]||[]).push(p)});
   const replied=p=>live(S.activity).some(a=>((a.recType==="project"&&a.recId===p.id)||(a.recType==="account"&&a.recId===p.accountId))&&a.direction==="in"&&(a.at||0)>=(p.createdAt||0)-864e5);
   const ks=Object.keys(by).sort((a,b)=>by[b].length-by[a].length);
-  const rows=ks.map(k=>{const g=by[k];const r=g.filter(replied),q=g.filter(p=>stageAt(p,"quoted")||PATH.indexOf(p.stage)>=1),w=g.filter(p=>stageAt(p,"won"));
+  const rows=ks.map(k=>{const g=by[k];const r=g.filter(replied),q=g.filter(p=>stageAt(p,"quoted")||PATH.indexOf(p.stage)>=PATH.indexOf("quoted")),w=g.filter(p=>stageAt(p,"won"));
     return {drill:rDrill("src:"+k,k+" — leads",g.map(p=>Object.assign(pRec(p),{d:(SG[p.stage]||{}).label+(replied(p)?" · replied":"")}))),cells:[k,g.length,r.length,q.length,w.length,g.length?Math.round(w.length/g.length*100):"",Math.round(w.reduce((t,p)=>t+projValue(p),0)*100)/100]}});
   const bars=rows.map(r=>({label:r.cells[0],drill:r.drill,parts:[{v:r.cells[1]-r.cells[3],c:RCOL[7],n:"not quoted yet"},{v:r.cells[3]-r.cells[4],c:RCOL[0],n:"quoted, not won"},{v:r.cells[4],c:RCOL[1],n:"won"}]}));
   const t=rTable("source","Lead source and outreach results",["Source","Leads","Replied","Quoted","Won","Lead to win %","$ won"],rows);
@@ -13580,7 +13583,7 @@ function projectModal(p,aid,then){
     if(!p.id||p.stage!==stage)sl.push({stage,at:Date.now(),who:me()});
     const rec={id,num,name,accountId:$("#f-acct").value,stage,amount:$("#f-amt").value,
       start:$("#f-start").value,quoteDue:$("#f-qdue")?$("#f-qdue").value:(p.quoteDue||""),due:$("#f-due").value,
-      po:$("#f-po").value.trim()||($("#f-ourpo")&&$("#f-ourpo").checked?"SSS-"+num:""),quote:$("#f-quote").value.trim()||(stage!=="inquiry"&&stage!=="lost"&&(!p.id||p.stage!==stage)?await nextQuote():""),
+      po:$("#f-po").value.trim()||($("#f-ourpo")&&$("#f-ourpo").checked?"SSS-"+num:""),quote:$("#f-quote").value.trim()||(stage!=="lead"&&stage!=="inquiry"&&stage!=="lost"&&(!p.id||p.stage!==stage)?await nextQuote():""),
       source:$("#f-src").value,
       invNum:p.invNum||"",shipTo:$("#f-ship").value.trim(),drive:$("#f-drive").value.trim(),
       scope:$("#f-scope")?$("#f-scope").value.trim():(p.scope||""),custScope:$("#f-cscope")?$("#f-cscope").value.trim():(p.custScope||""),notes:$("#f-notes").value.trim(),stageLog:sl,reorderOf:p.reorderOf||"",
@@ -13864,7 +13867,8 @@ function holdModal(num){
 
 // Every project stage change asks first — the same window work orders use.
 const STAGE_NOTE={
-  inquiry:"Back to an inquiry — nothing quoted yet.",
+  lead:"A lead we reached out to — they haven't asked for a quote yet. It stays out of the quote follow-ups.",
+  inquiry:"They reached out and want a quote — nothing quoted yet.",
   quoted:"It gets a quote number if it doesn't have one yet.",
   won:"It counts as won business. Create the work order next.",
   production:"This normally happens on its own when a work order is released to the floor.",
@@ -15359,7 +15363,7 @@ async function pipeImportRows(rows){
         logEvent("contact",cid,"Contact added by Claude's sales agents");newC[em||r.contact]=cid;out.contacts++;}}
     if(type==="quote"){
       let stage=PATH.indexOf(String(r.stage||"").toLowerCase())>=0?String(r.stage).toLowerCase():"inquiry";
-      if(!ol.length)stage="inquiry";                              // nothing to quote with yet — whatever the row says
+      if(!ol.length&&stage!=="lead")stage="inquiry";                              // nothing to quote with yet — whatever the row says
       if(ol.length&&stage==="inquiry")stage="quoted";
       let qno="";if(ol.length){try{qno=await nextQuote()}catch(e){}}
       const pid=uid("p");const pnum=await nextNum("nextProject",2001);
@@ -15572,7 +15576,7 @@ function syncBuild0(key,rec){
       project:"",po_number:"",ship_to:"",lines:[],subtotal:"",shipping:"",tax:"",total:"",due_date:"",ship_date:"",notes:"",deleted:!!c.deleted}}
   if(coll==="projects"){
     const p=rec,a=acct(p.accountId)||S.accounts.get(p.accountId)||{};
-    const quoteish=["inquiry","quoted","lost"].indexOf(p.stage||"inquiry")>=0;
+    const quoteish=["lead","inquiry","quoted","lost"].indexOf(p.stage||"inquiry")>=0;
     const pc=(p.contacts||[]).map(x=>S.contacts.get(x)).filter(c=>c&&!c.deleted)[0]||null;
     const bc=billingFor(p);const cc=syncContact((quoteish?pc||bc:bc||pc)||null);
     let lines=(p.orderLines||[]).filter(l=>l&&(Number(l.qty)>0||l.desc||l.code)).map(l=>syncLine(l,l.price,p));
@@ -15627,7 +15631,7 @@ function syncEvent(r,prev){
   if(r.deleted)return "deleted";
   if(r.type==="account"||r.type==="contact")return (!prev&&Date.now()-(Date.parse(r.created)||0)<15*60000)?"created":"updated";
   if(!prev){const fresh=Date.now()-(Date.parse(r.created)||0)<15*60000;
-    const first=r.type==="work_order"?(r.status==="new"&&!r.proof_approved):["inquiry","quoted"].indexOf(r.status)>=0&&r.bill_status==="none";
+    const first=r.type==="work_order"?(r.status==="new"&&!r.proof_approved):["lead","inquiry","quoted"].indexOf(r.status)>=0&&r.bill_status==="none";
     if(first)return fresh?"created":"updated";
     // first time this computer sends it and it's already moved on — say where it is now
     prev=r.type==="work_order"?{st:"new",pa:false}:{st:"quoted",bs:"none",ty:"quote"};
@@ -15650,7 +15654,7 @@ function syncFire(key){
     const [coll]=key.split("/");
     // a project is sent once it is a real quote: a number, lines, or past inquiry — or it's been sent before
     const sent=syncSent();const prev=sent[key]||null;
-    if(coll==="projects"&&!prev&&!rec.quote&&!(rec.orderLines||[]).length&&(rec.stage||"inquiry")==="inquiry")return;
+    if(coll==="projects"&&!prev&&!rec.quote&&!(rec.orderLines||[]).length&&["lead","inquiry"].indexOf(rec.stage||"inquiry")>=0)return;
     if(coll==="projects"&&(rec.followups||[]).length)syncFollowups(rec.id);   // the touches ride along, each its own row
     const r=syncBuild(key,rec);const h=syncHash(r);
     if(prev&&prev.h===h)return;                    // nothing the sheet would show has changed
@@ -15710,7 +15714,7 @@ async function syncTest(){
 async function syncAll(){
   const url=syncUrlNow();if(!/^https:\/\//i.test(url))return toast("Put the Apps Script web app link in first.");
   // every project and every work order, closed and shipped ones included, so the sheet matches the CRM
-  const open=live(S.projects).filter(p=>p.quote||(p.orderLines||[]).length||(p.stage||"inquiry")!=="inquiry");
+  const open=live(S.projects).filter(p=>p.quote||(p.orderLines||[]).length||["lead","inquiry"].indexOf(p.stage||"inquiry")<0);
   const jobs=live(S.jobs);
   const gone=(m,pre,k)=>[...m.values()].filter(x=>x&&x.deleted).map(x=>pre+(k?x[k]:x.id));
   const list=open.map(p=>"projects/"+p.id).concat(jobs.map(j=>"jobs/"+j.num))
@@ -16131,7 +16135,7 @@ async function composeGo(send){const C=S._cmp||{};const to=$("#cm-to").value.spl
   // the quote went to the customer (its PDF attached, the quote template, or a signature link for it): that's when follow-ups start
   {const pq=C.pid?proj(C.pid):null;const quoteOut=pq&&(atts.some(a=>/quote/i.test(a.name))||C.tplUsed==="quote"||(C.signId&&((S.signreq||new Map()).get(C.signId)||{}).kind!=="proof"));
     if(pq&&(quoteOut||C.kind==="quote")){const at=now;await push("projects/"+pq.id,{quoteSentAt:pq.quoteSentAt||at,quoteSentTo:to.join(", "),updatedAt:at});pq.quoteSentAt=pq.quoteSentAt||at;
-      if(["inquiry","quoted"].indexOf(pq.stage)>=0)try{await followPlan(pq.id,today(),true)}catch(e){}}}
+      if(["lead","inquiry","quoted"].indexOf(pq.stage)>=0)try{await followPlan(pq.id,today(),true)}catch(e){}}}
   render()}
 // what the mail worker reported back on an email sent from the CRM
 function sendBadge(x){const s=x&&x.sendState;if(!s||s==="opened")return "";
@@ -16222,13 +16226,13 @@ function signCard(p){const rs=signReqsFor(p.id);if(!rs.length)return "";
         <div class="sub">${r.status==="signed"?`Signed by <b>${esc(r.signedName)}</b>${r.signedTitle?", "+esc(r.signedTitle):""}${r.note?` — “${esc(r.note)}”`:""}`
           :r.status==="declined"?`${esc(r.signedName||"They")} asked for changes${r.note?`: “${esc(r.note)}”`:""}${(r.pieces||[]).filter(x=>x&&x.ok===false).map(x=>`<div>• <b>${esc(((r.arts||[])[x.i]||{}).cap||"Artwork "+(x.i+1))}</b>${x.note?" — "+esc(x.note):""}</div>`).join("")}`:`Sent to ${esc(r.contactName||r.contactEmail||"—")} by ${esc(r.createdBy||"")} ${esc(fmtTs(r.createdAt))}`}</div>
         ${r.status==="signed"&&r.sigImg?`<img src="${esc(r.sigImg)}" alt="signature" style="max-height:56px;max-width:240px;margin-top:6px;background:#fff;border:1px solid var(--line2);border-radius:4px">`:""}</div>
-        <div class="rr-b">${r.status==="signed"?`${r.kind!=="proof"&&["inquiry","quoted"].indexOf(p.stage)>=0?`<button class="btn sm p" data-signwon="${esc(p.id)}">Mark won</button>`:""}
+        <div class="rr-b">${r.status==="signed"?`${r.kind!=="proof"&&["lead","inquiry","quoted"].indexOf(p.stage)>=0?`<button class="btn sm p" data-signwon="${esc(p.id)}">Mark won</button>`:""}
             ${r.filed?`<span class="sub">in Files</span>`:`<button class="btn sm" data-signfile="${esc(r.token)}">Save to Files</button>`}<a class="btn sm" href="${esc(signView(r.token))}" target="_blank" rel="noopener">View</a>`
           :r.status==="sent"&&!exp?`<button class="btn sm" data-signcopy="${esc(r.token)}">Copy link</button><button class="btn sm" data-signmail="${esc(r.token)}">Email it again</button>${rowMenu(`<button class="danger" data-signcancel="${esc(r.token)}">Cancel this link…</button>`)}`
           :`<button class="btn sm" data-signreq="${esc(p.id)}">New link</button>`}</div></div>`}).join("")}</section>`}
 function signAutoPass(){if(!window.sscHosted||!db||!S.signreq||!(can("del")||can("settings")||myAccess()==="sales"))return;S._signDone=S._signDone||{};
   S.signreq.forEach(r=>{if(r.status!=="signed"||S._signDone[r.token])return;S._signDone[r.token]=1;const p=proj(r.projectId);if(!p)return;
-    if(r.kind!=="proof"&&!r.wonSet&&["inquiry","quoted"].indexOf(p.stage)>=0){setStage(p.id,"won","quote signed online by "+(r.signedName||"the customer")).then(()=>setDoc("signreq/"+r.token,Object.assign({},r,{wonSet:true}))).catch(()=>{})}
+    if(r.kind!=="proof"&&!r.wonSet&&["lead","inquiry","quoted"].indexOf(p.stage)>=0){setStage(p.id,"won","quote signed online by "+(r.signedName||"the customer")).then(()=>setDoc("signreq/"+r.token,Object.assign({},r,{wonSet:true}))).catch(()=>{})}
     else if(r.kind!=="proof"&&!r.wonSet){setDoc("signreq/"+r.token,Object.assign({},r,{wonSet:true})).catch(()=>{})}
     // the PO they gave when signing goes on the project if it has none
     if(r.po&&!String(p.po||"").trim()){push("projects/"+p.id,{po:String(r.po).slice(0,60),updatedAt:Date.now()});recordHistory("project",p.id,[{f:"PO",o:"",n:String(r.po).slice(0,60)+" (given when signing)"}])}
@@ -16566,7 +16570,7 @@ function bind(){
       if(a==="next"){wizRead();const e2=wizCheck();if(e2){toast(e2);return}
         if(S.wiz.step===1&&S.wiz.acctMode==="new"){S.wiz.contMode="new"}
         if(S.wiz.step===1&&S.wiz.acctMode==="existing"&&!contactsOf(S.wiz.acctId).length&&S.wiz.contMode==="existing")S.wiz.contMode="new";
-        if(S.wiz.step===3&&(S.wiz.proj.stage==="inquiry"||S.wiz.proj.stage==="quoted"))S.wiz.woMode="skip";
+        if(S.wiz.step===3&&(S.wiz.proj.stage==="lead"||S.wiz.proj.stage==="inquiry"||S.wiz.proj.stage==="quoted"))S.wiz.woMode="skip";
         S.wiz.step=Math.min(5,S.wiz.step+1);wizRender();return}
       if(a==="finish"){wizFinish();return}
       return}
