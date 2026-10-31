@@ -1,5 +1,12 @@
 # What changed
 
+## 2026.11.25-94 (stencils: how they're measured)
+- Stencils page opens with "How stencils are measured": two drawings and plain rules — the size in the name is the painted image (letter height for alphabet and number kits; height × width when there are two numbers), the sheet is bigger to catch overspray, kits are one character a piece.
+- Every stencil's card has its own measurement drawing: the sheet with its width and height, the painted letter or area inside it with its size, plus letter height / painted size, sheet size (each piece on a kit), pieces and sq ft in words. A catalog sheet smaller than the painted size is marked "check".
+- The list shows what each stencil is ("Kit of 38 pieces", "One stencil", "One piece — a single shape, not the whole alphabet"), separate Painted size and Sheet columns, and the price a piece on kits. Clicking the name opens the card.
+- The playground shape pieces named "… Alphabet Stencil" (hexagon, circle, square, triangle, star, double dot) are marked as one shape, with a pointer to the full Shape Alphabet or an alphabet kit.
+- Find an item shows a stencil's kit size and painted size instead of the sheet size.
+
 ## 2026.11.25-93 (Josh's cost audit)
 - Grade wording: "3M Engineering Grade Reflective", "High Intensity…", "Diamond Grade…" now find their sheeting (EG 3430, HIP 3930/3931, DG3 4090/4091) — the sheeting is costed instead of $0.
 - Blank gauge comes from the line itself (substrate, then the description/grade/note: ".063", ".125"…); otherwise .080, and .063 for 12x18. A .125 blank is used only when the line names it; with no blank of that gauge it picks .080 before .125.
