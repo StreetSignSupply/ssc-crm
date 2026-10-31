@@ -2069,6 +2069,7 @@ async function itemVendSave(iid,list){const i=S.items.get(iid);if(!i)return;
     vendorId:pref?pref.vendorId:"",vendorPrice:pref?(pref.cost||""):"",vendorFreight:pref?(pref.freight||""):"",
     cost:pref&&Number(pref.cost)>0?String(landed(pref)):(i.cost||""),vendorPart:pref?pref.part||"":"",vendorLead:pref?pref.lead||"":"",
     vendorLast:pref?pref.lastBought||"":"",vendorSource:pref?pref.source||"":"",updatedAt:Date.now()};
+  if(pref&&Number(pref.cost)>0&&isBlankItem(i)){patch.costSrc=srcGuess({vendorSource:pref.source})||"quote";if(i.costSrc==="cut")patch.cutFrom=""}
   await push("items/"+iid,patch)}
 function itemVendModal(iid,vid,preVid){const i=S.items.get(iid);if(!i)return;
   const cur=itemVendors(i).find(v=>v.vendorId===vid)||{};
@@ -2345,6 +2346,10 @@ function itemModal(it,vid){
       ${it.id&&it.vendorId&&itemVendors(it).some(v=>v.preferred&&!v.missing)
         ?`<div class="fld"><div class="k">Cost per ${esc(it.unit||"unit")}</div><input id="i-cost" type="hidden" value="${esc(it.cost||"")}"><div class="v">${it.cost?money2(Number(it.cost)):"—"} <span class="sub">— the preferred vendor's price + freight; change it under Vendors on the item page</span></div></div>`
         :inp("i-cost","Cost per "+(it.unit||"unit"),it.cost,"number")}
+      ${isBlankItem(it)||!it.id?`<div class="fld"><div class="k">Cost source — blanks</div><select id="i-csrc"><option value="">${it.id?"Not set":"Not a blank / not set"}</option>${Object.keys(COST_SRC).map(k=>`<option value="${k}"${it.costSrc===k?" selected":""}>${COST_SRC[k]}</option>`).join("")}</select></div>
+      <div class="fld" id="i-cutwrap"${it.costSrc==="cut"?"":` style="display:none"`}><div class="k">Cut from — the stock blank</div><select id="i-cutfrom"><option value="">Pick a blank…</option>${itemList().filter(x=>x.id!==it.id&&isBlankItem(x)).sort((a,b)=>String(a.sku).localeCompare(String(b.sku))).map(x=>`<option value="${esc(x.id)}"${it.cutFrom===x.id?" selected":""}>${esc((x.sku?x.sku+" — ":"")+x.name)}${itemCostEff(x)?" · "+money2(itemCostEff(x)):""}</option>`).join("")}</select></div>
+      <div class="fld" id="i-labwrap"${it.costSrc==="cut"?"":` style="display:none"`}>${'<div class="k">Cutting labor per blank (optional)</div>'}<input id="i-cutlab" type="number" value="${esc(it.cutLabor||"")}" placeholder="0.00"></div>
+      ${it.id&&isBlankItem(it)?`<div class="fld full sub">Today: ${(function(){const b=blankCostInfo(it);return b.cost?money2(b.cost)+" "+costSrcPill(it)+(b.why?" — "+esc(b.why):""):"no cost — no blank of the same gauge and shape to estimate from"})()}</div>`:""}`:""}
       ${it.id?"":inp("i-oh2","","","hidden")}
       <div class="fld full" style="border-bottom:0;padding-bottom:0">
         <details${(it.vendorId||it.reorderPoint||it.reorderQty)?" open":""}>
@@ -2377,6 +2382,7 @@ function itemModal(it,vid){
       +(oh?` — ${oh} ${esc(u)}${oh===1?"":"s"} is ${Math.round(oh*per).toLocaleString()} sq ft`:"")
       +`. Pull and use are asked in square feet and converted for you.`;
   };
+  {const cs=$("#i-csrc");if(cs)cs.onchange=()=>{const on=cs.value==="cut";["i-cutwrap","i-labwrap"].forEach(x=>{const e=$("#"+x);if(e)e.style.display=on?"":"none"})}}
   ["i-unit","i-sqft","i-oh","i-name"].forEach(id=>{const e=$("#"+id);if(e){e.addEventListener("input",unitHelp);e.addEventListener("change",unitHelp)}});
   unitHelp();
   const ive=$("#i-vend");
@@ -2403,7 +2409,9 @@ function itemModal(it,vid){
       +"OK = save it as "+asRolls+" "+unitChk+(asRolls===1?"":"s")+"\nCancel = keep "+start+" "+unitChk+"s"))
       {/* keep as typed */} else start=asRolls;
   }
-    const rec={id,name,sku:$("#i-sku").value.trim(),cat:$("#i-cat").value,unit:$("#i-unit").value,
+    const csrc=$("#i-csrc")?$("#i-csrc").value:(it.costSrc||"");
+    if(csrc==="cut"&&!($("#i-cutfrom")&&$("#i-cutfrom").value))return toast("Pick the blank it's cut from.");
+    const rec={id,name,sku:$("#i-sku").value.trim(),cat:$("#i-cat").value,unit:$("#i-unit").value,costSrc:csrc,cutFrom:csrc==="cut"?$("#i-cutfrom").value:"",cutLabor:csrc==="cut"?($("#i-cutlab").value||""):"",
       bin:$("#i-bin").value.trim(),shipClass:$("#i-ship").value,vendorId:$("#i-vend").value,cost:$("#i-cost").value,
       reorderPoint:$("#i-rp").value,reorderQty:$("#i-rq").value,notes:$("#i-notes").value.trim(),
       onHand:it.id?onHand(it):start,deleted:false,createdAt:it.createdAt||Date.now(),updatedAt:Date.now()};
@@ -2747,15 +2755,19 @@ function quoteLineCost(line){const k=lockedCostOf(line);
   return quoteLineCostLive(line)}
 const LOCK_STAGES=["quoted","won","production","shipped","invoiced","closed"];
 async function lockLineCosts(pid,force){const p=S.projects.get(pid);if(!p||p.deleted||!Array.isArray(p.orderLines))return 0;let n=0;
-  const out=p.orderLines.map(l=>{if(!l||isCharge(l))return l;if(!force&&lockedCostOf(l)!==null)return l;
+  const out=p.orderLines.map(l=>{if(!l||isCharge(l))return l;
+    // an estimated cost is retaken by itself once the blank has a real quote, invoice or cut-from cost
+    const estLock=lockedCostOf(l)!==null&&/ESTIMATED/.test(l.costWhy||"");
+    if(!force&&lockedCostOf(l)!==null&&!estLock)return l;
     let r=null;try{r=quoteLineCostLive(l)}catch(e){}if(!r||!(Number(r.cost)>0))return l;
-    n++;return Object.assign({},l,{costLock:Math.round(r.cost*100)/100,costKey:costKey(l),costAt:Date.now(),costWhy:String(r.why||"").slice(0,160)})});
+    if(!force&&estLock&&r.est)return l;
+    n++;return Object.assign({},l,{costLock:Math.round(r.cost*100)/100,costKey:costKey(l),costAt:Date.now(),costWhy:String(r.why||"").slice(0,200)})});
   if(n){await push("projects/"+pid,{orderLines:out,updatedAt:Date.now()});
     recordHistory("project",pid,[{f:"Costs",o:"",n:(force?"Costs refreshed":"Costs locked")+" on "+n+" line"+(n===1?"":"s"),ev:1}])}
   return n}
 // any project quoted or further along with a line whose cost isn't locked gets it locked (once per session per project)
 function lockPass(){S._lockDone=S._lockDone||{};
-  live(S.projects).filter(p=>LOCK_STAGES.indexOf(p.stage)>=0&&(p.orderLines||[]).some(l=>l&&!isCharge(l)&&lockedCostOf(l)===null))
+  live(S.projects).filter(p=>LOCK_STAGES.indexOf(p.stage)>=0&&(p.orderLines||[]).some(l=>l&&!isCharge(l)&&(lockedCostOf(l)===null||(/ESTIMATED/.test(l.costWhy||"")&&!((()=>{try{return quoteLineCostLive(l).est}catch(e){return true}})())))))
     .slice(0,5).forEach(p=>{const k=p.id+"|"+(p.updatedAt||0);if(S._lockDone[k])return;S._lockDone[k]=1;lockLineCosts(p.id).catch(()=>{})})}
 // what a quoted line costs us today: the cost sheet first, then the material it's cut from
 function quoteLineCostLive(line){
@@ -2769,7 +2781,7 @@ function quoteLineCostLive(line){
     // "extruded street sign blank" is the extruded blade (BLK-EXT-…), never a flat .125 sheet of the same size
     const ext=/extru/i.test((line.desc||"")+" "+(line.title||""))?pickExtruded(line.size):null;
     const it=ext||pickBlank(line.size,gm?gm[1]:"080")||pickBlank(line.size);
-    if(it&&Number(it.cost)>0)return {cost:Number(it.cost),src:"material",why:"bare blank — "+it.name+" at its item cost"};
+    if(it&&itemCostEff(it)>0){const bi=blankCostInfo(it);return {cost:bi.cost,src:"material",est:!!bi.est,why:(bi.est?"ESTIMATED COST · ":"")+"bare blank — "+it.name+(bi.src?" ("+(bi.why||COST_SRC[bi.src])+")":" at its item cost")}}
     return {cost:0,src:"noblank",why:"No "+sizeLabel(line.size)+" blank in inventory with a cost — add it (or its cost) and this line is costed"}}
   // a sign with no sheeting picked can't be costed — say what's missing instead of a blank
   if(lineProd(line)==="sign"&&!String(line.grade||"").trim()&&!line.sheetKey)return {cost:0,src:"nograde",why:"Pick the sheeting grade (HIP, DG3, EG…) and it'll be costed"};
@@ -2814,6 +2826,36 @@ function quoteLineCostLive(line){
   if(uc&&uc.cost)return {cost:uc.cost,why:uc.why||"worked out from roll prices",src:uc.src||"est"};
   return {cost:0,why:"",src:""};
 }
+
+/* ---- a blank's cost and where it came from ----
+   Invoice or Quote: what a vendor charged or offered. Cut from another blank: the stock blank it's cut from (6x33 from
+   36x6) plus optional cutting labor. Estimate: nothing yet, so it's worked out from the $/sq in of the nearest-size blank of
+   the same gauge and shape, rounded up — shown in orange, still counted in the margin, replaced when a quote or invoice comes in. */
+const COST_SRC={estimate:"Estimate",quote:"Quote",invoice:"Invoice",cut:"Cut from another blank"};
+function isBlankItem(it){return !!it&&(/^BLK-/i.test(String(it.sku||""))||/\bblank\b/i.test(String(it.name||""))&&/substrate|blank/i.test(String(it.cat||"")))}
+// BLK-080-2424O → gauge 080, 24 × 24 = 576 sq in, shape O; BLK-EXT-0636 → gauge EXT, 216 sq in
+function blankDims(it){const m=String(it&&it.sku||"").toUpperCase().match(/^BLK-([A-Z0-9]+)-(\d{2})(\d{2})([A-Z]*)/);
+  if(!m)return null;const a=+m[2],b=+m[3];if(!a||!b)return null;return {g:m[1],a,b,sqin:a*b,shape:m[4]||""}}
+function srcGuess(it){const t=String(it&&it.vendorSource||"");return /invoice|\binv\b|USS\d/i.test(t)?"invoice":/quote|\bq\d|quot/i.test(t)?"quote":""}
+function blankCostInfo(it,depth){depth=depth||0;if(!it)return {cost:0,src:""};
+  if(it.costSrc==="cut"&&it.cutFrom&&depth<4){const par=S.items.get(it.cutFrom);
+    if(par&&!par.deleted){const pc=blankCostInfo(par,depth+1);const lab=Number(it.cutLabor)||0;
+      if(pc.cost>0)return {cost:Math.round((pc.cost+lab)*100)/100,src:"cut",est:!!pc.est,parent:par,
+        why:"cut from "+(par.sku||par.name)+" ("+money2(pc.cost)+(pc.est?", estimated":"")+")"+(lab?" + "+money2(lab)+" cutting":"")}}}
+  const c=Number(it.cost)||0;
+  if(c>0){const src=it.costSrc&&it.costSrc!=="cut"?it.costSrc:(srcGuess(it)||"");return {cost:c,src,est:src==="estimate",why:src?COST_SRC[src]:""}}
+  if(!isBlankItem(it))return {cost:0,src:""};
+  // estimate: the nearest-size blank of the same gauge and shape that has a real cost
+  const d=blankDims(it);if(!d)return {cost:0,src:""};
+  const cands=itemList().filter(x=>x.id!==it.id&&!x.deleted&&Number(x.cost)>0&&x.costSrc!=="estimate").map(x=>({x,d:blankDims(x)}))
+    .filter(o=>o.d&&o.d.g===d.g&&o.d.shape===d.shape).sort((p,q)=>Math.abs(Math.log(p.d.sqin/d.sqin))-Math.abs(Math.log(q.d.sqin/d.sqin)));
+  if(!cands.length)return {cost:0,src:""};
+  const n=cands[0],rate=Number(n.x.cost)/n.d.sqin,est=Math.ceil(rate*d.sqin*4)/4;
+  return {cost:est,src:"estimate",est:true,from:n.x,why:"estimated from "+(n.x.sku||n.x.name)+" at "+(Math.round(rate*10000)/100)+"¢/sq in, rounded up"}}
+// what an item costs for quoting: blanks through their source (cut from, estimate); everything else its cost
+function itemCostEff(it){return isBlankItem(it)?blankCostInfo(it).cost:(Number(it&&it.cost)||0)}
+function costSrcPill(it){if(!isBlankItem(it))return "";const b=blankCostInfo(it);if(!b.cost)return `<span class="pill r">no cost</span>`;
+  return b.src?`<span class="pill ${b.est?"o":b.src==="invoice"?"g":""}" title="${esc(b.why||"")}">${esc(b.src==="cut"?"Cut from "+((b.parent&&b.parent.sku)||"blank"):COST_SRC[b.src])}${b.est&&b.src==="cut"?" · estimated":""}</span>`:""}
 // one sign's materials (blank, sheeting or print media, legend film, overlay or laminate) at item cost — null if any part has no cost
 // HP latex ink, per square foot of printed face (an estimate from a cartridge's yield; Settings → Pricing can change it)
 function inkRate(){const v=Number((S.brand||{}).inkSqft);return v>0?v:0.39}
@@ -2844,14 +2886,16 @@ function signMatCost(line,j){
   if(!line.sheetKey&&!rows.some(r=>{const x=r.itemId&&S.items.get(r.itemId);return x&&/^BLK-|blank/i.test((x.sku||"")+" "+x.name)})&&itBlank(j||{},line)!=="cut"&&lineProd(line)==="sign")
     return {cost:0,src:"missing",missing:["Blank "+sizeLabel(line.size)+" ."+lineGauge(line)],why:"No "+sizeLabel(line.size)+" ."+lineGauge(line)+" blank in inventory — add it with its cost; until then this line isn't costed"};
   if(!filmPrefix(g0)&&!line.sheetKey&&lineProd(line)==="sign")return {cost:0,src:"missing",missing:["Sheeting for “"+String(line.grade||"").slice(0,40)+"”"],why:"The grade “"+line.grade+"” doesn't match any sheeting in inventory — pick EG, HIP, DG3 or AEGP; until then this line isn't costed"};
-  for(const r of rows){const it2=r.itemId?S.items.get(r.itemId):null;if(!it2)continue;if(!(Number(it2.cost)>0))return {cost:0,src:"missing",missing:[it2.name],why:it2.name+" has no cost in inventory — add it; until then this line isn't costed"};
+  let est=false;const estOn=[];
+  for(const r of rows){const it2=r.itemId?S.items.get(r.itemId):null;if(!it2)continue;const ce=itemCostEff(it2);if(!(ce>0))return {cost:0,src:"missing",missing:[it2.name],why:it2.name+" has no cost in inventory — add it; until then this line isn't costed"};
+    const bi=isBlankItem(it2)?blankCostInfo(it2):null;if(bi&&bi.est){est=true;estOn.push(it2.sku||it2.name)}
     const per2=rollSqft(it2)||itemSqft(it2),sqX=r.sqRaw||r.sq;
-    const c=(sqX&&per2&&/roll|sheet/i.test(it2.unit||""))?sqX/per2*Number(it2.cost):(Number(r.qty)||0)*Number(it2.cost);
-    tot+=c;parts.push(it2.name.split("—")[0].replace(/^3M\s+/,"").trim()+" $"+c.toFixed(2));pp.push({l:partKind(it2,"sign"),c})}
+    const c=(sqX&&per2&&/roll|sheet/i.test(it2.unit||""))?sqX/per2*ce:(Number(r.qty)||0)*ce;
+    tot+=c;parts.push(it2.name.split("—")[0].replace(/^3M\s+/,"").trim()+" $"+c.toFixed(2)+(bi&&bi.src==="cut"?" ("+bi.why+")":"")+(bi&&bi.est?" (estimated)":""));pp.push({l:partKind(it2,"sign"),c})}
   if(!(tot>0))return null;
   const ink=inkCostOf(line,printed);if(ink){tot+=ink;parts.push((stop?"red ":"")+"HP latex ink $"+ink.toFixed(2)+" ($"+inkRate().toFixed(2)+"/sq ft on "+Math.round(inkCoverOf(line))+"% of the "+(stop?"octagon":"face")+")");pp.push({l:"Ink",c:ink})}
-  return {cost:Math.round(tot*100)/100,src:"material",parts:partsSum(pp),printed,
-    why:(printed?"Printed legend":"Legend cut from EC film")+(stop?" · stop on white "+gradeTok(line.grade)+" sheeting":"")+" — item costs (preferred vendor + freight): "+parts.join(" + ")+" (includes "+WASTE_DEFAULT+"% waste on film)"}}
+  return {cost:Math.round(tot*100)/100,src:"material",parts:partsSum(pp),printed,est,
+    why:(est?"ESTIMATED COST (blank "+estOn.join(", ")+" has no quote or invoice yet) · ":"")+(printed?"Printed legend":"Legend cut from EC film")+(stop?" · stop on white "+gradeTok(line.grade)+" sheeting":"")+" — item costs (preferred vendor + freight): "+parts.join(" + ")+" (includes "+WASTE_DEFAULT+"% waste on film)"}}
 // what a cost part is, in the shop's words: Blank, Sheeting, Legend, Overlay, Overlaminate, Ink, Media
 function partKind(it,lp){const sk=String(it.sku||"").toUpperCase(),n=String(it.name||"");
   return /^BLK-/.test(sk)||/blank/i.test(n)?"Blank":/^EC-1170C/.test(sk)?"Overlay":/^EC-/.test(sk)?"Legend":/lamin|8518|8519|8520|8914/i.test(n)?"Overlaminate"
@@ -5134,7 +5178,7 @@ function reconCard(p){
         <td class="mono" style="text-align:right">${r.extra?r.sched:r.ordered}</td>
         ${(function(){const qn=Number(r.extra?r.sched:r.ordered)||0;const uc=quoteLineCost(r);
           const pr=Number(r.price)||0;const mg=(pr&&uc.cost)?((pr-uc.cost)/pr*100):null;
-          return `<td class="mono" style="text-align:right" title="${esc(uc.why||"")}">${uc.src==="missing"?`<span class="pill r" title="${esc(uc.why||"")}">missing: ${esc(String((uc.missing||[])[0]||"a part").slice(0,28))}</span>`:uc.src==="stcflag"?`<span class="pill r" title="${esc(uc.why||"")}">not costed</span>`:uc.cost?money2(uc.cost)+(uc.src==="locked"?`<div class="sub" style="white-space:nowrap">${ic("lock",11)} locked${r.costAt?" "+esc(fmtDate(isoDay(r.costAt))):""}</div>`:""):uc.src==="nosize"?`<span class="sub">needs a size</span>`:uc.src==="nograde"?`<span class="pill o" title="${esc(uc.why)}">needs a grade</span>`:uc.src==="noblank"?`<span class="pill o" title="${esc(uc.why)}">no blank in stock list</span>`:`<span class="sub">—</span>`}</td>
+          return `<td class="mono" style="text-align:right" title="${esc(uc.why||"")}">${uc.src==="missing"?`<span class="pill r" title="${esc(uc.why||"")}">missing: ${esc(String((uc.missing||[])[0]||"a part").slice(0,28))}</span>`:uc.src==="stcflag"?`<span class="pill r" title="${esc(uc.why||"")}">not costed</span>`:uc.cost?((uc.est||(uc.src==="locked"&&/ESTIMATED/.test(r.costWhy||"")))?`<span style="color:#C25E00;font-weight:700" title="${esc(uc.why||"")}">${money2(uc.cost)}</span><div><span class="pill o" title="${esc(uc.why||"")}">estimated cost</span></div>`:money2(uc.cost))+(uc.src==="locked"?`<div class="sub" style="white-space:nowrap">${ic("lock",11)} locked${r.costAt?" "+esc(fmtDate(isoDay(r.costAt))):""}</div>`:""):uc.src==="nosize"?`<span class="sub">needs a size</span>`:uc.src==="nograde"?`<span class="pill o" title="${esc(uc.why)}">needs a grade</span>`:uc.src==="noblank"?`<span class="pill o" title="${esc(uc.why)}">no blank in stock list</span>`:`<span class="sub">—</span>`}</td>
             <td class="mono" style="text-align:right">${pr?(Math.round(pr)===pr?money(pr):money2(pr)):`<span class="sub">—</span>`}${pr&&linePriceSrc(p,r)?`<div class="sub" style="white-space:nowrap;font-family:inherit">${esc(linePriceSrc(p,r))}</div>`:""}</td>
             <td class="mono" style="text-align:right;font-weight:800">${pr?money(pr*qn):""}</td>
             <td style="text-align:right">${mg==null?`<span class="sub">—</span>`
@@ -10399,7 +10443,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-96";
+const APP_VERSION="2026.11.25-97";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -11699,7 +11743,7 @@ function itemRows(list){
       <td><span class="pill ${stockCls(i)}">${esc(stockText(i))}</span>${i.needsCount||onHand(i)<0?` <span class="pill r" title="A pull went past the count — count it and enter the real number">Recount</span>`:""}${onOrder(i)?`<div class="sub">${esc(onOrderTxt(i))}</div>`:""}</td>
       <td class="mono">${i.reorderPoint!==""&&i.reorderPoint!=null?esc(String(i.reorderPoint)):"—"}</td>
       <td class="sub">${esc(i.bin||"—")}</td>
-      <td class="mono" style="text-align:right">${Number(i.cost)>0?money2(Number(i.cost)):`<span class="sub">—</span>`}${(Number(i.cost)>0&&itemSqft(i)&&/roll|sheet/i.test(i.unit||""))?`<div class="sub">${money2(Number(i.cost)/itemSqft(i))}/sq ft</div>`:""}</td>
+      <td class="mono" style="text-align:right">${isBlankItem(i)&&itemCostEff(i)>0&&!(Number(i.cost)>0)?`<span style="color:#C25E00">${money2(itemCostEff(i))}</span>`:Number(i.cost)>0?money2(Number(i.cost)):`<span class="sub">—</span>`}${isBlankItem(i)?`<div>${costSrcPill(i)}</div>`:""}${(Number(i.cost)>0&&itemSqft(i)&&/roll|sheet/i.test(i.unit||""))?`<div class="sub">${money2(Number(i.cost)/itemSqft(i))}/sq ft</div>`:""}</td>
       </tr>`).join("")}</tbody></table>`;
 }
 // reorder at 1 / order 1 (or nothing to order) is what an import leaves behind, not a real number
@@ -11793,7 +11837,7 @@ function itemRec(id){
         ${onOrder(i)?`<div><div class="k">On order</div><div class="v">${esc(onOrderTxt(i))}</div></div>`:""}
         <div><div class="k">Reorder at</div><div class="v mono">${i.reorderPoint!==""&&i.reorderPoint!=null?esc(String(i.reorderPoint)):"—"}</div></div>
         <div><div class="k">Quantity</div><div class="v mono">${esc(String(i.reorderQty||"—"))}</div></div>
-        <div><div class="k">Unit cost</div><div class="v mono">${i.cost?money2(Number(i.cost)):"—"}</div></div>
+        <div><div class="k">Unit cost</div><div class="v mono">${isBlankItem(i)?(function(){const b=blankCostInfo(i);return (b.cost?`<span${b.est?' style="color:#C25E00"':""}>${money2(b.cost)}</span>`:"—")+" "+costSrcPill(i)})():(i.cost?money2(Number(i.cost)):"—")}</div></div>
         ${i.lastPaid&&Number(i.lastPaid.landed)?`<div><div class="k">Last paid</div><div class="v mono">${money2(Number(i.lastPaid.landed))}<div class="sub">${esc(fmtDate(isoDay(i.lastPaid.at)))}${i.lastPaid.vendor?" · "+esc(i.lastPaid.vendor):""}</div></div></div>`:""}
         <div><div class="k">Value</div><div class="v mono">${money(onHand(i)*(Number(i.cost)||0))}</div></div>
         <div><div class="k">Used, 30 days</div><div class="v mono">${used30||"—"}</div></div>
