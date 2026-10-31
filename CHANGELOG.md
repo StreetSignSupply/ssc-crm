@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-107
+- Activity entries are spaced out: more room around each one, the type and who on the first line, the subject on its own line in bold, then the message, then the date with a gap above it.
+
 ## 2026.11.25-106 (Lead stage)
 - New first stage, **Lead** (violet): we found or got a lead and reached out — they haven't asked for a quote yet. **Inquiry** now means they reached out and want a quote; **Quoted** means we sent the quote.
 - A lead's next step button is "Next: they asked for a quote" (moves it to Inquiry). Leads get no quote number, count as open pipeline (forecast weight 3%), have their own column on the board, and stay out of quote follow-ups.

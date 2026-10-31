@@ -868,6 +868,14 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
 .act .c{min-width:0;flex:1}
 .act .c .m{font-size:13.5px;overflow-wrap:anywhere}
 .act .c time{font-size:12px;color:var(--ink3);font-family:"Overpass Mono",monospace}
+/* each entry breathes: type and who on one line, the subject on its own, the message, then when */
+.act li{gap:14px;padding:16px 18px}
+.act .ahd{display:flex;gap:8px 10px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
+.act .ahd .sub{font-size:12.5px}
+.act .asub{font-weight:800;font-size:14.5px;line-height:1.35;margin:2px 0 4px;color:var(--ink)}
+.act .c .m{margin-top:2px}
+.act .c time{display:inline-block;margin-top:10px}
+.act .actico{margin-top:2px}
 .act .done{color:var(--ink2)}
 .hrow{display:flex;gap:11px;padding:9px 15px;border-bottom:1px solid var(--line2);font-size:13px;align-items:baseline}
 .hrow:last-child{border-bottom:0}
@@ -10482,7 +10490,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-106";
+const APP_VERSION="2026.11.25-107";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -10643,15 +10651,15 @@ function activityRow(x){
       style="width:18px;height:18px;margin-top:4px;accent-color:var(--act)">`
       :`<span class="actico" style="background:${t.bg}" title="${esc(t.l)}">${ic(t.i,15)}</span>`}
     <div class="c">
-      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:1px">
+      <div class="ahd">
         <span class="pill ${t.c}">${ic(t.i,12)} ${esc(t.l)}</span>
         ${k!=="task"?`<span class="sub mono" style="font-size:12px">${esc(x.who||"")}</span>`:""}
         ${x._src?`<span class="pill">${esc(x._src)}</span>`:""}
         ${x.to&&!(c&&String(x.to).toLowerCase().indexOf(String(c.email||"~").toLowerCase())>=0)?`<span class="sub">to ${esc(x.to)}</span>`:c?`<span class="sub">${esc(dir)} ${esc(c.name)}</span>`:""}
-        ${x.subject?`<b style="font-size:13.5px">${esc(x.subject)}</b>`:""}
         ${k==="task"&&x.done?`<span class="pill g">✓ Completed</span>`:""}
         ${sendBadge(x)}${x.gmailId?`<span class="pill" title="Logged from Gmail">Gmail</span>`:""}
       </div>
+      ${x.subject?`<div class="asub">${esc(x.subject)}</div>`:""}
       <div class="m ${k==="task"&&x.done?"done":""}">${esc(x.text||"")}</div>
       ${x.pre?`<div class="sub" style="font-style:italic">sent from the CRM, details come from the mail log</div>`:""}
       ${k==="task"?(function(){
