@@ -889,6 +889,10 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
 .act .ahd .sub{font-size:12.5px}
 .act .asub{font-weight:800;font-size:14.5px;line-height:1.35;margin:2px 0 4px;color:var(--ink)}
 .act .c .m{margin-top:2px}
+/* long emails and notes show two lines; click to read it all (kept open through redraws) */
+.act .c .m.clamp{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}
+.act .c .m.full{white-space:pre-line}
+.act .actmore{display:block;margin-top:5px;font-size:12.5px;font-weight:700;color:var(--blue)}
 .act .c time{display:inline-block;margin-top:10px}
 .act .actico{margin-top:2px}
 .act .done{color:var(--ink2)}
@@ -6111,6 +6115,9 @@ function stcDims(s){if(!s)return {};const n=String(s.n||"");
   // a sheet no bigger than the painted area means the catalog's sheet size is a guess
   const fits=!(sw&&sh&&H)||(W?((sw>=W&&sh>=H)||(sw>=H&&sh>=W)):(sh>=H||sw>=H));
   return {H,W,pc,sw,sh,chars,kit,onePiece,fits}}
+document.addEventListener("click",e=>{const x=e.target&&e.target.closest&&e.target.closest("[data-actexp]");if(!x)return;
+  if(window.getSelection&&String(window.getSelection())&&!x.matches("button"))return;   // selecting text to copy doesn't fold it
+  e.preventDefault();e.stopPropagation();S._actOpen=S._actOpen||{};const id=x.dataset.actexp;S._actOpen[id]=!S._actOpen[id];render()},true);
 // "Show N more" is handled on the click itself, so a redraw in between can't swallow it: the choice is remembered per card
 document.addEventListener("click",e=>{const sm=e.target&&e.target.closest&&e.target.closest("details.fmore > summary");if(!sm)return;
   e.preventDefault();e.stopPropagation();const d=sm.parentElement;const c=d.closest(".card");const k=c&&c.getAttribute("data-czkey");
@@ -10541,7 +10548,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-113";
+const APP_VERSION="2026.11.25-114";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -10711,7 +10718,10 @@ function activityRow(x){
         ${sendBadge(x)}${x.gmailId?`<span class="pill" title="Logged from Gmail">Gmail</span>`:""}
       </div>
       ${x.subject?`<div class="asub">${esc(x.subject)}</div>`:""}
-      <div class="m ${k==="task"&&x.done?"done":""}">${esc(x.text||"")}</div>
+      ${(function(){const long=String(x.text||"").length>160||String(x.text||"").split("\n").length>2;const fold=long&&(k==="email"||String(x.text||"").length>320);
+        const open=!!((S._actOpen||{})[x.id]);
+        return `<div class="m ${k==="task"&&x.done?"done":""}${fold&&!open?" clamp":""}${open?" full":""}"${fold?` data-actexp="${esc(x.id)}" title="${open?"":"Click to read it all"}"`:""}>${esc(x.text||"")}</div>
+          ${fold?`<button class="lnk actmore" data-actexp="${esc(x.id)}">${open?"Show less ▴":k==="email"?"Read the whole email ▾":"Show all ▾"}</button>`:""}`})()}
       ${x.pre?`<div class="sub" style="font-style:italic">sent from the CRM, details come from the mail log</div>`:""}
       ${k==="task"?(function(){
         const as=taskAssignee(x);

@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-114
+- Activity: emails (and long notes) show their first two lines; click the text or "Read the whole email" to open it in full with its line breaks, "Show less" to fold it again. Stays open while you're on the page.
+
 ## 2026.11.25-113
 - Account page: finished projects have their own card, **Project archive** (closed won and closed lost, newest first), under **Projects**, which now shows only what's open.
 
