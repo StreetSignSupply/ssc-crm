@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-96 (cost fixes, round 3)
+- Stop signs are costed on the octagon, not the square: sheeting (and any clear or legend film) is 82.8% of the square, and the stop takes the octagon blank of its size (BLK-…-O). Red ink stays at what was measured on a 30" stop — $1.54 (567 sq in of red = 76% of the octagon).
+- Signs on the cost sheet (handicap R7-8, R7-1 and the rest) cost their base sheeting as face area × the film waste (1.10), the same as every other sign of that size — not the workbook's roll layer (2.0 sq ft on a 12x18).
+
 ## 2026.11.25-95 (cost fixes, round 2)
 - Signs are costed as printed by default: blank + white/base sheeting + HP latex ink at $0.39/sq ft on 63% of the face. A sign line's "Legend" choice can be set to "Legend: cut EC film (small order)" — then the EC film layer is costed instead of ink (the line's legend colours, or one EC colour at the default coverage when none are picked).
 - Stop signs (R1-1) are costed as white sheeting of their grade (DG3 White 4090 for DG3) plus red ink at 63% — about $1.54 for a 30x30 — never red sheeting. Cut by hand, the red is EC red film.
