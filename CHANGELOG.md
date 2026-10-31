@@ -1,5 +1,13 @@
 # What changed
 
+## 2026.11.25-93 (Josh's cost audit)
+- Grade wording: "3M Engineering Grade Reflective", "High Intensity…", "Diamond Grade…" now find their sheeting (EG 3430, HIP 3930/3931, DG3 4090/4091) — the sheeting is costed instead of $0.
+- Blank gauge comes from the line itself (substrate, then the description/grade/note: ".063", ".125"…); otherwise .080, and .063 for 12x18. A .125 blank is used only when the line names it; with no blank of that gauge it picks .080 before .125.
+- A sign with a missing part (no blank of its size, sheeting that doesn't match, or an item with no cost) is no longer costed at what's left: the line shows a red "missing: …" pill, a warning lists it above the quote lines, and it's kept out of the margin.
+- Overlaminate is off unless the customer asks: the line's box is now "Add clear overlaminate"; accounts can be set to want it on new lines. The quote PDF's overlaminate sentence only appears when a line has it.
+- HP latex ink is costed on printed signs: $0.39 per sq ft on 63% of the face (≈ $1.54 per 30x30 stop), both set in Settings → Pricing. Cut-film legends get no ink.
+- Film waste stays at 10%.
+
 ## 2026.11.25-92
 - Emails sent from the CRM carry the sender's own Gmail signature (read from their Gmail settings), sent as a proper HTML email like Gmail's own. The compose screen shows the signature under the message; templates and AI drafts end with "Thanks," so the name and phone aren't doubled.
 
