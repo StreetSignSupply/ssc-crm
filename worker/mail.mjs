@@ -295,15 +295,27 @@ async function aiDrafts() {
     try {
       const msgs = [{ role: "system", content: String(r.rules || "Write a short, plain business email.") + " Reply with JSON only: {\"subject\":\"...\",\"body\":\"...\"}." },
         { role: "user", content: "What to say: " + (r.ask || "(use the subject and context)") + "\nSubject so far: " + (r.subject || "") + "\nDraft so far:\n" + (r.draft || "") + "\n\nContext:\n" + (r.ctx || "") }];
-      let res = null, err = "";
-      for (const model of ["openai/gpt-4.1-mini", "openai/gpt-4o-mini"]) {
-        const x = await fetch("https://models.github.ai/inference/chat/completions", { method: "POST", headers: { Authorization: "Bearer " + GH, "Content-Type": "application/json", Accept: "application/json" },
-          body: JSON.stringify({ model, messages: msgs, temperature: 0.5, max_tokens: 700, response_format: { type: "json_object" } }) });
-        const j = await x.json().catch(() => ({})); if (x.ok) { res = j; break; } err = x.status + " " + String((j.error || {}).message || j.message || "").slice(0, 100); }
-      if (!res) throw new Error(err || "no answer");
-      const txt = ((res.choices || [])[0] || {}).message ? res.choices[0].message.content : ""; let o = {};
-      try { o = JSON.parse(String(txt).replace(/^```(json)?|```$/g, "").trim()); } catch (e) { o = { body: String(txt || "") }; }
-      if (!o.body) throw new Error("the AI sent back nothing");
+      // each model is tried in turn until one sends back an email; the answer is read whatever shape it comes in
+      let o = null, err = "";
+      const pick = (txt) => { const t = String(txt || "").trim(); if (!t) return null; let j = null;
+        try { j = JSON.parse(t.replace(/^```(?:json)?\s*|\s*```$/g, "")); } catch (e) { const m = t.match(/\{[\s\S]*\}/); if (m) { try { j = JSON.parse(m[0]); } catch (e2) {} } }
+        if (j && typeof j === "object") { const k = (n) => Object.keys(j).find((x) => x.toLowerCase() === n);
+          const body = j[k("body")] || j[k("email")] || j[k("message")] || j[k("text")] || j[k("content")] || "";
+          if (String(body).trim()) return { subject: String(j[k("subject")] || ""), body: String(body) }; return null; }
+        return { subject: "", body: t }; };
+      for (const model of ["openai/gpt-4.1-mini", "openai/gpt-4o-mini", "openai/gpt-4.1"]) {
+        for (const fmt of [true, false]) {
+          try {
+            const x = await fetch("https://models.github.ai/inference/chat/completions", { method: "POST", headers: { Authorization: "Bearer " + GH, "Content-Type": "application/json", Accept: "application/json" },
+              body: JSON.stringify(Object.assign({ model, messages: msgs, temperature: 0.5, max_tokens: 900 }, fmt ? { response_format: { type: "json_object" } } : {})) });
+            const j = await x.json().catch(() => ({}));
+            if (!x.ok) { err = model + " " + x.status + " " + String((j.error || {}).message || j.message || "").slice(0, 80); break; }
+            const ch = (j.choices || [])[0] || {}; o = pick(ch.message && ch.message.content);
+            if (o) break; err = model + " sent back nothing (" + (ch.finish_reason || "no reason") + ")";
+          } catch (e) { err = model + " " + String(e.message || e).slice(0, 80); }
+        }
+        if (o) break; }
+      if (!o) throw new Error(err || "no answer");
       await d.ref.set({ status: "done", subject: String(o.subject || r.subject || "").slice(0, 200), body: String(o.body).slice(0, 5000), doneAt: Date.now() }, { merge: true }); n.ai = (n.ai || 0) + 1;
     } catch (e) { await d.ref.set({ status: "failed", err: String(e.message || e).slice(0, 160), doneAt: Date.now() }, { merge: true }); n.aiErr = (n.aiErr || 0) + 1; }
   }

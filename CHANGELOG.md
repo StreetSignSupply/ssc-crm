@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-108
+- Activity: Log call / Log email / Note / Task sit on their own row under the header as four equal buttons across the card (two by two on a phone); the filter chips share the width the same way.
+- Write it with AI: the mail worker tries each free model in turn (with and without JSON mode) and reads the answer whatever shape it comes back in, so a blank answer from one model no longer fails the draft.
+
 ## 2026.11.25-107
 - Activity entries are spaced out: more room around each one, the type and who on the first line, the subject on its own line in bold, then the message, then the date with a gap above it.
 
