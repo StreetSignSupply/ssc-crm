@@ -1,5 +1,11 @@
 # What changed
 
+## 2026.11.25-97 (blank cost estimates)
+- Every blank has a cost source: Estimate, Quote, Invoice or Cut from another blank — shown next to its cost on the item, in Inventory, and on quote lines.
+- A blank with no cost gets an estimate from the $/sq in of the nearest-size blank of the same gauge and shape, rounded up to the next 25¢. It shows in orange with "estimated cost" on the quote line and stays in the margin (no more red "missing" for a blank with a sibling to estimate from).
+- "Cut from another blank": a blank can point at the stock blank it's cut from (6x33 from 36x6); its cost is that blank's cost plus optional cutting labor.
+- When a vendor price comes in for a blank (Vendors on the item), the source becomes Quote or Invoice. Lines locked at an estimate retake their cost on their own once the blank has a real one.
+
 ## 2026.11.25-96 (cost fixes, round 3)
 - Stop signs are costed on the octagon, not the square: sheeting (and any clear or legend film) is 82.8% of the square, and the stop takes the octagon blank of its size (BLK-…-O). Red ink stays at what was measured on a 30" stop — $1.54 (567 sq in of red = 76% of the octagon).
 - Signs on the cost sheet (handicap R7-8, R7-1 and the rest) cost their base sheeting as face area × the film waste (1.10), the same as every other sign of that size — not the workbook's roll layer (2.0 sq ft on a 12x18).
