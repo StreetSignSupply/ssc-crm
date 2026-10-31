@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-109
+- Accounts have a stage: Lead (found and reached out, nothing asked for yet), Inquired (asked for a quote, no order yet), Active (bought in the last 12 months or has an order open), Inactive (bought before, nothing in 12 months), and Do not contact (by hand only). It's worked out from the account's projects; Edit can set it by hand. Shown in the account header, on the account card on projects, and as a column on the Accounts list.
+- STOP drawing redrawn to MUTCD proportions: white border inset from the edge, big condensed STOP letters across about three-quarters of the face — used on quote PDFs.
+
 ## 2026.11.25-108
 - Activity: Log call / Log email / Note / Task sit on their own row under the header as four equal buttons across the card (two by two on a phone); the filter chips share the width the same way.
 - Write it with AI: the mail worker tries each free model in turn (with and without JSON mode) and reads the answer whatever shape it comes back in, so a blank answer from one model no longer fails the draft.
