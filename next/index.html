@@ -10246,7 +10246,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-91";
+const APP_VERSION="2026.11.25-92";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -15779,22 +15779,26 @@ function remSettingsCard(b){
    switched on (Settings → Email), Send hands the message to the mail worker, which sends it from the rep's own
    @streetsignsupply.com Gmail within a few minutes and logs it here; otherwise it opens in your own email. */
 const MAIL_TPL=[
-  {id:"quote",name:"Send the quote",subject:"Quote {quote} — {project}",body:"Hi {first},\n\nThanks for the chance to quote this. The quote for {project} is attached — {total} before tax.\n\n{sign_line}Let me know if anything needs to change.\n\nThanks,\n{rep}\n{company}{rep_phone_line}"},
-  {id:"follow",name:"Quote follow-up",subject:"Following up — quote {quote}",body:"Hi {first},\n\nJust checking in on the quote for {project} ({total}). Happy to adjust quantities, sizes or grades if that helps.\n\nThanks,\n{rep}\n{company}{rep_phone_line}"},
-  {id:"proof",name:"Proof for approval",subject:"Proof for approval — {project}",body:"Hi {first},\n\nThe proof for {project} is attached. Please look it over — spelling, sizes and colors — and let me know it's good to go.\n\n{sign_line}Thanks,\n{rep}\n{company}{rep_phone_line}"},
-  {id:"ship",name:"Shipped",subject:"Your order has shipped — {project}",body:"Hi {first},\n\nYour order for {project} shipped{carrier_part}.{tracking_part}\n\nThanks for the business,\n{rep}\n{company}{rep_phone_line}"},
-  {id:"invoice",name:"Invoice",subject:"Invoice {invoice} — {project}",body:"Hi {first},\n\nThe invoice for {project} is attached ({total_tax}). Let me know if you need anything else for your records.\n\nThanks,\n{rep}\n{company}{rep_phone_line}"},
-  {id:"thanks",name:"Thank you / reorder check-in",subject:"Thanks from {company}",body:"Hi {first},\n\nThanks again for the order on {project}. If you need more signs or anything else, just reply here and I'll get it quoted.\n\nThanks,\n{rep}\n{company}{rep_phone_line}"},
-  {id:"blank",name:"Blank email",subject:"",body:"Hi {first},\n\n\n\nThanks,\n{rep}\n{company}{rep_phone_line}"}];
+  {id:"quote",name:"Send the quote",subject:"Quote {quote} — {project}",body:"Hi {first},\n\nThanks for the chance to quote this. The quote for {project} is attached — {total} before tax.\n\n{sign_line}Let me know if anything needs to change.\n\nThanks,\n{sig_name}"},
+  {id:"follow",name:"Quote follow-up",subject:"Following up — quote {quote}",body:"Hi {first},\n\nJust checking in on the quote for {project} ({total}). Happy to adjust quantities, sizes or grades if that helps.\n\nThanks,\n{sig_name}"},
+  {id:"proof",name:"Proof for approval",subject:"Proof for approval — {project}",body:"Hi {first},\n\nThe proof for {project} is attached. Please look it over — spelling, sizes and colors — and let me know it's good to go.\n\n{sign_line}Thanks,\n{sig_name}"},
+  {id:"ship",name:"Shipped",subject:"Your order has shipped — {project}",body:"Hi {first},\n\nYour order for {project} shipped{carrier_part}.{tracking_part}\n\nThanks for the business,\n{sig_name}"},
+  {id:"invoice",name:"Invoice",subject:"Invoice {invoice} — {project}",body:"Hi {first},\n\nThe invoice for {project} is attached ({total_tax}). Let me know if you need anything else for your records.\n\nThanks,\n{sig_name}"},
+  {id:"thanks",name:"Thank you / reorder check-in",subject:"Thanks from {company}",body:"Hi {first},\n\nThanks again for the order on {project}. If you need more signs or anything else, just reply here and I'll get it quoted.\n\nThanks,\n{sig_name}"},
+  {id:"blank",name:"Blank email",subject:"",body:"Hi {first},\n\n\n\nThanks,\n{sig_name}"}];
 function mailTemplates(){const own=((S.brand||{}).mailTemplates||[]).filter(t=>t&&t.name);return own.map(t=>Object.assign({own:true},t)).concat(MAIL_TPL.filter(t=>!own.some(o=>o.id===t.id)))}
 // sending from the CRM works only on the hosted site, after the mail worker has proven it can send (it sets mailSendOk)
 function mailSendOn(){return !!(window.sscHosted&&(S.brand||{}).mailSendOk&&(S.brand||{}).mailSend!==false)}
 function myMailFrom(){const t=S.viewerTeam;const e=String((t&&t.email)||"").trim().toLowerCase();return /@streetsignsupply\.com$/.test(e)?e:String((S.brand||{}).mailFrom||"").trim().toLowerCase()}
+// the sender's Gmail signature (read from Gmail by the mail worker) goes on every email the CRM sends — so templates
+// end with just "Thanks," and the signature carries the name, company and phone
+function mySig(){const t=S.viewerTeam;return mailSendOn()&&t&&String(t.mailSig||"").trim()?String(t.mailSig):""}
 function mailFill(txt,ctx){const p=ctx.pid?proj(ctx.pid):null,c=ctx.contact||null,a=acct(ctx.aid||(p&&p.accountId))||{};const rep2=(p&&repFor(p))||S.viewerTeam||{};
   const js=p?jobsOf(p.id):[];const tr=js.map(j=>(j.ship||{}).tracking).filter(Boolean).join(", "),car=js.map(j=>(j.ship||{}).carrier).filter(Boolean)[0]||"";
   const v={first:c?String(c.name||"").split(" ")[0]:"there",name:c?c.name:"",company:(S.brand||{}).name||"Street Sign Supply",customer:a.name||"",
     project:p?p.name:"",pnum:p?"P-"+p.num:"",quote:p?(p.quote||"P-"+p.num):"",invoice:p?(p.invNum||""):"",total:p?money2(projValue(p)):"",
     total_tax:p?money2(projValue(p)+(invTaxOf(p)||0)):"",rep:rep2.name||meName(),rep_phone_line:(S.brand||{}).phone?"\n"+fmtPhone((S.brand||{}).phone):"",
+    sig_name:mySig()?"":((rep2.name||meName())+"\n"+((S.brand||{}).name||"Street Sign Supply")+((S.brand||{}).phone?"\n"+fmtPhone((S.brand||{}).phone):"")),
     tracking_part:tr?"\n\nTracking: "+tr:"",carrier_part:car?" by "+car:"",sign_line:ctx.signUrl?"You can review and approve it online here — it takes a minute:\n"+ctx.signUrl+"\n\n":""};
   return String(txt||"").replace(/\{(\w+)\}/g,(m,k)=>v[k]!=null?v[k]:m)}
 function composeFiles(pid){if(!pid)return [];return projFiles(pid).filter(f=>f.url&&!f.link&&!f.deleted&&/^https:/.test(f.url))}
@@ -15815,6 +15819,7 @@ function composeModal(o){o=o||{};const p=o.pid?proj(o.pid):null;const aid=o.aid|
     ${aiDraftOn()?`<div class="fld full"><div class="k">What should it say? (for the AI — optional)</div><input id="cm-ask" placeholder="e.g. ask if they want the 36 inch size instead, friendly"></div>`:""}
     <div class="fld full"><div class="k">Subject</div><input id="cm-subj" value="${esc(subj)}"></div>
     <div class="fld full"><div class="k">Message</div><textarea id="cm-body" style="min-height:220px">${esc(body)}</textarea></div>
+    ${mySig()?`<div class="fld full"><div class="k">Your Gmail signature — added below the message when it's sent</div><iframe sandbox title="Your Gmail signature" srcdoc="${esc('<base target="_blank"><body style="margin:8px;font:13px Arial,sans-serif">'+mySig()+'</body>')}" style="width:100%;height:130px;border:1px solid var(--line2);border-radius:8px;background:#fff"></iframe></div>`:""}
     ${files.length?`<div class="fld full"><div class="k">Attach from this project${sendOn?"":" (attachments go only when the CRM sends it)"}</div>
       <div style="display:flex;flex-direction:column;gap:4px;max-height:160px;overflow:auto">${files.slice(0,25).map(f=>`<label style="display:flex;gap:8px;align-items:center;justify-content:flex-start;font-size:13.5px;text-align:left;font-weight:500"><input type="checkbox" data-cmatt="${esc(f.id)}" ${pre.has(f.id)?"checked":""} ${sendOn?"":"disabled"} style="width:18px;height:18px;flex:0 0 auto;margin:0"> <span style="flex:0 1 auto">${esc(f.name)}</span> <span class="sub">${esc(f.cat||"")}${f._src&&f._src!=="Project"?" · "+esc(f._src):""}</span></label>`).join("")}</div></div>`:""}
     <div class="fld full sub">${sendOn?`Sends from <b>${esc(from||"—")}</b> through Gmail within about a minute, and it's logged on ${p?"the project":"the account"}. Replies come to that inbox.`
@@ -15830,7 +15835,8 @@ function composeModal(o){o=o||{};const p=o.pid?proj(o.pid):null;const aid=o.aid|
   $("#cm-open").onclick=()=>composeGo(false);const sd=$("#cm-send");if(sd)sd.onclick=()=>composeGo(true)}
 // AI drafting: Claude in the in-Claude copy; on the website the mail worker drafts it (GitHub's free AI models) in ~10–30 seconds
 function aiDraftOn(){return !!sampleCap||!!(window.sscHosted&&db)}
-const AI_RULES="Write a short, plain business email a real person at a small sign shop would send — friendly, direct, no hype, no exclamation marks, no AI-sounding phrases (no 'I hope this finds you well', no 'delighted', no 'don't hesitate'). Sign off with the sender's first name and the company. Keep any link exactly as given, on its own line.";
+function aiRules(){return "Write a short, plain business email a real person at a small sign shop would send — friendly, direct, no hype, no exclamation marks, no AI-sounding phrases (no 'I hope this finds you well', no 'delighted', no 'don't hesitate'). "
+  +(mySig()?"End with just \"Thanks,\" on its own line — the sender's email signature (name, company, phone) is added automatically, so don't write them.":"Sign off with the sender's first name and the company.")+" Keep any link exactly as given, on its own line."}
 async function composeAI(){const C=S._cmp||{};const p=C.pid?proj(C.pid):null;const b=$("#cm-ai");if(!aiDraftOn())return;
   if(!sampleCap)return composeAIRemote();
   const ctx=[p?"Project P-"+p.num+" "+p.name+" for "+accName(p.accountId)+", stage "+((SG[p.stage]||{}).label||p.stage)+", value "+money2(projValue(p)):"",
@@ -15838,7 +15844,7 @@ async function composeAI(){const C=S._cmp||{};const p=C.pid?proj(C.pid):null;con
     "From "+((p&&repFor(p))||S.viewerTeam||{}).name+" at "+((S.brand||{}).name||"Street Sign Supply")+", a sign and stencil maker in Washington, Utah"].filter(Boolean).join("\n");
   const ask=($("#cm-ask")||{}).value||"";const cur=$("#cm-body").value;
   if(b){b.disabled=true;b.textContent="Writing…"}
-  try{const out=await sampleCap.json("Write a short, plain business email a real person at a small sign shop would send — friendly, direct, no hype, no exclamation marks, no AI-sounding phrases. Sign off with the sender's first name and the company. Return JSON {\"subject\":\"...\",\"body\":\"...\"}.\n\nWhat to say: "+(ask||"(use the subject and context)")+"\nSubject so far: "+$("#cm-subj").value+"\nDraft so far:\n"+cur.slice(0,2000)+"\n\nContext:\n"+ctx,{modelTier:"default"});
+  try{const out=await sampleCap.json(aiRules()+" Return JSON {\"subject\":\"...\",\"body\":\"...\"}.\n\nWhat to say: "+(ask||"(use the subject and context)")+"\nSubject so far: "+$("#cm-subj").value+"\nDraft so far:\n"+cur.slice(0,2000)+"\n\nContext:\n"+ctx,{modelTier:"default"});
     const r=out&&(out.data||out.json||out);if(r&&r.body){$("#cm-body").value=String(r.body);if(r.subject)$("#cm-subj").value=String(r.subject);S.modalTouched=true}else toast("Claude didn't send back an email — try again.")}
   catch(e){toast("Claude couldn't write it just now.")}
   if(b){b.disabled=false;b.innerHTML=ic("email",14)+"Write it with AI"}}
@@ -15848,7 +15854,7 @@ async function composeAIRemote(){const C=S._cmp||{};const p=C.pid?proj(C.pid):nu
     "From "+((p&&repFor(p))||S.viewerTeam||{}).name+" at "+((S.brand||{}).name||"Street Sign Supply")+", a sign and stencil maker in Washington, Utah"+((S.brand||{}).phone?", phone "+fmtPhone((S.brand||{}).phone):"")].filter(Boolean).join("\n");
   const id=uid("ai");if(b){b.disabled=true;b.textContent="Writing… (10–30 seconds)"}
   const done=(msg)=>{if(b){b.disabled=false;b.innerHTML=ic("email",14)+"Write it with AI"}if(msg)toast(msg)};
-  try{await setDoc("aidraft/"+id,{id,status:"queued",at:Date.now(),byId:meId(),rules:AI_RULES,ask:String(($("#cm-ask")||{}).value||"").slice(0,600),
+  try{await setDoc("aidraft/"+id,{id,status:"queued",at:Date.now(),byId:meId(),rules:aiRules(),ask:String(($("#cm-ask")||{}).value||"").slice(0,600),
     subject:String($("#cm-subj").value||"").slice(0,200),draft:String($("#cm-body").value||"").slice(0,2500),ctx:ctx.slice(0,2500)})}catch(e){return done("Couldn't ask for a draft.")}
   let off=null;const t=setTimeout(()=>{try{off&&off()}catch(e){}done("The AI is slow right now — try again in a minute.")},120000);
   try{off=db.doc("aidraft/"+id).onSnapshot(sn=>{const d=sn&&sn.exists?(typeof sn.data==="function"?sn.data():sn.data):null;if(!d)return;

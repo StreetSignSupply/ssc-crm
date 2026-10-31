@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-92
+- Emails sent from the CRM carry the sender's own Gmail signature (read from their Gmail settings), sent as a proper HTML email like Gmail's own. The compose screen shows the signature under the message; templates and AI drafts end with "Thanks," so the name and phone aren't doubled.
+
 ## 2026.11.25-91
 - AI drafting on the website: "Write it with AI" in the email screen. The mail worker writes the draft with GitHub's free AI models (no key, no bill) in about 10–30 seconds, in the shop's plain voice; type what it should say, or leave it to the subject and the project. The in-Claude copy keeps using Claude.
 
