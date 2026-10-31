@@ -1,5 +1,10 @@
 # What changed
 
+## 2026.11.25-115
+- Quotes start from the website's suggested price by default (for every account); an account set to "Our price list" keeps the contractor list. Lines with no website price fall back to the price list.
+- Work order status bar uses the same chevron design as projects: done green with a ✓, current solid blue, next grey.
+- Sending a quote for signature always attaches its PDF: if no document was picked, the quote PDF is made, saved to Files and attached automatically. Composing any quote email ticks the newest quote PDF to attach.
+
 ## 2026.11.25-114
 - Activity: emails (and long notes) show their first two lines; click the text or "Read the whole email" to open it in full with its line breaks, "Show less" to fold it again. Stays open while you're on the page.
 
