@@ -3466,9 +3466,11 @@ const DOC_ICONS={
   oct:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D50101" stroke-width="2.2" stroke-linejoin="round"><polygon points="8,2 16,2 22,8 22,16 16,22 8,22 2,16 2,8"/><path d="M8 12l3 3 5-6" stroke-linecap="round"/></svg>',
   shine:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D50101" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/><circle cx="12" cy="12" r="3"/></svg>',
   clock:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D50101" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>'};
-function docPromises(b){
+function docPromises(b,lines){
+  let ga="";try{const gs=[...new Set((lines||[]).filter(l=>l.src&&!isCharge(l.src)&&lineProd(l.src)==="sign"&&!bareBlank(l.src)).map(l=>"."+lineGauge(l.src)).filter(x=>x!=="."))].sort();
+    ga=gs.length?"On "+(gs.length>1?gs.slice(0,-1).join(", ")+" and "+gs[gs.length-1]:gs[0])+" aluminum"+(gs.length>1?", as listed on each line.":"."):"On aluminum blanks, as listed on each line."}catch(e){ga="On aluminum blanks, as listed on each line."}
   const def=[["oct","Built to MUTCD standards","Correct shapes, colors, sizes and legends."],
-    ["shine","3M reflective sheeting","On .080 aluminum unless noted."],
+    ["shine","3M reflective sheeting",ga],
     ["clock","Fast confirmation","Your ship date confirmed the same day you order."]];
   try{const c=String(b.quotePromises||"").trim();if(c){const rows=c.split(/\n+/).map(r=>r.split("|").map(x=>x.trim())).filter(r=>r[0]);
     if(rows.length)return rows.slice(0,4).map((r,i)=>[def[i]?def[i][0]:"oct",r[0],r[1]||""])}}catch(e){}
@@ -3505,11 +3507,14 @@ function docHTML(p,kind){
   const word=kind==="quote"?(b.quoteWord||"Quote"):"Invoice";
   const addr=[a.street,a.city,a.state,a.zip].filter(Boolean).join(", ");
   const first=String((bc&&bc.name)||"").trim().split(/\s+/)[0]||"";
-  const nSigns=lines.filter(l=>!(l.src&&isCharge(l.src))).reduce((t,l)=>t+(Number(l.qty)||0),0);
+  const isHw=l=>{try{return !!(l.src&&lineProd(l.src)==="posts")}catch(e){return false}};
+  const nSigns=lines.filter(l=>!(l.src&&isCharge(l.src))&&!isHw(l)).reduce((t,l)=>t+(Number(l.qty)||0),0);
+  const nHw=lines.filter(l=>!(l.src&&isCharge(l.src))&&isHw(l)).reduce((t,l)=>t+(Number(l.qty)||0),0);
   const save=(function(){if(!a.showSavings)return 0;return lines.reduce((t,l)=>{if(!l.unit||!l.src||isCharge(l.src))return t;
         const lp=listPrice(l.src);return t+(lp&&lp.price>l.unit?(lp.price-l.unit)*l.qty:0)},0)})();
   const row=(l,ix)=>{const it=docItem(l,fnote);const chg=l.src&&isCharge(l.src);
-    let pic=!chg&&l.src&&b.quotePics!==false?linePic(p,l.src):"";if(!pic&&!chg&&l.src&&b.quotePics!==false){try{pic=picFb(l.src)||""}catch(e){}}
+    let pic=!chg&&l.src&&b.quotePics!==false?linePic(p,l.src):"";
+    if(pic&&!chg&&l.src&&!lineArt(p,l.src)&&/^R1-[12]$/i.test(String(l.src.code||"").trim())){try{pic=picFb(l.src)||pic}catch(e){}}if(!pic&&!chg&&l.src&&b.quotePics!==false){try{pic=picFb(l.src)||""}catch(e){}}
     const src=l.src&&!chg?l.src:null;
     const name=src?docTidyName(it.name,src):(chg&&(l.src.charge==="freight"||/ship|freight|deliver/i.test(it.name))?String(it.name).replace(/^\s*(delivery|freight|shipping)\b\s*(?:[-–—:]\s*)?/i,"Shipping ").replace(/^Shipping\s+(to\b)/i,"Shipping $1").trim():it.name);
     const code=src?String(src.code||"").split("|")[0].trim():"";
@@ -3534,7 +3539,7 @@ function docHTML(p,kind){
         return (lp&&lp.price>l.unit+0.004?`<span style="text-decoration:line-through;color:#9AA1A9;font-size:10px">${money2(lp.price)}</span><br>`:"")+money2(l.unit)+(unitMode?`<span style="color:#9AA1A9;font-weight:400"> ${chg?"per order":"each"}</span>`:"")})()}</td>
       ${unitMode?"":`<td class="r amt">${l.unit?money2(l.qty*l.unit):"—"}</td>`}</tr>`};
   const hello=kind==="quote"&&lines.length?`<div class="hello">${first?`<b>${esc(first)}</b>, thank`:"Thank"} you for the chance to quote ${esc(p.name||"this project")}.
-    Here is our ${unitMode?"contract pricing for "+lines.filter(l=>!(l.src&&isCharge(l.src))).length+" sign types":"pricing for "+(nSigns?nSigns+" sign"+(nSigns===1?"":"s"):"your order")}${lines.some(l=>l.src&&isCharge(l.src))?" with shipping":""}, each one built to order in our shop.</div>`:"";
+    Here is our ${unitMode?"contract pricing for "+lines.filter(l=>!(l.src&&isCharge(l.src))).length+" sign types":"pricing for "+(nSigns?nSigns+" sign"+(nSigns===1?"":"s")+(nHw?" with "+nHw+" post"+(nHw===1?"":"s")+" and hardware piece"+(nHw===1?"":"s"):""):nHw?nHw+" post"+(nHw===1?"":"s")+" and hardware piece"+(nHw===1?"":"s"):"your order")}${lines.some(l=>l.src&&isCharge(l.src))?" with shipping":""}, each one built to order in our shop.</div>`:"";
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(word)} ${esc(no)}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -3584,7 +3589,7 @@ function docHTML(p,kind){
       ${unitMode?`<div class="est">Total shown for one of each sign. Each order is billed at the quantity ordered × the price above${lines.some(l=>l.src&&isCharge(l.src))?", plus shipping":""}.</div>`:""}`}
     </div>
   </div>
-  ${kind==="quote"?`<div class="why">${docPromises(b).map(x=>`<div class="p">${(DOC_ICONS[x[0]]||"").replace(/#D50101/g,"#C8102E")}<div><b>${esc(x[1])}</b>${esc(x[2])}</div></div>`).join("")}</div>`:""}
+  ${kind==="quote"?`<div class="why">${docPromises(b,lines).map(x=>`<div class="p">${(DOC_ICONS[x[0]]||"").replace(/#D50101/g,"#C8102E")}<div><b>${esc(x[1])}</b>${esc(x[2])}</div></div>`).join("")}</div>`:""}
   <div class="blocks">
     <div>
       <div class="lbl">${kind==="quote"?"Terms":"Payment"}</div>
@@ -9890,7 +9895,7 @@ function home(){
       kpi("Waiting on payment",money(awaitVal),awaiting.length+" invoiced"+(pastTerms.length?" · "+pastTerms.length+" past terms":""),pastTerms.length?"r":""),
       kpi("Open pipeline",money(pipe),open.length+" open project"+(open.length===1?"":"s")),
       kpi("Won this month",money(wonM.reduce((t,p2)=>t+projValue(p2),0)),wonM.length+" won"),
-      kpi("Win rate",wr===null?"—":wr+"%","last 6 months",wr===null?"":wr>=50?"g":wr>=30?"":"o")])}
+      kpi("Win rate",wr===null?"—":wr+"%",winSub(all,180),wr===null?"":wr>=50?"g":wr>=30?"":"o")])}
 
     <div class="cols">
       ${barCard("Pipeline by stage",stageRows,v=>money(v),"open value and project count")}
@@ -10448,7 +10453,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-99";
+const APP_VERSION="2026.11.25-100";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -10504,11 +10509,11 @@ async function notify(toId,kind,text,link,taskId){
   const rec={id:nid,toId,fromId:meId(),fromName:meName(),kind,text,link:link||"home",taskId:taskId||"",
     at:Date.now(),read:false,deleted:false};
   try{await setDoc("notifications/"+nid,rec)}catch(e){}
-  if(window.sscHosted&&to.email){
+  if(window.sscHosted&&to.email&&kind!=="task-assigned"){
     const url=location.origin+location.pathname+"#/"+(link||"home");
     const subj=(kind==="task-done"?"Done: ":"Task for you: ")+text.slice(0,70);
     const body=text+"\n\n"+(kind==="task-done"?"Finished by ":"From ")+meName()+" · "+stampFull(rec.at)+"\n\nOpen it: "+url;
-    try{await setDoc("mail/"+nid,{to:[to.email],message:{subject:subj,text:body,
+    try{await setDoc("mail/"+nid,{to:[to.email],status:"queued",kind:"notice",message:{subject:subj,text:body,
       html:"<p>"+esc(text).replace(/\n/g,"<br>")+"</p><p style='color:#666'>"+(kind==="task-done"?"Finished by ":"From ")
         +esc(meName())+" · "+esc(stampFull(rec.at))+"</p><p><a href='"+esc(url)+"'>Open it in the CRM</a></p>"},
       at:rec.at})}catch(e){}
@@ -11911,7 +11916,12 @@ function billedAt(p2){
 function invIn(list,ym){return list.filter(p2=>ymOf(billedAt(p2))===ym)}
 function wonIn(list,ym){return list.filter(p2=>ymOf(stageAt(p2,"won"))===ym)}
 function sinceDays(ms2){return ms2?Math.floor((Date.now()-ms2)/86400000):null}
-function winRate(list,days){
+// won and lost in the window, test projects left out — the rate only means something next to how many it's out of
+function winCounts(list,days){const cut=Date.now()-days*86400000;list=list.filter(p2=>!isTestRec(p2));
+  return {w:list.filter(p2=>{const a=stageAt(p2,"won");return a&&a>=cut}).length,
+    l:list.filter(p2=>{const a=p2.stage==="lost"?(stageAt(p2,"lost")||Number(p2.lostAt)||Number(p2.updatedAt)||0):0;return a&&a>=cut}).length}}
+function winSub(list,days){const c=winCounts(list,days);return c.w+" won · "+c.l+" lost, last 6 months"+(c.w+c.l&&c.w+c.l<10?" (too few to read much into)":"")}
+function winRate(list,days){list=list.filter(p2=>!isTestRec(p2));
   const cut=Date.now()-days*86400000;
   const w=list.filter(p2=>{const a=stageAt(p2,"won");return a&&a>=cut}).length;
   const l=list.filter(p2=>{const a=p2.stage==="lost"?(stageAt(p2,"lost")||Number(p2.lostAt)||Number(p2.updatedAt)||0):0;return a&&a>=cut}).length;
@@ -11999,7 +12009,7 @@ function myBook(){
       kpi("Won this month",money(wonM.reduce((x,p2)=>x+projValue(p2),0)),wonM.length+" won"),
       kpi("Invoiced this month",money(invM.reduce((x,p2)=>x+billedValue(p2),0)),invM.length+" invoiced"),
       kpi("Invoiced YTD",money(invYTD.reduce((x,p2)=>x+billedValue(p2),0)),invYTD.length+" project"+(invYTD.length===1?"":"s")),
-      kpi("Win rate",wr===null?"—":wr+"%","last 6 months",wr===null?"":wr>=50?"g":wr>=30?"":"o"),
+      kpi("Win rate",wr===null?"—":wr+"%",winSub(mine,180),wr===null?"":wr>=50?"g":wr>=30?"":"o"),
       kpi("Past due",late.length||"—",late.length?"needs a call today":"all on time",late.length?"r":"g"),
       kpi("My accounts",accs.length,"")])}
 
