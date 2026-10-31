@@ -771,7 +771,7 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
 .ev.start{border-left-color:var(--blue)}
 .ev.due{border-left-color:var(--orange-text)}
 .ev.late{border-left-color:var(--plate);background:#B8231C;color:#fff}
-.ev.ship{border-left-color:var(--green);color:var(--ink3);text-decoration:line-through}
+.ev.ship{border-left-color:var(--green);color:var(--ink2)}.ev.ship::before{content:"✓ ";color:var(--green);font-weight:800}
 .ev.evx{border-left-color:#7A4FB5;background:var(--card);box-shadow:inset 0 0 0 1px var(--line2)}
 .dadd{margin-left:auto;background:none;border:0;color:var(--ink3);font-size:15px;line-height:1;
   padding:0 4px;border-radius:2px;opacity:0}
@@ -846,7 +846,7 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
 .act .c{min-width:0;flex:1}
 .act .c .m{font-size:13.5px;overflow-wrap:anywhere}
 .act .c time{font-size:12px;color:var(--ink3);font-family:"Overpass Mono",monospace}
-.act .done{text-decoration:line-through;color:var(--ink3)}
+.act .done{color:var(--ink2)}
 .hrow{display:flex;gap:11px;padding:9px 15px;border-bottom:1px solid var(--line2);font-size:13px;align-items:baseline}
 .hrow:last-child{border-bottom:0}
 .hrow:hover{background:var(--card2)}
@@ -4853,7 +4853,7 @@ function closeCard(p){
               background:${st==="ok"?"#1F7A42":st==="na"?"#4F5964":st==="wait"?"#666C73":"#B8231C"}">${st==="open"?"!":st==="wait"?"…":"✓"}</span>`
           : `<input type="checkbox" data-closeck="${esc(p.id)}:${esc(r.key)}" ${st==="ok"?"checked":""} ${st==="na"?"disabled":""}>`}
         <div style="flex:1;min-width:0">
-          <div class="t" style="${st==="na"?"text-decoration:line-through":""}">${esc(r.label)}
+          <div class="t" style="${st==="na"?"color:var(--ink3)":""}">${st==="na"?`<span class="pill" style="margin-right:6px">N/A</span>`:""}${esc(r.label)}
             ${r.auto?`<span class="pill" style="margin-left:4px">${st==="wait"?"waiting":st==="ok"?"checked for you":"not yet"}</span>`:""}
             ${st==="na"?`<span class="pill s">not applicable</span>`:""}</div>
           <div class="h">${st==="na"?esc(na[r.key]):esc(r.help)}</div>
@@ -7004,7 +7004,7 @@ function prepCard(j){
               background:${st==="ok"?"#1F7A42":st==="na"?"#4F5964":"#B8231C"}">${st==="open"?"!":"✓"}</span>`
           : `<input type="checkbox" data-gate="${j.num}:${r.key}" ${st==="ok"?"checked":""} ${st==="na"?"disabled":""}>`}
         <div style="flex:1;min-width:0">
-          <div class="t" style="${st==="na"?"text-decoration:line-through":""}">${esc(r.label)}
+          <div class="t" style="${st==="na"?"color:var(--ink3)":""}">${st==="na"?`<span class="pill" style="margin-right:6px">N/A</span>`:""}${esc(r.label)}
             ${r.auto?`<span class="pill" style="margin-left:4px">checked for you</span>`:""}
             ${st==="na"?`<span class="pill s">not applicable</span>`:""}</div>
           <div class="h">${st==="na"?esc(na[r.key]):esc(r.help)}</div>
@@ -10443,7 +10443,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-97";
+const APP_VERSION="2026.11.25-98";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -10610,9 +10610,10 @@ function activityRow(x){
         ${x._src?`<span class="pill">${esc(x._src)}</span>`:""}
         ${x.to&&!(c&&String(x.to).toLowerCase().indexOf(String(c.email||"~").toLowerCase())>=0)?`<span class="sub">to ${esc(x.to)}</span>`:c?`<span class="sub">${esc(dir)} ${esc(c.name)}</span>`:""}
         ${x.subject?`<b style="font-size:13.5px">${esc(x.subject)}</b>`:""}
+        ${k==="task"&&x.done?`<span class="pill g">✓ Completed</span>`:""}
         ${sendBadge(x)}${x.gmailId?`<span class="pill" title="Logged from Gmail">Gmail</span>`:""}
       </div>
-      <div class="m ${x.done?"done":""}">${esc(x.text||"")}</div>
+      <div class="m ${k==="task"&&x.done?"done":""}">${esc(x.text||"")}</div>
       ${x.pre?`<div class="sub" style="font-style:italic">sent from the CRM, details come from the mail log</div>`:""}
       ${k==="task"?(function(){
         const as=taskAssignee(x);
