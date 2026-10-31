@@ -1,13 +1,21 @@
-// Oct 30 look-only #2: how P-2014's extruded lines point at their blanks, extruded items in inventory, P-2036's bin entry. No writes.
+// Oct 30 cost fixes round 2 (Matt's fix list, 10:19 PM): two blanks into "Substrate / blanks", costs re-taken on nine jobs
+// with the -95 rules (printed legends, stops on white + red ink, extruded blanks). Counts and margins only.
 (async (T) => {
-  const S = T.S, out = {};
-  const p = [...S.projects.values()].find((x) => String(x.num) === "2014" && !x.deleted);
-  out.n = (p.orderLines || []).filter((l) => l && /extruded/i.test(l.desc || "")).map((l) => {
-    let c = null; try { c = T.quoteLineCostLive(l); } catch (e) {}
-    return { sz: l.size, code: l.code || "", sub: (l.sub || "").slice(0, 40), grade: (l.grade || "").slice(0, 20), sk: l.sheetKey || "", item: l.itemId || "", cost: c && c.cost, why: c && String(c.why || "").slice(0, 70) };
-  });
-  out.ext = [...S.items.values()].filter((i) => !i.deleted && /extru/i.test((i.name || "") + " " + (i.sku || ""))).map((i) => i.sku + "|" + i.cost);
+  const S = T.S, out = { cat: [] }; const now = Date.now();
+  for (const sku of ["BLK-080-1206", "BLK-063-0633"]) { const it = [...S.items.values()].find((i) => !i.deleted && String(i.sku || "").toUpperCase() === sku);
+    if (it && it.cat !== "Substrate / blanks") { await T.fix("items/" + it.id, { cat: "Substrate / blanks", updatedAt: now }, "Category: Blanks → Substrate / blanks (same as every other blank)"); out.cat.push(sku); } }
+  const nums = [2014, 2017, 2025, 2026, 2029, 2031, 2032, 2033, 2035]; out.before = {}; out.after = {}; out.re = {};
+  const P = (n) => [...S.projects.values()].find((x) => String(x.num) === String(n) && !x.deleted);
+  const r1 = (m) => (m == null ? null : Math.round(m * 10) / 10);
+  for (const n of nums) { const p = P(n); if (p) out.before[n] = r1(T.projMargin(p)); }
+  for (const n of nums) { const p = P(n); if (!p) continue; out.re[n] = await T.lockLineCosts(p.id, true); }
+  await new Promise((r) => setTimeout(r, 8000));
+  for (const n of nums) { const p = P(n); if (p) out.after[n] = r1(T.projMargin(p)); }
+  // spot checks Josh named: the Van Accessible plaque and a 24x24 stop (cost each, today)
+  const ln = (n, re) => { const p = P(n); return p && (p.orderLines || []).find((l) => l && re.test((l.desc || "") + " " + (l.code || ""))); };
+  const c = (l) => { try { return l ? T.quoteLineCost(l).cost : null; } catch (e) { return null; } };
+  out.van = c(ln(2033, /Van Accessible/i)); out.stop = c(ln(2033, /R1-1|stop/i)); out.ext18 = c(ln(2014, /extruded.*18x6|^4\.1/i));
   const p36 = [...S.projects.values()].find((x) => String(x.num) === "2036");
-  out.p36 = p36 ? { deletedAt: p36.deletedAt || 0, why: String(p36.deleteWhy || p36.deletedWhy || "").slice(0, 60), lines: (p36.orderLines || []).length, jobs: [...S.jobs.values()].filter((j) => j.projectId === p36.id).map((j) => (j.deleted ? "d" : "") + (j.status || "")).join(","), keys: Object.keys(p36).filter((k) => /delet|merge|dup|copy/i.test(k)).join(",") } : null;
-  delete out.n; return out;
+  out.p36 = p36 ? { ai: p36.deletedBy === "AI", w: String(p36.deletedWith || "").split(":")[0] } : null;
+  return out;
 })
