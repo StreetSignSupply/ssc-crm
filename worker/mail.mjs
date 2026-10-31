@@ -85,18 +85,30 @@ if (!brand.mailTestAt) { await fs.collection("mail").add({ to: [mailFrom], statu
   message: { subject: "CRM email is connected", text: "This is a test from the Street Sign Supply CRM. Emails sent from the CRM now go out from each person's own Gmail, and customer emails are logged in the CRM automatically every 10 minutes.\n\nNothing to do — you can delete this." } });
   await brandRef.set({ mailTestAt: Date.now() }, { merge: true }); }
 // ---- 1. send what's queued ----
-function mime({ from, fromName, to, cc, subject, text, atts }) {
-  const bnd = "b" + Math.random().toString(36).slice(2), enc = (s) => /^[\x20-\x7e]*$/.test(s) ? s : "=?UTF-8?B?" + Buffer.from(s).toString("base64") + "?=";
+// the message as Gmail would build it: plain text and HTML (with the sender's own Gmail signature at the bottom), plus attachments
+function mime({ from, fromName, to, cc, subject, text, html, atts }) {
+  const rnd = () => "b" + Math.random().toString(36).slice(2), enc = (s) => /^[\x20-\x7e]*$/.test(s) ? s : "=?UTF-8?B?" + Buffer.from(s).toString("base64") + "?=";
+  const b64 = (s) => Buffer.from(s || "").toString("base64").replace(/.{76}/g, "$&\r\n");
   const h = ["From: " + (fromName ? enc(fromName) + " <" + from + ">" : from), "To: " + to.join(", ")].concat(cc && cc.length ? ["Cc: " + cc.join(", ")] : [])
     .concat(["Subject: " + enc(subject || ""), "MIME-Version: 1.0"]);
-  if (!atts.length) return h.concat(["Content-Type: text/plain; charset=UTF-8", "Content-Transfer-Encoding: base64", "", Buffer.from(text || "").toString("base64")]).join("\r\n");
-  const parts = ["--" + bnd, "Content-Type: text/plain; charset=UTF-8", "Content-Transfer-Encoding: base64", "", Buffer.from(text || "").toString("base64")];
-  atts.forEach((a) => parts.push("--" + bnd, "Content-Type: " + (a.type || "application/octet-stream") + "; name=\"" + enc(a.name) + "\"", "Content-Disposition: attachment; filename=\"" + enc(a.name) + "\"",
+  const alt = rnd();
+  const altPart = ["Content-Type: multipart/alternative; boundary=\"" + alt + "\"", "", "--" + alt, "Content-Type: text/plain; charset=UTF-8", "Content-Transfer-Encoding: base64", "", b64(text),
+    "--" + alt, "Content-Type: text/html; charset=UTF-8", "Content-Transfer-Encoding: base64", "", b64(html), "--" + alt + "--"].join("\r\n");
+  if (!atts.length) return h.join("\r\n") + "\r\n" + altPart;
+  const mix = rnd(); const parts = ["--" + mix, altPart];
+  atts.forEach((a) => parts.push("--" + mix, "Content-Type: " + (a.type || "application/octet-stream") + "; name=\"" + enc(a.name) + "\"", "Content-Disposition: attachment; filename=\"" + enc(a.name) + "\"",
     "Content-Transfer-Encoding: base64", "", a.data.toString("base64").replace(/.{76}/g, "$&\r\n")));
-  parts.push("--" + bnd + "--");
-  return h.concat(["Content-Type: multipart/mixed; boundary=\"" + bnd + "\"", ""]).concat(parts).join("\r\n");
+  parts.push("--" + mix + "--");
+  return h.concat(["Content-Type: multipart/mixed; boundary=\"" + mix + "\"", ""]).join("\r\n") + "\r\n" + parts.join("\r\n");
 }
-
+const escH = (s) => String(s || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const linkify = (s) => s.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1">$1</a>');
+const sigText = (h) => String(h || "").replace(/<br\s*\/?>/gi, "\n").replace(/<\/(div|p|tr)>/gi, "\n").replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/\n{3,}/g, "\n\n").trim();
+// each person's Gmail signature (Gmail → Settings → Signature), read from their account and kept for 30 minutes
+const sigCache = {};
+async function gmailSig(email) { const c = sigCache[email]; if (c && Date.now() - c.at < 30 * 60000) return c.sig;
+  let sig = ""; try { const j = await gmail(email, READ, "settings/sendAs"); const sa = (j.sendAs || []).find((x) => String(x.sendAsEmail).toLowerCase() === email) || (j.sendAs || []).find((x) => x.isPrimary) || {}; sig = String(sa.signature || ""); } catch (e) {}
+  sigCache[email] = { sig, at: Date.now() }; return sig; }
 async function sendQueued() {
   const queued = (await fs.collection("mail").where("status", "==", "queued").limit(40).get()).docs;
   // task notices written before there was a status field: anything from the last day that hasn't been sent
@@ -112,7 +124,10 @@ async function sendQueued() {
       for (const a of (m.attachments || []).slice(0, 10)) { const r = await fetch(a.url); if (!r.ok) throw new Error("couldn't fetch the attachment " + String(a.name || "").slice(0, 40));
         const b = Buffer.from(await r.arrayBuffer()); tot += b.length; if (tot > 20e6) throw new Error("attachments over 20 MB"); atts.push({ name: String(a.name || "file"), type: a.type || r.headers.get("content-type") || "", data: b }); }
       const msg = m.message || {};
-      const raw = mime({ from, fromName: m.kind === "customer" ? m.fromName : "Street Sign Supply CRM", to, cc, subject: msg.subject, text: msg.text || String(msg.html || "").replace(/<[^>]+>/g, " "), atts });
+      const body = msg.text || String(msg.html || "").replace(/<[^>]+>/g, " ");
+      const sig = m.kind === "customer" ? await gmailSig(from) : "";
+      const html = '<div dir="ltr">' + linkify(escH(body)).replace(/\n/g, "<br>") + "</div>" + (sig ? '<br><div dir="ltr" class="gmail_signature">' + sig + "</div>" : "");
+      const raw = mime({ from, fromName: m.kind === "customer" ? m.fromName : "Street Sign Supply CRM", to, cc, subject: msg.subject, text: body + (sig ? "\n\n-- \n" + sigText(sig) : ""), html, atts });
       const res = await gmail(from, SEND, "messages/send", { method: "POST", body: JSON.stringify({ raw: b64u(raw) }) });
       await d.ref.set({ status: "sent", sentAt: now, gmailId: res.id || "", threadId: res.threadId || "" }, { merge: true });
       if (m.activityId) await fs.doc("activity/" + m.activityId).set({ sendState: "sent", sentAt: now, gmailId: res.id || "", sendErr: "" }, { merge: true }).catch(() => {});
@@ -151,6 +166,7 @@ async function logGmail() {
   const already = new Set((await fs.collection("activity").where("at", ">", Date.now() - 10 * 864e5).get()).docs.map((d) => d.data().gmailId).filter(Boolean));
   for (const t of team) {
     const me = String(t.email).toLowerCase();
+    try { const sg = await gmailSig(me); if (sg) n.sigs = (n.sigs || 0) + 1; if (String(t.mailSig || "") !== sg) await fs.doc("team/" + t.id).set({ mailSig: sg.slice(0, 30000), mailSigAt: Date.now() }, { merge: true }); } catch (e) {}
     try {
       const after = Math.max(Number(seen[t.id]) || 0, Date.now() - 3 * 864e5);
       const list = await gmail(me, READ, "messages?maxResults=100&q=" + encodeURIComponent("after:" + Math.floor(after / 1000) + " -in:chats -in:spam -in:trash"));
@@ -287,4 +303,4 @@ do {
   pass++;
   if (LOOP_MIN && Date.now() - t0 < LOOP_MIN * 60000) await waitAndDraft(60000); else await aiDrafts().catch(() => {});
 } while (LOOP_MIN && Date.now() - t0 < LOOP_MIN * 60000);
-note("mail: " + pass + " passes — " + n.sent + " sent, " + n.failed + " didn't send, " + n.logged + " customer emails logged" + (n.userErr ? " (" + n.userErr + " inbox reads failed: " + JSON.stringify(errKinds) + ")" : "") + ", " + n.signs + " signature updates, " + (n.digest || 0) + " task digests, " + (n.overdue || 0) + " overdue notices, " + (n.ai || 0) + " AI drafts" + (n.aiErr ? " (" + n.aiErr + " failed)" : ""));
+note("mail: " + pass + " passes — " + n.sent + " sent, " + n.failed + " didn't send, " + n.logged + " customer emails logged" + (n.userErr ? " (" + n.userErr + " inbox reads failed: " + JSON.stringify(errKinds) + ")" : "") + ", " + n.signs + " signature updates, " + (n.digest || 0) + " task digests, " + (n.overdue || 0) + " overdue notices, " + (n.ai || 0) + " AI drafts" + (n.aiErr ? " (" + n.aiErr + " failed)" : "") + ", " + (n.sigs || 0) + " Gmail signatures found");
