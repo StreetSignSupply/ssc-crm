@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-105
+- Activity colours: each type has its own colour — Call blue, Email teal, Meeting violet, Note yellow, Task orange. The Log call / Log email / Note / Task buttons, the filter chips (the picked one fills in) and the tag on each entry all match.
+
 ## 2026.11.25-104
 - Files: every file has a visible Delete button (on its tile and in the viewer) instead of one hidden behind "⋯". Deleting asks once, then moves the file to the recycle bin, where it can be restored.
 
