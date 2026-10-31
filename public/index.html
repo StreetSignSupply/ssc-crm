@@ -425,17 +425,23 @@ td .btn,th .btn{white-space:nowrap;word-break:normal;overflow-wrap:normal}
 .hl-facts .v .pill{vertical-align:1px}
 
 /* ========= stage track: read-only progress; "Change stage" is a menu ========= */
-.path{display:flex;gap:10px;align-items:flex-end;padding:12px 20px 10px;border-bottom:1px solid var(--line2);overflow:visible;background:var(--card);position:relative;z-index:2}
-.step{flex:1 1 0;min-width:88px;padding:8px 8px 0 0;border-top:3px solid var(--line);position:relative}
-.step b{display:block;font-size:12.5px;font-weight:700;color:var(--ink3);white-space:nowrap}
-.step small{display:block;font-size:12px;color:var(--ink3);margin-top:1px;white-space:nowrap}
-.step.done{border-top-color:var(--ink2)}
-.step.done b{color:var(--ink)}
-.step.cur{border-top-color:var(--act)}
-.step.cur b{color:var(--ink)}
-.step.cur small{color:var(--act);font-weight:600}
-.step.lost{border-top-color:var(--red)}
-.step.lost b{color:var(--danger-ink)}
+/* a chevron path, like Salesforce's: finished stages green with a check, the current one solid blue, what's next grey */
+.path{display:flex;gap:0;align-items:stretch;padding:12px 20px;border-bottom:1px solid var(--line2);overflow:visible;background:var(--card);position:relative;z-index:2}
+.step{--sb:var(--card2);--sf:var(--ink3);--ss:var(--ink3);flex:1 1 0;min-width:88px;padding:8px 10px 7px 24px;margin-right:-9px;position:relative;background:var(--sb);
+  clip-path:polygon(0 0,calc(100% - 13px) 0,100% 50%,calc(100% - 13px) 100%,0 100%,13px 50%);display:flex;flex-direction:column;justify-content:center;min-height:44px}
+.path > .step:first-child{clip-path:polygon(0 0,calc(100% - 13px) 0,100% 50%,calc(100% - 13px) 100%,0 100%);border-radius:8px 0 0 8px;padding-left:14px}
+.step b{display:block;font-size:13px;font-weight:800;color:var(--sf);white-space:nowrap}
+.step small{display:block;font-size:12px;color:var(--ss);margin-top:1px;white-space:nowrap}
+.step.done{--sb:#DCEFE3;--sf:#146B38;--ss:#2F7A4C}
+.step.done b::before{content:"✓ ";font-weight:900}
+.step.cur{--sb:#1F5FAD;--sf:#fff;--ss:#E3EDFA;box-shadow:none;flex:1.5 1 0;min-width:140px}
+.step.cur small{font-weight:700}
+.step.lost{--sb:#B8231C;--sf:#fff;--ss:#FCE6E4}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .step.done{--sb:#17392A;--sf:#8FE0AE;--ss:#8FE0AE}
+  :root:not([data-theme="light"]) .step.cur{--sb:#2F72C4}}
+:root[data-theme="dark"] .step.done{--sb:#17392A;--sf:#8FE0AE;--ss:#8FE0AE}
+:root[data-theme="dark"] .step.cur{--sb:#2F72C4}
+.path > details{margin-left:18px!important}
 .path > details{flex:0 0 auto;margin-left:auto;align-self:center}
 /* work order status: one progress bar — finished steps dark with a check, the current one red, what's next grey */
 .path{gap:6px;padding:14px 20px 12px}
@@ -708,8 +714,9 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
   .trk-jobs .jchip{font-size:12px;padding:4px 9px}
 
   /* project stage track: four to a row, the stage menu underneath */
-  .path{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px 8px;padding:10px 14px;overflow:visible}
-  .step{min-width:0;padding-right:2px}
+  .path{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px 0;padding:10px 14px;overflow:visible}
+  .step{min-width:0;padding:7px 8px 6px 20px}
+  .path > details{margin-left:0!important}
   .step b,.step small{white-space:normal;font-size:12px;line-height:1.25}
   .path > details{grid-column:1 / -1;margin-left:0;justify-self:start}
   /* general breathing room between cards and inside headers */
@@ -10524,7 +10531,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-110";
+const APP_VERSION="2026.11.25-111";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
