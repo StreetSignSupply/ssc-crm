@@ -5957,6 +5957,82 @@ function stcLineCost(line){const x=stcLine(line);if(!x)return null;
   if(r.cost==null)return {cost:0,src:"stcflag",why:"Stencil "+x.s.sku+" can't be costed: "+r.flags.join("; ")};
   return {cost:r.cost,src:"material",why:"Stencil "+x.s.sku+": "+r.why}}
 
+
+/* ---- how a stencil is measured ----
+   The size in a stencil's name is the PAINTED image: for letters and numbers it's the character height
+   ("12" Alphabet Kit" = letters 12" tall); two numbers are height × width of the painted area
+   ("24" x 16"" = 24" tall, 16" wide — the way 1-800-Stencil names them). The sheet you get (w × h in the catalog)
+   is bigger, so there's a border to catch overspray. A kit is one character per piece. */
+function stcDims(s){if(!s)return {};const n=String(s.n||"");
+  let H=0,W=0;const m2=n.match(/^\s*(\d+(?:\.\d+)?)\s*(?:"|''|”|in(?:ch(?:es)?)?)?\s*x\s*"?\s*(\d+(?:\.\d+)?)\s*(?:"|''|”|in)/i);
+  const m1=n.match(/^\s*(\d+(?:\.\d+)?)\s*(?:"|''|”|\s?in(?:ch(?:es)?)?\b)/i);
+  if(m2){H=+m2[1];W=+m2[2]}else if(m1){H=+m1[1]}
+  const pc=Math.max(1,Number(s.pc)||1),sw=Number(s.w)||0,sh=Number(s.h)||0;
+  const chars=/alphabet|letter|number|\babc\b/i.test(n)&&!/hopscotch|shape alphabet|parking letter|railroad/i.test(n);
+  const kit=pc>1;
+  // a lone shape from a playground alphabet ("16"x17" Hexagon Alphabet") is one piece, not the alphabet
+  const onePiece=!kit&&/alphabet/i.test(n)&&!/hopscotch|shape alphabet/i.test(n)&&H&&H<60;
+  // a sheet no bigger than the painted area means the catalog's sheet size is a guess
+  const fits=!(sw&&sh&&H)||(W?((sw>=W&&sh>=H)||(sw>=H&&sh>=W)):(sh>=H||sw>=H));
+  return {H,W,pc,sw,sh,chars,kit,onePiece,fits}}
+document.addEventListener("toggle",e=>{if(e.target&&e.target.id==="stc-how")S.stcHowShut=!e.target.open},true);
+function stcWhat(s){const d=stcDims(s);
+  if(d.kit&&d.chars)return "Kit of "+d.pc+" pieces — one "+(/number/i.test(s.n)&&!/alphabet/i.test(s.n)?"number":"character")+" a piece";
+  if(d.kit)return "Set of "+d.pc+" pieces";
+  if(d.onePiece)return "One piece — a single shape, not the whole alphabet";
+  if(/individual letter|letter [a-z] stencil|letter stencil/i.test(s.n))return "One letter";
+  return "One stencil"}
+function stcSizeText(s){const d=stcDims(s);const q=x=>(Math.round(x*100)/100)+"″";
+  const paint=d.H?(d.W?q(d.H)+" tall × "+q(d.W)+" wide painted":(d.chars?q(d.H)+" tall letters":q(d.H)+" tall painted")):"";
+  return [paint,d.sw&&d.sh?"sheet "+q(d.sw)+" × "+q(d.sh):""].filter(Boolean).join(" · ")}
+function stcShort(s){const d=stcDims(s);const q=x=>(Math.round(x*100)/100)+"″";
+  return [d.kit?(d.chars?"kit of "+d.pc:d.pc+" pieces"):d.onePiece?"single shape":"",d.H?(d.W?q(d.H)+"×"+q(d.W)+" painted":q(d.H)+(d.chars?" letters":" tall")):""].filter(Boolean).join(" · ")}
+// the measurement drawing: the sheet you get, the painted area inside it, and the sizes on both
+function stcDiagram(s,o){o=o||{};const d=stcDims(s);const VW=o.w||320,VH=o.h||250;
+  const q=x=>(Math.round(x*100)/100)+"″";
+  let sw=d.sw,sh=d.sh,H=d.H,W=d.W,guess=false;
+  if(!H&&!(sw&&sh))return `<div class="sub">No size in the catalog for this stencil.</div>`;
+  if(!(sw&&sh)||!d.fits){guess=!!(sw&&sh);const b=Math.max(2,H*0.15);const pw=W||H*(d.chars?0.7:1);sh=H+2*b;sw=pw+2*b}
+  if(!H){H=sh;W=sw}
+  // painted area: given width, else a letter-ish width for characters, else the sheet less the same border
+  let pw=W||(d.chars?Math.min(sw-1,H*0.72):Math.max(1,sw-(sh-H)));
+  let ph=H;if(W&&!(sw>=pw&&sh>=ph)&&sw>=ph&&sh>=pw){const t=pw;pw=ph;ph=t}
+  pw=Math.min(pw,sw),ph=Math.min(ph,sh);
+  const L=58,T=34,R=74,B=W?34:22;const sc=Math.min((VW-L-R)/sw,(VH-T-B)/sh);
+  const x0=L,y0=T,X=sw*sc,Y=sh*sc,px=x0+(X-pw*sc)/2,py=y0+(Y-ph*sc)/2,PX=pw*sc,PY=ph*sc;
+  const red=o.color||"#D50101";
+  const ar=(x1,y1,x2,y2)=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="currentColor" stroke-width="1" marker-start="url(#stca)" marker-end="url(#stca)"/>`;
+  const tick=(x1,y1,x2,y2)=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="currentColor" stroke-width=".6" opacity=".5"/>`;
+  const gfs=Math.min(PY/0.72,PX/0.8);
+  const glyph=d.chars&&!W?`<text transform="translate(${px+PX/2} ${py+PY}) scale(1 ${PY/(0.72*gfs)})" x="0" y="0" text-anchor="middle" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-size="${gfs}" fill="${red}" opacity=".85">${/number/i.test(s.n)&&!/alphabet/i.test(s.n)?"8":"A"}</text>`
+    :`<rect x="${px}" y="${py}" width="${PX}" height="${PY}" fill="${red}" fill-opacity=".14" stroke="${red}" stroke-width="1.4" stroke-dasharray="5 3"/>`;
+  return `<svg viewBox="0 0 ${VW} ${VH}" width="100%" style="max-width:${VW}px;color:var(--ink2);display:block" role="img" aria-label="How ${esc(s.n||"this stencil")} is measured">
+    <defs><marker id="stca" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 z" fill="currentColor"/></marker></defs>
+    <rect x="${x0}" y="${y0}" width="${X}" height="${Y}" rx="2" fill="var(--card2)" stroke="currentColor" stroke-width="1.4"/>
+    ${glyph}
+    ${tick(x0,y0-3,x0,y0-18)}${tick(x0+X,y0-3,x0+X,y0-18)}${ar(x0,y0-12,x0+X,y0-12)}
+    <text x="${x0+X/2}" y="${y0-17}" text-anchor="middle" font-size="11" fill="currentColor">Sheet ${q(sw)}${guess||!(d.sw&&d.sh)?" (approx.)":""}</text>
+    ${tick(x0+X+3,y0,x0+X+18,y0)}${tick(x0+X+3,y0+Y,x0+X+18,y0+Y)}${ar(x0+X+12,y0,x0+X+12,y0+Y)}
+    <text x="${x0+X+17}" y="${y0+Y/2+4}" font-size="11" fill="currentColor">${q(sh)}</text>
+    ${tick(px-3,py,x0-18,py)}${tick(px-3,py+PY,x0-18,py+PY)}${ar(x0-12,py,x0-12,py+PY)}
+    <text x="${x0-16}" y="${py+PY/2-2}" text-anchor="end" font-size="12" font-weight="700" fill="${red}">${q(d.H||ph)}</text>
+    <text x="${x0-16}" y="${py+PY/2+11}" text-anchor="end" font-size="9.5" fill="currentColor">${d.chars&&!W?"letter":"painted"}</text>
+    ${W?`${tick(px,py+PY+3,px,y0+Y+18)}${tick(px+PX,py+PY+3,px+PX,y0+Y+18)}${ar(px,y0+Y+12,px+PX,y0+Y+12)}<text x="${px+PX/2}" y="${Math.min(VH-2,y0+Y+26)}" text-anchor="middle" font-size="12" font-weight="700" fill="${red}">${q(d.W)} painted</text>`:""}
+  </svg>${guess?`<div class="sub" style="color:var(--danger-ink)">The catalog's sheet size (${q(d.sw)} × ${q(d.sh)}) is smaller than the painted size — check the artwork. The drawing uses an approximate sheet.</div>`:""}`}
+function stcHowCard(){const ex1={n:'12" Alphabet Kit Stencil',w:10,h:16,pc:38},ex2={n:'24" x 16" Arrow Stencil',w:22,h:30,pc:1};
+  return `<section class="card flush wide"><details${S.stcHowShut?"":" open"} id="stc-how"><summary style="cursor:pointer;padding:12px 15px;font-weight:800;list-style:none;display:flex;gap:8px;align-items:center">${ic("inventory",14)} How stencils are measured <span class="sub" style="font-weight:400">— so you pick the right one</span></summary>
+    <div style="display:flex;flex-wrap:wrap;gap:18px;padding:0 15px 14px;align-items:flex-start">
+      <div style="flex:1 1 220px;max-width:300px">${stcDiagram(ex1,{w:280,h:220})}<div class="sub" style="text-align:center;margin-top:2px"><b>Letters and numbers:</b> the size is the height of the letter.</div></div>
+      <div style="flex:1 1 220px;max-width:300px">${stcDiagram(ex2,{w:280,h:220})}<div class="sub" style="text-align:center;margin-top:2px"><b>Two numbers:</b> height × width of what gets painted.</div></div>
+      <div style="flex:1 1 260px;min-width:240px;font-size:13.5px;line-height:1.5">
+        <p style="margin:0 0 6px"><b>The size in the name is the painted image, not the sheet.</b></p>
+        <ul style="margin:0;padding-left:18px">
+          <li><b>12″ Alphabet Kit</b> → every letter paints 12″ tall. Widths vary by letter (an I is narrower than a W).</li>
+          <li><b>24″ x 16″</b> → the painted area is 24″ tall and 16″ wide (height first).</li>
+          <li><b>One number like 96″ RIGHT</b> → the word or symbol paints 96″ tall.</li>
+          <li><b>The sheet is bigger</b> than the painted image — the extra is a border that catches overspray and lets pieces butt together for even spacing. The sheet size is on every stencil.</li>
+          <li><b>Kits</b> are one character a piece (a 38-piece kit has A–Z plus extra common letters). <b>Large stencils</b> come in several pieces that go together.</li>
+          <li>To match a customer's request, measure the <b>height of the painted letter or symbol</b> they want — that's the number to look up.</li></ul></div></div></details></section>`}
 function stencilsView(){
   if(!S.stc){stcLoad();return `<div class="pad"><section class="card"><header><h2>Stencils</h2></header>
     <div class="empty">${S.stcErr?`<b>${esc(S.stcErr)}</b>It loads from GitHub — check the connection and open this page again.`:`<b>Loading the stencil catalog…</b>`}</div></section></div>`}
@@ -5978,6 +6054,7 @@ function stencilsView(){
       <td class="mono" style="text-align:right">${c.cut[i]}×</td>
       <td style="text-align:right">${showCost?`<button class="btn sm" data-stcmat="${i}">Change</button>`:""}</td></tr>`}).join("");
   return `<div class="pad">
+    ${stcHowCard()}
     ${showCost?`<section class="card flush wide"><header><span class="oi oi-file">${ic("inventory",14)}</span><h2>How stencils are costed</h2>
       <span class="sub" style="flex:1 1 100%;order:9">Sheet cost per sq ft (the item's preferred vendor price + freight) × material sq ft × ${c.waste} waste, plus CNC time at ${money2(c.laborRate)}/hr: ${c.setupMin} min setup, weed and pack + ${c.minPerPiece} min a piece + ${c.minPerSqft} min a sq ft, × the grade's cut factor. Change a vendor's price on the sheet's item and every stencil follows.</span>
       <span class="sp"><button class="btn sm" data-stcrates="1">Change the rates</button></span></header>
@@ -5989,21 +6066,22 @@ function stencilsView(){
         <button class="btn${f.flag?" p":""}" data-stcflag="1">${flagged.length} flagged</button>
         ${showCost?`<button class="btn" data-stccsv="1">${ic("file",14)}Download CSV</button>`:""}</span></header>
       <div class="sub" style="padding:8px 15px">${esc((S.stc.source||""))}. Prices are per stencil in the grade picked above; the price date says which list it came from.</div>
-      ${shown.length?`<div style="overflow-x:auto"><table style="table-layout:auto;width:100%"><thead><tr><th style="width:70px"></th><th>SKU</th><th>Stencil</th><th>Size</th><th style="text-align:right">Pcs</th><th style="text-align:right">Sq ft</th>
+      ${shown.length?`<div style="overflow-x:auto"><table style="table-layout:auto;width:100%"><thead><tr><th style="width:70px"></th><th>SKU</th><th>Stencil</th><th>Painted size</th><th>Sheet</th><th style="text-align:right">Pcs</th><th style="text-align:right">Sq ft</th>
         ${showCost?`<th>Material item</th><th style="text-align:right">Material</th><th style="text-align:right">CNC</th><th style="text-align:right">Cost</th>`:""}<th style="text-align:right">Price</th>${showCost?`<th style="text-align:right">Margin</th>`:""}<th>Price set</th><th>Flags</th></tr></thead><tbody>
         ${shown.map(s=>{const pr=stcPrice(s,gi);const r=showCost?stcCost(s,gi):null;const mg=(pr&&r&&r.cost!=null)?(pr-r.cost)/pr*100:null;const fl=stcFlags(s);
           return `<tr>
           <td>${s.img?`<img src="${esc(stcPicUrl(s))}" alt="" loading="lazy" style="width:62px;height:34px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:3px">`:`<span class="sub">no picture</span>`}</td>
           <td class="mono" style="white-space:nowrap"><button class="lnk mono" data-stcview="${esc(s.sku)}">${esc(s.sku)}</button></td>
-          <td style="max-width:320px;white-space:normal">${esc(s.n)}<div class="sub">${esc(s.cat||"")}</div></td>
-          <td class="mono" style="white-space:nowrap">${s.w&&s.h?esc(s.w+" × "+s.h+" in"):"—"}</td>
+          <td style="max-width:320px;white-space:normal"><button class="lnk" style="text-align:left" data-stcview="${esc(s.sku)}">${esc(s.n)}</button><div class="sub">${esc(s.cat||"")} · ${(function(){const d=stcDims(s);const w=stcWhat(s);return d.onePiece?`<b style="color:var(--danger-ink)">${esc(w)}</b>`:esc(w)})()}</div></td>
+          <td class="mono" style="white-space:nowrap">${(function(){const d=stcDims(s);return d.H?esc(d.W?d.H+"″ × "+d.W+"″":d.H+"″"+(d.chars?" letters":" tall")):"—"})()}</td>
+          <td class="mono" style="white-space:nowrap">${s.w&&s.h?esc(s.w+"″ × "+s.h+"″")+(stcDims(s).fits?"":` <span class="pill o" title="Smaller than the painted size — check the artwork">check</span>`):"—"}</td>
           <td class="mono" style="text-align:right">${esc(s.pc||1)}</td>
           <td class="mono" style="text-align:right">${stcSq(s)?Math.round(stcSq(s)*100)/100:"—"}</td>
           ${showCost?`<td style="max-width:180px;white-space:normal" class="sub">${r&&r.mat?esc(r.mat.name):`<span class="pill r">none</span>`}</td>
             <td class="mono" style="text-align:right;white-space:nowrap">${r&&r.cost!=null?money2(r.matCost):"—"}</td>
             <td class="mono" style="text-align:right;white-space:nowrap" title="${esc(r&&r.min!=null?r.min+" min":"")}">${r&&r.cost!=null?money2(r.labor):"—"}</td>`:""}
           ${showCost?`<td class="mono" style="text-align:right;white-space:nowrap" title="${esc(r&&r.why||r&&r.flags.join("; ")||"")}">${r&&r.cost!=null?money2(r.cost):`<span class="pill r">not costed</span>`}</td>`:""}
-          <td class="mono" style="text-align:right;font-weight:700;white-space:nowrap">${pr?money2(pr):"—"}</td>
+          <td class="mono" style="text-align:right;font-weight:700;white-space:nowrap">${pr?money2(pr):"—"}${pr&&Number(s.pc)>1?`<div class="sub" style="font-weight:400">${money2(pr/Number(s.pc))} a piece</div>`:""}</td>
           ${showCost?`<td style="text-align:right">${mg==null?`<span class="sub">—</span>`:`<span class="pill ${mg>=40?"g":mg>=25?"o":"r"}">${Math.round(mg)}%</span>`}</td>`:""}
           <td class="sub" style="white-space:nowrap">${esc(fmtDate(stcPd(s)))}</td>
           <td style="max-width:260px;white-space:normal">${fl.length?fl.map(x=>`<div class="sub" style="color:var(--red,#C00)">${esc(x)}</div>`).join(""):`<span class="sub">—</span>`}</td></tr>`}).join("")}
@@ -6015,10 +6093,17 @@ function stencilsView(){
 function stcViewModal(sku){const s=stcBySku(sku);if(!s)return;const showCost=can("cost");const fl=stcFlags(s);
   openModal(mshell(s.n,"proj",
     `<div style="display:flex;gap:16px;flex-wrap:wrap;padding:14px 15px">
-      ${s.img?`<img src="${esc(stcPicUrl(s))}" alt="" style="width:240px;max-width:100%;height:auto;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:4px">`:`<div class="empty" style="width:240px">No picture in the catalog</div>`}
+      <div style="width:300px;max-width:100%"><div class="k" style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink3);margin-bottom:4px">How it's measured</div>${stcDiagram(s,{color:(S.brand&&/^#[0-9a-f]{6}$/i.test(S.brand.brand||""))?S.brand.brand:"#D50101"})}
+        ${s.img&&!s.ph&&!stcDims(s).onePiece?`<img src="${esc(stcPicUrl(s))}" alt="" style="width:100%;margin-top:8px;height:auto;max-height:150px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:4px">`:""}</div>
       <div style="flex:1;min-width:220px"><div class="mono" style="font-weight:800">${esc(s.sku)}${s.stn?` <span class="sub">· price list ${esc(s.stn)}</span>`:""}</div>
         <div class="sub">${esc(s.cat||"")}</div>
-        <div style="margin-top:8px">Blank ${s.w&&s.h?esc(s.w+" × "+s.h+" in"):"size not in the catalog"} · ${esc(s.pc||1)} piece${Number(s.pc)>1?"s":""} · <b>${Math.round(stcSq(s)*100)/100} sq ft</b> of sheet${stcCfg().sq[s.sku]?" (your figure)":""}</div>
+        <div style="margin-top:8px;font-weight:700${stcDims(s).onePiece?";color:var(--danger-ink)":""}">${esc(stcWhat(s))}</div>
+        ${(function(){const d=stcDims(s);const q=x=>(Math.round(x*100)/100)+"″";return `<table style="margin-top:6px;width:auto;table-layout:auto"><tbody>
+          <tr><td class="sub" style="padding:2px 12px 2px 0">${d.chars&&!d.W?"Letter height":"Painted size"}</td><td><b>${d.H?(d.W?q(d.H)+" tall × "+q(d.W)+" wide":q(d.H)+(d.chars?" tall (widths vary by letter)":" tall")):"not in the name"}</b></td></tr>
+          <tr><td class="sub" style="padding:2px 12px 2px 0">Sheet${d.kit?" (each piece)":""}</td><td>${d.sw&&d.sh?q(d.sw)+" wide × "+q(d.sh)+" tall"+(d.fits?"":` <span class="pill o">check — smaller than the painted size</span>`):"not in the catalog"}</td></tr>
+          <tr><td class="sub" style="padding:2px 12px 2px 0">Pieces</td><td>${d.pc}${d.kit&&d.chars&&d.pc>=38?" — A–Z plus extra common letters and blanks":d.kit&&d.chars&&d.pc>=26&&d.pc<38?" — A–Z and blanks":""}</td></tr>
+          <tr><td class="sub" style="padding:2px 12px 2px 0">Sheet used</td><td>${Math.round(stcSq(s)*100)/100} sq ft${stcCfg().sq[s.sku]?" (your figure)":""}</td></tr></tbody></table>`})()}
+        ${stcDims(s).onePiece?`<div class="warn" style="margin-top:8px">This is <b>one shape</b> from a playground alphabet, priced as one piece. For the whole alphabet, look up the <b>151″ x 180″ Shape Alphabet</b> or an alphabet kit.</div>`:""}
         <div class="sub" style="margin-top:4px">Price set ${esc(fmtDate(stcPd(s)))} — ${s.src==="sep"?"the 1 Sep catalog":"the 25 Oct price list Matt approved"}${s.fix?" · "+esc(s.fix):""}</div>
         ${s.ph?`<div class="sub" style="margin-top:4px">The catalog picture is only an outline of the blank.</div>`:""}
         ${fl.length?`<div class="warn" style="margin-top:8px">${fl.map(esc).join("<br>")}</div>`:""}
@@ -6030,7 +6115,7 @@ function stcViewModal(sku){const s=stcBySku(sku);if(!s)return;const showCost=can
       ${STC_GRADES.map((g,i)=>{const pr=stcPrice(s,i);const r=stcCost(s,i);const mg=(pr&&r.cost!=null)?(pr-r.cost)/pr*100:null;
         return `<tr><td style="white-space:nowrap"><b>${esc(g.k)}</b></td>${showCost?`<td class="mono" style="text-align:right;white-space:nowrap">${r.cost!=null?money2(r.matCost):"—"}</td><td class="mono" style="text-align:right;white-space:nowrap">${r.cost!=null?money2(r.labor):"—"}</td>
           <td class="mono" style="text-align:right;font-weight:700;white-space:nowrap" title="${esc(r.why||r.flags.join("; "))}">${r.cost!=null?money2(r.cost):`<span class="pill r">${/sheet/.test(r.flags[0]||"")?"no sheet":/sq ft/.test(r.flags[0]||"")?"no sq ft":"not costed"}</span>`}</td>`:""}
-          <td class="mono" style="text-align:right;font-weight:700;white-space:nowrap">${pr?money2(pr):"—"}</td>${showCost?`<td style="text-align:right">${mg==null?"—":`<span class="pill ${mg>=40?"g":mg>=25?"o":"r"}">${Math.round(mg)}%</span>`}</td>`:""}</tr>`}).join("")}
+          <td class="mono" style="text-align:right;font-weight:700;white-space:nowrap">${pr?money2(pr):"—"}${pr&&Number(s.pc)>1?`<div class="sub" style="font-weight:400">${money2(pr/Number(s.pc))} a piece</div>`:""}</td>${showCost?`<td style="text-align:right">${mg==null?"—":`<span class="pill ${mg>=40?"g":mg>=25?"o":"r"}">${Math.round(mg)}%</span>`}</td>`:""}</tr>`}).join("")}
     </tbody></table></div>`,`<button class="btn" data-close="1">Close</button>`))}
 function stcMatModal(gi){const g=STC_GRADES[gi];if(!g)return;const c=stcCfg();
   const opts=itemList().filter(it=>/stencil|ldpe|hdpe|polyeth|alum|5052/i.test([it.cat,it.name,it.sku].join(" "))).sort((a,b)=>a.name.localeCompare(b.name));
@@ -6495,7 +6580,7 @@ function ordFindRows(q){const t=String(q||"").trim();if(!t)return [];
     .forEach(e=>out.push({key:"code:"+e.code,title:e.code+" — "+e.name,sub:e.sizes.length?"sizes "+e.sizes.slice(0,4).map(sizeLabel).join(", "):"MUTCD code",sell:null,sc:Math.min(findScore(t,e.code,e.name),findScore(t,e.code,e.code))}));
   // stencil sheet stock stays out of a sign search unless you ask for it (stencil, LDPE, HDPE, poly)
   const wantStc=/stencil|ldpe|hdpe|poly/i.test(t);
-  catRows(t,"").filter(r=>wantStc||r.kind!=="stencil").forEach(r=>out.push({key:r.key,title:findTitle(r),stcDemote:!wantStc&&r.kind==="stc",sub:[r.size?sizeLabel(r.size):"",r.kind==="sign"||r.kind==="stc"||r.kind==="web"?cleanTitle(r.grade):"",
+  catRows(t,"").filter(r=>wantStc||r.kind!=="stencil").forEach(r=>out.push({key:r.key,title:findTitle(r),stcDemote:!wantStc&&r.kind==="stc",sub:[r.kind==="stc"&&r.stc?stcShort(r.stc):r.size?sizeLabel(r.size):"",r.kind==="sign"||r.kind==="stc"||r.kind==="web"?cleanTitle(r.grade):"",
     r.kind==="web"?"website":r.kind==="stc"?"stencil":r.kind==="sign"?"workbook":r.byArea?"priced by size":""].filter(Boolean).join(" · "),sell:r.sell,img:r.img||"",sc:findScore(t,r.code||r.sku,r.title)+0.5}));
   const seen=new Set();return out.filter(x=>{if(seen.has(x.key))return false;seen.add(x.key);return true})
     .map((x,i)=>Object.assign(x,{i,sc:x.sc+(x.stcDemote?4:0)})).sort((a,b)=>a.sc-b.sc||a.i-b.i).slice(0,8)}
@@ -10272,7 +10357,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-93";
+const APP_VERSION="2026.11.25-94";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
