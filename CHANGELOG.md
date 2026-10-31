@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-101
+- Account page: the address shows in Details under phone and website (with a map link); when there isn't one, "Not on file — add it" opens the edit form.
+
 ## 2026.11.25-100 (Josh's 1:15 AM recheck)
 - Quote PDF opening sentence counts signs only — posts, anchors and hardware are said separately ("7 signs with 12 posts and hardware pieces").
 - Quote PDF: STOP (R1-1) and YIELD (R1-2) lines show the CRM's exact drawing of the standard face instead of a website photo, unless the project has its own artwork for the line.
