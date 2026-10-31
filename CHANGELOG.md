@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-111
+- Project stage path is a chevron bar like Salesforce's: finished stages green with a ✓, the current stage solid blue with white text, what's next grey; Closed lost shows solid red.
+
 ## 2026.11.25-110
 - Sidebar: Accounts, Contacts, Projects — the order you create them in.
 - "Show N more" under sign pictures and files now opens the rest even when the card is folded (it opens the card too), and stays open when the page redraws.
