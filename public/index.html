@@ -1141,7 +1141,7 @@ td > .cxl:first-child{margin-top:0}
 th{font-size:12px}
 .pill{font-size:12px}
 .hl-facts .v .lnk{font-size:inherit}
-.cx-web span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.cx-web span{white-space:normal;overflow-wrap:anywhere;max-width:100%}
 .cx-web{min-width:0}
 .rail-web{flex:0 0 auto;border-top:1px solid var(--line2);padding:4px 0}
 .rail-web .rail-i{color:var(--ink2)}
@@ -1251,7 +1251,8 @@ body:has(.modal) .updbar{display:none!important}
 .ev,.ev .evn{font-size:12px!important}
 .rail-g{font-size:12px}
 .nowrap{white-space:nowrap}
-.cx{max-width:100%}.cx span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;max-width:260px;display:inline-block;vertical-align:bottom}
+/* addresses, websites, emails and phones wrap onto a second line — never cut off with "…" */
+.cx{max-width:100%}.cx span{white-space:normal;overflow-wrap:anywhere;min-width:0;max-width:100%;display:inline}
 .btn.sm{font-size:12px}
 /* one primary + one secondary: the odd extra button looks fold into those two */
 html .btn.nextbar-go{background:var(--act)!important;border-color:var(--act)!important;color:#fff!important;font-weight:700}
@@ -10456,7 +10457,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-102";
+const APP_VERSION="2026.11.25-103";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -11692,7 +11693,7 @@ function vendorListView(){
           <div class="sub">${esc([v.city,v.state].filter(Boolean).join(", "))}</div></td>
         <td>${esc(v.type||"—")}</td>
         <td style="max-width:240px;white-space:normal;overflow-wrap:anywhere">${esc(v.contact||"—")}${v.phone?`<div class="cxl">${cxTel(v.phone)}</div>`:""}</td>
-        <td title="${esc(v.terms||"")}"><div style="max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(v.terms||"—")}</div></td><td style="max-width:140px;white-space:normal">${esc(v.leadTime||"—")}</td>
+        <td title="${esc(v.terms||"")}"><div style="max-width:260px;white-space:normal;overflow-wrap:anywhere">${esc(v.terms||"—")}</div></td><td style="max-width:140px;white-space:normal">${esc(v.leadTime||"—")}</td>
         <td class="mono">${(itemsOf(v.id).length+altItemsOf(v.id).length)||"—"}</td></tr>`).join("")}</tbody></table></div>`
     :`<div class="empty"><b>No vendors yet</b>Add who you buy sheeting, substrate, film, and hardware from.</div>`}
   </section></div>`;
