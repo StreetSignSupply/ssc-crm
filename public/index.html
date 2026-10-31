@@ -518,6 +518,28 @@ td.mono[style*="text-align:right"],th[style*="text-align:right"]{white-space:now
 .btn[data-log$=":call"],.btn[data-log*=":call:"]{--cb:#255CA3}
 .btn[data-email]{--cb:#1F6F78}
 .c-call{--cb:#255CA3}.c-email{--cb:#1F6F78}.c-note{--cb:#4F5964}.c-task{--cb:#A94E07}
+/* activity types each have their own colour — the buttons, the filter chips and the tags match */
+.ty-call{--tb:#E3EDFA;--tf:#1D4E8F;--te:#C3D6F1}
+.ty-email{--tb:#DFF1F2;--tf:#145A62;--te:#B8DEE1}
+.ty-meeting{--tb:#EFE4F7;--tf:#5A2C75;--te:#DCC6EA}
+.ty-note{--tb:#FFF3C7;--tf:#6E5200;--te:#EFD98A}
+.ty-task{--tb:#FCEEDD;--tf:#8F4405;--te:#F2D2AE}
+.ty-log{--tb:#ECEEF1;--tf:#3A424B;--te:#D5DAE0}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .ty-call{--tb:#1C2F48;--tf:#9CC4F2;--te:#294468}:root:not([data-theme="light"]) .ty-email{--tb:#143538;--tf:#8FD6DC;--te:#1C4A4E}:root:not([data-theme="light"]) .ty-meeting{--tb:#33223F;--tf:#D7B6EE;--te:#48305A}:root:not([data-theme="light"]) .ty-note{--tb:#3E3410;--tf:#F2D46B;--te:#5A4A14}:root:not([data-theme="light"]) .ty-task{--tb:#3F2A12;--tf:#F2B46E;--te:#5A3A14}:root:not([data-theme="light"]) .ty-log{--tb:#2E3238;--tf:#CBD1D8;--te:#3E444C}}
+:root[data-theme="dark"] .ty-call{--tb:#1C2F48;--tf:#9CC4F2;--te:#294468}
+:root[data-theme="dark"] .ty-email{--tb:#143538;--tf:#8FD6DC;--te:#1C4A4E}
+:root[data-theme="dark"] .ty-meeting{--tb:#33223F;--tf:#D7B6EE;--te:#48305A}
+:root[data-theme="dark"] .ty-note{--tb:#3E3410;--tf:#F2D46B;--te:#5A4A14}
+:root[data-theme="dark"] .ty-task{--tb:#3F2A12;--tf:#F2B46E;--te:#5A3A14}
+:root[data-theme="dark"] .ty-log{--tb:#2E3238;--tf:#CBD1D8;--te:#3E444C}
+.btn.tyb{background:var(--tb)!important;color:var(--tf)!important;border-color:var(--te)!important;font-weight:700}
+.btn.tyb .ic{color:var(--tf)!important}
+.btn.tyb:hover{filter:brightness(.97);border-color:var(--tf)!important}
+.btn.tyb.on{background:var(--tf)!important;color:var(--card)!important;border-color:var(--tf)!important}
+.btn.tyb.on .ic{color:var(--card)!important}
+.btn.tyb .n{display:inline-block;min-width:16px;padding:0 5px;margin-left:2px;border-radius:999px;background:rgba(255,255,255,.55);font-size:11px;line-height:16px;text-align:center}
+.btn.tyb.on .n{background:rgba(255,255,255,.25)}
+
 .c-file{--cb:#526E7C}.c-cal{--cb:#7A3E9D}.c-quote{--cb:#35635B}.c-money{--cb:#1F7A42}.c-signed{--cb:#1F7A42}
 .pickone{display:block}
 .nextbar{display:flex;gap:13px;align-items:center;flex-wrap:wrap;border-radius:var(--r2);padding:12px 16px;margin-bottom:16px;
@@ -10440,9 +10462,9 @@ const ATYPE={
   call:{l:"Call",c:"b",i:"call",bg:"#255CA3"},
   email:{l:"Email",c:"t",i:"email",bg:"#1F6F78"},
   meeting:{l:"Meeting",c:"v",i:"meeting",bg:"#7A3E9D"},
-  note:{l:"Note",c:"s",i:"note",bg:"#4F5964"},
+  note:{l:"Note",c:"y",i:"note",bg:"#9A7300"},
   task:{l:"Task",c:"o",i:"task",bg:"#A94E07"},
-  log:{l:"Log",c:"",i:"clock",bg:"var(--ink3)"}
+  log:{l:"Log",c:"s",i:"clock",bg:"var(--ink3)"}
 };
 function actKind(x){return x.kind==="task"?"task":(x.type||x.kind||"note")}
 function projActivity(pid){
@@ -10457,7 +10479,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-104";
+const APP_VERSION="2026.11.25-105";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -10652,10 +10674,10 @@ function actionBar(groups){
 }
 function actButtons(kind,id){
   const k=esc(kind),i=esc(String(id));
-  return `<button class="btn sm cbtn c-call" data-log="${k}:${i}:call">${ic("call",14)}Log call</button>
-    <button class="btn sm cbtn c-email" data-log="${k}:${i}:email">${ic("email",14)}Log email</button>
-    <button class="btn sm cbtn c-note" data-log="${k}:${i}:note">${ic("note",14)}Note</button>
-    <button class="btn sm cbtn c-task" data-log="${k}:${i}:task">${ic("task",14)}Task</button>`;
+  return `<button class="btn sm cbtn c-call tyb ty-call" data-log="${k}:${i}:call">${ic("call",14)}Log call</button>
+    <button class="btn sm cbtn c-email tyb ty-email" data-log="${k}:${i}:email">${ic("email",14)}Log email</button>
+    <button class="btn sm cbtn c-note tyb ty-note" data-log="${k}:${i}:note">${ic("note",14)}Note</button>
+    <button class="btn sm cbtn c-task tyb ty-task" data-log="${k}:${i}:task">${ic("task",14)}Task</button>`;
 }
 function actFilterBar(items){
   const counts={};items.forEach(x=>{const k=actKind(x);counts[k]=(counts[k]||0)+1});
@@ -10663,8 +10685,8 @@ function actFilterBar(items){
   if(keys.length<2)return "";
   return `<div style="padding:8px 14px;border-bottom:1px solid var(--line2);display:flex;gap:6px;flex-wrap:wrap">
     <button class="btn sm ${!S.actFilter?"p":""}" data-actf="">All ${items.length}</button>
-    ${keys.map(k=>`<button class="btn sm ${S.actFilter===k?"p":""}" data-actf="${k}"
-      title="${esc(ATYPE[k].l)}">${ic(ATYPE[k].i,14)}${esc(ATYPE[k].l)} ${counts[k]}</button>`).join("")}</div>`;
+    ${keys.map(k=>`<button class="btn sm tyb ty-${k}${S.actFilter===k?" on":""}" data-actf="${k}"
+      title="Show only ${esc(ATYPE[k].l.toLowerCase())}s">${ic(ATYPE[k].i,14)}${esc(ATYPE[k].l)} <span class="n">${counts[k]}</span></button>`).join("")}</div>`;
 }
 
 function projectRec(id){
