@@ -6111,6 +6111,13 @@ function stcDims(s){if(!s)return {};const n=String(s.n||"");
   // a sheet no bigger than the painted area means the catalog's sheet size is a guess
   const fits=!(sw&&sh&&H)||(W?((sw>=W&&sh>=H)||(sw>=H&&sh>=W)):(sh>=H||sw>=H));
   return {H,W,pc,sw,sh,chars,kit,onePiece,fits}}
+// "Show N more" is handled on the click itself, so a redraw in between can't swallow it: the choice is remembered per card
+document.addEventListener("click",e=>{const sm=e.target&&e.target.closest&&e.target.closest("details.fmore > summary");if(!sm)return;
+  e.preventDefault();e.stopPropagation();const d=sm.parentElement;const c=d.closest(".card");const k=c&&c.getAttribute("data-czkey");
+  const want=!d.open;S._fmOpen=S._fmOpen||{};if(k)S._fmOpen[k+"@"+location.hash]=want;
+  if(want&&c&&c.classList.contains("collapsed")&&k){try{toggleCz(k,false)}catch(e2){c.classList.remove("collapsed")}}
+  const all=k?document.querySelectorAll('.card[data-czkey="'+k.replace(/"/g,'\\"')+'"] details.fmore'):[d];
+  (all.length?all:[d]).forEach(x=>{x.open=want})},true);
 document.addEventListener("toggle",e=>{const d=e.target;if(!d||!d.matches||!d.matches("details.fmore"))return;const c=d.closest(".card");const k=c&&c.getAttribute("data-czkey");
   S._fmOpen=S._fmOpen||{};if(k)S._fmOpen[k+"@"+location.hash]=d.open;
   // a folded card shows only its first pictures — opening "Show more" opens the card too
@@ -10531,7 +10538,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-111";
+const APP_VERSION="2026.11.25-112";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
