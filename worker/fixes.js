@@ -1,24 +1,20 @@
-// Matt's list (10/31 12:19 AM): merge the two EC Red 1172 36in records into EC-1172-36 (stock moves and history carried over,
-// the duplicate binned only after), restore P-2036 from the recycle bin, and say what WO 1020 has pulled. Counts only.
+// look only: tasks vs bell notices vs task emails; Q-1024's lines (kinds and picture sources); win rate inputs. Counts only.
 (async (T) => {
-  const S = T.S, out = {}; const now = Date.now();
-  const keep = [...S.items.values()].find((i) => !i.deleted && String(i.sku || "").toUpperCase() === "EC-1172-36");
-  const dup = [...S.items.values()].find((i) => !i.deleted && i !== keep && !i.sku && /1172/.test(i.name || "") && /36/.test(i.name || ""));
-  if (keep && dup) {
-    const txs = [...S.invtx.values()].filter((t) => t.itemId === dup.id || t.swapFor === dup.id);
-    for (const t of txs) await T.push("invtx/" + t.id, Object.assign({}, t.itemId === dup.id ? { itemId: keep.id } : {}, t.swapFor === dup.id ? { swapFor: keep.id } : {}, { mergedFrom: dup.id }));
-    const oh = (Number(keep.onHand) || 0) + (Number(dup.onHand) || 0);
-    await T.push("items/" + keep.id, { onHand: oh, updatedAt: now });
-    const h = T.histOf("item", dup.id) || [];
-    if (h.length) await T.recordHistory("item", keep.id, h.map((e) => Object.assign({}, e, { n: "(from the merged duplicate) " + String(e.n || "") })));
-    await T.recordHistory("item", keep.id, [{ f: "Merged", o: "", n: "Merged the duplicate record \"" + dup.name + "\" into this one — " + txs.length + " stock movement" + (txs.length === 1 ? "" : "s") + " and its history moved here", ev: 1 }]);
-    await T.push("items/" + dup.id, { deleted: true, deletedAt: now, deletedBy: "AI", deletedWith: "", mergedInto: keep.id, updatedAt: now });
-    await T.recordHistory("item", dup.id, [{ f: "Merged", o: "", n: "Merged into EC-1172-36 (stock movements and history moved there)", ev: 1 }]);
-    out.merge = { tx: txs.length, hist: h.length, onHand: oh };
-  } else out.merge = { keep: !!keep, dup: !!dup };
-  const p = [...S.projects.values()].find((x) => String(x.num) === "2036");
-  if (p && p.deleted) { await T.restore("project", p.id); out.p2036 = "restored"; } else out.p2036 = p ? "not in bin" : "missing";
-  await new Promise((r) => setTimeout(r, 4000));
-  out.wo1020 = T.txOfJob(1020).map((t) => { const i = S.items.get(t.itemId); return t.type + ":" + (i ? (i.sku || i.name || "").slice(0, 16) : "?") + ":" + t.qty; });
+  const S = T.S, out = {};
+  const tasks = [...S.activity.values()].filter((a) => !a.deleted && (a.kind === "task" || a.type === "task"));
+  out.tasks = tasks.length; out.assigned = tasks.filter((a) => a.assigneeId).length;
+  out.taskNoAssignee = tasks.filter((a) => !a.assigneeId).length;
+  out.byAI = tasks.filter((a) => a.who === "AI" || a.assignedByName === "AI" || !a.assignedById).length;
+  const nts = [...S.notifications.values()]; out.notes = nts.length;
+  out.tasksWithNote = tasks.filter((a) => nts.some((n) => n.taskId === a.id)).length;
+  const team = [...S.team.values()].filter((t) => !t.deleted); out.team = team.length;
+  out.assigneeNotTeam = tasks.filter((a) => a.assigneeId && !S.team.get(a.assigneeId)).length;
+  const db = T.getDb(); try { const m = await db.collection("mail").get(); const d = m.docs.map((x) => x.data());
+    out.mail = { all: d.length, notice: d.filter((x) => x.kind === "notice").length, legacy: d.filter((x) => !x.status && !x.kind).length, legacySent: d.filter((x) => !x.kind && x.status === "sent").length, failed: d.filter((x) => x.status === "failed").length,
+      errs: [...new Set(d.filter((x) => x.status === "failed").map((x) => String(x.err || x.error || "").replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "<e>").slice(0, 60)))].slice(0, 4) }; } catch (e) { out.mail = "err " + e.message; }
+  // newest few tasks: what made them
+  out.recent = tasks.sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 6).map((a) => ({ at: a.at, by: a.assignedById ? (a.assignedById === a.assigneeId ? "self" : "other") : "none", src: a.feedId ? "agents" : a.who === "AI" ? "AI" : "crm", note: nts.some((n) => n.taskId === a.id) }));
+  const p = [...S.projects.values()].find((x) => !x.deleted && (x.quote === "Q-1024" || String(x.quote || "").indexOf("1024") >= 0));
+  out.q = p ? { num: p.num, lines: (p.orderLines || []).map((l) => (T.isCharge(l) ? "chg" : T.lineProd(l)) + ":" + (l.qty || "") + ":" + (/stop|R1-1/i.test((l.desc || "") + (l.code || "")) ? "STOP pic=" + (function () { try { const u = T.linePic(p, l); return u ? (/^data:/.test(u) ? "data" + u.length : u.slice(0, 50)) : "none"; } catch (e) { return "err"; } })() + " fb=" + (function () { try { const u = T.picFb(l); return u ? (/^data:/.test(u) ? "data" : u.slice(0, 40)) : "none"; } catch (e) { return "err"; } })() + " web=" + String(l.webImg || "").slice(0, 50) : "")) } : "no Q-1024";
   return out;
 })
