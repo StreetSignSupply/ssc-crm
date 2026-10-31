@@ -1,5 +1,12 @@
 # What changed
 
+## 2026.11.25-100 (Josh's 1:15 AM recheck)
+- Quote PDF opening sentence counts signs only — posts, anchors and hardware are said separately ("7 signs with 12 posts and hardware pieces").
+- Quote PDF: STOP (R1-1) and YIELD (R1-2) lines show the CRM's exact drawing of the standard face instead of a website photo, unless the project has its own artwork for the line.
+- Quote PDF materials promise names the gauges actually on the quote (".063 and .080 aluminum, as listed on each line") instead of ".080 aluminum unless noted".
+- Task notices: every task given to someone — your own, someone else's, and the CRM's automatic follow-ups — now gets a bell notice and a "Task for you" email from the mail worker, once per assignment (reassigning sends a new one). Task-done emails go through the same send queue.
+- Win rate shows what it's out of ("5 won · 0 lost, last 6 months") and leaves test projects out.
+
 ## 2026.11.25-99 (Josh's v97 recheck)
 - A stop's blank: the gauge comes first. A .125 stop with no .125 octagon blank takes the .125 blank of its size — never a .080 octagon (P-2014 lines 1.1–1.4 were about $78 low).
 - Cost source read from a vendor price note: "EST … (not quoted)" now reads as Estimate (it was being read as Quote); "paid" reads as Invoice.

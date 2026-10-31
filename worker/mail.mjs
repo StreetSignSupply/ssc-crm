@@ -252,6 +252,25 @@ async function taskMail() {
   const mine = (t, a) => a.assigneeId ? a.assigneeId === t.id : a.whoId ? a.whoId === t.id : String(a.who || "").toUpperCase() === String(t.initials || "").toUpperCase();
   const link = (a) => "https://crm.streetsignsupply.com/#/" + (a.recType === "project" ? "project/" : a.recType === "job" ? "job/" : a.recType === "contact" ? "contact/" : "account/") + a.recId;
   const line = (a) => "• " + String(a.text || "").slice(0, 140) + (a.due ? " (due " + a.due + ")" : "") + "\n  " + link(a);
+  // assignment notices: the bell and an email for every task given to someone — yours, someone else's, and the CRM's own
+  // follow-ups — once per assignment (reassigning sends a new one). Tasks older than two days are marked quietly.
+  const allTeam = (await fs.collection("team").get()).docs.map((d) => Object.assign({ id: d.id }, d.data())).filter((t) => !t.deleted);
+  const bells = (await fs.collection("notifications").where("kind", "==", "task-assigned").get()).docs.map((d) => d.data());
+  const recPath = (a) => (a.recType === "project" ? "project/" : a.recType === "job" ? "job/" : a.recType === "contact" ? "contact/" : "account/") + a.recId;
+  for (const a of tasks.filter((x) => x.assigneeId && (Number(x.assignNoticed) || 0) < (Number(x.assignedAt) || Number(x.at) || 1))) {
+    const when = Number(a.assignedAt) || Number(a.at) || 0;
+    if (when < Date.now() - 2 * 864e5) { await a._ref.set({ assignNoticed: Date.now() }, { merge: true }); continue; }
+    const who = allTeam.find((t) => t.id === a.assigneeId); if (!who) { await a._ref.set({ assignNoticed: Date.now() }, { merge: true }); continue; }
+    const txt = String(a.text || "").slice(0, 300) + (a.due ? " — due " + a.due : "");
+    if (!bells.some((n) => n.taskId === a.id && n.toId === who.id && (Number(n.at) || 0) >= when - 120000)) {
+      const nid = "nt" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      await fs.doc("notifications/" + nid).set({ id: nid, toId: who.id, fromId: a.assignedById || "", fromName: a.assignedByName || "the CRM", kind: "task-assigned", text: txt, link: recPath(a), taskId: a.id, at: Date.now(), read: false, deleted: false });
+      n.bell = (n.bell || 0) + 1; }
+    if (isOurs(who.email)) {
+      await fs.collection("mail").add({ to: [who.email], status: "queued", kind: "notice", at: Date.now(), message: { subject: "Task for you: " + String(a.text || "").slice(0, 70),
+        text: txt + "\n\nFrom " + (a.assignedByName || "the CRM") + "\n\nOpen it: " + link(a) + "\nAll your tasks: https://crm.streetsignsupply.com/#/tasks" } });
+      n.assignMail = (n.assignMail || 0) + 1; }
+    await a._ref.set({ assignNoticed: Date.now() }, { merge: true }); }
   if (mtHour() >= 7 && sy.digestDay !== today) {
     for (const t of team) { const due = tasks.filter((a) => mine(t, a) && a.due && a.due <= today); if (!due.length) continue;
       const over = due.filter((a) => a.due < today), now0 = due.filter((a) => a.due === today);
