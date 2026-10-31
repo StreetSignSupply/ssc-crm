@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-102
+- Account page: the account name shows at the top of Details.
+
 ## 2026.11.25-101
 - Account page: the address shows in Details under phone and website (with a map link); when there isn't one, "Not on file — add it" opens the edit form.
 
