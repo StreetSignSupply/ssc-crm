@@ -9275,7 +9275,7 @@ const PAGE_ORDER={
                 ["drafts","activity","billing","close-out"]]},
     center:"activity",nonum:true},
   account:{steps:[],center:"activity",
-    after:["details","billing","contacts","projects","open work orders","files","activity","field history"],
+    after:["details","billing","contacts","projects","open work orders","project archive","files","activity","field history"],
     fixed:{tri:[["details","billing","contacts"],["activity"],["files","field history"]],
            two:[["details","billing","contacts"],["activity","files","field history"]]}}
 };
@@ -9291,7 +9291,7 @@ function orderPage(){
     :title(x).indexOf(m)===0));if(c)used.add(c);return c};
   // Tables need the full width on a laptop; on a wide screen half the page is room enough,
   // so everything flows into the two columns.
-  const WIDE=innerWidth>=1700&&!(spec.center&&innerWidth>=950)?["work orders","open work orders","items to make","follow-ups"]:["work orders","quote lines","quote lines","follow-ups","items to make","open work orders","projects"];
+  const WIDE=innerWidth>=1700&&!(spec.center&&innerWidth>=950)?["work orders","open work orders","items to make","follow-ups"]:["work orders","quote lines","quote lines","follow-ups","items to make","open work orders","projects","project archive"];
   const isWide=c=>WIDE.some(w=>title(c).indexOf(w)===0);
   // 1. the order
   const seq=[];let step=0;
@@ -10361,14 +10361,17 @@ function projRows(ps,arch){
 function relProjects(ps,aid){
   const arch=ps.filter(isClosed);
   const open=ps.filter(p2=>!isClosed(p2));
+  // open work and finished work are two different cards: Projects (what's live) and Project archive (closed won or lost)
   return `<section class="card flush wide"><header><span class="oi sm oi-proj">${ic("project",14)}</span><h2>Projects</h2>
     <span class="n">${open.length} open</span>
-    <span class="sp">
-      ${arch.length?`<button class="btn sm" data-goarch="${esc(aid)}">${arch.length} archived</button>`:""}
-      <button class="btn sm p" data-new="project:${esc(aid)}">New project</button></span></header>
-    ${open.length||arch.length?(open.length?"":`<div class="empty" style="min-height:0;padding:14px 18px"><b>Nothing open for this account</b></div>`)+projRows(open,arch)
-    :`<div class="empty"><b>Nothing open for this account</b>Every order, bid, or reorder this account gives you is its own project, with its own files.</div>`}
-  </section>`;
+    <span class="sp"><button class="btn sm p" data-new="project:${esc(aid)}">New project</button></span></header>
+    ${open.length?projRows(open)
+    :`<div class="empty" style="min-height:0;padding:16px 18px"><b>Nothing open for this account</b>${arch.length?"Finished projects are in the Project archive below.":"Every order, bid, or reorder this account gives you is its own project, with its own files."}</div>`}
+  </section>
+  ${arch.length?`<section class="card flush wide"><header><span class="oi sm oi-file">${ic("archive",14)}</span><h2>Project archive</h2>
+    <span class="n">${arch.length}</span>
+    <span class="sub">Closed won and closed lost — newest first.</span></header>
+    ${projRows(arch.slice().sort((a,b)=>(Number(b.num)||0)-(Number(a.num)||0)))}</section>`:""}`;
 }
 function relJobs(js,title){
   return `<section class="card flush wide"><header><span class="oi sm oi-job">${ic("job",14)}</span><h2>${esc(title||"Work orders")}</h2>
@@ -10538,7 +10541,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-112";
+const APP_VERSION="2026.11.25-113";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
