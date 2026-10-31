@@ -2836,7 +2836,10 @@ function isBlankItem(it){return !!it&&(/^BLK-/i.test(String(it.sku||""))||/\bbla
 // BLK-080-2424O → gauge 080, 24 × 24 = 576 sq in, shape O; BLK-EXT-0636 → gauge EXT, 216 sq in
 function blankDims(it){const m=String(it&&it.sku||"").toUpperCase().match(/^BLK-([A-Z0-9]+)-(\d{2})(\d{2})([A-Z]*)/);
   if(!m)return null;const a=+m[2],b=+m[3];if(!a||!b)return null;return {g:m[1],a,b,sqin:a*b,shape:m[4]||""}}
-function srcGuess(it){const t=String(it&&it.vendorSource||"");return /invoice|\binv\b|USS\d/i.test(t)?"invoice":/quote|\bq\d|quot/i.test(t)?"quote":""}
+function srcGuess(it){const t=String(it&&it.vendorSource||"");
+  // "EST - … (not quoted)" is an estimate, not a quote
+  if(/^\s*est\b|estimate|not quoted/i.test(t))return "estimate";
+  return /invoice|\binv\b|USS\d|\bpaid\b/i.test(t)?"invoice":/quote|\bq\d|quot/i.test(t)?"quote":""}
 function blankCostInfo(it,depth){depth=depth||0;if(!it)return {cost:0,src:""};
   if(it.costSrc==="cut"&&it.cutFrom&&depth<4){const par=S.items.get(it.cutFrom);
     if(par&&!par.deleted){const pc=blankCostInfo(par,depth+1);const lab=Number(it.cutLabor)||0;
@@ -7244,7 +7247,9 @@ function pickBlank(sz,gauge,shape){
   });
   if(!c.length)return null;
   if(shape){const o=c.filter(i=>new RegExp("\\d"+shape+"$","i").test(String(i.sku)));const og=gauge?o.filter(i=>String(i.sku).indexOf("-"+gauge+"-")>=0):[];
-    const pick=(og.length?og:o);if(pick.length)return pick.find(i=>Number(i.cost)>0)||pick[0]}
+    // the gauge comes first: a .125 stop with no .125 octagon blank takes a .125 blank of its size, never a .080 octagon
+    const hasGauge=gauge&&c.some(i=>String(i.sku).indexOf("-"+gauge+"-")>=0);
+    const pick=og.length?og:(hasGauge?[]:o);if(pick.length)return pick.find(i=>Number(i.cost)>0)||pick[0]}
   if(gauge){const g=c.filter(i=>String(i.sku).indexOf("-"+gauge+"-")>=0);if(g.length)return g.find(i=>Number(i.cost)>0)||g[0]}
   // no blank of that gauge: never the heavy .125 unless that's all there is
   return c.find(i=>String(i.sku).indexOf("-080-")>=0)||c.find(i=>String(i.sku).indexOf("-125-")<0)||c[0];
@@ -10443,7 +10448,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-98";
+const APP_VERSION="2026.11.25-99";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}

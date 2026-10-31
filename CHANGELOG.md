@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-99 (Josh's v97 recheck)
+- A stop's blank: the gauge comes first. A .125 stop with no .125 octagon blank takes the .125 blank of its size — never a .080 octagon (P-2014 lines 1.1–1.4 were about $78 low).
+- Cost source read from a vendor price note: "EST … (not quoted)" now reads as Estimate (it was being read as Quote); "paid" reads as Invoice.
+
 ## 2026.11.25-98 (no more crossed-out lines)
 - Activity: emails, notes and calls are never crossed out. They're a record, not a to-do; a logged email reads like any other. Only tasks show a finished state, the way Salesforce does it: a ticked checkbox, a green "Completed" tag and a "done … by …" tag, with the text in normal type.
 - Calendar: a shipped job shows a green ✓ instead of a line through it.
