@@ -870,6 +870,14 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
 .act .c time{font-size:12px;color:var(--ink3);font-family:"Overpass Mono",monospace}
 /* each entry breathes: type and who on one line, the subject on its own, the message, then when */
 .act li{gap:14px;padding:16px 18px}
+/* Log call · Log email · Note · Task — four equal buttons across the card; the filter chips share the width the same way */
+.actrowwrap{padding:12px 14px;border-bottom:1px solid var(--line2)}
+.actrow4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;width:100%}
+.actrow4 .btn{justify-content:center;width:100%;min-height:34px;white-space:nowrap;padding-left:4px;padding-right:4px;gap:5px}
+.actg-b .actrow4{flex:1 1 100%}
+.actfil{display:flex;gap:10px;flex-wrap:wrap;padding:10px 18px;border-bottom:1px solid var(--line2)}
+.actfil .btn{flex:1 1 0;justify-content:center;min-width:max-content}
+@media (max-width:520px){.actrow4{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .act .ahd{display:flex;gap:8px 10px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
 .act .ahd .sub{font-size:12.5px}
 .act .asub{font-weight:800;font-size:14.5px;line-height:1.35;margin:2px 0 4px;color:var(--ink)}
@@ -10490,7 +10498,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-107";
+const APP_VERSION="2026.11.25-108";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -10685,16 +10693,16 @@ function actionBar(groups){
 }
 function actButtons(kind,id){
   const k=esc(kind),i=esc(String(id));
-  return `<button class="btn sm cbtn c-call tyb ty-call" data-log="${k}:${i}:call">${ic("call",14)}Log call</button>
+  return `<div class="actrow4"><button class="btn sm cbtn c-call tyb ty-call" data-log="${k}:${i}:call">${ic("call",14)}Log call</button>
     <button class="btn sm cbtn c-email tyb ty-email" data-log="${k}:${i}:email">${ic("email",14)}Log email</button>
     <button class="btn sm cbtn c-note tyb ty-note" data-log="${k}:${i}:note">${ic("note",14)}Note</button>
-    <button class="btn sm cbtn c-task tyb ty-task" data-log="${k}:${i}:task">${ic("task",14)}Task</button>`;
+    <button class="btn sm cbtn c-task tyb ty-task" data-log="${k}:${i}:task">${ic("task",14)}Task</button></div>`;
 }
 function actFilterBar(items){
   const counts={};items.forEach(x=>{const k=actKind(x);counts[k]=(counts[k]||0)+1});
   const keys=["call","email","meeting","note","task","log"].filter(k=>counts[k]);
   if(keys.length<2)return "";
-  return `<div style="padding:8px 14px;border-bottom:1px solid var(--line2);display:flex;gap:6px;flex-wrap:wrap">
+  return `<div class="actfil">
     <button class="btn sm ${!S.actFilter?"p":""}" data-actf="">All ${items.length}</button>
     ${keys.map(k=>`<button class="btn sm tyb ty-${k}${S.actFilter===k?" on":""}" data-actf="${k}"
       title="Show only ${esc(ATYPE[k].l.toLowerCase())}s">${ic(ATYPE[k].i,14)}${esc(ATYPE[k].l)} <span class="n">${counts[k]}</span></button>`).join("")}</div>`;
@@ -11538,9 +11546,8 @@ function activityCard(kind,id){
   if(S.actFilter)a=a.filter(x=>actKind(x)===S.actFilter);
   const tools=kind==="project"?actionBar([{l:"Log",html:actButtons("project",id)}]):"";
   return `<section class="card flush actcard"><header><h2>Activity</h2><span class="n">${all.length}</span>
-    ${tools?"":`<span class="sp">${actButtons(kind,id)}</span>`}
     <span class="sub">Calls, emails, meetings, dated notes and tasks${kind==="project"?" — including its work orders":""}. Open tasks stay on top.</span></header>
-    ${tools}
+    ${tools||`<div class="actrowwrap">${actButtons(kind,id)}</div>`}
     ${followUpBar(kind,id)?`<div style="padding:0 15px 2px">${followUpBar(kind,id)}</div>`:""}
     ${actFilterBar(all)}
     ${a.length?`<ul class="act">${a.slice(0,50).map(activityRow).join("")}</ul>`
