@@ -1,5 +1,12 @@
 # What changed
 
+## 2026.11.25-95 (cost fixes, round 2)
+- Signs are costed as printed by default: blank + white/base sheeting + HP latex ink at $0.39/sq ft on 63% of the face. A sign line's "Legend" choice can be set to "Legend: cut EC film (small order)" — then the EC film layer is costed instead of ink (the line's legend colours, or one EC colour at the default coverage when none are picked).
+- Stop signs (R1-1) are costed as white sheeting of their grade (DG3 White 4090 for DG3) plus red ink at 63% — about $1.54 for a 30x30 — never red sheeting. Cut by hand, the red is EC red film.
+- A bare blank whose line says "extruded" is costed from the extruded blade blank of its size (BLK-EXT-…), not a flat .125 blank.
+- Costs and prices → Signs on the cost sheet: "Costs us today" is worked out from today's item costs, the same way a quote line is (printed or cut film shown), next to the workbook's cost; the price shows as text, with the target-margin price when the workbook has none.
+- Costs and prices → Materials: cost per unit, sq ft per unit and price show as text above their edit boxes; cost per sq ft only for things sold by area (posts and hardware show —).
+
 ## 2026.11.25-94 (stencils: how they're measured)
 - Stencils page opens with "How stencils are measured": two drawings and plain rules — the size in the name is the painted image (letter height for alphabet and number kits; height × width when there are two numbers), the sheet is bigger to catch overspray, kits are one character a piece.
 - Every stencil's card has its own measurement drawing: the sheet with its width and height, the painted letter or area inside it with its size, plus letter height / painted size, sheet size (each piece on a kit), pieces and sq ft in words. A catalog sheet smaller than the painted size is marked "check".
