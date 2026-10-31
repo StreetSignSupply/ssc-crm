@@ -1,4 +1,4 @@
-// Oct 30 look-only run #7 (Josh's cost audit preview): NOTHING is written. For the jobs in the audit: the margin the CRM
+// Oct 30 look-only run #7b (Josh's cost audit preview): NOTHING is written. For the jobs in the audit: the margin the CRM
 // shows now (with the costs locked on the quote), and what it would be with the fixed costing and Josh's corrected blank
 // costs applied in memory only. Lists any line still missing a cost part (SKUs and counts only, no names).
 (async (T) => {
@@ -18,5 +18,5 @@
     const ms = (p.orderLines || []).filter((l) => l && !T.isCharge(l)).map((l) => T.quoteLineCostLive(l)).filter((c) => c.src === "missing").map((c) => (c.missing || []).join("+").replace(/[^A-Za-z0-9 .x×"+-]/g, "").slice(0, 40));
     if (ms.length) out.missing["P-" + n] = ms; });
   out.sheetNoCost = (S.sheet && S.sheet.rows || []).filter((r) => !(Number(r.cost) > 0)).length + " of " + (S.sheet && S.sheet.rows || []).length;
-  return out;
+  return { f31: out.fixed["P-2031"], f32: out.fixed["P-2032"], missing: out.missing, items: out.items, sheet: out.sheetNoCost };
 })
