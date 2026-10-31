@@ -1437,7 +1437,7 @@ function routeNote(j){
   const pd=prodOf(j);
   const cp0=customProd(pd);
   if(cp0)return {kind:"sub",t:"These steps come from "+cp0.label+" in Settings — change them there and every new work order follows."};
-  if(pd==="sign"&&methodOf(j)==="print"&&noLamState(j)==="all")return {kind:"warn",t:"No overlaminate — the customer declined the clear overlaminate on every printed face, so the 3M MCS traffic warranty does not attach."};
+  // no overlaminate is the normal case now (it's added only when a customer asks) — nothing to warn about
   if(pd==="sign")return (methodOf(j)==="print")
     ?{kind:"warn",t:"Printed face — 1170C clear or 1160i over the print, or the 3M MCS traffic warranty does not attach."}
     :{kind:"sub",t:"Cut film over sheeting carries the sheeting's own warranty. No overlay needed."};
@@ -1818,8 +1818,10 @@ function payDueDate(p){const a=acct(p&&p.accountId);const b=p&&p.billDate;if(!b)
 function isPastTerms(p){const a=acct(p&&p.accountId);if(a&&/prepay|card/i.test(a.terms||""))return false;
   const b=billedAt(p);return !!(b&&(Date.now()-b)/86400000>termsGrace(a))}
 // "$52.10" or "1,050.43" typed into a price box is still a price
+// the clear overlaminate goes on only when the line asks for it (lam: true) — off unless the customer wants it
+function lamOff(x){return !(x&&x.lam===true)}
 function tidyLine(l){if(!l||typeof l!=="object")return l;const t=v=>{if(typeof v!=="string"||!/[$,\s]/.test(v))return v;const n=csvNum(v);return n===""?v:String(n)};
-  const o=Object.assign({},l);o.price=t(o.price);if(o.cost!==undefined)o.cost=t(o.cost);if(typeof o.qty==="string")o.qty=t(o.qty);return o}
+  const o=Object.assign({},l);o.noLam=o.lam!==true;o.price=t(o.price);if(o.cost!==undefined)o.cost=t(o.cost);if(typeof o.qty==="string")o.qty=t(o.qty);return o}
 // what has actually been billed so far: the deposit until it's invoiced, then the whole project
 function billedValue(p){return billState(p)==="deposit"?Math.min(Number(p.depositAmt)||0,projValue(p)||Infinity):projValue(p)}
 const openProjects=()=>live(S.projects).filter(p=>!isClosed(p));
@@ -2738,7 +2740,7 @@ function priceOfLine(j,it){
    that day (costLock), with a key of what the line is made of. Margins use the copy, so changing an item's
    cost later never moves an old job's margin. Edit what a line is made of and its copy is retaken; an open
    quote has Refresh costs to retake them all. */
-function costKey(l){return [l.code,l.size,l.grade,l.build,l.noLam?1:0,l.sub,l.legend,(l.legends||[]).join("+")].map(x=>String(x==null?"":x)).join("|")}
+function costKey(l){return [l.code,l.size,l.grade,l.build,l.lam===true?"L":0,l.sub,l.legend,(l.legends||[]).join("+")].map(x=>String(x==null?"":x)).join("|")}
 function lockedCostOf(l){return l&&l.costLock!==undefined&&l.costLock!==""&&l.costKey===costKey(l)?Number(l.costLock):null}
 function quoteLineCost(line){const k=lockedCostOf(line);
   if(k!==null)return {cost:k,src:"locked",why:"cost locked "+(line.costAt?fmtDate(isoDay(line.costAt)):"when quoted")+(line.costWhy?" — "+line.costWhy:"")};
@@ -2771,9 +2773,9 @@ function quoteLineCostLive(line){
   const uc=lineUnitCost(line.build==="print"?{method:"print"}:null,{code:line.code,size:line.size,grade:line.grade,sheetKey:line.sheetKey,
     legend:line.legend||"",legends:line.legends||[],build:line.build||""});
   // signs: the materials they're made of, at the CRM's item costs (preferred price + freight), when every part has a cost
-  if(lineProd(line)==="sign"&&parseSize(line.size)){const m=signMatCost(line);if(m)return m}
+  if(lineProd(line)==="sign"&&parseSize(line.size)){const m=signMatCost(line);if(m&&m.src!=="missing")return m;if(m&&m.src==="missing"&&!line.sheetKey)return m}
   // otherwise the cost sheet, then anything else worked out from the material, which knows about laminate
-  if(uc&&uc.cost&&uc.src==="sheet"){const off=(line.noLam&&linePrinted(line))?lamCostFor(line):0;
+  if(uc&&uc.cost&&uc.src==="sheet"){const off=(lamOff(line)&&linePrinted(line))?lamCostFor(line):0;
     return {cost:Math.round((uc.cost-off)*100)/100,why:(uc.why||"from the cost sheet")+(off?" less the declined overlaminate $"+off.toFixed(2):""),src:"sheet"}}
   const lp=lineProd(line);
   if((lp==="decal"||lp==="letter")&&parseSize(line.size)){const t=decalCfg().model==="tab11"?tab11Cost(line):decalCost(line);if(t&&t.cost)return t}
@@ -2781,7 +2783,7 @@ function quoteLineCostLive(line){
   // one (blank, sheeting or print media, legend film, overlay or laminate), the way the work order pulls it
   if((lp==="sign"||lp==="decal"||lp==="banner")&&parseSize(line.size)){
     const one={qty:"1",code:line.code||"",desc:line.desc||"",size:line.size,grade:line.grade||"",sub:line.sub||"",
-      legend:line.legend||"",legends:line.legends||[],build:line.build||"",noLam:!!line.noLam};
+      legend:line.legend||"",legends:line.legends||[],build:line.build||"",noLam:lamOff(line),lam:!lamOff(line)};
     const printed=line.build==="print"||(lp!=="sign"&&/40C|IJ35|PRINT/i.test(line.grade||""));
     const rows=planFor({prod:lp,method:printed?"print":"film",decalMethod:printed?"print":"cut",blankSrc:"stock",items:[one]},null);
     let tot=0;const parts=[],noCost=[],pp=[];
@@ -2795,12 +2797,13 @@ function quoteLineCostLive(line){
       const what=/^BLK-/.test(sk)||/blank/i.test(it2.name)?"blank":/^EC-1170C/.test(sk)?"clear overlay":/^EC-/.test(sk)?"legend"
         :/lamin|8518|8519|8520|8914/i.test(it2.name)?"laminate":lp==="sign"?"sheeting":"media";
       tot+=c;parts.push(what+" "+it2.name.split("—")[0].replace(/^3M\s+/,"").trim()+" $"+c.toFixed(2));pp.push({l:partKind(it2,lp),c})});
+    if(noCost.length)return {cost:0,src:"missing",missing:noCost,why:"No cost in inventory yet for "+noCost.join(", ")+" — add it; until then this line isn't costed"};
     if(tot>0)return {cost:Math.round(tot*100)/100,src:"material",parts:partsSum(pp),
-      why:parts.join(" + ")+(noCost.length?" — no cost in inventory yet for "+noCost.join(", "):"")+" (includes "+WASTE_DEFAULT+"% waste on film)"};
+      why:parts.join(" + ")+" (includes "+WASTE_DEFAULT+"% waste on film)"};
   }
   const it=matchItem(line.grade)||matchItem(line.sub);
-  if(it){const pr=catAreaPrice(it,line.size,line.build==="print",!!line.noLam);
-    if(pr){const lam=line.noLam?null:laminateFor(it,null,line.build==="print");
+  if(it){const pr=catAreaPrice(it,line.size,line.build==="print",lamOff(line));
+    if(pr){const lam=lamOff(line)?null:laminateFor(it,null,line.build==="print");
       return {cost:pr.cost,why:pr.sq+" sq ft of "+it.name+(lam?" and "+lam.name.split("—")[0].trim()+" over it":"")+" including waste",src:"material"}}
     const each=Number(it.cost)||0;
     if(each&&!parseSize(line.size)&&!/roll|sheet|yd|yard|ft|foot|feet/i.test(it.unit||""))return {cost:each,why:"one "+(it.unit||"each")+" of "+it.name,src:"material"};
@@ -2809,17 +2812,27 @@ function quoteLineCostLive(line){
   return {cost:0,why:"",src:""};
 }
 // one sign's materials (blank, sheeting or print media, legend film, overlay or laminate) at item cost — null if any part has no cost
+// HP latex ink, per square foot of printed face (an estimate from a cartridge's yield; Settings → Pricing can change it)
+function inkRate(){const v=Number((S.brand||{}).inkSqft);return v>0?v:0.39}
+// printed coverage: the share of the face that's actually inked (Josh's basis — $1.54 on a 30x30 stop — is about 63% of the face)
+function inkCover(){const v=Number((S.brand||{}).inkCover);return v>0&&v<=100?v:63}
+function inkCostOf(line,printed){if(!printed)return 0;const d=parseSize(line&&line.size);return d?Math.round(d.w*d.h/144*inkCover()/100*(Number(inkRate())||0)*100)/100:0}
 function signMatCost(line,j){
   const one={qty:"1",code:line.code||"",desc:line.desc||"",size:line.size,grade:line.grade||"",sub:line.sub||"",
-    legend:line.legend||"",legends:line.legends||[],build:line.build||"",noLam:!!line.noLam};
+    legend:line.legend||"",legends:line.legends||[],build:line.build||"",noLam:lamOff(line),lam:!lamOff(line)};
   const printed=line.build==="print"||(j&&jobIsPrinted(j));
   let rows=[];try{rows=planFor({prod:"sign",method:printed?"print":"film",blankSrc:"stock",items:[one]},null)}catch(e){return null}
   if(!rows.length)return null;let tot=0;const parts=[],pp=[];
-  for(const r of rows){const it2=r.itemId?S.items.get(r.itemId):null;if(!it2||!(Number(it2.cost)>0))return null;
+  // every part has to be there: a sign with no blank of its size, or no sheeting, isn't costed at what's left
+  if(!line.sheetKey&&!rows.some(r=>{const x=r.itemId&&S.items.get(r.itemId);return x&&/^BLK-|blank/i.test((x.sku||"")+" "+x.name)})&&itBlank(j||{},line)!=="cut"&&lineProd(line)==="sign")
+    return {cost:0,src:"missing",missing:["Blank "+sizeLabel(line.size)+" ."+lineGauge(line)],why:"No "+sizeLabel(line.size)+" ."+lineGauge(line)+" blank in inventory — add it with its cost; until then this line isn't costed"};
+  if(!filmPrefix(line.grade)&&!line.sheetKey&&lineProd(line)==="sign")return {cost:0,src:"missing",missing:["Sheeting for “"+String(line.grade||"").slice(0,40)+"”"],why:"The grade “"+line.grade+"” doesn't match any sheeting in inventory — pick EG, HIP, DG3 or AEGP; until then this line isn't costed"};
+  for(const r of rows){const it2=r.itemId?S.items.get(r.itemId):null;if(!it2)continue;if(!(Number(it2.cost)>0))return {cost:0,src:"missing",missing:[it2.name],why:it2.name+" has no cost in inventory — add it; until then this line isn't costed"};
     const per2=rollSqft(it2)||itemSqft(it2),sqX=r.sqRaw||r.sq;
     const c=(sqX&&per2&&/roll|sheet/i.test(it2.unit||""))?sqX/per2*Number(it2.cost):(Number(r.qty)||0)*Number(it2.cost);
     tot+=c;parts.push(it2.name.split("—")[0].replace(/^3M\s+/,"").trim()+" $"+c.toFixed(2));pp.push({l:partKind(it2,"sign"),c})}
   if(!(tot>0))return null;
+  const ink=inkCostOf(line,printed);if(ink){tot+=ink;parts.push("HP latex ink $"+ink.toFixed(2)+" ($"+inkRate().toFixed(2)+"/sq ft on "+inkCover()+"% of the face)");pp.push({l:"Ink",c:ink})}
   return {cost:Math.round(tot*100)/100,src:"material",parts:partsSum(pp),why:"Item costs (preferred vendor + freight): "+parts.join(" + ")+" (includes "+WASTE_DEFAULT+"% waste on film)"}}
 // what a cost part is, in the shop's words: Blank, Sheeting, Legend, Overlay, Overlaminate, Ink, Media
 function partKind(it,lp){const sk=String(it.sku||"").toUpperCase(),n=String(it.name||"");
@@ -3423,7 +3436,7 @@ function docHTML(p,kind){
   const unitMode=kind==="quote"&&(p.priceMode==="unit"||(p.priceMode!=="total"&&lines.length>1&&lines.every(l=>Number(l.qty)===1)
     &&/\bunit\s+prices?\b|\bper\s+sign\b/i.test(String(p.scope||"")+" "+String(p.notes||""))));
   const qNote=b.quoteNote||("This quote is good for "+qDays+" days from the date above. Prices are per piece and include materials to the stated specification. Freight quoted separately where it applies. Lead time confirmed on order.");
-  const lamLine=kind==="quote"&&!/overlaminate/i.test(qNote)&&lines.some(l=>{try{return l.src&&!isCharge(l.src)&&linePrinted(l.src)}catch(e){return false}});
+  const lamLine=kind==="quote"&&!/overlaminate/i.test(qNote)&&lines.some(l=>{try{return l.src&&!isCharge(l.src)&&linePrinted(l.src)&&l.src.lam===true}catch(e){return false}});
   const word=kind==="quote"?(b.quoteWord||"Quote"):"Invoice";
   const addr=[a.street,a.city,a.state,a.zip].filter(Boolean).join(", ");
   const first=String((bc&&bc.name)||"").trim().split(/\s+/)[0]||"";
@@ -3449,7 +3462,7 @@ function docHTML(p,kind){
       <td class="item"><div class="it">${chg?"":`<div class="pic">${pic?`<img src="${esc(pic)}" data-fb="${esc(picFb(l.src))}" alt="${esc(name)}">`:""}</div>`}<div>
         <span class="nm">${esc(name)}${it.fn?"<sup>†</sup>":""}${showCode?`<span class="cd">${esc(code.replace(/^[a-z]+/,m=>m.toUpperCase()))}</span>`:""}</span>
         ${spec?`<span class="spec">${esc(spec)}</span>`:""}${sub2?`<span class="sub">${esc(sub2)}</span>`:""}
-        ${l.src&&l.src.noLam?`<span class="sub">${esc(NOLAM_TXT)}</span>`:""}</div></div></td>
+        ${l.src&&l.src.lam===true&&linePrinted(l.src)?`<span class="sub">With clear overlaminate</span>`:""}</div></div></td>
       ${unitMode?"":`<td class="r qty">${l.qty}</td>`}
       <td class="r unit${unitMode?" amt":""}">${(function(){if(!l.unit)return "—";
         const lp=(a.showSavings&&l.src&&!isCharge(l.src))?listPrice(l.src):null;
@@ -3513,7 +3526,7 @@ function docHTML(p,kind){
       <div class="terms">${kind==="quote"?esc(qNote):esc(b.payNote||"Please reference the invoice number with your payment.")}
         ${String(p.custScope||"").trim()?`<span class="k">Scope</span>${esc(String(p.custScope).trim()).replace(/\n/g,"<br>")}`:""}
         ${rep2?`<span class="k">Your contact</span>${esc(rep2.name)}${b.phone?" · "+esc(fmtPhone(b.phone)):""}${b.email?" · "+esc(b.email):""}`:""}
-        ${lamLine?`<span class="k">Overlaminate</span>Printed signs are supplied with a clear protective overlaminate unless marked otherwise.`:""}</div>
+        ${lamLine?`<span class="k">Overlaminate</span>The marked printed signs are supplied with a clear protective overlaminate.`:""}</div>
     </div>
     ${kind==="quote"?`<div>
       <div class="lbl">Ready to order</div>
@@ -3959,7 +3972,7 @@ async function quickWOGo(pid,preset){
   const src=(q.copy?(q.only?orderedLines(p).filter(l=>lineProd(l)===q.only):orderedLines(p)):[]).filter(l=>!isCharge(l));
   const done0=jobsOf(p.id).reduce((m,j)=>{woItems(j).forEach(x=>{m[itKey(x)]=1});return m},{});
   const items=src.filter(l=>!done0[olKey(l)]).map(l=>({qty:String(l.qty||""),lineId:l.id||"",desc:l.desc||"",code:l.code||"",size:l.size||"",
-    grade:l.grade||"",build:l.build||"",sub:"",legend:l.legend||"",legends:l.legends||[],price:"",noLam:!!l.noLam,
+    grade:l.grade||"",build:l.build||"",sub:"",legend:l.legend||"",legends:l.legends||[],price:"",lam:l.lam===true,noLam:!!l.noLam,
     blankSrc:q.blankSrc==="mixed"?((q.lineBlank||{})[l.id]||"stock"):""}));
   try{
     const num=await nextNum("nextJob",1001);
@@ -5031,7 +5044,7 @@ function reconcile(p){
     seen[k]=1;
     const sc=sched[k];
     rows.push({k,id:o.id||"",code:o.code,size:o.size,grade:o.grade||"",note:o.note||"",desc:o.desc||"",price:o.price||"",
-      legend:o.legend||"",legends:o.legends||[],build:o.build||"",sheetKey:o.sheetKey||"",noLam:!!o.noLam,
+      legend:o.legend||"",legends:o.legends||[],build:o.build||"",sheetKey:o.sheetKey||"",lam:o.lam===true,noLam:!!o.noLam,
       ordered:Number(o.qty)||0,sched:sc?sc.qty:0,wos:sc?sc.wos:[],charge:o.charge||"",cost:o.cost||"",
       webImg:o.webImg||"",artId:o.artId||"",lineId:o.id||"",
       sub:o.sub||"",costLock:o.costLock,costKey:o.costKey,costAt:o.costAt,costWhy:o.costWhy});   // the line's own picture and locked cost travel with it
@@ -5079,6 +5092,8 @@ function reconCard(p){
             ${ag?`<button data-allgrade="${esc(p.id)}">Change the grade on every line…</button>`:""}</div></details>`})()}
         <button class="btn sm p" data-ordadd="${esc(p.id)}">Add a line</button>
         ${!ord.length&&rows.length?`<button class="btn sm" data-ordfill="${esc(p.id)}">Make these the quote lines</button>`:""}</span></header>
+    ${(function(){if(!can("cost"))return "";const ms=rows.filter(r=>!r.charge&&quoteLineCost(r).src==="missing");
+      return ms.length?`<div class="warn" style="margin:10px 14px;border-color:var(--red)"><b>⚠ ${ms.length} line${ms.length===1?" is":"s are"} missing a cost part</b> — ${ms.map(r=>esc((r.desc||r.code||"line")+": "+((quoteLineCost(r).missing||[])[0]||""))).join("; ")}. ${ms.length===1?"It's":"They're"} left out of the margin until the part is in inventory with a cost.</div>`:""})()}
     ${(function(){if(!can("cost"))return "";const neg=rows.filter(r=>{if(r.charge)return false;const pr=Number(r.price)||0,c=quoteLineCost(r).cost;return pr>0&&c>0&&pr<c});
       return neg.length?`<div class="warn" style="margin:10px 14px">⚠ ${neg.length} line${neg.length===1?" sells":"s sell"} for less than ${neg.length===1?"it costs":"they cost"} us: ${neg.map(r=>esc(r.desc||r.code||"line")+" ("+money2(r.price)+" vs "+money2(quoteLineCost(r).cost)+" cost)").join(", ")}. Check the price or the cost before this goes out.</div>`:""})()}
     ${rows.length?`<table class="qlines"><thead><tr><th>Item</th><th>Size</th><th>Grade</th><th style="text-align:right">Qty</th>
@@ -5097,11 +5112,11 @@ function reconCard(p){
           <div><b>${esc(r.desc||signName(r)||r.code||"—")}</b>${(r.desc||signName(r))&&r.code?`<div class="sub">${esc(r.code)}</div>`:""}${r.note?`<div class="linenote" title="${esc(r.note)}">${ic("note",11)} ${esc(r.note)}</div>`:""}</div></div></td>
         <td>${esc(r.size?sizeLabel(r.size):"—")}</td><td title="${esc(r.grade||"")}">${(function(){const same=String(r.grade||"").trim().toLowerCase()&&(String(r.desc||"").toLowerCase().indexOf(String(r.grade).trim().toLowerCase())===0||lineProd(r)==="posts"||lineProd(r)==="hardware");
             return same?`<span class="sub">—</span>`:`<span class="gfull">${esc(r.grade||"—")}</span><span class="gshort">${esc(gradeShort(r.grade)||"—")}</span>`})()}${legendsOf(r).length&&r.build!=="print"
-          ?`<div class="sub" title="Legend film">legend ${esc(legendText(r,true))}</div>`:""}${r.noLam?`<div class="sub" title="${esc(NOLAM_TXT)}">no overlaminate</div>`:""}</td>
+          ?`<div class="sub" title="Legend film">legend ${esc(legendText(r,true))}</div>`:""}${r.lam===true&&linePrinted(r)?`<div class="sub">+ clear overlaminate</div>`:""}</td>
         <td class="mono" style="text-align:right">${r.extra?r.sched:r.ordered}</td>
         ${(function(){const qn=Number(r.extra?r.sched:r.ordered)||0;const uc=quoteLineCost(r);
           const pr=Number(r.price)||0;const mg=(pr&&uc.cost)?((pr-uc.cost)/pr*100):null;
-          return `<td class="mono" style="text-align:right" title="${esc(uc.why||"")}">${uc.src==="stcflag"?`<span class="pill r" title="${esc(uc.why||"")}">not costed</span>`:uc.cost?money2(uc.cost)+(uc.src==="locked"?`<div class="sub" style="white-space:nowrap">${ic("lock",11)} locked${r.costAt?" "+esc(fmtDate(isoDay(r.costAt))):""}</div>`:""):uc.src==="nosize"?`<span class="sub">needs a size</span>`:uc.src==="nograde"?`<span class="pill o" title="${esc(uc.why)}">needs a grade</span>`:uc.src==="noblank"?`<span class="pill o" title="${esc(uc.why)}">no blank in stock list</span>`:`<span class="sub">—</span>`}</td>
+          return `<td class="mono" style="text-align:right" title="${esc(uc.why||"")}">${uc.src==="missing"?`<span class="pill r" title="${esc(uc.why||"")}">missing: ${esc(String((uc.missing||[])[0]||"a part").slice(0,28))}</span>`:uc.src==="stcflag"?`<span class="pill r" title="${esc(uc.why||"")}">not costed</span>`:uc.cost?money2(uc.cost)+(uc.src==="locked"?`<div class="sub" style="white-space:nowrap">${ic("lock",11)} locked${r.costAt?" "+esc(fmtDate(isoDay(r.costAt))):""}</div>`:""):uc.src==="nosize"?`<span class="sub">needs a size</span>`:uc.src==="nograde"?`<span class="pill o" title="${esc(uc.why)}">needs a grade</span>`:uc.src==="noblank"?`<span class="pill o" title="${esc(uc.why)}">no blank in stock list</span>`:`<span class="sub">—</span>`}</td>
             <td class="mono" style="text-align:right">${pr?(Math.round(pr)===pr?money(pr):money2(pr)):`<span class="sub">—</span>`}${pr&&linePriceSrc(p,r)?`<div class="sub" style="white-space:nowrap;font-family:inherit">${esc(linePriceSrc(p,r))}</div>`:""}</td>
             <td class="mono" style="text-align:right;font-weight:800">${pr?money(pr*qn):""}</td>
             <td style="text-align:right">${mg==null?`<span class="sub">—</span>`
@@ -5517,10 +5532,10 @@ function woLine(j,it){
   return Object.assign({},it,{desc:l.desc||it.desc,code:l.code||it.code,size:l.size||it.size,
     grade:l.grade||it.grade,build:l.build||it.build,
     legend:hasLeg?(l.legend||""):(it.legend||""),legends:hasLeg?(l.legends||[]):(it.legends||[]),
-    note:l.note||it.note||"",sheetKey:l.sheetKey||it.sheetKey||"",artId:l.artId||"",noLam:!!(l.noLam||it.noLam),
+    note:l.note||it.note||"",sheetKey:l.sheetKey||it.sheetKey||"",artId:l.artId||"",lam:l.lam===true||(!l.id&&it.lam===true),noLam:!(l.lam===true||(!l.id&&it.lam===true)),
     price:l.price||it.price,lineId:l.id||it.lineId});
 }
-function woItems(j){return ((j&&j.items)||[]).map(x=>woLine(j,x))}
+function woItems(j){return ((j&&j.items)||[]).map(x=>{const y=woLine(j,x);return y===x?Object.assign({},x,{noLam:x.lam!==true}):y})}
 // Older records: give every quote line an id and point every work order line at its quote line
 // by that id. Runs quietly after a redraw; each record is only touched once per change.
 const STAGE_ORDER=["inquiry","quoted","won","production","shipped","invoiced","closed"];
@@ -5758,17 +5773,18 @@ function linePrinted(l,j){if(!l)return false;if(l.build==="print")return true;if
   return (j&&j.num!=null)?buildOfLine(Object.assign({},j,{items:[l]}))==="print":false}
 // the clear overlaminate the customer declined: "none" of a work order's printed items, "some" or "all"
 function noLamState(j){const pr=woItems(j).filter(x=>Number(x.qty)>0&&buildOfLine(Object.assign({},j,{items:[x]}))==="print");
-  if(!pr.length)return "none";const n=pr.filter(x=>x.noLam).length;return n===0?"none":n===pr.length?"all":"some"}
+  if(!pr.length)return "none";const n=pr.filter(x=>lamOff(x)).length;return n===0?"none":n===pr.length?"all":"some"}
 async function setJobNoLam(num,on){const j=job(num);if(!j)return;
-  const items=(j.items||[]).map(it=>{const pr=buildOfLine(Object.assign({},j,{items:[it]}))==="print";return pr?Object.assign({},it,{noLam:!!on}):it});
+  const items=(j.items||[]).map(it=>{const pr=buildOfLine(Object.assign({},j,{items:[it]}))==="print";return pr?Object.assign({},it,{noLam:!!on,lam:!on}):it});
   await push("jobs/"+num,{items,updatedAt:Date.now()});
-  recordHistory("job",String(num),[{f:"Overlaminate",o:on?"yes":"no",n:on?"Customer declined the clear overlaminate — laminate step removed":"Laminate put back",ev:1}]);
-  toast(on?"Laminate removed from this work order. The quote price isn't changed — lower it on the project if they shouldn't pay for it.":"Laminate is back on this work order.")}
+  recordHistory("job",String(num),[{f:"Overlaminate",o:on?"yes":"no",n:on?"Overlaminate taken off":"Customer asked for the clear overlaminate — added",ev:1}]);
+  toast(on?"Overlaminate taken off this work order.":"Overlaminate added to this work order. Add its price to the quote if they're paying for it.")}
 function noLamItems(j){return woItems(j).filter(x=>x.noLam).map(x=>(x.qty?x.qty+" × ":"")+(x.desc||x.code||(x.size?sizeLabel(x.size):"line")))}
-const NOLAM_TXT="No clear overlaminate (customer declined; no 3M warranty)";
+const NOLAM_TXT="No clear overlaminate (not requested)";
+// the box is "add the overlaminate": ticked = the customer asked for it (on = no laminate, as before, so it's inverted here)
 function noLamBox(id,on){return `<div class="fld full" style="border-bottom:0"><label style="display:flex;gap:8px;align-items:center;cursor:pointer;font-weight:600">
-  <input type="checkbox" id="${id}" ${on?"checked":""} style="width:17px;height:17px;accent-color:var(--act)">Customer declined the clear overlaminate (no 3M warranty)</label>
-  <div class="sub">The laminate and its step come off this line; the quote and the work order say so.</div></div>`}
+  <input type="checkbox" id="${id}" ${on?"":"checked"} style="width:17px;height:17px;accent-color:var(--act)">Add clear overlaminate — only when the customer asks for it</label>
+  <div class="sub">Adds the 1170C clear over the printed face, its cost and its step on the work order.</div></div>`}
 function laminateFor(it,j,printed){
   if(!printed&&!isPrintMedia(it)&&!jobIsPrinted(j))return null;
   const list=itemList().filter(x=>/overlaminate|laminate|85\d\d/i.test(x.name||""));
@@ -6494,7 +6510,7 @@ function catalogPre(key){const r=catRows("").find(x=>x.key===key);if(!r)return n
 function ordModal(pid,ix,pre){
   const p=proj(pid);if(!p)return;
   const isNew=(ix==null);
-  const o=isNew?Object.assign({qty:"1",code:"",size:"",grade:"",legend:"",note:"",noLam:!!(acct(p.accountId)||{}).noLamDefault},pre||{}):Object.assign({},orderedLines(p)[ix]||{});
+  const o=isNew?Object.assign({qty:"1",code:"",size:"",grade:"",legend:"",note:"",lam:!!(acct(p.accountId)||{}).lamDefault,noLam:!(acct(p.accountId)||{}).lamDefault},pre||{}):Object.assign({},orderedLines(p)[ix]||{});
   if(isNew&&!String(o.qty||"").trim())o.qty="1";
   S.ordPre=isNew?(pre||null):null;S.ordAid=p.accountId||"";S.ordFind="";
   const cl=codeList();
@@ -6520,7 +6536,7 @@ function ordModal(pid,ix,pre){
         <div class="fld full"><div class="k">Material</div><input id="o-grade" list="dl-o-grade2" autocomplete="off" value="${esc(o.grade||"")}" placeholder="Sheeting, vinyl or film — type to search">
           <datalist id="dl-o-grade2">${quoteMaterials().map(x=>`<option value="${esc(x.v)}">${esc(x.l)}</option>`).join("")}</datalist></div>
       </div></div>
-      <details class="fld full omore"${(o.build||o.note||(legendsOf(o).length&&!isNew)||o.noLam)?" open":""}><summary>More options</summary><div class="fgrid" style="padding:0">
+      <details class="fld full omore"${(o.build||o.note||(legendsOf(o).length&&!isNew)||o.lam===true)?" open":""}><summary>More options</summary><div class="fgrid" style="padding:0">
       ${sel("o-build","How it's made",o.build||"",[{v:"",l:"Work it out from the material"},{v:"film",l:"Cut film / cut vinyl"},{v:"print",l:"Printed"}])}
       <div id="o-nolam-wrap" class="fld full" style="display:none;border-bottom:0;padding:0">${noLamBox("o-nolam",!!o.noLam)}</div>
       ${legendEditor("o",o,legendPctDefault())}
@@ -6630,7 +6646,7 @@ function ordCostHelp(){
     sheetKey:(S.ordPre&&S.ordPre.sheetKey)||"",webId:(S.ordPre&&S.ordPre.webId)||"",webVar:(S.ordPre&&S.ordPre.webVar)||0};
   const pe=$("#o-price");
   const lb=$("#o-legs");if(lb){const lp0=lineProd(line);lb.style.display=(lp0==="sign"&&line.build!=="print")?"":"none"}
-  {const nw=$("#o-nolam-wrap"),nl=$("#o-nolam");const pr1=linePrinted(line);if(nw)nw.style.display=pr1?"":"none";line.noLam=!!(pr1&&nl&&nl.checked)}
+  {const nw=$("#o-nolam-wrap"),nl=$("#o-nolam");const pr1=linePrinted(line);if(nw)nw.style.display=pr1?"":"none";line.lam=!!(pr1&&nl&&nl.checked);line.noLam=!line.lam}
   const sg=ordSuggest(line);
   // the price follows the suggestion (quantity breaks included) until someone types their own price
   const untouched=pe&&pe.dataset.sg&&Math.abs((Number(pe.value)||0)-Number(pe.dataset.sg))<0.005;
@@ -6669,7 +6685,7 @@ async function ordSave(pid,ixRaw){
   const keep=old0||S.ordPre||null;
   if(keep){["sheetKey","title","webImg","webId","webVar"].forEach(k=>{if(keep[k]&&rec[k]==null)rec[k]=keep[k]})}
   Object.assign(rec,tidyLine(rec));
-  rec.noLam=!!($("#o-nolam")&&$("#o-nolam").checked&&linePrinted(rec));
+  rec.lam=!!($("#o-nolam")&&$("#o-nolam").checked&&linePrinted(rec));rec.noLam=!rec.lam;
   if(!(Number(rec.qty)>0)){toast("Put in a quantity — 1 or more.");const qe=$("#o-qty");if(qe)qe.focus();return}
   if(!rec.code&&!rec.desc)return toast("Give it a name or a code.");
   if(!lg.legend&&S.ordPre&&S.ordPre.legend&&!old0){rec.legend=S.ordPre.legend}
@@ -6926,6 +6942,11 @@ function sizeKey(sz){
   return p(d.w)+p(d.h);
 }
 function gaugeOf(sub){const m=String(sub||"").match(/\.?(\d{3})/);return m?m[1]:""}
+function lineGauge(it){if(!it)return "080";const g0=gaugeOf(it.sub);if(g0)return g0;
+  const t=[it.desc,it.grade,it.note,it.code,it.title].join(" ");const m=t.match(/(?:^|[^0-9])\.(063|080|100|125)\b|\b0?\.?(063|080|125)\s*(?:"|in|alum|aluminum|gauge|ga\b)/i);
+  if(m)return m[1]||m[2];
+  const d=parseSize(it.size);if(d&&Math.min(d.w,d.h)===12&&Math.max(d.w,d.h)===18)return "063";
+  return "080"}
 function rollWidth(it){const m=String(it.sku||"").match(/-(\d{2,3})$/);if(m)return Number(m[1]);
   const n2=String(it.name||"").match(/(\d{2,3})\s*(?:in|")\s*x\s*\d+\s*(?:yd|yds|ft)/i);return n2?Number(n2[1]):0}
 function rollSqft(it){const w=rollWidth(it);return w?(w/12)*150:0}
@@ -7001,6 +7022,10 @@ function filmPrefix(grade){
   const t2=g.replace(/ELECTROCUT/g,"EC");
   const word2=t=>new RegExp("(^|[^A-Z0-9])"+t+"([^A-Z0-9]|$)").test(t2);
   for(const f of FILM_MAP){if(f.t.every(x=>word(x)||word2(x)))return f.pre}
+  // the website's wording ("3M Engineering Grade Reflective", "High Intensity Prismatic Yellow"): its grade, white unless it says yellow
+  const tok=gradeTok(g);if(tok){const y=/\bYELLOW\b/.test(g)&&!/FLUOR/.test(g);
+    const m={EG:"EG-3430",HIP:y?"HIP-3931":"HIP-3930",DG3:y?"DG3-4091":"DG3-4090",AEGP:y?"AEGP-7311":"AEGP-7310"}[tok];
+    if(m&&itemList().some(i=>String(i.sku||"").toUpperCase().indexOf(m+"-")===0))return m}
   return "";
 }
 // several legend colours on one line — a red-and-black sign has two
@@ -7051,8 +7076,9 @@ function pickBlank(sz,gauge){
     return sk.indexOf("BLK-")===0&&(sk.indexOf(k)>=0||sk.indexOf(k2)>=0);
   });
   if(!c.length)return null;
-  if(gauge){const g=c.filter(i=>String(i.sku).indexOf("-"+gauge+"-")>=0);if(g.length)return g[0]}
-  return c[0];
+  if(gauge){const g=c.filter(i=>String(i.sku).indexOf("-"+gauge+"-")>=0);if(g.length)return g.find(i=>Number(i.cost)>0)||g[0]}
+  // no blank of that gauge: never the heavy .125 unless that's all there is
+  return c.find(i=>String(i.sku).indexOf("-080-")>=0)||c.find(i=>String(i.sku).indexOf("-125-")<0)||c[0];
 }
 function stenItem(j){const it=j&&j.stencilMat?S.items.get(j.stencilMat):null;return it&&!it.deleted?it:null}
 function stenLabel(j){const it=stenItem(j);return it?it.name:(STENMAT.find(x=>x.id===(j.stencilMat||"ldpe16"))||{label:"Stencil"}).label}
@@ -7172,7 +7198,7 @@ function planFor0(j,wastePct){
       if(!it){if(mat){if(!missing[mat])missing[mat]={name:mat,sq:0,why:[]};missing[mat].sq+=sq;missing[mat].why.push(why)}return}
       if(!m)return;
       if(!seen[it.id])seen[it.id]={itemId:it.id,name:it.name,unit:it.unit||"",sq:0,lamSq:0,why:[]};
-      seen[it.id].sq+=sq;seen[it.id].why.push(why);if(!x.noLam)seen[it.id].lamSq+=sq;   // the laminate only covers faces that kept it
+      seen[it.id].sq+=sq;seen[it.id].why.push(why);if(!lamOff(x))seen[it.id].lamSq+=sq;   // the laminate only covers faces that kept it
     });
     Object.values(missing).forEach(r=>out.push({itemId:"",name:r.name,unit:"",sq:Math.round(r.sq*10)/10,qty:0,onHand:0,
       missing:true,why:r.why.join("; ")+" — nothing in inventory matches this material"}));
@@ -7181,7 +7207,7 @@ function planFor0(j,wastePct){
     if(jobIsPrinted(j)&&!Object.values(seen).some(r=>laminateFor(S.items.get(r.itemId),j))){
       const lam=laminateFor(null,j);
       if(lam){let sq=0;
-        woItems(j).forEach(x=>{if(x.noLam)return;const m2=String(x.size||"").match(/(\d+(?:\.\d+)?)\s*[x×]\s*(\d+(?:\.\d+)?)/);
+        woItems(j).forEach(x=>{if(lamOff(x))return;const m2=String(x.size||"").match(/(\d+(?:\.\d+)?)\s*[x×]\s*(\d+(?:\.\d+)?)/);
           if(m2)sq+=(+m2[1])*(+m2[2])/144*(Number(x.qty)||0)*waste});
         if(sq)seen["lam:"+lam.id]={itemId:lam.id,name:lam.name,unit:lam.unit||"",sq,why:["over the printed faces"],lam:true};
       }
@@ -7251,13 +7277,13 @@ function planFor0(j,wastePct){
     const srow=(pd==="sign")?sheetFind(it):null;
     if(srow){
       // everything below comes straight off tab 04 — no allowance added on top
-      if(itBlank(j,it)!=="cut"){const b=pickBlank(it.size,gaugeOf(it.sub));
+      if(itBlank(j,it)!=="cut"){const b=pickBlank(it.size,lineGauge(it));
         if(b){const k="b:"+b.id+":"+itBlank(j,it);agg[k]=agg[k]||{item:b,qty:0,why:[],sheet:true};
           agg[k].qty+=q;agg[k].why.push(q+" x "+(it.code||"")+" "+(it.size||"")+" (tab 04)")}}
       const basePre=filmPrefix(it.grade)||baseFromSheet(srow.base);
       addSq(basePre,srow.rollW,srow.sqftLayer*q,q+" x "+srow.size+" base, "+srow.sqftLayer.toFixed(3)+" sq ft each (tab 04)");
       if((buildFromMaterial(j)||j.method)==="print"){
-        if(!it.noLam)addSq("EC-1170C",srow.rollW,srow.sqftLayer*q,"1170C clear over "+q+" printed faces");
+        if(!lamOff(it))addSq("EC-1170C",srow.rollW,srow.sqftLayer*q,"1170C clear over "+q+" printed faces");
       }else{
         // the workbook's own colours and amounts, unless the project line names its legend colours
         const wb=[];
@@ -7277,7 +7303,7 @@ function planFor0(j,wastePct){
     }
     // blanks, only for signs that use them
     if(pd==="sign"&&itBlank(j,it)!=="cut"){
-      const b=pickBlank(it.size,gaugeOf(it.sub));
+      const b=pickBlank(it.size,lineGauge(it));
       if(b){const k="b:"+b.id+":"+itBlank(j,it);agg[k]=agg[k]||{item:b,qty:0,why:[]};
         agg[k].qty+=q;agg[k].why.push(q+" x "+(it.code||"line")+" "+(it.size||""));}
     }
@@ -7299,7 +7325,7 @@ function planFor0(j,wastePct){
         :(pd==="decal")?((fromM||j.decalMethod||"print")!=="film"):true;
       if(printed){
         // printed face: clear overlay, no legend film — unless the customer declined the overlaminate
-        if(!it.noLam)addRoll("EC-1170C",faceSq,"1170C clear over "+q+" x "+(it.size||"")+" printed face");
+        if(!lamOff(it))addRoll("EC-1170C",faceSq,"1170C clear over "+q+" x "+(it.size||"")+" printed face");
       }else{
         // cut film: each legend colour over its share of the face
         const defPct=Number(j.legendPct==null?legendPctDefault():j.legendPct)||0;
@@ -7463,7 +7489,7 @@ function tab11Cost(line){
   // transfer tape only goes on cut vinyl — a printed decal is laminated and contour cut instead
   let matSq=film*N("waste")+(printed?0:N("tapeSqft")*N("tapeOverlap"));
   let lamTxt="";
-  if(printed&&!line.noLam){const lam=laminateFor(it,null,true);if(lam){const lp2=itemSqft(lam);
+  if(printed&&!lamOff(line)){const lam=laminateFor(it,null,true);if(lam){const lp2=itemSqft(lam);
     if(lp2&&Number(lam.cost)){const lr=Number(lam.cost)/lp2;matSq+=lr*N("waste");lamTxt=" + "+lam.name.split("—")[0].trim()+" at $"+lr.toFixed(4)}}}
   const material=sq*matSq+N("packPiece");
   const labour=sq*N("weedMin")/60*N("labourRate")+N("handleMin")/60*N("labourRate")+N("setupMin")/60*N("labourRate")/q;
@@ -7500,7 +7526,7 @@ function decalCost(line){
   let film=N("filmSqft"),what="7125 $"+film.toFixed(2);
   if(it){const per=itemSqft(it);if(per&&Number(it.cost)){film=Number(it.cost)/per;what=it.name.split("—")[0].replace(/^3M\s+/,"").trim()+" $"+film.toFixed(2)}}
   let matSq=film*N("waste"),extra="";
-  if(printed){const lam=line.noLam?null:laminateFor(it,null,true);if(lam){const lp=itemSqft(lam);if(lp&&Number(lam.cost)){const lr=Number(lam.cost)/lp;matSq+=lr*N("waste");extra+=" + laminate $"+lr.toFixed(2)}}
+  if(printed){const lam=lamOff(line)?null:laminateFor(it,null,true);if(lam){const lp=itemSqft(lam);if(lp&&Number(lam.cost)){const lr=Number(lam.cost)/lp;matSq+=lr*N("waste");extra+=" + laminate $"+lr.toFixed(2)}}
     matSq+=Number(c.inkSqft)*N("waste");extra+=" + ink $"+Number(c.inkSqft).toFixed(2)}
   else{matSq+=N("tapeSqft")*N("tapeOverlap");extra+=" + transfer tape"}
   const rate=N("labourRate")||25;
@@ -7575,7 +7601,7 @@ function lamCostFor(line){try{const d=parseSize(line.size);if(!d)return 0;const 
 // everyone else (contractors, government, resellers) our price list. The other price is still shown beside it.
 function priceBasis(a){const v=a&&a.priceBasis;if(v==="list"||v==="web")return v;return a&&/retail|individual|homeowner/i.test(a.type||"")?"web":"list"}
 function listPrice(line,basis){const r=listPrice0(line,basis);
-  if(!(r&&line&&line.noLam&&linePrinted(line)))return r;
+  if(!(r&&line&&lamOff(line)&&linePrinted(line)))return r;
   const lc=lamCostFor(line);if(!lc)return Object.assign({},r,{why:r.why+" (no overlaminate)"});
   const m=Math.min(0.9,Math.max(0,(Number((S.brand||{}).margin)||40)/100));const off=Math.round(lc/(1-m)*100)/100;
   return Object.assign({},r,{price:Math.max(0,Math.round((r.price-off)*100)/100),why:r.why+" less $"+off.toFixed(2)+" for the declined overlaminate"})}
@@ -8667,7 +8693,7 @@ async function lineSave(num,ixRaw){
     legend:readLegends("l")?readLegends("l").legend:(was.legend||""),
     legends:readLegends("l")?readLegends("l").legends:(was.legends||[]),
     sheetKey:$("#l-sheetkey")?$("#l-sheetkey").value:(was.sheetKey||""),
-    noLam:$("#l-nolam")?!!$("#l-nolam").checked:!!was.noLam,blankSrc:$("#l-blank")?$("#l-blank").value:(was.blankSrc||"")});
+    lam:$("#l-nolam")?!!$("#l-nolam").checked:was.lam===true,noLam:$("#l-nolam")?!$("#l-nolam").checked:was.lam!==true,blankSrc:$("#l-blank")?$("#l-blank").value:(was.blankSrc||"")});
   const nolamAsked=!!$("#l-nolam");
   if(!(Number(rec.qty)>0)){toast("Put in a quantity — 1 or more.");const qe=$("#l-qty");if(qe)qe.focus();return}
   if(!rec.code&&!rec.desc)return toast("Give it a name or a code.");
@@ -8675,7 +8701,7 @@ async function lineSave(num,ixRaw){
   const p0=ix<0&&j.projectId?proj(j.projectId):null;
   if(p0&&!rec.lineId){
     const ol={id:uid("ol"),qty:rec.qty,desc:rec.desc||"",code:rec.code||"",size:rec.size||"",grade:rec.grade||"",
-      build:rec.build||"",legend:rec.legend||"",legends:rec.legends||[],sheetKey:rec.sheetKey||"",price:"",note:"",noLam:!!rec.noLam};
+      build:rec.build||"",legend:rec.legend||"",legends:rec.legends||[],sheetKey:rec.sheetKey||"",price:"",note:"",lam:rec.lam===true,noLam:!!rec.noLam};
     {const dp=defaultPrice(ol,p0.accountId);if(dp)ol.price=dp.price.toFixed(2)}
     rec.lineId=ol.id;
     await push("projects/"+p0.id,{orderLines:orderedLines(p0).concat([ol]),updatedAt:Date.now()});
@@ -8686,7 +8712,7 @@ async function lineSave(num,ixRaw){
   closeModal();
   // the quote line is the record — keep its overlaminate answer in step with the work order's
   if(nolamAsked&&rec.lineId&&j.projectId){const pj=proj(j.projectId);if(pj){const ls=orderedLines(pj).slice();const k2=ls.findIndex(l=>l&&l.id===rec.lineId);
-    if(k2>=0&&!!ls[k2].noLam!==!!rec.noLam){ls[k2]=Object.assign({},ls[k2],{noLam:!!rec.noLam});await push("projects/"+pj.id,{orderLines:ls,updatedAt:Date.now()})}}}
+    if(k2>=0&&(ls[k2].lam===true)!==(rec.lam===true)){ls[k2]=Object.assign({},ls[k2],{lam:rec.lam===true,noLam:rec.lam!==true});await push("projects/"+pj.id,{orderLines:ls,updatedAt:Date.now()})}}}
   await push("jobs/"+num,{items,updatedAt:Date.now()});
   recordHistory("job",String(num),[{f:"Line items",o:"",n:(ix>=0?"Changed":"Added")+" "+(rec.desc||rec.code||"a line"),ev:1}]);
   toast(p0?"Saved — it's on P-"+p0.num+" too, at the default price. Change it on the project if you need to.":"Saved");
@@ -9828,7 +9854,7 @@ function accountRec(id){
         <div><div class="k">Type</div><div class="v">${esc(a.type||"—")}</div></div>
         <div><div class="k">Terms</div><div class="v">${esc(a.terms||"—")}</div></div>
         <div><div class="k">Tax exempt</div><div class="v">${exemptPill(a)}</div></div>
-        ${a.noLamDefault?`<div><div class="k">Overlaminate</div><div class="v"><span class="pill y">Not wanted</span></div></div>`:""}
+        ${a.lamDefault?`<div><div class="k">Overlaminate</div><div class="v"><span class="pill b">Wants it on printed signs</span></div></div>`:""}
         <div><div class="k">Open pipeline</div><div class="v mono">${money(openVal)}</div></div>
         <div><div class="k">Invoiced to date</div><div class="v mono">${money(lifetime)}</div></div>
         <div><div class="k">Open work orders</div><div class="v mono">${js.length}</div></div></div></div>
@@ -10246,7 +10272,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-92";
+const APP_VERSION="2026.11.25-93";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -10977,7 +11003,7 @@ function jobRec(num){
       <div class="hl-facts">
         <div><div class="k">How it's made</div><div class="v">
           <span class="pill ${buildOfLine(j)==="print"?"o":"s"}">${esc(buildLabel(j))}</span>
-          ${noLamState(j)==="all"?`<span class="pill y" title="${esc(NOLAM_TXT)}">No laminate — customer declined</span>`:noLamState(j)==="some"?`<span class="pill o" title="${esc(noLamItems(j).join("; "))}">No overlaminate on ${noLamItems(j).length} line${noLamItems(j).length===1?"":"s"}</span>`:""}
+          ${noLamState(j)==="none"?`<span class="pill b">With clear overlaminate</span>`:noLamState(j)==="some"?`<span class="pill o">Overlaminate on ${woItems(j).filter(x=>x.lam===true).length} line${woItems(j).filter(x=>x.lam===true).length===1?"":"s"}</span>`:""}
           <div class="sub">${esc(finishText(j))}</div>
           ${(function(){const fromMat=buildFromMaterial(j);const pr=j.projectId?proj(j.projectId):null;
             if(fromMat)return `<div class="sub" style="margin-top:4px">Set by the material on ${pr?`<button class="lnk" data-go="project/${esc(pr.id)}">P-${pr.num}</button>`:"the project"} — change it there</div>`;
@@ -11015,7 +11041,7 @@ function jobRec(num){
             const sq=it.reduce((t,x)=>{const m=String(x.size||"").match(/(\d+(?:\.\d+)?)\s*[x×]\s*(\d+(?:\.\d+)?)/);return t+(m?(+m[1])*(+m[2])/144*(Number(x.qty)||0):0)},0);
             return fld("Customer",a.name||"")+fld("Pieces",pcs?pcs+" pcs"+(sq?" · "+Math.round(sq)+" sq ft of face":""):"no lines yet")
               +fld("Sizes",sizes||"—")+fld(prodOf(j)==="sign"?"Sheeting":"Material",grades||(prodOf(j)==="stencil"?stenLabel(j):"—"))
-              +(prodOf(j)==="sign"?fld("Substrate",subs||"—")+fld("Legend / overlay",legs||(j.method==="print"?(noLamState(j)==="all"?"printed with the face, no laminate (customer declined)":"printed with the face, 1170C clear overlay"):"—"))
+              +(prodOf(j)==="sign"?fld("Substrate",subs||"—")+fld("Legend / overlay",legs||(j.method==="print"?(noLamState(j)==="all"?"printed with the face, no overlaminate":"printed with the face, 1170C clear overlay"):"—"))
                 :fld("Finish",finishText(j)||"—"))
               +fld("Ship to",(p&&p.shipTo)||[a.street,a.city,a.state].filter(Boolean).join(", ")||"—")
               +fld("Ship by",fmtDate(j.due))
@@ -11075,7 +11101,7 @@ function jobRec(num){
               <div><b>${esc(it.desc||signName(it)||it.code||"—")}</b><div class="sub">${[it.size?esc(sizeLabel(it.size)):"",(it.desc||signName(it))&&it.code?esc(String(it.code).split("|")[0]):""].filter(Boolean).join(" · ")}</div></div></div></td>
             <td>${esc(it.grade||"—")}${it.sub?`<div class="sub">${esc(it.sub)}</div>`:""}</td>
             ${["sign","decal","magnet"].indexOf(prodOf(j))>=0?`<td>${buildOfLine(j)==="print"
-              ? `<span class="pill o">printed</span><div class="sub">${it.noLam?"no laminate":prodOf(j)==="sign"?"1170C clear":"laminated"}</div>`
+              ? `<span class="pill o">printed</span><div class="sub">${it.noLam?"no overlaminate":prodOf(j)==="sign"?"1170C clear":"laminated"}</div>`
               : it.legend?`<span class="pill s">cut</span> <span class="sub">${esc(it.legend)}</span>`
                 :prodOf(j)==="sign"?`<span class="pill r">no legend film</span>`:`<span class="sub">cut from the ${esc(it.grade||"vinyl")}</span>`}</td>`:""}
 
@@ -11105,7 +11131,7 @@ function jobRec(num){
         return `<section class="card flush"><header><h2>Production route</h2>
           <span class="n">${done} of ${steps.length}</span>
           <span class="sp">${noLamState(j)!=="none"||steps.some(r=>r.id==="lam"||/laminat/i.test(r.label||""))
-            ?`<button class="btn sm${noLamState(j)==="all"?" p":""}" data-jobnolam="${j.num}:${noLamState(j)==="all"?"0":"1"}" title="The customer doesn't want to pay for the clear overlaminate">${noLamState(j)==="all"?"Put the laminate back":"No laminate (customer declined)"}</button>`:""}
+            ?`<button class="btn sm${noLamState(j)==="all"?" p":""}" data-jobnolam="${j.num}:${noLamState(j)==="all"?"0":"1"}" title="Only when the customer asks for the clear overlaminate">${noLamState(j)==="all"?"Add overlaminate (customer asked)":"Take the overlaminate off"}</button>`:""}
             <button class="btn sm" data-edit="job:${j.num}">Edit work order</button></span></header>
         ${note.kind==="warn"?`<div class="warn">${esc(note.t)}</div>`
           :note.t?`<div style="padding:9px 15px;border-bottom:1px solid var(--line2)" class="sub">${esc(note.t)}</div>`:""}
@@ -12721,6 +12747,9 @@ function settingsView(){
           <label style="display:flex;gap:7px;align-items:center;margin-top:6px;font-size:12.5px">
             <input type="checkbox" id="b-mover" ${(S.brand&&S.brand.marginOverride)?"checked":""}> Use my own instead:
             <input id="b-margin" type="number" value="${esc(String((S.brand&&S.brand.margin)||""))}" style="width:70px"> %</label></div>
+        <div class="fld"><div class="k">HP latex ink, per sq ft printed</div>
+          <div style="display:flex;gap:7px;align-items:center"><span class="sub">$</span><input id="b-ink" type="number" step="0.01" value="${esc(String(inkRate()))}" style="width:88px"><span class="sub">per sq ft printed, on</span><input id="b-inkcov" type="number" value="${esc(String(inkCover()))}" style="width:64px"><span class="sub">% of the face</span></div>
+          <div class="sub" style="margin-top:4px">Added to printed signs only (not cut-film legends). $0.39 ≈ a $200 HP 831 cartridge over ~512 sq ft printed; 63% coverage gives $1.54 on a 30x30 stop.</div></div>
         <div class="fld"><div class="k">Legend coverage on cut-film signs</div>
           <div style="display:flex;gap:7px;align-items:center">
             <input id="b-legend" type="number" value="${esc(String(legendPctDefault()))}" style="width:88px">
@@ -13172,7 +13201,7 @@ function accountModal(a,then){
       ${inp("f-city","City",a.city)}${inp("f-state","State",a.state)}
       ${inp("f-zip","ZIP",a.zip)}${inp("f-qb","QuickBooks customer name",a.qb)}
       ${chk("f-ex","Tax exemption certificate on file",a.exempt)}${inp("f-exp","Certificate expires",a.exemptExp,"date")}
-      ${chk("f-nolamdef","Doesn't want the clear overlaminate — their new quote lines start without it (cheaper, no 3M warranty)",!!a.noLamDefault)}
+      ${chk("f-nolamdef","Wants the clear overlaminate — their new printed quote lines start with it",!!a.lamDefault)}
       ${sel("f-rep","Sales rep",a.repId||"",repList().map(t=>({v:t.id,l:t.name+(t.role?" — "+t.role:"")})),1)}
       ${sel("f-plevel","Pricing level",a.priceLevel||"",[{v:"",l:"List price — no discount"}].concat(priceLevels().map(l=>({v:l.id,l:l.name+" — "+l.pct+"% off"}))))}
       ${inp("f-disc","Or their own % off (overrides the level)",a.discountPct==null?"":a.discountPct,"number")}
@@ -13192,7 +13221,7 @@ function accountModal(a,then){
       website:$("#f-web").value.trim(),street:$("#f-street").value.trim(),city:$("#f-city").value.trim(),
       state:$("#f-state").value.trim(),zip:$("#f-zip").value.trim(),qb:$("#f-qb").value.trim(),
       exempt:$("#f-ex").checked,exemptExp:$("#f-exp").value,drive:$("#f-drive").value.trim(),
-      noLamDefault:$("#f-nolamdef")?$("#f-nolamdef").checked:!!a.noLamDefault,
+      lamDefault:$("#f-nolamdef")?$("#f-nolamdef").checked:!!a.lamDefault,
       billingContactId:$("#f-bc")?$("#f-bc").value:(a.billingContactId||""),
       repId:$("#f-rep")?$("#f-rep").value:(a.repId||""),
       priceLevel:$("#f-plevel")?$("#f-plevel").value:(a.priceLevel||""),
@@ -14156,6 +14185,7 @@ async function saveBrand(){let b2keep=null;
     mailMode:$("#b-mailmode")?$("#b-mailmode").value:((S.brand||{}).mailMode||"gmail"),
     crmCc:$("#b-crmcc")?$("#b-crmcc").value.trim():((S.brand||{}).crmCc==null?"crm@streetsignsupply.com":(S.brand||{}).crmCc),
     crmCcOn:$("#b-crmccon")?!!$("#b-crmccon").checked:((S.brand||{}).crmCcOn!==false),
+    inkSqft:$("#b-ink")?(Number($("#b-ink").value)||0.39):((S.brand||{}).inkSqft||0.39),inkCover:$("#b-inkcov")?(Number($("#b-inkcov").value)||63):((S.brand||{}).inkCover||63),
     mailFrom:$("#b-mailfrom")?$("#b-mailfrom").value.trim().toLowerCase():((S.brand||{}).mailFrom||""),
     mailSend:$("#b-mailsend")?!!$("#b-mailsend").checked:((S.brand||{}).mailSend!==false),
     signBase:$("#b-signbase")?$("#b-signbase").value.trim():((S.brand||{}).signBase||""),
@@ -14269,7 +14299,7 @@ function woFaceSq(it){const d=parseSize(it.size);return d?d.w*d.h/144:0}
 function woBlankText(j,it){
   if(lineProd(it)!=="sign")return "";
   if(j.blankSrc==="cut")return "cut from sheet";
-  const b=pickBlank(it.size,gaugeOf(it.sub));
+  const b=pickBlank(it.size,lineGauge(it));
   return b?b.name:(it.sub||"blank "+(it.size?sizeLabel(it.size):""));
 }
 function woFinishCalc(j,items,plan){
@@ -14277,7 +14307,7 @@ function woFinishCalc(j,items,plan){
     const anySign=!items.length||items.some(x=>lineProd(x)==="sign");
     const lamRow=plan.find(r=>/laminat|85\d\d/i.test(r.name||""));
     const finishOf=it=>{const printed=buildOfLine(Object.assign({},j,{items:[it]}))==="print";
-      if(printed&&it.noLam)return `<b>Printed — NO laminate</b><div class="s">customer declined · no 3M warranty</div><div class="s">contour cut — <b>no transfer tape</b></div>`;
+      if(printed&&it.noLam)return `<b>Printed — no overlaminate</b><div class="s">contour cut — <b>no transfer tape</b></div>`;
       if(printed){const lam=lamRow?{name:lamRow.name}:laminateFor(matchItem(it.grade),j,true);
         return (lam?`<b>Laminated</b><div class="s">${esc(lam.name.split("—")[0].trim())}</div>`:`<b>Printed</b><div class="s">no laminate in inventory</div>`)
           +`<div class="s">contour cut — <b>no transfer tape</b></div>`}
@@ -14308,7 +14338,7 @@ function buildWO(num){
   <div class="pj-build">
     ${jobKinds(j).map(k=>`<span><span class="k">${esc((k==="sign"&&!jobMixed(j)?prodLabel(j):kindLabel(k)).toUpperCase())}</span>${esc(kindBuildText(j,k).toUpperCase())}</span>`).join("")}
     ${jobKinds(j).indexOf("sign")>=0?`<span><span class="k">BLANKS</span>${esc(((BLANKSRC.find(x=>x.id===(j.blankSrc||"stock"))||{}).label||"").toUpperCase())}</span>`:""}
-    ${(jobKinds(j).indexOf("sign")>=0&&j.method==="print")?`<span><span class="k">OVERLAY</span>${noLamState(j)==="all"?"NONE — CUSTOMER DECLINED (NO 3M WARRANTY)":noLamState(j)==="some"?"1170C CLEAR — NOT ON THE MARKED LINES":"1170C CLEAR — REQUIRED"}</span>`:""}
+    ${(jobKinds(j).indexOf("sign")>=0&&j.method==="print")?`<span><span class="k">OVERLAY</span>${noLamState(j)==="all"?"NONE":noLamState(j)==="some"?"1170C CLEAR — ONLY ON THE MARKED LINES":"1170C CLEAR — REQUIRED"}</span>`:""}
     ${S._woFinish&&S._woFinish.same?`<span><span class="k">FINISH</span>${esc(S._woFinish.same.toUpperCase())}</span>`:""}
     ${j.needsProof?`<span><span class="k">PROOF</span>REQUIRED BEFORE IT RUNS</span>`:""}</div>
   <div class="pj-grid">
@@ -14341,10 +14371,10 @@ function buildWO(num){
       <td>${it.desc||it.code?`<b>${esc(it.desc||signName(it)||it.code)}</b>`:""}
         ${(it.desc&&it.code)||jobMixed(j)?`<div class="s">${esc([String(it.code||"").split("|")[0],jobMixed(j)?kindLabel(lineKind(it)):""].filter(Boolean).join(" · "))}</div>`:""}
         ${it.note?`<div class="s">${esc(it.note)}</div>`:""}
-        ${it.noLam?`<div class="s" style="font-weight:800">${esc(NOLAM_TXT)}</div>`:""}</td>
+        ${it.lam===true&&printed?`<div class="s" style="font-weight:800">+ 1170C clear overlaminate</div>`:""}</td>
       <td>${it.size?`<b>${esc(sizeLabel(it.size))}</b>${fs?`<div class="s">${Math.round(fs*100)/100} sq ft each</div>`:""}`:""}</td>
       <td>${esc(it.grade?shortFilm(it.grade):"")}</td>
-      ${S._woFinish.same?"":`<td>`}${S._woFinish.same?"":(!isSignLine?S._woFinish.finishOf(it):printed?`<span class="s">printed with the face · ${it.noLam?"NO overlaminate — customer declined":"1170C clear over it"}</span>`
+      ${S._woFinish.same?"":`<td>`}${S._woFinish.same?"":(!isSignLine?S._woFinish.finishOf(it):printed?`<span class="s">printed with the face · ${it.noLam?"no overlaminate":"1170C clear over it"}</span>`
         :sh.map(l=>`<div><b>${esc(shortFilm(l.film))}</b> <span class="s">${l.pct}% of face${fs?" · "+(Math.round(fs*l.pct)/100)+" sq ft ea":""}</span></div>`).join("")
           ||(it.qty!=null&&lineProd(it)==="sign"?`<span class="s">not set — ask before cutting</span>`:""))}${S._woFinish.same?"":`</td>`}
       ${S._woFinish.anySign?`<td>${esc(woBlankText(j,it))}</td>`:""}</tr>`}).join("")}
@@ -14613,7 +14643,7 @@ async function webMakeWOs(pid,pnum,aid,name,lines,paid){
   const kinds=Object.keys(byK);
   for(const k of kinds){
     const items=byK[k].map(l=>({qty:String(l.qty),lineId:l.id,desc:l.desc||"",code:l.code||"",size:l.size||"",
-      grade:l.grade||"",build:l.build||"",sub:l.sub||"",legend:l.legend||"",legends:l.legends||[],price:"",noLam:!!l.noLam}));
+      grade:l.grade||"",build:l.build||"",sub:l.sub||"",legend:l.legend||"",legends:l.legends||[],price:"",lam:l.lam===true,noLam:l.lam!==true}));
     let sten="";if(k==="stencil"){const g=String(byK[k][0].grade||"").toLowerCase();
       const inv=itemList().filter(x=>x.cat==="Stencil material");const hit=inv.find(x=>g&&x.name.toLowerCase().indexOf(g)>=0);sten=hit?hit.id:(stenMatFromGrade(g)||"ldpe16")}
     const num=await nextNum("nextJob",1001);
@@ -14708,7 +14738,7 @@ function pipeLines(r){
       build:"",legend:String(o.legend||""),legends:[],price:String(price),cost:"",note:String(o.note||"")};
     // "overlaminate": false (or "no_overlaminate": true) — the customer declined the clear overlaminate on a printed line
     const noYes=v=>v===true||/^(true|yes|y|1)$/i.test(String(v==null?"":v).trim()),noNo=v=>v===false||/^(false|no|n|0|none)$/i.test(String(v==null?"":v).trim());
-    if(noNo(o.overlaminate)||noYes(o.no_overlaminate)||noYes(o.nolam))line.noLam=true;
+    if(noYes(o.overlaminate)&&!noYes(o.no_overlaminate)){line.lam=true;line.noLam=false}else{line.lam=false;line.noLam=true}
     {const im=String(o.img||o.image||o.picture||o.pic||"").trim();if(/^https:\/\/\S+$/i.test(im)||/^data:image\//i.test(im))line.webImg=im}
     if(isCh){line.charge=typeof o.charge==="string"&&o.charge?o.charge:(/ship|freight|deliver/i.test(desc)?"freight":"other");line.code="";line.size="";line.grade=""}
     return line}).filter(l=>l.desc||l.code);
@@ -15288,7 +15318,7 @@ function syncLine(l,price,p){
   const out={qty,item:String(l.code||""),description:String(l.desc||syncTxt(()=>signName(l))||""),
     size:l.size?syncTxt(()=>sizeLabel(l.size)):"",material:syncTxt(()=>custMaterial(l.grade)),
     unit_price:up,line_total:syncN(qty*up),charge:l.charge||""};
-  if(!l.charge&&(l.noLam||syncTxt(()=>linePrinted(l)?"y":"")))out.overlaminate=!l.noLam;   // printed lines say whether the clear overlaminate goes on
+  if(!l.charge&&syncTxt(()=>linePrinted(l)?"y":""))out.overlaminate=l.lam===true;   // printed lines say whether the clear overlaminate goes on
   if(!l.charge){out.picture=picStatus(p,l);if(l.webImg)out.img=l.webImg;out.picture_name=syncTxt(()=>picName(p,l))}   // the agents fill every "none" and "drawing" with a real picture
   return out;
 }
