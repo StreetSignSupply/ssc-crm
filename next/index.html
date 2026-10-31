@@ -2819,7 +2819,13 @@ function quoteLineCostLive(line){
 function inkRate(){const v=Number((S.brand||{}).inkSqft);return v>0?v:0.39}
 // printed coverage: the share of the face that's actually inked (Josh's basis — $1.54 on a 30x30 stop — is about 63% of the face)
 function inkCover(){const v=Number((S.brand||{}).inkCover);return v>0&&v<=100?v:63}
-function inkCostOf(line,printed){if(!printed)return 0;const d=parseSize(line&&line.size);return d?Math.round(d.w*d.h/144*inkCover()/100*(Number(inkRate())||0)*100)/100:0}
+const OCTAGON=0.8284;
+function faceShape(l){return isStopSign(l)?OCTAGON:1}
+function faceSqft(l){const d=parseSize(l&&l.size);return d?d.w*d.h/144*faceShape(l):0}
+// ink on the face's own area. The 63% coverage was measured on a 30" stop against its square (567 of 900 sq in red), which is
+// 76% of the octagon — so a stop's ink stays at what was measured ($1.54 on a 30x30)
+function inkCoverOf(line){const c=inkCover();return isStopSign(line)?Math.min(100,c/OCTAGON):c}
+function inkCostOf(line,printed){if(!printed)return 0;const a=faceSqft(line);return a?Math.round(a*inkCoverOf(line)/100*(Number(inkRate())||0)*100)/100:0}
 function signMatCost(line,j){
   const stop=isStopSign(line);
   const printed=line.build==="print"||(line.build!=="film"&&(j&&j.num!=null?jobIsPrinted(j):!bareBlank(line)));
@@ -2843,7 +2849,7 @@ function signMatCost(line,j){
     const c=(sqX&&per2&&/roll|sheet/i.test(it2.unit||""))?sqX/per2*Number(it2.cost):(Number(r.qty)||0)*Number(it2.cost);
     tot+=c;parts.push(it2.name.split("—")[0].replace(/^3M\s+/,"").trim()+" $"+c.toFixed(2));pp.push({l:partKind(it2,"sign"),c})}
   if(!(tot>0))return null;
-  const ink=inkCostOf(line,printed);if(ink){tot+=ink;parts.push((stop?"red ":"")+"HP latex ink $"+ink.toFixed(2)+" ($"+inkRate().toFixed(2)+"/sq ft on "+inkCover()+"% of the face)");pp.push({l:"Ink",c:ink})}
+  const ink=inkCostOf(line,printed);if(ink){tot+=ink;parts.push((stop?"red ":"")+"HP latex ink $"+ink.toFixed(2)+" ($"+inkRate().toFixed(2)+"/sq ft on "+Math.round(inkCoverOf(line))+"% of the "+(stop?"octagon":"face")+")");pp.push({l:"Ink",c:ink})}
   return {cost:Math.round(tot*100)/100,src:"material",parts:partsSum(pp),printed,
     why:(printed?"Printed legend":"Legend cut from EC film")+(stop?" · stop on white "+gradeTok(line.grade)+" sheeting":"")+" — item costs (preferred vendor + freight): "+parts.join(" + ")+" (includes "+WASTE_DEFAULT+"% waste on film)"}}
 // what a cost part is, in the shop's words: Blank, Sheeting, Legend, Overlay, Overlaminate, Ink, Media
@@ -7185,7 +7191,7 @@ function pickRoll(pre,minIn,needSq){
 function pickExtruded(sz){const d=parseSize(sz);if(!d)return null;const p2=x=>String(Math.round(x)).padStart(2,"0");
   const a=p2(Math.min(d.w,d.h))+p2(Math.max(d.w,d.h));
   return itemList().find(i=>String(i.sku||"").toUpperCase()==="BLK-EXT-"+a)||itemList().find(i=>/extru/i.test(i.name||"")&&String(i.sku||"").toUpperCase().indexOf(a)>=0)||null}
-function pickBlank(sz,gauge){
+function pickBlank(sz,gauge,shape){
   const k=sizeKey(sz);if(!k)return null;const d=parseSize(sz);const p2=x=>String(Math.round(x)).padStart(2,"0");const k2=d?p2(d.h)+p2(d.w):k;
   // a 12x24 and a 24x12 are the same blank
   const c=itemList().filter(i=>{
@@ -7193,6 +7199,8 @@ function pickBlank(sz,gauge){
     return sk.indexOf("BLK-")===0&&(sk.indexOf(k)>=0||sk.indexOf(k2)>=0);
   });
   if(!c.length)return null;
+  if(shape){const o=c.filter(i=>new RegExp("\\d"+shape+"$","i").test(String(i.sku)));const og=gauge?o.filter(i=>String(i.sku).indexOf("-"+gauge+"-")>=0):[];
+    const pick=(og.length?og:o);if(pick.length)return pick.find(i=>Number(i.cost)>0)||pick[0]}
   if(gauge){const g=c.filter(i=>String(i.sku).indexOf("-"+gauge+"-")>=0);if(g.length)return g.find(i=>Number(i.cost)>0)||g[0]}
   // no blank of that gauge: never the heavy .125 unless that's all there is
   return c.find(i=>String(i.sku).indexOf("-080-")>=0)||c.find(i=>String(i.sku).indexOf("-125-")<0)||c[0];
@@ -7394,13 +7402,15 @@ function planFor0(j,wastePct){
     const srow=(pd==="sign")?sheetFind(it):null;
     if(srow){
       // everything below comes straight off tab 04 — no allowance added on top
-      if(itBlank(j,it)!=="cut"){const b=pickBlank(it.size,lineGauge(it));
+      if(itBlank(j,it)!=="cut"){const b=pickBlank(it.size,lineGauge(it),isStopSign(it)?"O":"");
         if(b){const k="b:"+b.id+":"+itBlank(j,it);agg[k]=agg[k]||{item:b,qty:0,why:[],sheet:true};
           agg[k].qty+=q;agg[k].why.push(q+" x "+(it.code||"")+" "+(it.size||"")+" (tab 04)")}}
       const basePre=filmPrefix(it.grade)||baseFromSheet(srow.base);
-      addSq(basePre,srow.rollW,srow.sqftLayer*q,q+" x "+srow.size+" base, "+srow.sqftLayer.toFixed(3)+" sq ft each (tab 04)");
+      const fA=faceSqft(it),wf=1+(Number(wastePct==null?WASTE_DEFAULT:wastePct)||0)/100;
+      const layer=fA?fA*wf:srow.sqftLayer;
+      addSq(basePre,srow.rollW,layer*q,q+" x "+srow.size+" base, "+layer.toFixed(3)+" sq ft each ("+(fA?(isStopSign(it)?"octagon ":"")+"face × "+wf.toFixed(2)+" waste":"tab 04")+")");
       if((it.build==="print")||(it.build!=="film"&&(buildFromMaterial(j)||j.method)==="print")){
-        if(!lamOff(it))addSq("EC-1170C",srow.rollW,srow.sqftLayer*q,"1170C clear over "+q+" printed faces");
+        if(!lamOff(it))addSq("EC-1170C",srow.rollW,layer*q,"1170C clear over "+q+" printed faces");
       }else{
         // the workbook's own colours and amounts, unless the project line names its legend colours
         const wb=[];
@@ -7420,13 +7430,13 @@ function planFor0(j,wastePct){
     }
     // blanks, only for signs that use them
     if(pd==="sign"&&itBlank(j,it)!=="cut"){
-      const b=pickBlank(it.size,lineGauge(it));
+      const b=pickBlank(it.size,lineGauge(it),isStopSign(it)?"O":"");
       if(b){const k="b:"+b.id+":"+itBlank(j,it);agg[k]=agg[k]||{item:b,qty:0,why:[]};
         agg[k].qty+=q;agg[k].why.push(q+" x "+(it.code||"line")+" "+(it.size||""));}
     }
     // base sheeting
     const pre=filmPrefix(it.grade);
-    const faceSq=d?(d.w*d.h/144)*q*waste:0;
+    const faceSq=d?(d.w*d.h/144)*faceShape(it)*q*waste:0;
     const addRoll=(prefix,sq,why)=>{
       if(!prefix||!sq||!d)return;
       const roll=pickRoll(prefix,Math.min(d.w,d.h),sq);
@@ -10389,7 +10399,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-95";
+const APP_VERSION="2026.11.25-96";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -14416,7 +14426,7 @@ function woFaceSq(it){const d=parseSize(it.size);return d?d.w*d.h/144:0}
 function woBlankText(j,it){
   if(lineProd(it)!=="sign")return "";
   if(j.blankSrc==="cut")return "cut from sheet";
-  const b=pickBlank(it.size,lineGauge(it));
+  const b=pickBlank(it.size,lineGauge(it),isStopSign(it)?"O":"");
   return b?b.name:(it.sub||"blank "+(it.size?sizeLabel(it.size):""));
 }
 function woFinishCalc(j,items,plan){
