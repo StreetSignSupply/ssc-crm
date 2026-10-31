@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-104
+- Files: every file has a visible Delete button (on its tile and in the viewer) instead of one hidden behind "⋯". Deleting asks once, then moves the file to the recycle bin, where it can be restored.
+
 ## 2026.11.25-103
 - Addresses, websites, emails and phone numbers wrap onto the next line instead of being cut off with "…" (account card on projects, account and contact pages, vendor terms).
 

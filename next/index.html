@@ -10457,7 +10457,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-103";
+const APP_VERSION="2026.11.25-104";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -11389,7 +11389,7 @@ function linkTile(f,showSrc){
       <button class="btn sm" data-view="${esc(f.id)}">View</button>
       <a class="btn sm" href="${esc(driveDownload(f.url))}" target="_blank" rel="noopener" style="text-decoration:none" title="Download the file">Download</a>
       <span style="flex:1"></span>
-      ${S.canUpload?`<details class="dd rowm fdel"><summary class="btn sm q" aria-label="More for this file" title="More">⋯</summary><div class="dd-m"><button class="danger" data-delfile="${esc(f.id)}">Delete this file…</button></div></details>`:""}</div></div>`}
+      ${(S.canUpload||can("del"))?`<button class="btn sm d" data-delfile="${esc(f.id)}" title="Delete this file — it goes to the recycle bin">Delete</button>`:""}</div></div>`}
   return `<div class="ftile"><a class="th" href="${esc(f.url)}" target="_blank" rel="noopener" title="Open ${esc(f.name)}" style="text-decoration:none"><span class="ext">LINK</span></a>
     <div class="meta"><b class="nm" title="${esc(f.name)}">${esc(f.name)}</b>
       <span class="sub">${esc(f.cat||"Other")} · ${esc(linkHost(f.url))}${f.who==="AI"?" · added by the agents":""}</span>
@@ -11397,7 +11397,7 @@ function linkTile(f,showSrc){
     <div class="row" data-stop="1">
       <a class="btn sm" href="${esc(f.url)}" target="_blank" rel="noopener" style="text-decoration:none">Open link</a>
       <span style="flex:1"></span>
-      ${S.canUpload?`<details class="dd rowm fdel"><summary class="btn sm q" aria-label="More for this file" title="More">⋯</summary><div class="dd-m"><button class="danger" data-delfile="${esc(f.id)}">Delete this file…</button></div></details>`:""}</div></div>`;
+      ${(S.canUpload||can("del"))?`<button class="btn sm d" data-delfile="${esc(f.id)}" title="Delete this file — it goes to the recycle bin">Delete</button>`:""}</div></div>`;
 }
 // quotes and invoices on a project: the newest one says "Current", older ones say so too
 function fileVersionPill(f){if(!f||!f.projectId||!/^(Quote|Invoice)$/.test(f.cat||"")||!/pdf/i.test((f.type||"")+(f.name||"")))return "";
@@ -11422,7 +11422,7 @@ function fileTile(f,showSrc){
         style="text-decoration:none" title="Open in a new tab">Tab</a>
       <button class="btn sm" data-dl="${esc(f.id)}">Save</button>
       <span style="flex:1"></span>
-      ${S.canUpload?`<details class="dd rowm fdel"><summary class="btn sm q" aria-label="More for this file" title="More">⋯</summary><div class="dd-m"><button class="danger" data-delfile="${esc(f.id)}">Delete this file…</button></div></details>`:""}</div></div>`;
+      ${(S.canUpload||can("del"))?`<button class="btn sm d" data-delfile="${esc(f.id)}" title="Delete this file — it goes to the recycle bin">Delete</button>`:""}</div></div>`;
 }
 // PDF tiles show their first page: drawn once with pdf.js, kept for the session
 const PDFTH={cache:{},busy:false,failed:{}};
@@ -13282,6 +13282,7 @@ function viewerHTML(){
       <span class="sp">
         <button class="btn sm" data-dl="${esc(f.id)}">Save a copy</button>
         <button class="btn sm" data-newtab="${esc(f.id)}">New tab</button>
+        ${(S.canUpload||can("del"))?`<button class="btn sm d" data-delfile="${esc(f.id)}" style="color:#FF8080;border-color:rgba(255,255,255,.22)">Delete</button>`:""}
         <button class="btn sm" data-closeview="1">Close</button></span>
     </header>
     <div class="stage">${stage}</div>
@@ -14280,6 +14281,7 @@ async function restore(type,id){
   toast((kids?("Restored with "+kids+" related record"+(kids>1?"s":"")):"Restored")+(repulled?" — its material is taken off the shelf again":""));
 }
 async function delFile(fid){
+  try{if(document.getElementById("viewer"))closeViewer()}catch(e){}
   await push("files/"+fid,{deleted:true,deletedAt:Date.now(),deletedBy:me()});
   toast("File moved to the recycle bin");
 }
@@ -16883,17 +16885,17 @@ function bind(){
     const dlf=t.closest("[data-dl]");if(dlf){downloadFile(dlf.dataset.dl);return}
     const dfx=t.closest("[data-delfile]");
     if(dfx){const f0=S.files.get(dfx.dataset.delfile);
-      askConfirm("Remove this file?",
-        `<p style="margin:0">“${esc((f0&&f0.name)||"this file")}” moves to the recycle bin. Restore it from Settings if you need it back.</p>`,
-        "Move to bin",true,()=>delFile(dfx.dataset.delfile));return}
+      askConfirm("Delete this file?",
+        `<p style="margin:0">“${esc((f0&&f0.name)||"this file")}” goes to the recycle bin. Use it when a file is wrong or no longer current — you can restore it from Settings → Recycle bin if you need it back.</p>`,
+        "Delete",true,()=>delFile(dfx.dataset.delfile));return}
     const vw=t.closest("[data-view]");
     if(vw){const ctl=t.closest("button, a, input, select");if(!ctl||ctl===vw){viewFile(vw.dataset.view);return}}
     const vg=t.closest("[data-vgo]");if(vg){closeViewer();go(vg.dataset.vgo);return}
     const df=t.closest("[data-delfile]");
     if(df){const f=S.files.get(df.dataset.delfile);
-      askConfirm("Remove this file?",
-        `<p style="margin:0">“${esc((f&&f.name)||"this file")}” moves to the recycle bin. Restore it from Settings if you need it back.</p>`,
-        "Move to bin",true,()=>delFile(df.dataset.delfile));return}
+      askConfirm("Delete this file?",
+        `<p style="margin:0">“${esc((f&&f.name)||"this file")}” goes to the recycle bin. Use it when a file is wrong or no longer current — you can restore it from Settings → Recycle bin if you need it back.</p>`,
+        "Delete",true,()=>delFile(df.dataset.delfile));return}
     const lg2=t.closest("[data-log]");
     if(lg2){const parts=lg2.dataset.log.split(":");logModal(parts[0],parts[1],parts[2],parts[3]||"");return}
     const cn=t.closest("[data-cal]");
