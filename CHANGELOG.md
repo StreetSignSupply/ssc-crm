@@ -1,5 +1,10 @@
 # What changed
 
+## 2026.11.25-98 (no more crossed-out lines)
+- Activity: emails, notes and calls are never crossed out. They're a record, not a to-do; a logged email reads like any other. Only tasks show a finished state, the way Salesforce does it: a ticked checkbox, a green "Completed" tag and a "done … by …" tag, with the text in normal type.
+- Calendar: a shipped job shows a green ✓ instead of a line through it.
+- Checklists: a step that doesn't apply shows an "N/A" tag instead of being crossed out.
+
 ## 2026.11.25-97 (blank cost estimates)
 - Every blank has a cost source: Estimate, Quote, Invoice or Cut from another blank — shown next to its cost on the item, in Inventory, and on quote lines.
 - A blank with no cost gets an estimate from the $/sq in of the nearest-size blank of the same gauge and shape, rounded up to the next 25¢. It shows in orange with "estimated cost" on the quote line and stays in the margin (no more red "missing" for a blank with a sibling to estimate from).
