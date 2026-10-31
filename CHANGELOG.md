@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-103
+- Addresses, websites, emails and phone numbers wrap onto the next line instead of being cut off with "…" (account card on projects, account and contact pages, vendor terms).
+
 ## 2026.11.25-102
 - Account page: the account name shows at the top of Details.
 
