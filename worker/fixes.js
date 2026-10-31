@@ -1,22 +1,32 @@
-// Oct 30 look-only run #7b (Josh's cost audit preview): NOTHING is written. For the jobs in the audit: the margin the CRM
-// shows now (with the costs locked on the quote), and what it would be with the fixed costing and Josh's corrected blank
-// costs applied in memory only. Lists any line still missing a cost part (SKUs and counts only, no names).
+// Oct 30 cost-audit run (Josh's Cost Audit; Matt said "Apply costs" at 9:36 PM): blank costs set to what was paid, the two
+// missing blanks added, and costs re-taken on the quoted jobs so they use the fixed costing. Prints, per project, the
+// margin before and after and any line still missing a cost part (SKUs and counts only, no names).
 (async (T) => {
-  const S = T.S, out = { now: {}, fixed: {}, missing: {}, items: {} };
+  const S = T.S, out = { items: [], before: {}, after: {}, missing: {} }; const now = Date.now();
   const nums = [2014, 2017, 2025, 2026, 2028, 2029, 2031, 2032];
   const byNum = (n) => [...S.projects.values()].find((p) => String(p.num) === String(n) && !p.deleted);
-  const snap = (p, live) => { let rev = 0, cost = 0, un = 0; (p.orderLines || []).forEach((l) => { if (!l) return; const q = Number(l.qty) || (T.isCharge(l) ? 1 : 0), pr = Number(l.price) || 0; if (!q || !pr) return;
-      let c = 0; if (T.isCharge(l)) c = Number(l.cost) || 0; else { try { c = (live ? T.quoteLineCostLive(l) : T.quoteLineCost(l)).cost || 0; } catch (e) {} }
-      if (T.isCharge(l) || c > 0) { rev += q * pr; cost += q * c; } else un++; });
-    return { m: rev ? Math.round((rev - cost) / rev * 1000) / 10 : null, cost: Math.round(cost * 100) / 100, rev: Math.round(rev * 100) / 100, uncosted: un }; };
-  nums.forEach((n) => { const p = byNum(n); if (p) out.now["P-" + n] = snap(p, false); });
-  // Josh's corrected blank costs and the 12x6 blank, in memory only
+  const snap = (p) => { const m = T.projMargin(p); return m == null ? null : Math.round(m * 10) / 10; };
+  nums.forEach((n) => { const p = byNum(n); if (p) out.before[n] = snap(p); });
   const fixCost = { "BLK-080-1806": 4.58, "BLK-080-2424D": 18.24, "BLK-080-3030D": 28.47, "BLK-080-2424S": 18.24, "BLK-063-1218": 6.03 };
-  [...S.items.values()].forEach((i) => { const k = String(i.sku || "").toUpperCase(); if (fixCost[k]) { out.items[k] = i.cost + "→" + fixCost[k]; i.cost = String(fixCost[k]); } });
-  S.items.set("tmp1206", { id: "tmp1206", sku: "BLK-080-1206", name: "Blank 12x6 Rectangle .080", cost: "3.05", unit: "each", cat: "Blanks" });
-  nums.forEach((n) => { const p = byNum(n); if (!p) return; out.fixed["P-" + n] = snap(p, true);
-    const ms = (p.orderLines || []).filter((l) => l && !T.isCharge(l)).map((l) => T.quoteLineCostLive(l)).filter((c) => c.src === "missing").map((c) => (c.missing || []).join("+").replace(/[^A-Za-z0-9 .x×"+-]/g, "").slice(0, 40));
-    if (ms.length) out.missing["P-" + n] = ms; });
-  out.sheetNoCost = (S.sheet && S.sheet.rows || []).filter((r) => !(Number(r.cost) > 0)).length + " of " + (S.sheet && S.sheet.rows || []).length;
-  return { f31: out.fixed["P-2031"], f32: out.fixed["P-2032"], missing: out.missing, items: out.items, sheet: out.sheetNoCost };
+  const items = [...S.items.values()].filter((i) => !i.deleted);
+  for (const [sku, c] of Object.entries(fixCost)) { const it = items.find((i) => String(i.sku || "").toUpperCase() === sku);
+    if (!it) { out.items.push(sku + " not found"); continue; }
+    const fr = Number(it.vendorFreight) || 0, was = it.cost;
+    await T.push("items/" + it.id, { cost: String(c), vendorPrice: it.vendorPrice !== undefined && it.vendorPrice !== "" ? String(Math.round((c - fr) * 100) / 100) : (it.vendorPrice || ""), updatedAt: now });
+    await T.recordHistory("item", it.id, [{ f: "Unit cost", o: String(was || ""), n: String(c) + " (Josh's cost audit: what was actually paid)" }]); out.items.push(sku + " " + was + ">" + c); }
+  const vend = [...S.vendors.values()].find((v) => !v.deleted && /us\s*standard/i.test(v.name || ""));
+  const add = async (sku, rec) => { if (items.some((i) => String(i.sku || "").toUpperCase() === sku)) { out.items.push(sku + " already there"); return; }
+    const id = T.uid("it"); await T.setDoc("items/" + id, Object.assign({ id, sku, unit: "each", cat: "Blanks", onHand: 0, reorderPoint: "", reorderQty: "", deleted: false, createdAt: now, updatedAt: now }, rec));
+    await T.recordHistory("item", id, [{ f: "Item", o: "", n: "Added from Josh's cost audit", ev: 1 }]); out.items.push(sku + " added"); };
+  await add("BLK-080-1206", { name: "Blank 12x6 Rectangle .080", cost: "3.05", vendorPrice: "2.91", vendorFreight: "0.14", vendorId: vend ? vend.id : "", vendorLast: "2026-10-30", vendorSource: "invoice USS45002", notes: "US Standard invoice USS45002: $2.91 + $0.14 freight" });
+  await add("BLK-063-0633", { name: "Blank 6x33 Blade .063", cost: "", notes: "Price TBD — lines using it show as missing a cost until it's set" });
+  out.vendor = !!vend;
+  await new Promise((r) => setTimeout(r, 8000));
+  for (const n of nums) { const p = byNum(n); if (!p) continue;
+    try { out["re" + n] = await T.lockLineCosts(p.id, true); } catch (e) { out["re" + n] = "err " + String(e.message).slice(0, 60); } }
+  await new Promise((r) => setTimeout(r, 8000));
+  nums.forEach((n) => { const p = byNum(n); if (!p) return; out.after[n] = snap(p);
+    const ms = (p.orderLines || []).filter((l) => l && !T.isCharge(l)).map((l) => T.quoteLineCost(l)).filter((c) => c.src === "missing").length;
+    if (ms) out.missing[n] = ms; });
+  return out;
 })
