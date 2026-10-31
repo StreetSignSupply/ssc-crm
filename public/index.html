@@ -2765,7 +2765,10 @@ function quoteLineCostLive(line){
   {const sc=stcLineCost(line);if(sc)return sc}
   // a bare blank (no sheeting) costs what the blank costs: the inventory blank for its size and gauge
   if(!String(line.grade||"").trim()&&/\bblanks?\b/i.test((line.desc||"")+" "+(line.title||""))&&parseSize(line.size)){
-    const gm=String(line.desc||"").match(/\.(0\d0|125|100)\b/);const it=pickBlank(line.size,gm?gm[1]:"080")||pickBlank(line.size);
+    const gm=String(line.desc||"").match(/\.(0\d0|125|100)\b/);
+    // "extruded street sign blank" is the extruded blade (BLK-EXT-…), never a flat .125 sheet of the same size
+    const ext=/extru/i.test((line.desc||"")+" "+(line.title||""))?pickExtruded(line.size):null;
+    const it=ext||pickBlank(line.size,gm?gm[1]:"080")||pickBlank(line.size);
     if(it&&Number(it.cost)>0)return {cost:Number(it.cost),src:"material",why:"bare blank — "+it.name+" at its item cost"};
     return {cost:0,src:"noblank",why:"No "+sizeLabel(line.size)+" blank in inventory with a cost — add it (or its cost) and this line is costed"}}
   // a sign with no sheeting picked can't be costed — say what's missing instead of a blank
@@ -2818,22 +2821,31 @@ function inkRate(){const v=Number((S.brand||{}).inkSqft);return v>0?v:0.39}
 function inkCover(){const v=Number((S.brand||{}).inkCover);return v>0&&v<=100?v:63}
 function inkCostOf(line,printed){if(!printed)return 0;const d=parseSize(line&&line.size);return d?Math.round(d.w*d.h/144*inkCover()/100*(Number(inkRate())||0)*100)/100:0}
 function signMatCost(line,j){
-  const one={qty:"1",code:line.code||"",desc:line.desc||"",size:line.size,grade:line.grade||"",sub:line.sub||"",
-    legend:line.legend||"",legends:line.legends||[],build:line.build||"",noLam:lamOff(line),lam:!lamOff(line)};
-  const printed=line.build==="print"||(j&&jobIsPrinted(j));
+  const stop=isStopSign(line);
+  const printed=line.build==="print"||(line.build!=="film"&&(j&&j.num!=null?jobIsPrinted(j):!bareBlank(line)));
+  // a stop's face is white sheeting of its grade; the red is printed (or, cut by hand, EC red film)
+  const g0=stop?whiteGradeOf(line.grade):(line.grade||"");
+  // cut EC film with no colour picked: the legend is costed as one EC film colour at the default coverage
+  let legs=line.legends||[],leg=line.legend||"";
+  if(!printed&&!legendsOf(line).length&&!line.sheetKey){const col=stop?"RED":"BLACK";legs=[{film:ecNameFor(col)||("EC "+col),pct:stop?inkCover():null}];leg=""}
+  const one={qty:"1",code:line.code||"",desc:line.desc||"",size:line.size,grade:g0,sub:line.sub||"",
+    legend:leg,legends:legs,build:line.build||"",noLam:lamOff(line),lam:!lamOff(line)};
   let rows=[];try{rows=planFor({prod:"sign",method:printed?"print":"film",blankSrc:"stock",items:[one]},null)}catch(e){return null}
+  // the cost-sheet row for a stop names red sheeting — the face is white, so drop any red sheeting it pulled
+  if(stop)rows=rows.filter(r=>{const x=r.itemId&&S.items.get(r.itemId);return !(x&&/^(DG3-4092|HIP-3932|EG-3432|AEGP-7312)/i.test(String(x.sku||"")))});
   if(!rows.length)return null;let tot=0;const parts=[],pp=[];
   // every part has to be there: a sign with no blank of its size, or no sheeting, isn't costed at what's left
   if(!line.sheetKey&&!rows.some(r=>{const x=r.itemId&&S.items.get(r.itemId);return x&&/^BLK-|blank/i.test((x.sku||"")+" "+x.name)})&&itBlank(j||{},line)!=="cut"&&lineProd(line)==="sign")
     return {cost:0,src:"missing",missing:["Blank "+sizeLabel(line.size)+" ."+lineGauge(line)],why:"No "+sizeLabel(line.size)+" ."+lineGauge(line)+" blank in inventory — add it with its cost; until then this line isn't costed"};
-  if(!filmPrefix(line.grade)&&!line.sheetKey&&lineProd(line)==="sign")return {cost:0,src:"missing",missing:["Sheeting for “"+String(line.grade||"").slice(0,40)+"”"],why:"The grade “"+line.grade+"” doesn't match any sheeting in inventory — pick EG, HIP, DG3 or AEGP; until then this line isn't costed"};
+  if(!filmPrefix(g0)&&!line.sheetKey&&lineProd(line)==="sign")return {cost:0,src:"missing",missing:["Sheeting for “"+String(line.grade||"").slice(0,40)+"”"],why:"The grade “"+line.grade+"” doesn't match any sheeting in inventory — pick EG, HIP, DG3 or AEGP; until then this line isn't costed"};
   for(const r of rows){const it2=r.itemId?S.items.get(r.itemId):null;if(!it2)continue;if(!(Number(it2.cost)>0))return {cost:0,src:"missing",missing:[it2.name],why:it2.name+" has no cost in inventory — add it; until then this line isn't costed"};
     const per2=rollSqft(it2)||itemSqft(it2),sqX=r.sqRaw||r.sq;
     const c=(sqX&&per2&&/roll|sheet/i.test(it2.unit||""))?sqX/per2*Number(it2.cost):(Number(r.qty)||0)*Number(it2.cost);
     tot+=c;parts.push(it2.name.split("—")[0].replace(/^3M\s+/,"").trim()+" $"+c.toFixed(2));pp.push({l:partKind(it2,"sign"),c})}
   if(!(tot>0))return null;
-  const ink=inkCostOf(line,printed);if(ink){tot+=ink;parts.push("HP latex ink $"+ink.toFixed(2)+" ($"+inkRate().toFixed(2)+"/sq ft on "+inkCover()+"% of the face)");pp.push({l:"Ink",c:ink})}
-  return {cost:Math.round(tot*100)/100,src:"material",parts:partsSum(pp),why:"Item costs (preferred vendor + freight): "+parts.join(" + ")+" (includes "+WASTE_DEFAULT+"% waste on film)"}}
+  const ink=inkCostOf(line,printed);if(ink){tot+=ink;parts.push((stop?"red ":"")+"HP latex ink $"+ink.toFixed(2)+" ($"+inkRate().toFixed(2)+"/sq ft on "+inkCover()+"% of the face)");pp.push({l:"Ink",c:ink})}
+  return {cost:Math.round(tot*100)/100,src:"material",parts:partsSum(pp),printed,
+    why:(printed?"Printed legend":"Legend cut from EC film")+(stop?" · stop on white "+gradeTok(line.grade)+" sheeting":"")+" — item costs (preferred vendor + freight): "+parts.join(" + ")+" (includes "+WASTE_DEFAULT+"% waste on film)"}}
 // what a cost part is, in the shop's words: Blank, Sheeting, Legend, Overlay, Overlaminate, Ink, Media
 function partKind(it,lp){const sk=String(it.sku||"").toUpperCase(),n=String(it.name||"");
   return /^BLK-/.test(sk)||/blank/i.test(n)?"Blank":/^EC-1170C/.test(sk)?"Overlay":/^EC-/.test(sk)?"Legend":/lamin|8518|8519|8520|8914/i.test(n)?"Overlaminate"
@@ -5288,6 +5300,13 @@ function prodTypesCard(){
     </div></section>`;
 }
 /* ================= COSTS AND PRICES — EDIT ANYTHING ================= */
+// a cost-sheet sign costed today, exactly as a quote line for it would be (item costs, printed legend unless it says film)
+function sheetRowCost(r){if(!r)return {cost:0};
+  let out={cost:0,why:""};try{const line={qty:"1",code:r.code||"",desc:r.title||r.name||"",size:r.size||"",grade:r.base||"",sheetKey:r.key};
+    const m=signMatCost(line);out=m?{cost:m.src==="missing"?0:m.cost,why:m.why||"",src:m.src,printed:m.printed}:{cost:0,why:"couldn't be costed from inventory"}}catch(e){out={cost:0,why:"couldn't be costed"}}
+  return out}
+// the price a cost-sheet sign sells for when the workbook gave none: its cost at the target margin
+function sheetRowPrice(r,c){const m=Number(sheetRates().margin)||0.4;return c?Math.round(c/(1-m)*100)/100:0}
 function pricingView(){
   const q=(S.q||"").trim().toLowerCase();
   const hit=t=>!q||String(t||"").toLowerCase().indexOf(q)>=0;
@@ -5316,13 +5335,14 @@ function pricingView(){
         <th style="width:104px;text-align:right">Costs / sq ft</th>
         <th style="width:126px;text-align:right">We charge per unit</th><th style="width:96px;text-align:right">Margin</th>
         <th style="width:84px;text-align:right">On hand</th></tr></thead><tbody>
-        ${mats.map(it=>{const per=itemSqft(it);const c=money0(it.cost);
+        ${mats.map(it=>{const byArea=/roll|sheet|sq ?ft|yard|yd/i.test(it.unit||"")||/sheeting|film|vinyl|media|laminat|banner|magnet|stencil|substrate|blank/i.test((it.cat||"")+" "+(it.sku||""))&&!/post|hardware|bracket|bolt|cap|anchor|channel/i.test((it.cat||"")+" "+it.name);
+          const per=byArea?itemSqft(it):0;const c=money0(it.cost);
           return `<tr><td><b>${esc(it.name)}</b>${it.sku?`<div class="sub">${esc(it.sku)}</div>`:""}</td>
           <td class="sub">${esc(it.cat||"")}</td><td class="sub">${esc(it.unit||"")}</td>
-          <td style="text-align:right"><input class="cell" data-pcost="${esc(it.id)}" value="${esc(it.cost||"")}" inputmode="decimal" placeholder="0.00"></td>
-          <td style="text-align:right"><input class="cell" data-psqft="${esc(it.id)}" value="${esc(it.sqftPer||"")}" inputmode="decimal" placeholder="${per?per:"—"}"></td>
+          <td style="text-align:right"><div class="mono" style="font-weight:700">${c?money2(c):`<span class="sub">no cost</span>`}</div><input class="cell" aria-label="Cost per unit" data-pcost="${esc(it.id)}" value="${esc(it.cost||"")}" inputmode="decimal" placeholder="0.00"></td>
+          <td style="text-align:right">${byArea?`<div class="mono">${per?Math.round(per*100)/100:"—"}</div><input class="cell" aria-label="Sq ft per unit" data-psqft="${esc(it.id)}" value="${esc(it.sqftPer||"")}" inputmode="decimal" placeholder="${per?per:"—"}">`:`<span class="sub" title="Not sold by area">—</span>`}</td>
           <td class="mono" style="text-align:right">${(c&&per)?money2(c/per):`<span class="sub">—</span>`}</td>
-          <td style="text-align:right"><input class="cell" data-psell="${esc(it.id)}" value="${esc(it.sell||"")}" inputmode="decimal" placeholder="${c?money0(suggestPrice(c)).toFixed(2):"0.00"}"></td>
+          <td style="text-align:right"><div class="mono">${money0(it.sell)?money2(money0(it.sell)):c?`<span class="sub">${money2(suggestPrice(c))} at target</span>`:"—"}</div><input class="cell" aria-label="We charge per unit" data-psell="${esc(it.id)}" value="${esc(it.sell||"")}" inputmode="decimal" placeholder="${c?money0(suggestPrice(c)).toFixed(2):"0.00"}"></td>
           <td style="text-align:right">${(function(){const sl=money0(it.sell)||suggestPrice(c);const mg=sl?((sl-c)/sl*100):null;
             return mg==null?`<span class="sub">—</span>`:`<span class="pill ${mg>=35?"g":mg>=20?"o":"r"}" title="${it.sell?"your price":"at target margin"}">${Math.round(mg)}%${it.sell?"":"*"}</span>`})()}</td>
           <td class="mono" style="text-align:right">${esc(stockText(it))}</td></tr>`}).join("")}
@@ -5334,13 +5354,14 @@ function pricingView(){
         <span class="sub" style="flex:1 1 100%;order:9">What each finished sign costs you and sells for. These are what the price list and every sign quote use.</span>
         <span class="sp"><button class="btn sm" data-newsign="1">Add a sign</button></span></header>
       ${rows.length?`<table><thead><tr><th>Sign</th><th style="width:80px">Size</th><th style="width:96px">Grade</th>
-        <th style="width:118px;text-align:right">Costs us</th><th style="width:118px;text-align:right">We sell for</th>
+        <th style="width:128px;text-align:right">Costs us today</th><th style="width:118px;text-align:right">Workbook cost</th><th style="width:128px;text-align:right">We sell for</th>
         <th style="width:96px;text-align:right">Margin</th><th style="width:96px"></th></tr></thead><tbody>
-        ${rows.slice(0,400).map(r=>{const c=money0(r.cost),sl=money0(r.sell);const mg=sl?((sl-c)/sl*100):null;
+        ${rows.slice(0,400).map(r=>{const lc=sheetRowCost(r);const c=lc.cost||money0(r.cost),sl=money0(r.sell)||sheetRowPrice(r,c);const mg=(sl&&c)?((sl-c)/sl*100):null;
           return `<tr><td><b>${esc(r.title||r.name)}</b>${r.code?`<div class="sub">${esc(r.code)}</div>`:""}</td>
           <td class="sub">${esc(r.size||"")}</td><td class="sub">${esc(r.base||"")}</td>
-          <td style="text-align:right"><input class="cell" data-scost="${esc(r.key)}" value="${c?c.toFixed(2):""}" inputmode="decimal" placeholder="0.00"></td>
-          <td style="text-align:right"><input class="cell" data-ssell="${esc(r.key)}" value="${sl?sl.toFixed(2):""}" inputmode="decimal" placeholder="0.00"></td>
+          <td style="text-align:right" title="${esc(lc.why||"")}"><div class="mono" style="font-weight:700">${lc.cost?money2(lc.cost):`<span class="pill r" title="${esc(lc.why||"")}">${lc.src==="missing"?"missing a part":"not costed"}</span>`}</div>${lc.cost?`<div class="sub">${lc.printed===false?"cut film":"printed"}</div>`:""}</td>
+          <td style="text-align:right"><div class="mono sub">${money0(r.cost)?money2(money0(r.cost)):"—"}</div><input class="cell" aria-label="Workbook cost" data-scost="${esc(r.key)}" value="${money0(r.cost)?money0(r.cost).toFixed(2):""}" inputmode="decimal" placeholder="0.00"></td>
+          <td style="text-align:right"><div class="mono" style="font-weight:700">${sl?money2(sl):"—"}${!money0(r.sell)&&sl?`<div class="sub" style="font-weight:400">at ${Math.round((sheetRates().margin||0.4)*100)}% target</div>`:""}</div><input class="cell" aria-label="We sell for" data-ssell="${esc(r.key)}" value="${money0(r.sell)?money0(r.sell).toFixed(2):""}" inputmode="decimal" placeholder="${sl?sl.toFixed(2):"0.00"}"></td>
           <td style="text-align:right">${mg==null?`<span class="sub">—</span>`:`<span class="pill ${mg>=35?"g":mg>=20?"o":"r"}">${Math.round(mg)}%</span>`}</td>
           <td style="text-align:right">${r.estimate?`<span class="pill o">on estimate</span>`:""}</td></tr>`}).join("")}
       </tbody></table>${rows.length>400?`<div class="sub" style="padding:8px 15px">${rows.length-400} more — use the filter.</div>`:""}`
@@ -5768,7 +5789,15 @@ function jobIsPrinted(j){
   return false;
 }
 // one line is printed when its build says so, or its material is print media; on a work order the job's method decides the rest
+// a bare blank (no sheeting) has nothing on it to print
+function bareBlank(l){return !!l&&!String(l.grade||"").trim()&&/\bblanks?\b/i.test((l.desc||"")+" "+(l.title||""))}
+// stop signs (R1-1): DG3/HIP/EG white sheeting with the red printed — never red sheeting (not Stop Ahead, Stop Here, all-way plaques)
+function isStopSign(l){if(!l)return false;const c=String(l.code||"").toUpperCase().replace(/\s+/g,"");const d=String(l.desc||"")+" "+String(l.title||"");
+  if(/^R1-1$/.test(c))return true;if(c&&!/^R1-1\b/.test(c))return false;
+  return /\bstop\b/i.test(d)&&!/ahead|here|for ped|bar|all[ -]?way|paddle|line|stencil|decal|cross traffic|does not stop|school bus|r1-6/i.test(d)}
+function whiteGradeOf(g){const t=gradeTok(g);return {EG:"3M Engineer Grade White 3430",HIP:"3M HIP White 3930",DG3:"3M Diamond Grade DG3 White 4090",AEGP:"3M AEGP White 7310"}[t]||g}
 function linePrinted(l,j){if(!l)return false;if(l.build==="print")return true;if(l.build==="film")return false;
+  if(!(j&&j.num!=null)&&lineProd(l)==="sign"&&!bareBlank(l))return true;
   if(/40C|IJ35|PRINT/i.test(String(l.grade||""))||isPrintMedia(matchItem(l.grade)))return true;
   return (j&&j.num!=null)?buildOfLine(Object.assign({},j,{items:[l]}))==="print":false}
 // the clear overlaminate the customer declined: "none" of a work order's printed items, "some" or "all"
@@ -6622,7 +6651,7 @@ function ordModal(pid,ix,pre){
           <datalist id="dl-o-grade2">${quoteMaterials().map(x=>`<option value="${esc(x.v)}">${esc(x.l)}</option>`).join("")}</datalist></div>
       </div></div>
       <details class="fld full omore"${(o.build||o.note||(legendsOf(o).length&&!isNew)||o.lam===true)?" open":""}><summary>More options</summary><div class="fgrid" style="padding:0">
-      ${sel("o-build","How it's made",o.build||"",[{v:"",l:"Work it out from the material"},{v:"film",l:"Cut film / cut vinyl"},{v:"print",l:"Printed"}])}
+      ${sel("o-build","Legend",o.build||"",lineProd(o)==="sign"?[{v:"",l:"Printed on the HP (default)"},{v:"film",l:"Legend: cut EC film (small order)"},{v:"print",l:"Printed on the HP"}]:[{v:"",l:"Work it out from the material"},{v:"film",l:"Cut film / cut vinyl"},{v:"print",l:"Printed"}])}
       <div id="o-nolam-wrap" class="fld full" style="display:none;border-bottom:0;padding:0">${noLamBox("o-nolam",!!o.noLam)}</div>
       ${legendEditor("o",o,legendPctDefault())}
       ${acct(p.accountId)?`<div class="fld full" id="o-contract-wrap"><label style="display:flex;gap:8px;align-items:center;cursor:pointer">
@@ -6730,7 +6759,7 @@ function ordCostHelp(){
     desc:$("#o-desc")?$("#o-desc").value:"",build:$("#o-build")?$("#o-build").value:"",legend:lg.legend||(S.ordPre&&S.ordPre.legend)||"",legends:lg.legends,
     sheetKey:(S.ordPre&&S.ordPre.sheetKey)||"",webId:(S.ordPre&&S.ordPre.webId)||"",webVar:(S.ordPre&&S.ordPre.webVar)||0};
   const pe=$("#o-price");
-  const lb=$("#o-legs");if(lb){const lp0=lineProd(line);lb.style.display=(lp0==="sign"&&line.build!=="print")?"":"none"}
+  const lb=$("#o-legs");if(lb){const lp0=lineProd(line);lb.style.display=(lp0==="sign"&&line.build==="film")?"":"none"}
   {const nw=$("#o-nolam-wrap"),nl=$("#o-nolam");const pr1=linePrinted(line);if(nw)nw.style.display=pr1?"":"none";line.lam=!!(pr1&&nl&&nl.checked);line.noLam=!line.lam}
   const sg=ordSuggest(line);
   // the price follows the suggestion (quantity breaks included) until someone types their own price
@@ -7153,6 +7182,9 @@ function pickRoll(pre,minIn,needSq){
   const fits=c.filter(i=>rollWidth(i)>=minIn).sort((a,b)=>rollWidth(a)-rollWidth(b));
   return fits[0]||c.slice().sort((a,b)=>rollWidth(b)-rollWidth(a))[0];
 }
+function pickExtruded(sz){const d=parseSize(sz);if(!d)return null;const p2=x=>String(Math.round(x)).padStart(2,"0");
+  const a=p2(Math.min(d.w,d.h))+p2(Math.max(d.w,d.h));
+  return itemList().find(i=>String(i.sku||"").toUpperCase()==="BLK-EXT-"+a)||itemList().find(i=>/extru/i.test(i.name||"")&&String(i.sku||"").toUpperCase().indexOf(a)>=0)||null}
 function pickBlank(sz,gauge){
   const k=sizeKey(sz);if(!k)return null;const d=parseSize(sz);const p2=x=>String(Math.round(x)).padStart(2,"0");const k2=d?p2(d.h)+p2(d.w):k;
   // a 12x24 and a 24x12 are the same blank
@@ -7367,7 +7399,7 @@ function planFor0(j,wastePct){
           agg[k].qty+=q;agg[k].why.push(q+" x "+(it.code||"")+" "+(it.size||"")+" (tab 04)")}}
       const basePre=filmPrefix(it.grade)||baseFromSheet(srow.base);
       addSq(basePre,srow.rollW,srow.sqftLayer*q,q+" x "+srow.size+" base, "+srow.sqftLayer.toFixed(3)+" sq ft each (tab 04)");
-      if((buildFromMaterial(j)||j.method)==="print"){
+      if((it.build==="print")||(it.build!=="film"&&(buildFromMaterial(j)||j.method)==="print")){
         if(!lamOff(it))addSq("EC-1170C",srow.rollW,srow.sqftLayer*q,"1170C clear over "+q+" printed faces");
       }else{
         // the workbook's own colours and amounts, unless the project line names its legend colours
@@ -10357,7 +10389,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-94";
+const APP_VERSION="2026.11.25-95";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
