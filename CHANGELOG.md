@@ -1,5 +1,10 @@
 # What changed
 
+## 2026.11.25-118 (stay inside Firebase's free plan)
+- Change history is read one record at a time when you open it, instead of the whole history collection on every page load — the biggest single cut in database reads. The Change history page, Data settings and a backup still read it all.
+- The mail worker uses live listeners instead of re-reading the mail queue, signature links, AI drafts, tasks and the contact/project lists every minute.
+- Why: Firebase's free plan allows 50,000 reads a day; on 1 Nov the CRM ran past it around 10 AM and stopped loading until the 1 AM reset.
+
 ## 2026.11.25-117
 - Settings → Write it with AI: the key box accepts Google's newer key formats (it was rejecting anything not starting "AIza"); spaces from pasting are removed.
 
