@@ -109,11 +109,25 @@ const sigCache = {};
 async function gmailSig(email) { const c = sigCache[email]; if (c && Date.now() - c.at < 30 * 60000) return c.sig;
   let sig = ""; try { const j = await gmail(email, READ, "settings/sendAs"); const sa = (j.sendAs || []).find((x) => String(x.sendAsEmail).toLowerCase() === email) || (j.sendAs || []).find((x) => x.isPrimary) || {}; sig = String(sa.signature || ""); } catch (e) {}
   sigCache[email] = { sig, at: Date.now() }; return sig; }
+/* ---- reads: live listeners instead of re-reading every minute ----
+   The free Firebase plan allows 50,000 document reads a day. Polling the mail queue, signature links, AI drafts and the
+   whole contact/project list every minute burned through that (1 Nov: "Quota exceeded" — the CRM itself stops loading).
+   Each query here is read once when the worker starts; after that only documents that change are read. */
+const WATCH = {};
+function watch(key, q) { if (WATCH[key]) return WATCH[key].ready;
+  const w = WATCH[key] = { docs: new Map(), ready: null };
+  w.ready = new Promise((ok) => { let first = true;
+    q.onSnapshot((snap) => { snap.docChanges().forEach((ch) => { if (ch.type === "removed") w.docs.delete(ch.doc.id); else w.docs.set(ch.doc.id, { id: ch.doc.id, ref: ch.doc.ref, data: () => ch.doc.data() }); });
+      if (first) { first = false; ok(); } }, (e) => { say("listener " + key + ": " + String(e.message || e).slice(0, 80)); if (first) { first = false; ok(); } }); });
+  return w.ready; }
+async function docsOf(key, q) { await watch(key, q); return [...WATCH[key].docs.values()]; }
 async function sendQueued() {
-  const queued = (await fs.collection("mail").where("status", "==", "queued").limit(40).get()).docs;
-  // task notices written before there was a status field: anything from the last day that hasn't been sent
-  const legacy = (await fs.collection("mail").where("at", ">", Date.now() - 864e5).get()).docs.filter((d) => !d.data().status);
+  const queued = (await docsOf("mailq", fs.collection("mail").where("status", "==", "queued"))).slice(0, 40);
+  // task notices written before there was a status field: checked once, when the worker starts
+  const legacy = sendQueued.didLegacy ? [] : (await fs.collection("mail").where("at", ">", Date.now() - 864e5).get()).docs.filter((d) => !d.data().status); sendQueued.didLegacy = true;
+  sendQueued.done = sendQueued.done || new Set();
   for (const d of queued.concat(legacy)) {
+    if (sendQueued.done.has(d.id)) continue; sendQueued.done.add(d.id);
     const m = d.data(); const now = Date.now();
     const from = m.kind === "customer" ? String(m.from || "").toLowerCase() : mailFrom;
     const to = (m.to || []).filter((x) => /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(String(x))), cc = (m.cc || []).filter((x) => /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(String(x)));
@@ -144,7 +158,7 @@ async function sendQueued() {
 }
 async function logGmail() {
   // ---- 2. log customer emails from each person's Gmail ----
-  const live = async (c) => (await fs.collection(c).get()).docs.map((d) => Object.assign({ id: d.id }, d.data())).filter((x) => !x.deleted);
+  const live = async (c) => (await docsOf("all_" + c, fs.collection(c))).map((d) => Object.assign({ id: d.id }, d.data())).filter((x) => !x.deleted);
   const team = (await live("team")).filter((t) => isOurs(t.email));
   const contacts = await live("contacts"), accounts = await live("accounts"), projects = await live("projects");
   // the project an email is about: a P- or quote number in the subject, else that contact's (or account's) latest open project
@@ -163,7 +177,7 @@ async function logGmail() {
   const addrs = (h) => String(h || "").match(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g) || [];
   function bodyText(pl) { if (!pl) return ""; if (pl.mimeType === "text/plain" && pl.body && pl.body.data) return Buffer.from(pl.body.data, "base64").toString("utf8");
     for (const p2 of pl.parts || []) { const t = bodyText(p2); if (t) return t; } return ""; }
-  const already = new Set((await fs.collection("activity").where("at", ">", Date.now() - 10 * 864e5).get()).docs.map((d) => d.data().gmailId).filter(Boolean));
+  const already = new Set((await docsOf("act10", fs.collection("activity").where("at", ">", t0 - 10 * 864e5))).map((d) => d.data().gmailId).filter(Boolean));
   for (const t of team) {
     const me = String(t.email).toLowerCase();
     try { const sg = await gmailSig(me); if (sg) n.sigs = (n.sigs || 0) + 1; if (String(t.mailSig || "") !== sg) await fs.doc("team/" + t.id).set({ mailSig: sg.slice(0, 30000), mailSigAt: Date.now() }, { merge: true }); } catch (e) {}
@@ -205,13 +219,14 @@ async function logGmail() {
 }
 async function signFollow() {
   // opened: one Activity line the first time the customer opens the link
-  for (const d of (await fs.collection("signreq").where("status", "==", "sent").get()).docs) { const r = d.data(); if (!r.viewedAt || r.viewLogged) continue;
+  const srAll = await docsOf("signreq", fs.collection("signreq").where("status", "in", ["sent", "signed", "declined"]));
+  for (const d of srAll.filter((x) => x.data().status === "sent")) { const r = d.data(); if (!r.viewedAt || r.viewLogged) continue;
     const xid = "sv_" + d.id.slice(0, 20);
     await fs.doc("activity/" + xid).set({ id: xid, recType: "project", recId: String(r.projectId), kind: "note", type: "note", subject: (r.kind === "proof" ? "Proof" : "Quote " + (r.quoteNo || "")) + " opened by the customer",
       text: "The signature link was opened" + (r.contactName ? " (sent to " + r.contactName + ")" : "") + ".", whoId: "", who: "Sign", when: mtDay(r.viewedAt), at: r.viewedAt, done: true, deleted: false, noBack: true }, { merge: true });
     await d.ref.set({ viewLogged: true }, { merge: true }); }
   // ---- 3. signature links that were signed or turned down: tell the person who sent them ----
-  const sigs = (await fs.collection("signreq").where("status", "in", ["signed", "declined"]).get()).docs.filter((d) => !d.data().notified);
+  const sigs = srAll.filter((d) => ["signed", "declined"].indexOf(d.data().status) >= 0 && !d.data().notified);
   for (const d of sigs) {
     const r = d.data(); const tm = r.createdById ? (await fs.doc("team/" + r.createdById).get()).data() : null; const now = Date.now();
     const kindL = r.kind === "both" ? "Quote " + (r.quoteNo || "") + " + proof rev " + (r.proofRev || 1) : r.kind === "proof" ? "Proof rev " + (r.proofRev || 1) : "Quote " + (r.quoteNo || "");
@@ -219,7 +234,7 @@ async function signFollow() {
     const what = kindL + " " + (r.status === "signed" ? "signed" : "— changes asked for") + ": " + (r.pnum || "") + " by " + (r.signedName || "the customer");
     const body = what + (flagged ? "\n\nArtwork that needs a change:\n" + flagged : "") + (r.po ? "\n\nTheir PO: " + r.po : "") + (r.note ? "\n\nTheir note: " + r.note : "") + "\n\nOpen it: https://crm.streetsignsupply.com/#/project/" + r.projectId;
     // the person who sent the link and the owner both hear about it (bell + email)
-    const owners = (await fs.collection("team").get()).docs.map((x) => Object.assign({ id: x.id }, x.data())).filter((t) => !t.deleted && (t.id === r.createdById || (t.access || "owner") === "owner"));
+    const owners = (await docsOf("all_team", fs.collection("team"))).map((x) => Object.assign({ id: x.id }, x.data())).filter((t) => !t.deleted && (t.id === r.createdById || (t.access || "owner") === "owner"));
     for (const t of owners) { const nid = "nt_sig_" + d.id.slice(0, 12) + "_" + t.id.slice(0, 8);
       await fs.doc("notifications/" + nid).set({ id: nid, toId: t.id, fromId: "", fromName: "Signature", kind: "sign", text: what + (flagged ? " — artwork changes asked for" : "") + (r.note ? " — “" + String(r.note).slice(0, 200) + "”" : ""),
         link: "project/" + r.projectId, at: now, read: false, deleted: false }); }
@@ -247,15 +262,15 @@ const mtDay = (ms) => new Date(ms).toLocaleDateString("en-CA", { timeZone: "Amer
 const mtHour = () => Number(new Date().toLocaleString("en-US", { timeZone: "America/Denver", hour: "numeric", hour12: false }));
 async function taskMail() {
   const today = mtDay(Date.now()); const syncRef = fs.doc("settings/mailsync"); const sy = (await syncRef.get()).data() || {};
-  const tasks = (await fs.collection("activity").where("kind", "==", "task").get()).docs.map((d) => Object.assign({ _ref: d.ref, id: d.id }, d.data())).filter((t) => !t.done && !t.deleted);
-  const team = (await fs.collection("team").get()).docs.map((d) => Object.assign({ id: d.id }, d.data())).filter((t) => !t.deleted && isOurs(t.email));
+  const tasks = (await docsOf("tasks", fs.collection("activity").where("kind", "==", "task"))).map((d) => Object.assign({ _ref: d.ref, id: d.id }, d.data())).filter((t) => !t.done && !t.deleted);
+  const team = (await docsOf("all_team", fs.collection("team"))).map((d) => Object.assign({ id: d.id }, d.data())).filter((t) => !t.deleted && isOurs(t.email));
   const mine = (t, a) => a.assigneeId ? a.assigneeId === t.id : a.whoId ? a.whoId === t.id : String(a.who || "").toUpperCase() === String(t.initials || "").toUpperCase();
   const link = (a) => "https://crm.streetsignsupply.com/#/" + (a.recType === "project" ? "project/" : a.recType === "job" ? "job/" : a.recType === "contact" ? "contact/" : "account/") + a.recId;
   const line = (a) => "• " + String(a.text || "").slice(0, 140) + (a.due ? " (due " + a.due + ")" : "") + "\n  " + link(a);
   // assignment notices: the bell and an email for every task given to someone — yours, someone else's, and the CRM's own
   // follow-ups — once per assignment (reassigning sends a new one). Tasks older than two days are marked quietly.
-  const allTeam = (await fs.collection("team").get()).docs.map((d) => Object.assign({ id: d.id }, d.data())).filter((t) => !t.deleted);
-  const bells = (await fs.collection("notifications").where("kind", "==", "task-assigned").get()).docs.map((d) => d.data());
+  const allTeam = (await docsOf("all_team", fs.collection("team"))).map((d) => Object.assign({ id: d.id }, d.data())).filter((t) => !t.deleted);
+  const bells = (await docsOf("bells", fs.collection("notifications").where("kind", "==", "task-assigned"))).map((d) => d.data());
   const recPath = (a) => (a.recType === "project" ? "project/" : a.recType === "job" ? "job/" : a.recType === "contact" ? "contact/" : "account/") + a.recId;
   for (const a of tasks.filter((x) => x.assigneeId && (Number(x.assignNoticed) || 0) < (Number(x.assignedAt) || Number(x.at) || 1))) {
     const when = Number(a.assignedAt) || Number(a.at) || 0;
@@ -290,8 +305,9 @@ async function taskMail() {
 const GH = process.env.GH_TOKEN || "";
 async function aiDrafts() {
   if (!GH) return 0; let k = 0;
-  const q = (await fs.collection("aidraft").where("status", "==", "queued").limit(5).get()).docs;
-  for (const d of q) { const r = d.data(); k++;
+  const q = (await docsOf("aiq", fs.collection("aidraft").where("status", "==", "queued"))).slice(0, 5);
+  aiDrafts.done = aiDrafts.done || new Set();
+  for (const d of q) { if (aiDrafts.done.has(d.id)) continue; aiDrafts.done.add(d.id); const r = d.data(); k++;
     try {
       const msgs = [{ role: "system", content: String(r.rules || "Write a short, plain business email.") + " Reply with JSON only: {\"subject\":\"...\",\"body\":\"...\"}." },
         { role: "user", content: "What to say: " + (r.ask || "(use the subject and context)") + "\nSubject so far: " + (r.subject || "") + "\nDraft so far:\n" + (r.draft || "") + "\n\nContext:\n" + (r.ctx || "") }];
@@ -304,7 +320,8 @@ async function aiDrafts() {
         return { subject: "", body: t }; };
       // Google's free Gemini first (key saved in Settings → settings/secrets)
       let o = null, err = "";
-      const sec = (await fs.doc("settings/secrets").get()).data() || {}; const gk = String(sec.geminiKey || "");
+      if (!aiDrafts.sec || Date.now() - aiDrafts.secAt > 5 * 60000) { aiDrafts.sec = (await fs.doc("settings/secrets").get()).data() || {}; aiDrafts.secAt = Date.now(); }
+      const sec = aiDrafts.sec; const gk = String(sec.geminiKey || "");
       // which Gemini models this key can use right now (Google retires names) — asked once a run, newest flash model first
       if (gk && !globalThis.__gmList) { try { const lr = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200", { headers: { "x-goog-api-key": gk } });
         const lj = await lr.json().catch(() => ({})); const ok = (lj.models || []).filter((m) => (m.supportedGenerationMethods || []).includes("generateContent")).map((m) => String(m.name || "").replace(/^models\//, ""));
