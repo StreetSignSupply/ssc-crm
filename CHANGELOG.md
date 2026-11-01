@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-117
+- Settings → Write it with AI: the key box accepts Google's newer key formats (it was rejecting anything not starting "AIza"); spaces from pasting are removed.
+
 ## 2026.11.25-116 (free AI drafting with Gemini)
 - Write it with AI on the website now uses Google's free Gemini. GitHub's free AI service no longer answers (it returns a placeholder "OK"). Settings → "Write it with AI — free": create a free key at aistudio.google.com/apikey, paste it, Save. The key is kept in the owners/office-only secrets; the button shows on the compose screen once a key is saved.
 
