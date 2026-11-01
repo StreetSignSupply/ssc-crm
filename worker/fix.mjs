@@ -74,11 +74,14 @@ await page.addInitScript(() => {
   window.__workerCore = { use(name) { const caps = { db, user, permissions: { async state() { return {}; } } };
     if (!(name in caps)) { const e = new Error(name + " not available"); e.code = "not_declared"; throw e; } return caps[name]; } };
 });
+// the page must never reload or navigate during a run (a release mid-run used to pull the rug out): say so loudly if it tries
+let loaded = false; page.on("framenavigated", (f) => { if (loaded && f === page.mainFrame()) { errors++; errs.push("the page navigated mid-run — " + String(f.url()).slice(0, 60)); } });
 await page.route(/firebase-adapter\.js$/, (r) => r.fulfill({ status: 200, contentType: "text/javascript", body: "" }));
 await page.goto("file://" + PAGE);
 await page.evaluate(() => window.__sscResolve && window.__sscResolve(window.__workerCore));
 await page.waitForFunction(() => window.__T && window.__T.S && window.__T.S.projects && window.__T.S.projects.size > 0 && window.__T.S.accounts.size > 0, null, { timeout: 120000 });
 await page.waitForTimeout(20000);   // let every collection arrive
+loaded = true;
 step("CRM loaded");
 let result = {};
 if (STEP === "apply") {
@@ -174,7 +177,7 @@ if (STEP === "qb") {
         if (T.billState(p) !== want) { patch.billStatus = want; notes.push(want === "paid" ? "paid in full" : want); }
         // the invoice copy has no payment date, so the CRM's paid date is left as it is (never set to today)
         if (paid && !p.paidDate && q.paid_date && /^\d{4}-\d{2}-\d{2}$/.test(q.paid_date)) { patch.paidDate = q.paid_date; notes.push("paid on " + q.paid_date); }
-        if (Object.keys(patch).length) { patch.updatedAt = Date.now(); await T.push("projects/" + p.id, patch);
+        if (Object.keys(patch).length) { patch.updatedAt = Date.now(); patch.fixedBy = "QuickBooks check " + RUN; await T.push("projects/" + p.id, patch);
           await T.recordHistory("project", p.id, [{ f: "Fix run", o: "", n: "QuickBooks check " + RUN + ": matched invoice " + doc + " — " + notes.join(", ") + " (before: " + Object.keys(patch).filter((k) => k !== "updatedAt").map((k) => k + " " + JSON.stringify(p[k] === undefined ? "" : p[k])).join(", ") + ")", ev: 1 }]); changed++; }
         const crmTotal = Math.round(((T.projValue(Object.assign({}, p, patch)) || 0) + tax) * 100) / 100;
         const diff = Math.abs(crmTotal - total) > 1.01;

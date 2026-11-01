@@ -13,6 +13,11 @@ service cloud.firestore {
     function member() { return signedIn() && (byId() || byEmail()); }
     function role() { return byId() ? get(/databases/$(db)/documents/access/$(request.auth.uid)).data.role
                                      : get(/databases/$(db)/documents/access/$(emailKey())).data.role; }
+    function acc() { return byId() ? get(/databases/$(db)/documents/access/$(request.auth.uid)).data
+                                   : get(/databases/$(db)/documents/access/$(emailKey())).data; }
+    // the team record this sign-in belongs to, and its own @streetsignsupply.com address (kept on the access record)
+    function myTeamId() { return acc().get("teamId", "-"); }
+    function myMail() { return acc().get("mail", ""); }
     function isOwner() { return member() && role() == "owner"; }
     function isOffice() { return member() && role() in ["owner", "office"]; }
     function isShop() { return member() && role() == "shop"; }
@@ -47,8 +52,9 @@ service cloud.firestore {
     // the record of what's been sent to the sheet is kept up by every copy of the CRM; the lock switch is the owner's
     match /settings/{id} {
       allow read: if (id == "secrets" || id == "qbinv") ? isOffice() : member();
-      allow write: if id == "syncsent" ? member() : (id == "dbLock" ? isOwner()
-                    : isOffice() && !(id != "secrets" && request.resource.data.get("shopToken", "") != ""));
+      // the sign-picture library: anyone but the shop can set a picture (only the byCode list changes)
+      allow write: if id == "syncsent" ? member() : (id == "signlib" ? (member() && !isShop() && (resource == null || changed().hasOnly(["byCode"]))) : (id == "dbLock" ? isOwner()
+                    : isOffice() && !(id != "secrets" && request.resource.data.get("shopToken", "") != "")));
     }
     // change history is add-only: every entry already there stays exactly as it was, new ones go on the end.
     // Once a record's list reaches 400 the oldest drop off, but the newest 300 must all still be there.
@@ -110,18 +116,29 @@ service cloud.firestore {
                             && request.resource.data.qty == resource.data.get("qtyWas", null))));
       allow delete: if isOffice();
     }
-    // email the CRM sends: a task notice to one person on the team, or a customer email the team wrote (queued for the
-    // mail worker, from a @streetsignsupply.com address, up to 10 people). Only the worker marks it sent; nothing edits it here.
+    // email the CRM sends: a task notice to one person on the team, or a customer email the team wrote. A customer email
+    // always goes from the writer's own @streetsignsupply.com address (never anyone else's), to at most 10 people, and
+    // waits for the owner's OK ("approval") unless an owner wrote it. Only the owner approves or turns one down;
+    // the mail worker checks the approval again before it sends, and only it marks one sent.
+    function custMail() { return request.resource.data.get("kind", "") == "customer"; }
     match /mail/{id} {
       allow read: if isOffice();
       allow create: if member() && request.resource.data.to is list && (
-                      (request.resource.data.to.size() == 1 && request.resource.data.to[0] is string
+                      (!custMail() && request.resource.data.to.size() == 1 && request.resource.data.to[0] is string
                        && exists(/databases/$(db)/documents/access/$(request.resource.data.to[0].lower())))
-                   || (request.resource.data.get("kind", "") == "customer" && request.resource.data.get("status", "") == "queued"
-                       && request.resource.data.to.size() >= 1 && request.resource.data.to.size() <= 10
-                       && request.resource.data.get("from", "") is string
-                       && request.resource.data.get("from", "").matches("^[a-z0-9._%+-]+@streetsignsupply[.]com$")));
-      allow update, delete: if false;
+                   || (custMail() && request.resource.data.to.size() >= 1 && request.resource.data.to.size() <= 10
+                       && request.resource.data.get("cc", []) is list && request.resource.data.get("cc", []).size() <= 10
+                       && request.resource.data.get("from", "") is string && myMail() != ""
+                       && request.resource.data.get("from", "").lower() == myMail()
+                       && request.resource.data.get("byId", "") == myTeamId()
+                       && !request.resource.data.keys().hasAny(["approvedUid", "approvedAt", "approvedBy"])
+                       && (request.resource.data.get("status", "") == "approval"
+                           || (request.resource.data.get("status", "") == "queued" && isOwner()))));
+      allow update: if isOwner() && resource.data.get("status", "") == "approval"
+                    && changed().hasOnly(["status", "approvedUid", "approvedAt", "approvedBy", "rejectedAt", "rejectedBy"])
+                    && ((request.resource.data.status == "queued" && request.resource.data.get("approvedUid", "") is string && request.resource.data.get("approvedUid", "") != "")
+                        || request.resource.data.status == "rejected");
+      allow delete: if false;
     }
     // signature requests: the link's long random code is the key. Anyone with the link can read that one request (never
     // list them), and the customer can change it once — from "sent" to signed or "changes asked for", before it expires —
@@ -144,10 +161,12 @@ service cloud.firestore {
       return resource.data.status == "sent" && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["viewedAt"])
         && resource.data.get("viewedAt", 0) == 0 && request.resource.data.viewedAt is int;
     }
-    // AI email drafts: a team member asks, the mail worker writes the answer back; nobody else reads or changes them
+    // AI email drafts: a team member asks, the mail worker writes the answer back; only they (and the owner) read it.
+    // The writing rules live in the worker, not in the request.
     match /aidraft/{id} {
-      allow read: if member();
-      allow create: if member() && request.resource.data.status == "queued";
+      allow read: if member() && (resource.data.get("byId", "") == myTeamId() || isOwner());
+      allow create: if member() && request.resource.data.status == "queued" && request.resource.data.get("byId", "") == myTeamId()
+                    && !request.resource.data.keys().hasAny(["rules"]);
       allow update, delete: if false;
     }
     match /signreq/{t} {
@@ -166,10 +185,24 @@ service cloud.firestore {
           && request.resource.data.get("nextQuote", 0) >= (resource == null ? 0 : resource.data.get("nextQuote", 0))));
       allow delete: if false;
     }
-    // day-to-day records: activity, events, files, reminders, notifications
+    // files: anyone on the team adds them; moving one to the bin is office, or the person who uploaded it —
+    // and signed quotes, signed proofs, signed work orders, purchase orders and invoices only the owner
+    function lockedCat() { return resource.data.get("cat", "") in ["Signed quote", "Signed proof", "Signed work order", "Purchase order", "Invoice"]
+                                  && resource.data.get("gen", "") == ""; }
+    // a PDF the CRM made itself, replaced by a newer copy of the same quote or invoice
+    function superseded() { return resource.data.get("gen", "") != "" && request.resource.data.get("supersededBy", "") != ""
+                                   && changed().hasOnly(["deleted", "deletedAt", "deletedBy", "supersededBy", "updatedAt"]); }
+    match /files/{id} {
+      allow read, create: if member();
+      allow update: if member() && (!changed().hasAny(["deleted", "cat", "projectId", "accountId"])
+                       || isOwner() || superseded()
+                       || (!lockedCat() && (isOffice() || resource.data.get("byId", "") == myTeamId())));
+      allow delete: if isOwner();
+    }
+    // day-to-day records: activity, events, reminders, notifications
     match /{coll}/{id=**} {
-      allow read, create, update: if member() && coll in ["activity", "events", "files", "reminders", "notifications", "filedata"];
-      allow delete: if isOffice() && coll in ["activity", "events", "files", "reminders", "notifications", "filedata"];
+      allow read, create, update: if member() && coll in ["activity", "events", "reminders", "notifications", "filedata"];
+      allow delete: if isOffice() && coll in ["activity", "events", "reminders", "notifications", "filedata"];
     }
   }
 }

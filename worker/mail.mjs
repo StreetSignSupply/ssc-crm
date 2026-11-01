@@ -121,6 +121,18 @@ function watch(key, q) { if (WATCH[key]) return WATCH[key].ready;
       if (first) { first = false; ok(); } }, (e) => { say("listener " + key + ": " + String(e.message || e).slice(0, 80)); if (first) { first = false; ok(); } }); });
   return w.ready; }
 async function docsOf(key, q) { await watch(key, q); return [...WATCH[key].docs.values()]; }
+// the access record for a sign-in id or email (kept by the owner's CRM): role, team id and own address
+const ACC = new Map();
+async function accOf(k) { k = String(k || "").toLowerCase(); if (!k) return null; const c = ACC.get(k); if (c && Date.now() - c.at < 10 * 60000) return c.d;
+  const d = (await fs.doc("access/" + k).get()).data() || null; ACC.set(k, { d, at: Date.now() }); return d; }
+async function mailApproved(m, from) {
+  const team = (await docsOf("all_team", fs.collection("team"))).map((x) => Object.assign({ id: x.id }, x.data()));
+  const writer = team.find((t) => t.id === m.byId && !t.deleted);
+  // the from address must be the writer's own team address
+  if (!writer || String(writer.email || "").toLowerCase() !== from) return "reject";
+  const wa = await accOf(from); if (wa && wa.role === "owner") return true;
+  if (m.approvedUid) { const ap = await accOf(m.approvedUid); if (ap && ap.role === "owner") return true; }
+  return "wait"; }
 async function sendQueued() {
   const queued = (await docsOf("mailq", fs.collection("mail").where("status", "==", "queued"))).slice(0, 40);
   // task notices written before there was a status field: checked once, when the worker starts
@@ -131,6 +143,12 @@ async function sendQueued() {
     const m = d.data(); const now = Date.now();
     const from = m.kind === "customer" ? String(m.from || "").toLowerCase() : mailFrom;
     const to = (m.to || []).filter((x) => /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(String(x))), cc = (m.cc || []).filter((x) => /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(String(x)));
+    // a customer email goes out only from the writer's own address, and only once an owner wrote it or approved it.
+    // Anything else waits for the owner's OK in the CRM (status "approval"), whatever copy of the CRM queued it.
+    if (m.kind === "customer") { const ok = await mailApproved(m, from);
+      if (ok !== true) { await d.ref.set({ status: ok === "reject" ? "failed" : "approval", err: ok === "reject" ? "the sender isn't on the team with that address" : "" }, { merge: true });
+        if (m.activityId) await fs.doc("activity/" + m.activityId).set({ sendState: ok === "reject" ? "failed" : "approval", sendErr: ok === "reject" ? "the sender isn't on the team with that address" : "" }, { merge: true }).catch(() => {});
+        sendQueued.done.delete(d.id); n.held = (n.held || 0) + 1; continue; } }
     try {
       if (!isOurs(from)) throw new Error("the sender has no @" + DOMAIN + " address");
       if (!to.length) throw new Error("no one to send it to");
@@ -201,7 +219,7 @@ async function logGmail() {
         const xid = "gm_" + it.id;
         const pj = projFor(H.subject, c, aid);
         // a quote that went out from Gmail itself (its PDF attached or its number in the subject) starts the follow-ups too
-        if (pj && dir === "out" && !pj.quoteSentAt && ["inquiry", "quoted"].indexOf(pj.stage) >= 0) {
+        if (pj && dir === "out" && !pj.quoteSentAt && ["lead", "inquiry", "quoted"].indexOf(pj.stage) >= 0) {
           const files = []; (function walk(x) { if (!x) return; if (x.filename) files.push(x.filename); (x.parts || []).forEach(walk); })(m.payload);
           if (files.some((f) => /quote/i.test(f)) || (pj.quote && String(H.subject || "").indexOf(String(pj.quote)) >= 0)) { await fs.doc("projects/" + pj.id).set({ quoteSentAt: at, quoteSentTo: others.join(", ").slice(0, 200) }, { merge: true }); pj.quoteSentAt = at; } }
         await fs.doc("activity/" + xid).set({ id: xid, recType: pj ? "project" : "account", recId: String(pj ? pj.id : aid), accountId: String(aid), kind: "note", type: "email", direction: dir, subject: String(H.subject || "").slice(0, 200),
@@ -267,8 +285,7 @@ async function taskMail() {
   const mine = (t, a) => a.assigneeId ? a.assigneeId === t.id : a.whoId ? a.whoId === t.id : String(a.who || "").toUpperCase() === String(t.initials || "").toUpperCase();
   const link = (a) => "https://crm.streetsignsupply.com/#/" + (a.recType === "project" ? "project/" : a.recType === "job" ? "job/" : a.recType === "contact" ? "contact/" : "account/") + a.recId;
   const line = (a) => "• " + String(a.text || "").slice(0, 140) + (a.due ? " (due " + a.due + ")" : "") + "\n  " + link(a);
-  // assignment notices: the bell and an email for every task given to someone — yours, someone else's, and the CRM's own
-  // follow-ups — once per assignment (reassigning sends a new one). Tasks older than two days are marked quietly.
+  // assignment notices: the bell for every task given to someone, once per assignment (reassigning sends a new one). Tasks older than two days are marked quietly.
   const allTeam = (await docsOf("all_team", fs.collection("team"))).map((d) => Object.assign({ id: d.id }, d.data())).filter((t) => !t.deleted);
   const bells = (await docsOf("bells", fs.collection("notifications").where("kind", "==", "task-assigned"))).map((d) => d.data());
   const recPath = (a) => (a.recType === "project" ? "project/" : a.recType === "job" ? "job/" : a.recType === "contact" ? "contact/" : "account/") + a.recId;
@@ -281,13 +298,17 @@ async function taskMail() {
       const nid = "nt" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
       await fs.doc("notifications/" + nid).set({ id: nid, toId: who.id, fromId: a.assignedById || "", fromName: a.assignedByName || "the CRM", kind: "task-assigned", text: txt, link: recPath(a), taskId: a.id, at: Date.now(), read: false, deleted: false });
       n.bell = (n.bell || 0) + 1; }
-    if (isOurs(who.email)) {
+    // the email goes only for a task a person gave someone else (not their own, not the CRM's automatic ones), not to anyone
+    // who switched task emails off, and at most 5 a person each day — the bell and the 7 AM list carry the rest
+    taskMail.sent = taskMail.sent || {}; const capK = who.id + ":" + today;
+    if (isOurs(who.email) && a.assignedById && a.assignedById !== who.id && !a.auto && who.taskMail !== false && (taskMail.sent[capK] || 0) < 5) {
+      taskMail.sent[capK] = (taskMail.sent[capK] || 0) + 1;
       await fs.collection("mail").add({ to: [who.email], status: "queued", kind: "notice", at: Date.now(), message: { subject: "Task for you: " + String(a.text || "").slice(0, 70),
         text: txt + "\n\nFrom " + (a.assignedByName || "the CRM") + "\n\nOpen it: " + link(a) + "\nAll your tasks: https://crm.streetsignsupply.com/#/tasks" } });
       n.assignMail = (n.assignMail || 0) + 1; }
     await a._ref.set({ assignNoticed: Date.now() }, { merge: true }); }
   if (mtHour() >= 7 && sy.digestDay !== today) {
-    for (const t of team) { const due = tasks.filter((a) => mine(t, a) && a.due && a.due <= today); if (!due.length) continue;
+    for (const t of team.filter((x) => x.taskMail !== false)) { const due = tasks.filter((a) => mine(t, a) && a.due && a.due <= today); if (!due.length) continue;
       const over = due.filter((a) => a.due < today), now0 = due.filter((a) => a.due === today);
       await fs.collection("mail").add({ to: [t.email], status: "queued", kind: "notice", at: Date.now(), message: { subject: "Your tasks today — " + now0.length + " due" + (over.length ? ", " + over.length + " overdue" : ""),
         text: (over.length ? "Overdue:\n" + over.map(line).join("\n") + "\n\n" : "") + (now0.length ? "Due today:\n" + now0.map(line).join("\n") + "\n\n" : "") + "All your tasks: https://crm.streetsignsupply.com/#/tasks" } }); n.digest = (n.digest || 0) + 1; }
@@ -304,12 +325,15 @@ async function taskMail() {
 // no bill; GitHub limits it to a modest number a day, plenty for a shop). Checked every few seconds while the worker waits.
 const GH = process.env.GH_TOKEN || "";
 async function aiDrafts() {
-  if (!GH) return 0; let k = 0;
+  let k = 0;
   const q = (await docsOf("aiq", fs.collection("aidraft").where("status", "==", "queued"))).slice(0, 5);
   aiDrafts.done = aiDrafts.done || new Set();
   for (const d of q) { if (aiDrafts.done.has(d.id)) continue; aiDrafts.done.add(d.id); const r = d.data(); k++;
     try {
-      const msgs = [{ role: "system", content: String(r.rules || "Write a short, plain business email.") + " Reply with JSON only: {\"subject\":\"...\",\"body\":\"...\"}." },
+      const RULES = "Write a short, plain business email a real person at a small sign shop would send — friendly, direct, no hype, no exclamation marks, no AI-sounding phrases (no 'I hope this finds you well', no 'delighted', no 'don't hesitate'). "
+        + (r.sig ? "End with just \"Thanks,\" on its own line — the sender's email signature (name, company, phone) is added automatically, so don't write them." : "Sign off with the sender's first name and the company.")
+        + " Keep any link exactly as given, on its own line.";
+      const msgs = [{ role: "system", content: RULES + " Reply with JSON only: {\"subject\":\"...\",\"body\":\"...\"}." },
         { role: "user", content: "What to say: " + (r.ask || "(use the subject and context)") + "\nSubject so far: " + (r.subject || "") + "\nDraft so far:\n" + (r.draft || "") + "\n\nContext:\n" + (r.ctx || "") }];
       // each model is tried in turn until one sends back an email; the answer is read whatever shape it comes in
       const pick = (txt) => { const t = String(txt || "").trim(); if (!t) return null; let j = null;
@@ -329,7 +353,7 @@ async function aiDrafts() {
         globalThis.__gmList = [...new Set(["gemini-flash-latest"].filter((n) => ok.includes(n)).concat(flash, ok.filter((n) => /flash/i.test(n) && /lite/i.test(n)), ["gemini-2.5-flash"]))].slice(0, 5);
         say("Gemini models available: " + globalThis.__gmList.join(", ")); } catch (e) { globalThis.__gmList = ["gemini-flash-latest", "gemini-2.5-flash"]; } }
       const errs = [];
-      if (gk) for (const gm of globalThis.__gmList || ["gemini-flash-latest", "gemini-2.5-flash"]) {
+      if (gk) for (const gm of (globalThis.__gmList || ["gemini-flash-latest", "gemini-2.5-flash"]).slice(0, 2)) {
         try {
           const x = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + gm + ":generateContent", { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": gk },
             body: JSON.stringify({ systemInstruction: { parts: [{ text: msgs[0].content }] }, contents: [{ role: "user", parts: [{ text: msgs[1].content }] }], generationConfig: { temperature: 0.5, maxOutputTokens: 1200, responseMimeType: "application/json" } }) });
@@ -337,26 +361,10 @@ async function aiDrafts() {
           if (!x.ok) { errs.push(gm + " " + x.status + " " + String((j.error || {}).message || "").slice(0, 70)); err = errs.join(" | "); if (x.status === 403) break; continue; }
           const txt = ((((j.candidates || [])[0] || {}).content || {}).parts || []).map((p) => p.text || "").join("");
           const t = String(txt || "").trim(); if (!t) { err = gm + " sent back nothing"; continue; }
-          let jj = null; try { jj = JSON.parse(t.replace(/^```(?:json)?\s*|\s*```$/g, "")); } catch (e) {}
-          o = jj && (jj.body || jj.Body) ? { subject: String(jj.subject || jj.Subject || ""), body: String(jj.body || jj.Body) } : { subject: "", body: t }; break;
+          const pk = pick(t); if (!pk || pk.body === t) { err = gm + " didn't send back an email"; continue; }
+          o = pk; break;
         } catch (e) { err = gm + " " + String(e.message || e).slice(0, 80); } }
       if (!o && !gk) err = "no Gemini key — add the free key in Settings → Write it with AI";
-      // GitHub's model endpoint next, then its older Azure-hosted one (same free GitHub token)
-      const tries = [["https://models.github.ai/inference/chat/completions", "openai/gpt-4.1-mini"], ["https://models.github.ai/inference/chat/completions", "openai/gpt-4o-mini"],
-        ["https://models.inference.ai.azure.com/chat/completions", "gpt-4o-mini"], ["https://models.inference.ai.azure.com/chat/completions", "gpt-4o"]];
-      // GitHub's free models answer with a placeholder "OK" now (checked 31 Oct 2026) — kept only for if they come back
-      for (const [url, model] of (o || !process.env.TRY_GITHUB_AI ? [] : tries)) {
-        for (const fmt of [true, false]) {
-          try {
-            const x = await fetch(url, { method: "POST", headers: { Authorization: "Bearer " + GH, "Content-Type": "application/json", Accept: "application/json" },
-              body: JSON.stringify(Object.assign({ model, messages: msgs, temperature: 0.5, max_tokens: 900 }, fmt ? { response_format: { type: "json_object" } } : {})) });
-            const raw = await x.text().catch(() => ""); let j = {}; try { j = JSON.parse(raw); } catch (e) {}
-            if (!x.ok) { err = model + " " + x.status + " " + String((j.error || {}).message || j.message || "").slice(0, 80); break; }
-            const ch = (j.choices || [])[0] || {}; o = pick(ch.message && ch.message.content);
-            if (o) break; err = model + " sent back nothing (" + (ch.finish_reason || "no reason") + "; " + String(raw).replace(/\s+/g, " ").slice(0, 160) + ")";
-          } catch (e) { err = model + " " + String(e.message || e).slice(0, 80); }
-        }
-        if (o) break; }
       if (!o) throw new Error(err || "no answer");
       await d.ref.set({ status: "done", subject: String(o.subject || r.subject || "").slice(0, 200), body: String(o.body).slice(0, 5000), doneAt: Date.now() }, { merge: true }); n.ai = (n.ai || 0) + 1;
     } catch (e) { await d.ref.set({ status: "failed", err: String(e.message || e).slice(0, 160), doneAt: Date.now() }, { merge: true }); n.aiErr = (n.aiErr || 0) + 1; }
@@ -364,10 +372,7 @@ async function aiDrafts() {
   return k;
 }
 async function waitAndDraft(ms) { const end = Date.now() + ms; while (Date.now() < end) { try { await aiDrafts(); } catch (e) {} await new Promise((r) => setTimeout(r, 4000)); } }
-// a quick check that the free AI answers (printed once per run, counts only)
-if (GH) { try { const x = await fetch("https://models.github.ai/inference/chat/completions", { method: "POST", headers: { Authorization: "Bearer " + GH, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "openai/gpt-4.1-mini", messages: [{ role: "user", content: "Reply with the single word OK." }], max_tokens: 5 }) });
-  note("AI drafting: GitHub Models answered " + x.status); } catch (e) { note("AI drafting: " + String(e.message || e).slice(0, 80)); } }
+
 // one job runs for most of a day's quarter: every minute it sends what's queued and follows up signatures, and every
 // 10 minutes it reads Gmail — so an email goes out within about a minute of pressing Send (the schedule starts the next one)
 const LOOP_MIN = Number(process.env.LOOP_MIN) || 0, t0 = Date.now(); let pass = 0;
