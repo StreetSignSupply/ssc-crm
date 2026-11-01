@@ -305,12 +305,19 @@ async function aiDrafts() {
       // Google's free Gemini first (key saved in Settings → settings/secrets)
       let o = null, err = "";
       const sec = (await fs.doc("settings/secrets").get()).data() || {}; const gk = String(sec.geminiKey || "");
-      if (gk) for (const gm of ["gemini-flash-latest", "gemini-2.5-flash", "gemini-2.0-flash"]) {
+      // which Gemini models this key can use right now (Google retires names) — asked once a run, newest flash model first
+      if (gk && !globalThis.__gmList) { try { const lr = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200", { headers: { "x-goog-api-key": gk } });
+        const lj = await lr.json().catch(() => ({})); const ok = (lj.models || []).filter((m) => (m.supportedGenerationMethods || []).includes("generateContent")).map((m) => String(m.name || "").replace(/^models\//, ""));
+        const flash = ok.filter((n) => /flash/i.test(n) && !/image|tts|audio|live|thinking|exp|preview|lite/i.test(n)).sort((x, y) => (y.match(/\d+(\.\d+)?/) || [0])[0] - (x.match(/\d+(\.\d+)?/) || [0])[0]);
+        globalThis.__gmList = [...new Set(["gemini-flash-latest"].filter((n) => ok.includes(n)).concat(flash, ok.filter((n) => /flash/i.test(n) && /lite/i.test(n)), ["gemini-2.5-flash"]))].slice(0, 5);
+        say("Gemini models available: " + globalThis.__gmList.join(", ")); } catch (e) { globalThis.__gmList = ["gemini-flash-latest", "gemini-2.5-flash"]; } }
+      const errs = [];
+      if (gk) for (const gm of globalThis.__gmList || ["gemini-flash-latest", "gemini-2.5-flash"]) {
         try {
           const x = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + gm + ":generateContent", { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": gk },
             body: JSON.stringify({ systemInstruction: { parts: [{ text: msgs[0].content }] }, contents: [{ role: "user", parts: [{ text: msgs[1].content }] }], generationConfig: { temperature: 0.5, maxOutputTokens: 1200, responseMimeType: "application/json" } }) });
           const raw = await x.text().catch(() => ""); let j = {}; try { j = JSON.parse(raw); } catch (e) {}
-          if (!x.ok) { err = gm + " " + x.status + " " + String((j.error || {}).message || "").slice(0, 90); if (x.status === 400 || x.status === 403) break; continue; }
+          if (!x.ok) { errs.push(gm + " " + x.status + " " + String((j.error || {}).message || "").slice(0, 70)); err = errs.join(" | "); if (x.status === 403) break; continue; }
           const txt = ((((j.candidates || [])[0] || {}).content || {}).parts || []).map((p) => p.text || "").join("");
           const t = String(txt || "").trim(); if (!t) { err = gm + " sent back nothing"; continue; }
           let jj = null; try { jj = JSON.parse(t.replace(/^```(?:json)?\s*|\s*```$/g, "")); } catch (e) {}
