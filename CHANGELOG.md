@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-121
+- Emails a rep sent under -119 that the database turned away (they show "waiting for the owner's OK" but never reached the send queue) now say so in Matt's review, with Clear it — the rep sends them again.
+
 ## 2026.11.25-120 (only quotes wait for Matt; everything else sends straight away)
 - **Ordinary emails send right away again** — reps' emails, follow-ups without the quote, notices and task emails. Anything held by -119 goes out on the mail worker's next pass.
 - **Only a quote waits for Matt's OK** — the quote PDF, the quote template, or a signing link for the quote, from anyone but an owner. Matt's review shows the real email: To, Cc, every attachment and the quote PDF itself, plus the message. Approving records that exact quote (a fingerprint of its number, account and every line) and those exact people. The mail worker sends only if the quote hasn't changed since and every recipient was approved; a changed quote has to be sent again. "Open in my email" and "Copy link" on a quote's signing link are blocked until it's approved.
