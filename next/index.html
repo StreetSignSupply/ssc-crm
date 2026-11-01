@@ -10552,7 +10552,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-115";
+const APP_VERSION="2026.11.25-116";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -13196,6 +13196,7 @@ function settingsView(){
       <p class="sub" style="margin:12px 0 0">Nothing is ever hard-deleted — deleting moves a record to the recycle bin, and field history is kept permanently. A full backup is also taken automatically every night and kept 30 days.</p>
     </div></section>
     ${myAccess()==="owner"&&isHosted()?dbLockCard():""}
+    ${(myAccess()==="owner"||myAccess()==="office")&&isHosted()?aiKeyCard():""}
     <section class="card"><header><h2>Import from a spreadsheet</h2><span class="sub">Save any Excel or Google Sheets tab as CSV. You match the columns and see a preview before anything saves; existing records update, blank cells never wipe anything.</span></header>
       <div class="body">
         <div class="setrow">
@@ -16156,8 +16157,23 @@ function composeModal(o){o=o||{};const p=o.pid?proj(o.pid):null;const aid=o.aid|
   const ai=$("#cm-ai");if(ai)ai.onclick=()=>composeAI();
   const st=$("#cm-savetpl");if(st)st.onclick=()=>composeSaveTpl();
   $("#cm-open").onclick=()=>composeGo(false);const sd=$("#cm-send");if(sd)sd.onclick=()=>composeGo(true)}
-// AI drafting: Claude in the in-Claude copy; on the website the mail worker drafts it (GitHub's free AI models) in ~10–30 seconds
-function aiDraftOn(){return !!sampleCap||!!(window.sscHosted&&db)}
+/* AI drafting on the website: Google's free Gemini, with a key from Google AI Studio (free, no card). The key lives in
+   settings/secrets (owners and office only); the mail worker reads it and writes the draft back in a few seconds. */
+function aiKeyCard(){const on=!!(S.brand&&S.brand.aiOn);const has=!!(S.secrets&&S.secrets.geminiKey);
+  return `<section class="card"><header><h2>Write it with AI — free</h2><span class="pill ${on&&has?"g":"o"}">${on&&has?"On":"Needs a key"}</span></header><div class="body">
+    <p style="margin:0 0 8px">Drafts emails on the website with Google's free Gemini AI. It needs a free key from your Google account — no card, no bill:</p>
+    <ol style="margin:0 0 10px;padding-left:20px;line-height:1.6"><li>Open <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> (signed in as matt@streetsignsupply.com).</li>
+      <li>Press <b>Create API key</b> and copy it.</li><li>Paste it below and press Save.</li></ol>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input id="ai-key" type="password" autocomplete="off" placeholder="${has?"A key is saved — paste a new one to replace it":"Paste the key (starts with AIza…)"}" style="flex:1;min-width:240px">
+      <button class="btn p" data-aikey="save">Save</button>${has?`<button class="btn" data-aikey="clear">Remove the key</button>`:""}</div>
+    <p class="sub" style="margin:8px 0 0">Only owners and office can see or change it. Google's free tier allows plenty of drafts a day for a shop.</p></div></section>`}
+document.addEventListener("click",async e=>{const b=e.target&&e.target.closest&&e.target.closest("[data-aikey]");if(!b)return;e.preventDefault();
+  if(b.dataset.aikey==="save"){const k=String(($("#ai-key")||{}).value||"").trim();if(!/^AIza[0-9A-Za-z_\-]{20,}$/.test(k))return toast("That doesn't look like a Gemini key — it starts with AIza.");
+    try{await push("settings/secrets",{geminiKey:k,geminiAt:Date.now(),geminiBy:me()})}catch(err){try{await setDoc("settings/secrets",Object.assign({},S.secrets||{},{geminiKey:k,geminiAt:Date.now(),geminiBy:me()}))}catch(e2){return toast("The key didn't save.")}}
+    try{await push("settings/brand",{aiOn:true})}catch(e3){}S.brand=Object.assign({},S.brand||{},{aiOn:true});S.secrets=Object.assign({},S.secrets||{},{geminiKey:k});toast("Saved — Write it with AI is on.");render()}
+  else{try{await push("settings/secrets",{geminiKey:""});await push("settings/brand",{aiOn:false})}catch(err){}S.brand=Object.assign({},S.brand||{},{aiOn:false});toast("Key removed.");render()}},true);
+// AI drafting: Claude in the in-Claude copy; on the website the mail worker drafts it with Gemini (key in Settings)
+function aiDraftOn(){return !!sampleCap||!!(window.sscHosted&&db&&S.brand&&S.brand.aiOn)}
 function aiRules(){return "Write a short, plain business email a real person at a small sign shop would send — friendly, direct, no hype, no exclamation marks, no AI-sounding phrases (no 'I hope this finds you well', no 'delighted', no 'don't hesitate'). "
   +(mySig()?"End with just \"Thanks,\" on its own line — the sender's email signature (name, company, phone) is added automatically, so don't write them.":"Sign off with the sender's first name and the company.")+" Keep any link exactly as given, on its own line."}
 async function composeAI(){const C=S._cmp||{};const p=C.pid?proj(C.pid):null;const b=$("#cm-ai");if(!aiDraftOn())return;

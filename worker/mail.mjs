@@ -296,17 +296,32 @@ async function aiDrafts() {
       const msgs = [{ role: "system", content: String(r.rules || "Write a short, plain business email.") + " Reply with JSON only: {\"subject\":\"...\",\"body\":\"...\"}." },
         { role: "user", content: "What to say: " + (r.ask || "(use the subject and context)") + "\nSubject so far: " + (r.subject || "") + "\nDraft so far:\n" + (r.draft || "") + "\n\nContext:\n" + (r.ctx || "") }];
       // each model is tried in turn until one sends back an email; the answer is read whatever shape it comes in
-      let o = null, err = "";
       const pick = (txt) => { const t = String(txt || "").trim(); if (!t) return null; let j = null;
         try { j = JSON.parse(t.replace(/^```(?:json)?\s*|\s*```$/g, "")); } catch (e) { const m = t.match(/\{[\s\S]*\}/); if (m) { try { j = JSON.parse(m[0]); } catch (e2) {} } }
         if (j && typeof j === "object") { const k = (n) => Object.keys(j).find((x) => x.toLowerCase() === n);
           const body = j[k("body")] || j[k("email")] || j[k("message")] || j[k("text")] || j[k("content")] || "";
           if (String(body).trim()) return { subject: String(j[k("subject")] || ""), body: String(body) }; return null; }
         return { subject: "", body: t }; };
-      // GitHub's model endpoint first, then its older Azure-hosted one (same free GitHub token)
+      // Google's free Gemini first (key saved in Settings → settings/secrets)
+      let o = null, err = "";
+      const sec = (await fs.doc("settings/secrets").get()).data() || {}; const gk = String(sec.geminiKey || "");
+      if (gk) for (const gm of ["gemini-flash-latest", "gemini-2.5-flash", "gemini-2.0-flash"]) {
+        try {
+          const x = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + gm + ":generateContent", { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": gk },
+            body: JSON.stringify({ systemInstruction: { parts: [{ text: msgs[0].content }] }, contents: [{ role: "user", parts: [{ text: msgs[1].content }] }], generationConfig: { temperature: 0.5, maxOutputTokens: 1200, responseMimeType: "application/json" } }) });
+          const raw = await x.text().catch(() => ""); let j = {}; try { j = JSON.parse(raw); } catch (e) {}
+          if (!x.ok) { err = gm + " " + x.status + " " + String((j.error || {}).message || "").slice(0, 90); if (x.status === 400 || x.status === 403) break; continue; }
+          const txt = ((((j.candidates || [])[0] || {}).content || {}).parts || []).map((p) => p.text || "").join("");
+          const t = String(txt || "").trim(); if (!t) { err = gm + " sent back nothing"; continue; }
+          let jj = null; try { jj = JSON.parse(t.replace(/^```(?:json)?\s*|\s*```$/g, "")); } catch (e) {}
+          o = jj && (jj.body || jj.Body) ? { subject: String(jj.subject || jj.Subject || ""), body: String(jj.body || jj.Body) } : { subject: "", body: t }; break;
+        } catch (e) { err = gm + " " + String(e.message || e).slice(0, 80); } }
+      if (!o && !gk) err = "no Gemini key — add the free key in Settings → Write it with AI";
+      // GitHub's model endpoint next, then its older Azure-hosted one (same free GitHub token)
       const tries = [["https://models.github.ai/inference/chat/completions", "openai/gpt-4.1-mini"], ["https://models.github.ai/inference/chat/completions", "openai/gpt-4o-mini"],
         ["https://models.inference.ai.azure.com/chat/completions", "gpt-4o-mini"], ["https://models.inference.ai.azure.com/chat/completions", "gpt-4o"]];
-      for (const [url, model] of tries) {
+      // GitHub's free models answer with a placeholder "OK" now (checked 31 Oct 2026) — kept only for if they come back
+      for (const [url, model] of (o || !process.env.TRY_GITHUB_AI ? [] : tries)) {
         for (const fmt of [true, false]) {
           try {
             const x = await fetch(url, { method: "POST", headers: { Authorization: "Bearer " + GH, "Content-Type": "application/json", Accept: "application/json" },

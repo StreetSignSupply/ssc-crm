@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-116 (free AI drafting with Gemini)
+- Write it with AI on the website now uses Google's free Gemini. GitHub's free AI service no longer answers (it returns a placeholder "OK"). Settings → "Write it with AI — free": create a free key at aistudio.google.com/apikey, paste it, Save. The key is kept in the owners/office-only secrets; the button shows on the compose screen once a key is saved.
+
 ## 2026.11.25-115
 - Quotes start from the website's suggested price by default (for every account); an account set to "Our price list" keeps the contractor list. Lines with no website price fall back to the price list.
 - Work order status bar uses the same chevron design as projects: done green with a ✓, current solid blue, next grey.
