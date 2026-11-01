@@ -1790,9 +1790,17 @@ async function connTest(){
 
 /* ========== history (field-level audit) ========== */
 function histKey(type,id){return "history/"+type+"_"+id}
-function histOf(type,id){const h=S.history.get(type+"_"+id);return (h&&h.entries)||[]}
+/* Change history is read one record at a time, when that record is opened — not the whole history collection on every
+   page load (it's the biggest collection, and Firebase's free plan allows 50,000 reads a day). The Change history page,
+   the Data settings and a backup read it all, once. */
+function histWatch(key){if(S._histAll||!db||!key)return;S._hw=S._hw||{};if(S._hw[key])return;S._hw[key]=1;
+  try{db.doc("history/"+key).onSnapshot(sn=>{const d=sn&&sn.exists?(typeof sn.data==="function"?sn.data():sn.data):null;
+    if(!(S.history instanceof Map))S.history=new Map();if(d)S.history.set(key,Object.assign({},d));else S.history.delete(key);
+    if(!typing()&&!S.modal&&!S.viewerFile)render()},()=>{})}catch(e){}}
+function histAll(){if(S._histAll||!db)return;S._histAll=true;sub("history","history")}
+function histOf(type,id){histWatch(type+"_"+id);const h=S.history.get(type+"_"+id);return (h&&h.entries)||[]}
 const HLOCAL=new Map();
-function histBase(key){
+function histBase(key){histWatch(key);
   const remote=((S.history.get(key)||{}).entries)||[];
   const local=HLOCAL.get(key);
   if(!local)return remote;
@@ -10552,7 +10560,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-117";
+const APP_VERSION="2026.11.25-118";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -11620,7 +11628,7 @@ function historyCard(type,id){
       <time>${esc(e.w==="??"?"unsigned":(e.w||""))} ${fmtTs(e.t)}</time></div>`).join("")
     :`<div class="empty">No changes recorded yet.</div>`}</section>`;
 }
-function auditView(){
+function auditView(){histAll();
   const q=S.q.trim().toLowerCase();
   let rows=[];
   S.history.forEach(h=>{(h.entries||[]).forEach(e=>rows.push(Object.assign({},e,{recType:h.recType,recId:h.recId})))});
@@ -12965,7 +12973,7 @@ function settingsView(){
   const crumbs=crumbBar([{l:"Company dashboard",h:"home"},{l:"Settings"}]);
   const counts=[["Accounts",live(S.accounts).length],["Contacts",live(S.contacts).length],
     ["Projects",live(S.projects).length],["Work orders",liveJobs().length+" live · "+archivedJobs().length+" archived"],["Files",live(S.files).length],
-    ["History entries",[...S.history.values()].reduce((t,h)=>t+((h.entries||[]).length),0)]];
+    ["History entries",S._histAll?[...S.history.values()].reduce((t,h)=>t+((h.entries||[]).length),0):"counted on the Change history page"]];
   const sampleN=["accounts","contacts","projects","jobs","files","activity","events","vendors","items","invtx","team"]
     .reduce((t,k)=>t+[...S[k].values()].filter(x=>x.sample).length,0);
   const cur=SET_GROUPS.some(([k])=>k===S.stab)?S.stab:"company";
@@ -14386,6 +14394,7 @@ async function delFile(fid){
   toast("File moved to the recycle bin");
 }
 async function backup(kind){
+  if(!S._histAll){histAll();await new Promise(r=>setTimeout(r,3000))}
   const all={exportedAt:new Date().toISOString(),by:me(),
     accounts:[...S.accounts.values()],contacts:[...S.contacts.values()],
     projects:[...S.projects.values()],jobs:[...S.jobs.values()],
@@ -17352,7 +17361,7 @@ async function boot(){
   S.canUpload=!!assets;S.ready=true;
   if(!db){render();return}
   sub("accounts","accounts");sub("contacts","contacts");sub("projects","projects");
-  sub("jobs","jobs",true);sub("files","files");sub("activity","activity");sub("history","history");
+  sub("jobs","jobs",true);sub("files","files");sub("activity","activity");
   sub("events","events");sub("team","team");
   sub("vendors","vendors");sub("items","items");sub("invtx","invtx");sub("notifications","notifications");sub("reminders","remarks");sub("access","access");dbLockWatch();secretsWatch();qbinvWatch();if(window.sscHosted)sub("signreq","signreq");
   syncSentLoad();
