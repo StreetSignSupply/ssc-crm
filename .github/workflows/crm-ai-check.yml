@@ -1,0 +1,18 @@
+name: CRM AI check
+# a one-off look at why the free AI answers come back empty (status, headers and the first bytes of the answer — no secrets)
+on: { workflow_dispatch: {} }
+permissions: { contents: read, models: read }
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ask GitHub Models
+        env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+        run: |
+          for u in https://models.github.ai/inference/chat/completions https://models.inference.ai.azure.com/chat/completions; do
+            m=openai/gpt-4o-mini; [ "$u" = "https://models.inference.ai.azure.com/chat/completions" ] && m=gpt-4o-mini
+            echo "== $u"
+            curl -sS -m 40 -D - -o body.txt "$u" -H "Authorization: Bearer $GH_TOKEN" -H "Content-Type: application/json" -H "Accept: application/json" \
+              -d "{\"model\":\"$m\",\"messages\":[{\"role\":\"user\",\"content\":\"Say hello in five words.\"}],\"max_tokens\":30}" | grep -iv "authorization\|set-cookie" | head -20 || true
+            echo "-- body:"; head -c 400 body.txt; echo
+          done
