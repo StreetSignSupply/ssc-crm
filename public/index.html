@@ -765,6 +765,7 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
 .kcol h3 .n{margin-left:auto;font-family:"Overpass Mono",monospace}
 .kbody{background:var(--card2);border:1px solid var(--line);border-top:0;
   padding:7px;display:flex;flex-direction:column;gap:7px;min-height:52px}
+a.kc{color:inherit;text-decoration:none}
 .kc{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--line);
   padding:8px 9px;text-align:left;width:100%;box-shadow:var(--sh);display:block;border-radius:2px;min-width:0}
 .kc .r1 .mono{font-size:13px}
@@ -1865,6 +1866,7 @@ const filesOf=(k,id)=>live(S.files).filter(f=>{
 const filesUnder=pid=>live(S.files).filter(f=>f.projectId===String(pid)).length;
 const actOf=(k,id)=>live(S.activity).filter(a=>a.recType===k&&a.recId===String(id)).sort((a,b)=>(b.at||0)-(a.at||0));
 const isClosed=p=>p.stage==="closed"||p.stage==="lost";
+const FOLLOW_STAGES=["lead","inquiry","quoted"];
 // sample records stay out of every total, badge and report — they still show in the lists with their pill
 // sample records and test projects (TEST / do not send / dry run in the name) stay out of every count, forecast and report
 const isTestRec=x=>!!x&&(x.sample||/\bTEST\b|do not send|dry ?run/.test(String(x.name||"")));
@@ -2237,32 +2239,40 @@ function syncViewer(){
     S.me=t.initials.toUpperCase();try{localStorage.setItem("sscMe",S.me)}catch(e){}
   }
 }
-/* Customer emails waiting for the owner's OK: anyone but an owner who presses Send in the CRM queues it here. The owner
-   reads it, then Approve (it goes out from the writer's own address within a minute) or Don't send. */
+/* Quotes waiting for the owner's OK: when anyone but an owner sends a quote (its PDF, the quote template, or a signing link
+   for it), the mail worker holds it. The owner sees the real email — recipients, cc, the quote PDF and every attachment —
+   and approves that exact quote for those exact people, or turns it down. Ordinary emails never wait. */
 function mailWaiting(){return live(S.activity).filter(a=>a.sendState==="approval"&&a.mailId).sort((a,b)=>(a.at||0)-(b.at||0))}
 function approvalBanner(){if(myAccess()!=="owner"||!window.sscHosted)return "";const w=mailWaiting();if(!w.length)return "";
-  return `<div class="alert strip"><span><b>${w.length} customer email${w.length===1?"":"s"}</b> waiting for your OK before ${w.length===1?"it goes":"they go"} out.</span>
+  return `<div class="alert strip"><span><b>${w.length} quote${w.length===1?"":"s"}</b> waiting for your OK before ${w.length===1?"it goes":"they go"} to the customer.</span>
     <span class="sp"><button class="btn sm p" data-mailok-open="1">Review</button></span></div>`}
-function approvalModal(){const w=mailWaiting();
-  openModal(mshell("Emails waiting for your OK","",
-    `<div style="padding:6px 0">${w.length?w.map(a=>{const t=S.team.get(a.whoId)||{};const rec=a.recType==="project"?proj(a.recId):null;
+async function approvalModal(){const w=mailWaiting();const mails={};
+  for(const a of w){try{const d=await db.doc("mail/"+a.mailId).get();const x=d&&(typeof d.data==="function"?d.data():d.data);if(x)mails[a.id]=x}catch(e){}}
+  S._mailOk=mails;
+  openModal(mshell("Quotes waiting for your OK","",
+    `<div style="padding:6px 0">${w.length?w.map(a=>{const m=mails[a.id]||{};const t=S.team.get(m.byId||a.whoId)||{};const p=m.quote?proj(m.quote.pid):null;
+      const changed=p&&m.quote&&m.quote.hash!==quoteHash(p);const atts=m.attachments||[];const pdf=atts.find(x=>/pdf/i.test((x.type||"")+(x.name||"")));
       return `<div style="padding:12px 18px;border-bottom:1px solid var(--line2)">
-        <div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"><b>${esc(a.subject||"(no subject)")}</b><span class="sub">from ${esc(t.name||a.who||"")} to ${esc(a.to||"")}${rec?" · P-"+esc(rec.num)+" "+esc(rec.name):""} · ${esc(fmtTs(a.at))}</span></div>
-        <div class="rr-p" style="white-space:pre-wrap;max-height:220px;overflow:auto;margin:6px 0">${esc(a.text||"")}</div>
-        <div style="display:flex;gap:8px"><button class="btn sm p" data-mailok="${esc(a.id)}">Approve and send</button><button class="btn sm" data-mailno="${esc(a.id)}">Don't send</button></div></div>`}).join("")
-      :`<div class="empty"><b>Nothing waiting</b>Every customer email has been approved or turned down.</div>`}</div>`,
+        <div><b>${esc((m.message||{}).subject||a.subject||"(no subject)")}</b></div>
+        <div class="sub" style="margin:3px 0">From ${esc(t.name||a.who||"")} &lt;${esc(m.from||"")}&gt;${p?" · P-"+esc(p.num)+" "+esc(p.name)+(p.quote?" · "+esc(p.quote)+" "+money2(projValue(p)):""):""}</div>
+        <div style="font-size:13.5px"><b>To:</b> ${esc((m.to||[]).join(", "))}${(m.cc||[]).length?` &nbsp; <b>Cc:</b> ${esc(m.cc.join(", "))}`:""}</div>
+        <div style="font-size:13.5px"><b>Attached:</b> ${atts.length?atts.map(x=>`<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.name)}</a>`).join(", "):"nothing"}${m.signId?" · with a signing link":""}</div>
+        ${pdf?`<iframe src="${esc(pdf.url)}" title="${esc(pdf.name)}" style="width:100%;height:340px;border:1px solid var(--line2);border-radius:6px;margin:8px 0;background:#fff"></iframe>`:""}
+        <div class="rr-p" style="white-space:pre-wrap;max-height:180px;overflow:auto;margin:6px 0;background:var(--card2);padding:8px;border-radius:6px">${esc((m.message||{}).text||"")}</div>
+        ${changed?`<div class="warn" style="margin:6px 0">The quote changed after this email was written — it can't be approved as it is. Ask ${esc(t.name||"them")} to send it again.</div>`:""}
+        <div style="display:flex;gap:8px">${changed||!m.quote?"":`<button class="btn sm p" data-mailok="${esc(a.id)}">Approve and send</button>`}<button class="btn sm" data-mailno="${esc(a.id)}">Don't send</button></div></div>`}).join("")
+      :`<div class="empty"><b>Nothing waiting</b>Every quote has been approved or turned down.</div>`}</div>`,
     `<button class="btn" data-close="1">Close</button>`))}
-async function mailDecide(xid,ok){const a=S.activity.get(xid);if(!a||!a.mailId)return;const now=Date.now();
-  let why="";if(!ok){why=prompt("Why not? (the writer sees this)","")||"";}
-  try{await db.doc("mail/"+a.mailId).update(ok?{status:"queued",approvedUid:viewerId(),approvedBy:me(),approvedAt:now}:{status:"rejected",rejectedBy:me(),rejectedAt:now})}
-  catch(e){return toast("That didn't save — "+(e&&e.message?String(e.message).slice(0,80):"try again"))}
+async function mailDecide(xid,ok){const a=S.activity.get(xid);const m=(S._mailOk||{})[xid];if(!a||!m||!m.quote)return;const p=proj(m.quote.pid);if(!p)return;const now=Date.now();
+  if(ok&&m.quote.hash!==quoteHash(p))return toast("The quote changed since this was written — it can't be approved.");
+  let why="";if(!ok){why=prompt("Why not? (they see this)","")||""}
+  // the approval is for this quote as it stands and these people; the mail worker checks both before it sends
+  try{await push("projects/"+p.id,ok?{quoteApproval:{hash:m.quote.hash,to:m.to||[],cc:m.cc||[],byId:meId(),by:me(),at:now,mailId:a.mailId},updatedAt:now}
+      :{quoteRejected:{mailId:a.mailId,byId:meId(),by:me(),at:now,why:why.slice(0,200)},updatedAt:now})}catch(e){return toast("That didn't save — try again.")}
   await push("activity/"+xid,ok?{sendState:"queued",approvedBy:me(),approvedAt:now}:{sendState:"rejected",sendErr:why.slice(0,200),rejectedBy:me(),rejectedAt:now});
-  if(a.recType==="project")logEvent("project",a.recId,"Email \u201c"+(a.subject||"")+"\u201d "+(ok?"approved by ":"not approved by ")+me());
+  logEvent("project",p.id,"Quote "+(p.quote||"")+" to "+(m.to||[]).join(", ")+(ok?" approved by ":" turned down by ")+me()+(why?" — "+why:""));
   toast(ok?"Approved — it goes out within a minute.":"Turned down — it won't be sent.");
-  if(S.modal&&mailWaiting().length)approvalModal();else{closeModal();render()}}
-document.addEventListener("change",e=>{const t=e.target&&e.target.closest&&e.target.closest("[data-acfilt]");if(!t||t.dataset.acfilt==="clear")return;
-  const AF=S.acFilt||(S.acFilt={});AF[t.dataset.acfilt]=t.type==="checkbox"?t.checked:t.value;S.acctShow=0;render()},true);
-document.addEventListener("click",e=>{const t=e.target&&e.target.closest&&e.target.closest("[data-acfilt='clear']");if(!t)return;e.preventDefault();S.acFilt={};render()},true);
+  if(mailWaiting().filter(x=>x.id!==xid).length)approvalModal();else{closeModal();render()}}
 document.addEventListener("click",e=>{const t=e.target&&e.target.closest&&e.target.closest("[data-mailok],[data-mailno],[data-mailok-open]");if(!t)return;e.preventDefault();
   if(t.dataset.mailokOpen)return approvalModal();if(t.dataset.mailok)return mailDecide(t.dataset.mailok,true);mailDecide(t.dataset.mailno,false)},true);
 function claimBanner(){
@@ -2835,8 +2845,8 @@ function lineTotal(it){const q=Number(it.qty)||0,p2=Number(it.price)||0;return q
 // what a line sells for: the project's quote line decides it; a work order never sets a price
 function priceOfLine(j,it){
   const p=j&&j.projectId?proj(j.projectId):null;
-  if(p){const ol=projLineFor(j,it);
-    if(ol&&Number(ol.price)>0)return Number(ol.price)||0;}
+  // on a project the quote line is the one price — a work order line not tied to a priced quote line is worth $0 (and flagged)
+  if(p){const ol=projLineFor(j,it);return ol?Number(ol.price)||0:0}
   return Number(it.price)||0;
 }
 /* ===== material cost is locked on each job =====
@@ -3621,7 +3631,7 @@ function docHTML(p,kind){
     let spec="";
     if(src){const sh=docSheeting(src.grade);const sz=src.size?sizeLabel(src.size):"";
       const ga=(String(it.spec||"").match(/\.0\d\d\s*alum(?:inum)?/i)||[""])[0].replace(/alum$/i,"aluminum");
-      const tbc=!String(src.grade||"").trim()&&!src.sheetKey&&!isCharge(src)&&lineProd(src)==="sign"?"sheeting grade to be confirmed":"";
+      const tbc="";   // a line with no grade never reaches a quote or invoice with a price (makeDoc stops it), and a $0 line says nothing about it
       spec=[sz,ga||"",sh||tbc].filter(Boolean).join(", ")}
     else spec=it.spec||"";
     const said=docNorm(name+" "+spec+" "+code+" "+(src?String(src.code||"")+" "+String(src.grade||""):""));
@@ -4135,6 +4145,7 @@ function qwoRead(){
   return q;
 }
 async function quickWOGo(pid,preset){
+  if(quoteBlock(pid,"make a work order"))return;
   const p=proj(pid);if(!p)return;
   const q=preset||qwoRead();
   if(!preset)closeModal();
@@ -5265,7 +5276,7 @@ function reconMoney(p){const rows=(reconStatus(p).rows)||[];let onWO=0,unsched=0
   rows.forEach(r=>{if(r.charge||r.extra)return;const pr=Number(r.price)||0;onWO+=Math.min(r.sched,r.ordered)*pr;if(r.sched<r.ordered){unsched+=(r.ordered-r.sched)*pr;un.push(r)}});
   return {quote:projValue(p),onWO,unsched,un,charges}}
 function reconMoneyStrip(p,j){if(!p||!orderedLines(p).length||!can("price"))return "";const m=reconMoney(p);
-  const own=j?(j.items||[]).filter(it=>!isCharge(it)&&Number(it.price)>0&&!((projLineFor(j,it)||{}).price>0)):[];
+  const own=j?(j.items||[]).filter(it=>!isCharge(it)&&!(Number((projLineFor(j,it)||{}).price)>0)):[];
   const bad=m.un.length&&jobsOf(p.id).length;
   return `<div class="${bad||own.length?"warn":"note"}" style="margin:0 0 14px;border-radius:6px;display:flex;gap:6px 14px;align-items:center;flex-wrap:wrap">
     <span>Quote total <b>${money2(m.quote)}</b></span><span>On work orders <b>${money2(m.onWO)}</b></span>
@@ -5273,7 +5284,7 @@ function reconMoneyStrip(p,j){if(!p||!orderedLines(p).length||!can("price"))retu
     ${j?`<span>This work order <b>${money2(jobRevenue(j))}</b></span>`:""}
     ${m.un.length?`<span><b>${m.un.length} line${m.un.length===1?"":"s"} (${money2(m.unsched)}) not on any work order</b></span>
       ${p.stage!=="lost"&&SO(p.stage)>=SO("won")?`<button class="btn sm p" data-quickwo="${esc(p.id)}">Create WO for the rest</button>`:""}`:""}
-    ${own.length?`<span style="flex-basis:100%">${own.length} line${own.length===1?" is":"s are"} priced on this work order, not from the quote — the quote line decides the price; link ${own.length===1?"it":"them"} to a quote line.</span>`:""}</div>`}
+    ${own.length?`<span style="flex-basis:100%">${own.length} line${own.length===1?" isn't":"s aren't"} tied to a priced quote line, so ${own.length===1?"it's":"they're"} $0 here — the quote line is the only price. Add ${own.length===1?"it":"them"} to the quote, or link ${own.length===1?"it":"them"} to a quote line.</span>`:""}</div>`}
 function reconCard(p){
   const ord=orderedLines(p), rows=reconcile(p);
   const st=reconStatus(p);
@@ -5807,7 +5818,7 @@ function autoPass(){
   live(S.projects).forEach(p=>{
     if(p.followStop)return;
     const fus=p.followups||[];
-    if(!fus.length){if(p.stage==="quoted"&&p.quote&&p.quoteDate&&p.quoteDate>=isoDay(since)&&!done.has("fup:"+p.id)){done.set("fup:"+p.id,1);followPlan(p.id,p.quoteDate)}return}
+    if(!fus.length){if(FOLLOW_STAGES.indexOf(p.stage)>=0&&p.quote&&p.quoteSentAt&&p.quoteSentAt>=since&&!p.followStop&&!done.has("fup:"+p.id)){done.set("fup:"+p.id,1);followPlan(p.id,isoDay(p.quoteSentAt))}return}
     if(fus.some(f=>f.status==="planned"||f.status==="drafted")&&(p.stage==="lost"||PATH.indexOf(p.stage)>PATH.indexOf("quoted"))&&!done.has("fus:"+p.id)){
       done.set("fus:"+p.id,1);followStopNow(p.id,p.stage==="lost"?"closed lost":"marked "+((SG[p.stage]||{}).label||p.stage).toLowerCase())}
   });
@@ -9963,7 +9974,7 @@ function trackerRow(p){
     </div>`;
   return `<div class="trk ${health}" data-go="project/${esc(p.id)}" role="button" tabindex="0">
     <div class="trk-top">
-      <span class="trk-name">${esc(p.name)}</span>
+      <a class="trk-name" href="#/project/${esc(p.id)}" style="color:inherit;text-decoration:none">${esc(p.name)}</a>
       <span class="sub trk-who">${esc(accName(p.accountId))} · P-${p.num}</span>
       <span class="trk-meta">
         ${(function(){const t=repFor(p);return t?`<span class="sub" style="font-weight:700">${esc(t.name)}</span>`:""})()}
@@ -10139,11 +10150,12 @@ function accountList(){
   if(AF.terms)list=list.filter(a=>(a.terms||"")===AF.terms);
   if(AF.stage)list=list.filter(a=>acctStage(a)===AF.stage);
   if(AF.nocon)list=list.filter(a=>!ncon[a.id]);
+  if(AF.rep)list=list.filter(a=>AF.rep==="__none"?!a.repId:a.repId===AF.rep);
   list.sort((a,b)=>(a.name||"").localeCompare(b.name||""));
   const states=[...new Set(live(S.accounts).map(a=>String(a.state||"").toUpperCase()).filter(Boolean))].sort();
   const fsel=(k,lbl,opts)=>`<select data-acfilt="${k}" aria-label="${esc(lbl)}" style="width:auto"><option value="">${esc(lbl)}: all</option>${opts.map(o=>`<option value="${esc(o[0])}" ${AF[k]===o[0]?"selected":""}>${esc(o[1])}</option>`).join("")}</select>`;
   const filtBar=`<div style="padding:8px 15px;border-bottom:1px solid var(--line2);display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-    ${fsel("type","Type",ACCT_TYPE.map(x=>[x,x]))}${fsel("stage","Stage",ACCT_STAGES.map(x=>[x.id,x.l]))}${fsel("state","State",states.map(x=>[x,x]))}${fsel("terms","Terms",TERMS.map(x=>[x,x]))}
+    ${fsel("rep","Rep",repList().map(t=>[t.id,t.name]).concat([["__none","No rep"]]))}${fsel("type","Type",ACCT_TYPE.map(x=>[x,x]))}${fsel("stage","Stage",ACCT_STAGES.map(x=>[x.id,x.l]))}${fsel("state","State",states.map(x=>[x,x]))}${fsel("terms","Terms",TERMS.map(x=>[x,x]))}
     <label class="sub" style="display:flex;gap:5px;align-items:center"><input type="checkbox" data-acfilt="nocon" ${AF.nocon?"checked":""}> No contacts</label>
     ${Object.keys(AF).some(k=>AF[k])?`<button class="btn sm q" data-acfilt="clear">Clear filters</button>`:""}</div>`;
   return `<div class="pad"><section class="card flush wide">
@@ -10591,6 +10603,8 @@ document.addEventListener("click",e=>{if(!(e.ctrlKey||e.metaKey))return;const t=
 document.addEventListener("change",e=>{const t=e.target&&e.target.closest&&e.target.closest("[data-rptacct]");if(!t)return;
   const v=String(t.value||"").trim().toLowerCase();const a=v?live(S.accounts).find(x=>String(x.name||"").trim().toLowerCase()===v):null;
   if(v&&!a)return toast("Pick an account from the list.");S.rpt=Object.assign({},S.rpt,{preset:"",acct:a?a.id:""});render()},true);
+document.addEventListener("click",e=>{const t=e.target&&e.target.closest&&e.target.closest("[data-bellread]");if(!t)return;
+  const id=t.dataset.bellread;const n=S.notifications.get(id);if(n){n.read=true;push("notifications/"+id,{read:true}).catch(()=>{})}},true);
 document.addEventListener("click",e=>{const t=e.target&&e.target.closest&&e.target.closest("[data-ctfilt]");if(!t)return;e.preventDefault();S.ctFilt=t.dataset.ctfilt;render()},true);
 function contactRec(id){
   const c=S.contacts.get(id);if(!c||c.deleted)return notFound("Contact");
@@ -10656,11 +10670,11 @@ function projectList(){
         return `<div class="kcol kw-${s.color}"><h3>${esc(s.label)}<span class="n">${l.length}</span></h3>
           <div class="kbody">${v?`<div class="sub mono" style="padding:0 2px 2px">${money(v)}</div>`:""}
           ${l.map(p=>{const dc=stillDue(p)?dueCls(p.due,false):"";
-            return `<button class="kc ${dc==="r"?"late":dc==="o"?"soon":""}" data-go="project/${esc(p.id)}">
+            return `<a class="kc ${dc==="r"?"late":dc==="o"?"soon":""}" href="#/project/${esc(p.id)}">
               <div class="r1"><span class="nm">${esc(p.name)}</span></div>
               <div class="r2">${esc(accName(p.accountId))}</div>
               <div class="r3"><span class="pill">${money(projValue(p))}</span>${projDuePill(p)}
-                ${jobsOf(p.id).length?`<span class="pill">${jobsOf(p.id).length} work order${jobsOf(p.id).length>1?"s":""}</span>`:""}</div></button>`
+                ${jobsOf(p.id).length?`<span class="pill">${jobsOf(p.id).length} work order${jobsOf(p.id).length>1?"s":""}</span>`:""}</div></a>`
           }).join("")||`<div class="sub" style="padding:4px 2px">—</div>`}</div></div>`;
       }).join("")}</div></section></div>`;
   }
@@ -10701,7 +10715,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-119";
+const APP_VERSION="2026.11.25-120";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -11361,14 +11375,14 @@ function shippedCard(j){
 function jobCard(j,showHold){
   const dc=dueCls(j.due,j.status==="shipped");
   const n=woItems(j).reduce((t,i)=>t+(Number(i.qty)||0),0);
-  return `<button class="kc ${j.rush?"rush":dc==="r"?"late":dc==="o"?"soon":""}" data-go="job/${j.num}">
+  return `<a class="kc ${j.rush?"rush":dc==="r"?"late":dc==="o"?"soon":""}" href="#/job/${j.num}">
     <div class="r1"><span class="mono" style="font-weight:700">${j.num}</span>
       <span class="sub" style="margin-left:auto;max-width:62%;text-align:right;font-size:12px">${esc(accName(j.accountId))}</span></div>
     <div class="r2" style="color:var(--ink);font-size:12.5px;margin:2px 0 5px">${esc(j.desc||"—")}</div>
     ${showHold?`<div class="sub" style="font-size:12px;margin:-3px 0 5px">${
       j.status==="hold_cust"?"waiting on the customer":"waiting on material"}</div>`:""}
     <div class="r3">${j.rush?`<span class="pill r">Rush</span>`:""}<span class="pill ${dc}">${dueTxt(j.due)}</span>
-      ${n?`<span class="pill">${n} pc</span>`:""}</div></button>`;
+      ${n?`<span class="pill">${n} pc</span>`:""}</div></a>`;
 }
 function jobRec(num){
   const j=job(num);if(!j)return notFound("Work order");
@@ -11788,14 +11802,20 @@ function auditView(){histAll();
   const nUnk=rows.filter(unknownW).length;
   if(af.who==="__unknown")rows=rows.filter(unknownW);else if(af.who)rows=rows.filter(r=>String(r.w||"").trim()===af.who);
   if(af.days)rows=rows.filter(r=>(r.t||0)>=Date.now()-Number(af.days)*864e5);
+  // one record (P-2009, a work order number, an account name…) and a date range
+  if(af.rec){const k=String(af.rec).trim().toLowerCase();rows=rows.filter(r=>recLabel(r).toLowerCase().includes(k)||String(r.recId||"").toLowerCase()===k)}
+  if(af.from)rows=rows.filter(r=>isoDay(r.t||0)>=af.from);if(af.to)rows=rows.filter(r=>isoDay(r.t||0)<=af.to);
   if(af.src==="fix")rows=rows.filter(r=>/fix run/i.test(String(r.f||"")+" "+String(r.w||"")));else if(af.src==="people")rows=rows.filter(r=>!/fix run/i.test(String(r.f||"")+" "+String(r.w||"")));
   const sel=(k,l,opts)=>`<select data-auditf="${k}" aria-label="${esc(l)}" style="min-height:34px"><option value="">${esc(l)}</option>${opts.map(([v,t])=>`<option value="${esc(v)}" ${af[k]===v?"selected":""}>${esc(t)}</option>`).join("")}</select>`;
   const fbar=`<div style="display:flex;gap:8px;flex-wrap:wrap;padding:10px 15px;border-bottom:1px solid var(--line2)">
     ${sel("type","Every kind of record",types.map(t=>[t,({account:"Accounts",contact:"Contacts",project:"Projects",job:"Work orders",item:"Inventory items",vendor:"Vendors",activity:"Activity",team:"Team"})[t]||t]))}
     ${sel("who","Anyone",[["__unknown","Unknown person ("+nUnk+")"]].concat(whos.map(w=>[w,w])))}
     ${sel("days","Any time",[["1","Last 24 hours"],["7","Last 7 days"],["30","Last 30 days"],["90","Last 90 days"]])}
+    <input data-auditf="rec" value="${esc(af.rec||"")}" placeholder="Record — P-2009, 1015, an account…" style="min-height:34px;width:210px">
+    <label class="sub" style="display:flex;gap:4px;align-items:center">From <input type="date" data-auditf="from" value="${esc(af.from||"")}" style="min-height:34px"></label>
+    <label class="sub" style="display:flex;gap:4px;align-items:center">to <input type="date" data-auditf="to" value="${esc(af.to||"")}" style="min-height:34px"></label>
     ${sel("src","People and fix runs",[["people","People only"],["fix","Fix runs only"]])}
-    ${af.type||af.who||af.days||af.src?`<button class="btn sm" data-auditclear="1">Clear filters</button>`:""}</div>`;
+    ${af.type||af.who||af.days||af.src||af.rec||af.from||af.to?`<button class="btn sm" data-auditclear="1">Clear filters</button>`:""}</div>`;
   return `<div class="pad"><section class="card flush wide">
     <header><h2>Change history</h2><span class="n">${rows.length}</span>
       <span class="sub">every field change, who made it, and what it was before</span>
@@ -12185,14 +12205,16 @@ function invIn(list,ym){return list.filter(p2=>ymOf(billedAt(p2))===ym)}
 function wonIn(list,ym){return list.filter(p2=>ymOf(stageAt(p2,"won"))===ym)}
 function sinceDays(ms2){return ms2?Math.floor((Date.now()-ms2)/86400000):null}
 // won and lost in the window, test projects left out — the rate only means something next to how many it's out of
+// when a project was lost: its stage log, the lost date, its last change, or when it was made — one with no date at all still counts
+function lostWhen(p){return stageAt(p,"lost")||Number(p.lostAt)||Number(p.closedAt)||Number(p.updatedAt)||Number(p.createdAt)||0}
 function winCounts(list,days){const cut=Date.now()-days*86400000;list=list.filter(p2=>!isTestRec(p2));
   return {w:list.filter(p2=>{const a=stageAt(p2,"won");return a&&a>=cut}).length,
-    l:list.filter(p2=>{const a=p2.stage==="lost"?(stageAt(p2,"lost")||Number(p2.lostAt)||Number(p2.updatedAt)||0):0;return a&&a>=cut}).length}}
+    l:list.filter(p2=>{if(p2.stage!=="lost")return false;const a=lostWhen(p2);return !a||a>=cut}).length}}
 function winSub(list,days){const c=winCounts(list,days);return c.w+" won · "+c.l+" lost, last 6 months"+(c.w+c.l&&c.w+c.l<10?" (too few to read much into)":"")}
 function winRate(list,days){list=list.filter(p2=>!isTestRec(p2));
   const cut=Date.now()-days*86400000;
   const w=list.filter(p2=>{const a=stageAt(p2,"won");return a&&a>=cut}).length;
-  const l=list.filter(p2=>{const a=p2.stage==="lost"?(stageAt(p2,"lost")||Number(p2.lostAt)||Number(p2.updatedAt)||0):0;return a&&a>=cut}).length;
+  const l=list.filter(p2=>{if(p2.stage!=="lost")return false;const a=lostWhen(p2);return !a||a>=cut}).length;
   return (w+l)?Math.round(w/(w+l)*100):null;
 }
 function kpi(label,value,sub,color){
@@ -14182,7 +14204,7 @@ function gateModal(num,to,bl){
   openModal(mshell("Work order "+num+" isn't ready","job",
     `<div style="padding:12px 16px"><p style="margin:0 0 8px;color:var(--ink2)">Still open before ${esc(JS[to].label==="QC"?"QC":JS[to].label.toLowerCase())}:</p>
       <ul style="margin:0;padding-left:20px">${bl.map(b=>`<li style="margin-bottom:4px">${esc(b)}</li>`).join("")}</ul></div>`,
-    `<button class="btn" data-close="1">Go back</button><button class="btn p" data-adv="${num}:${to}:1">Move it anyway</button>`));
+    `<button class="btn" data-close="1">Go back</button>${bl.some(b=>/no price/.test(b))?"":`<button class="btn p" data-adv="${num}:${to}:1">Move it anyway</button>`}`));
 }
 function delModal(type,id,typed){
   const L={account:"account",contact:"contact",project:"project",job:"work order"}[type];
@@ -14349,6 +14371,10 @@ function duplicateJob(num){
 async function advance(num,to,force){
   const j=job(num);if(!j)return;
   if(j.status===to){toast("Work order "+num+" is already "+((JS[to]||{}).label||to)+".");return}
+  // nothing unpriced goes to the shop floor — not even with "move it anyway"
+  if(JFLOW.indexOf(to)>=JFLOW.indexOf("released")&&JFLOW.indexOf(j.status)<JFLOW.indexOf("released")){
+    const nop=(j.items||[]).filter(it=>!isCharge(it)&&!(priceOfLine(j,it)>0));
+    if(nop.length){toast(nop.length+" line"+(nop.length===1?" has":"s have")+" no price — price "+(nop.length===1?"it":"them")+" on the quote first.");return}}
   if(!force&&!needMe(()=>advance(num,to,force)))return;
   if(j.status==="shipped"&&to!=="shipped"&&!force){
     askConfirm("Pull this work order back from shipped?",
@@ -16030,7 +16056,6 @@ function bizDay(iso){const d=new Date(String(iso)+"T12:00:00").getDay();return d
 function followPlanList(fromIso){const from=fromIso||today();
   return FOLLOW_DAYS.map((n,i)=>({id:uid("fu"),n:i+1,due:bizDay(addDays(from,n)),status:"planned",subject:"",body:"",draftedAt:0,sentAt:0,by:""}))}
 // still quoting, not stopped, and there is a plan
-const FOLLOW_STAGES=["lead","inquiry","quoted"];
 function followOpen(p){return !!(p&&!p.deleted&&!p.followStop&&FOLLOW_STAGES.indexOf(p.stage)>=0&&(p.followups||[]).length)}
 // touches that want attention now: planned or drafted, due today or before
 function followDueOf(p){if(!followOpen(p))return [];const t=today();return (p.followups||[]).filter(f=>(f.status==="planned"||f.status==="drafted")&&f.due&&f.due<=t)}
@@ -16104,7 +16129,7 @@ function followCard(p){
   const c=followContact(p);const open=followOpen(p);const t=today();
   const stPill=f=>{const late=f.due&&f.due<t&&(f.status==="planned"||f.status==="drafted");
     return f.status==="sent"?`<span class="pill g">sent ${esc(fmtTs(f.sentAt))}${f.by?" · "+esc(f.by):""}</span>`
-      :f.status==="skipped"?`<span class="pill">skipped</span>`:f.status==="stopped"?`<span class="pill">stopped</span>`
+      :f.status==="sending"?`<span class="pill y">sending…</span>`:f.status==="skipped"?`<span class="pill">skipped</span>`:f.status==="stopped"?`<span class="pill">stopped</span>`
       :f.status==="drafted"?`<span class="pill ${late?"r":"b"}">drafted${late?" — due "+esc(dueTxt(f.due)):""}</span>`
       :`<span class="pill ${late?"r":"y"}">${late?"due "+esc(dueTxt(f.due)):"planned"}</span>`};
   return `<section class="card flush"><header><h2>Follow-ups</h2><span class="n">${fus.filter(f=>f.status==="sent").length}/${fus.length||3}</span>
@@ -16292,7 +16317,8 @@ function bellMenu(rems,un){
   return `${order.length?order.map(k=>`<div class="bell-g">${esc(remLabel(k))} · ${groups[k].length}</div>${groups[k].map(r=>`<div class="bell-r">
       <button class="lnk" data-go="${esc(r.route)}">${esc(r.text)}</button><span class="sub" style="font-size:11px">to ${esc((remTo(r)||{}).name||"nobody")}</span>
       <button class="btn sm" data-remsnooze="${esc(r.id)}" title="Comes back in three days">Snooze 3 days</button><button class="btn sm" data-remdone="${esc(r.id)}">Done</button></div>`).join("")}`).join("")
-    :`<div class="bell-e"><b>Nothing to chase</b>Reminders land here when something is waiting on you — a proof, a PO, a follow-up.</div>`}
+    :un?"":`<div class="bell-e"><b>Nothing to chase</b>Reminders land here when something is waiting on you — a proof, a PO, a follow-up.</div>`}
+    ${un?`<div class="bell-g">Unread · ${un}</div>${myNotes().filter(x=>!x.read).slice(0,6).map(x=>`<div class="bell-r"><button class="lnk" data-go="${esc(x.link||"tasks")}" data-bellread="${esc(x.id)}">${esc(String(x.text||"").slice(0,140))}</button><span class="sub" style="font-size:11px">${esc(x.fromName||"")} · ${esc(fmtTs(x.at))}</span></div>`).join("")}`:""}
     <div class="bell-f"><span class="sub">${un?un+" unread notification"+(un===1?"":"s"):"Notifications and tasks"}</span><button class="btn sm" data-bell="1">Open</button></div>`;
 }
 function remSettingsCard(b){
@@ -16328,10 +16354,11 @@ function mailTemplates(){const own=((S.brand||{}).mailTemplates||[]).filter(t=>t
 // sending from the CRM works only on the hosted site, after the mail worker has proven it can send (it sets mailSendOk)
 function mailSendOn(){return !!(window.sscHosted&&(S.brand||{}).mailSendOk&&(S.brand||{}).mailSend!==false)}
 function myMailFrom(){const t=S.viewerTeam;const e=String((t&&t.email)||"").trim().toLowerCase();return /@streetsignsupply\.com$/.test(e)?e:""}
-// customer emails written by anyone but an owner wait for the owner's OK before they go (the database and the mail worker both check)
-function mailNeedsOk(){return myAccess()!=="owner"}
+// only a quote waits for the owner's OK (see quoteOkFor); every other email goes straight out
+function mailNeedsOk(){return false}
 // a dry run or internal test project never emails anyone outside (flag on the project, or "dry run" in its name or notes)
-function noMail(p){return !!(p&&(p.internal||/dry ?run|do not submit|internal test/i.test((p.name||"")+" "+(p.scope||"")+" "+(p.notes||""))))}
+function noMail(p){if(!p)return false;const a=acct(p.accountId)||S.accounts.get(p.accountId)||{};
+  return !!(p.internal||a.internal||isTestRec(p)||/dry ?run|do not submit|internal test/i.test((p.name||"")+" "+(p.scope||"")+" "+(p.notes||"")))}
 // the sender's Gmail signature (read from Gmail by the mail worker) goes on every email the CRM sends — so templates
 // end with just "Thanks," and the signature carries the name, company and phone
 function mySig(){const t=S.viewerTeam;return mailSendOn()&&t&&String(t.mailSig||"").trim()?String(t.mailSig):""}
@@ -16367,11 +16394,11 @@ function composeModal(o){o=o||{};const p=o.pid?proj(o.pid):null;const aid=o.aid|
       <div style="display:flex;flex-direction:column;gap:4px;max-height:160px;overflow:auto">${files.slice(0,25).map(f=>`<label style="display:flex;gap:8px;align-items:center;justify-content:flex-start;font-size:13.5px;text-align:left;font-weight:500"><input type="checkbox" data-cmatt="${esc(f.id)}" ${pre.has(f.id)?"checked":""} ${sendOn?"":"disabled"} style="width:18px;height:18px;flex:0 0 auto;margin:0"> <span style="flex:0 1 auto">${esc(f.name)}</span> <span class="sub">${esc(f.cat||"")}${f._src&&f._src!=="Project"?" · "+esc(f._src):""}</span></label>`).join("")}</div></div>`:""}
     <div class="fld full sub">${noMail(p)?`<b>This project is marked dry run / internal</b> — the CRM won't email anyone outside from it.`
       :mailSendOn()&&!from?`Sending from the CRM needs your own @streetsignsupply.com address on your team record — <b>Open in my email</b> works meanwhile.`
-      :sendOn?`Sends from <b>${esc(from||"—")}</b> through Gmail${mailNeedsOk()?` <b>once the owner approves it</b> (they get it to OK straight away)`:" within about a minute"}, and it's logged on ${p?"the project":"the account"}. Replies come to that inbox.`
+      :sendOn?`Sends from <b>${esc(from||"—")}</b> through Gmail within about a minute${myAccess()!=="owner"&&p?" — a quote waits for Matt's OK first":""}, and it's logged on ${p?"the project":"the account"}. Replies come to that inbox.`
       :window.sscHosted?`Sending from the CRM isn't switched on yet — <b>Open in my email</b> opens it in your own email with this text, and it's logged here.`
       :`This copy can't send email — <b>Open in my email</b> opens it in your own email with this text, and it's logged here.`}</div>
     ${can("settings")||myAccess()==="office"?`<div class="fld full"><button type="button" class="lnk" id="cm-savetpl">Save this as a template…</button></div>`:""}</div>`,
-    `<button class="btn" data-close="1">Cancel</button><button class="btn" id="cm-open">Open in my email</button>${sendOn?`<button class="btn p" id="cm-send">${mailNeedsOk()?"Send for approval":"Send"}</button>`:""}`));
+    `<button class="btn" data-close="1">Cancel</button><button class="btn" id="cm-open">Open in my email</button>${sendOn?`<button class="btn p" id="cm-send">Send</button>`:""}`));
   const tp=$("#cm-tpl");if(tp)tp.onchange=()=>{const t=tpls.find(x=>x.id===tp.value);if(!t)return;S._cmp.tplUsed=t.id;$("#cm-subj").value=mailFill(t.subject,S._cmp);$("#cm-body").value=mailFill(t.body,S._cmp);S.modalTouched=true};
   document.querySelectorAll("[data-cmto]").forEach(b=>b.onclick=()=>{const to=$("#cm-to");const cur=to.value.split(",").map(x=>x.trim()).filter(Boolean);
     if(cur.indexOf(b.dataset.cmto)<0)cur.push(b.dataset.cmto);to.value=cur.join(", ");if(cur.length===1){S._cmp.contact=S.contacts.get(b.dataset.cmcid)||S._cmp.contact}});
@@ -16423,39 +16450,58 @@ async function composeAIRemote(){const C=S._cmp||{};const p=C.pid?proj(C.pid):nu
 async function composeSaveTpl(){const name=prompt("Name for this template (e.g. 'Bid follow-up')");if(!name)return;
   const list=((S.brand||{}).mailTemplates||[]).filter(t=>t.name!==name).concat([{id:uid("tp"),name:String(name).slice(0,60),subject:$("#cm-subj").value,body:$("#cm-body").value}]);
   try{await push("settings/brand",{mailTemplates:list})}catch(e){}S.brand=Object.assign({},S.brand||{},{mailTemplates:list});toast("Template saved")}
+// a fingerprint of the quote as it stands: number, account and every line (what, size, grade, qty, price). Any change to
+// the quote after the owner approved it changes this, and the approval no longer counts. The mail worker works it out
+// the same way (worker/mail.mjs quoteHash) — keep the two in step.
+function quoteHash(p){if(!p)return "";const nv=x=>{const t=String(x==null?"":x).replace(/[$,\s]/g,"");return t!==""&&isFinite(Number(t))?String(Number(t)):String(x==null?"":x).trim()};
+  const L=(p.orderLines||[]).filter(l=>l).map(l=>[l.code,l.desc,l.size,l.grade,l.build,nv(l.qty),nv(l.price),l.lam===true,l.charge||""].map(x=>String(x==null?"":x)));
+  const s=JSON.stringify([String(p.quote||""),String(p.accountId||""),L]);let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return "q"+(h>>>0).toString(36)}
+// is this email the quote going to the customer? (its PDF attached, the quote template, or a signing link for the quote)
+function isQuoteMail(C,atts){const pq=C&&C.pid?proj(C.pid):null;if(!pq)return false;
+  return (atts||[]).some(a=>/quote/i.test(a.name||""))||C.tplUsed==="quote"||C.kind==="quote"||(!!C.signId&&((S.signreq||new Map()).get(C.signId)||{}).kind!=="proof")}
+// the owner approved this exact quote for these exact people
+function quoteOkFor(p,to,cc){const ap=p&&p.quoteApproval;if(!ap||ap.hash!==quoteHash(p))return false;
+  const ok=new Set((ap.to||[]).concat(ap.cc||[]).map(x=>String(x).toLowerCase()));return to.concat(cc||[]).every(x=>ok.has(String(x).toLowerCase()))}
+const MAX_RECIP=6;
 async function composeGo(send){const C=S._cmp||{};const to=$("#cm-to").value.split(/[,;]/).map(x=>x.trim()).filter(x=>/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(x));
   const cc=$("#cm-cc").value.split(/[,;]/).map(x=>x.trim()).filter(x=>/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(x));
   const subject=$("#cm-subj").value.trim(),body=$("#cm-body").value;
   if(!to.length){toast("Put in who it goes to.");$("#cm-to").focus();return}
   if(!subject){toast("Give it a subject.");$("#cm-subj").focus();return}
-  if(send&&(noMail(C.pid?proj(C.pid):null)||!myMailFrom()))return toast("This one can't be sent from the CRM — use Open in my email.");
-  const hold=send&&mailNeedsOk();
+  if(to.length+cc.length>MAX_RECIP)return toast("At most "+MAX_RECIP+" people on one email (To and Cc together).");
+  const pq=C.pid?proj(C.pid):null;
+  if(noMail(pq))return toast("This project is marked dry run / test — nothing goes to anyone outside from it.");
+  if(send&&!myMailFrom())return toast("This one can't be sent from the CRM — use Open in my email.");
   const atts=[...document.querySelectorAll("[data-cmatt]:checked")].map(e=>S.files.get(e.dataset.cmatt)).filter(Boolean).map(f=>({name:f.name,url:f.url,type:f.type||""}));
+  // a quote going to the customer needs the owner's OK on that exact quote and those exact people (owners send their own)
+  const quoteOut=isQuoteMail(C,atts);const needOk=quoteOut&&myAccess()!=="owner"&&!quoteOkFor(pq,to,cc);
+  if(needOk&&!send)return toast("This quote needs Matt's OK first — press Send and it goes out the moment he approves it.");
   const tl=to.map(x=>x.toLowerCase()),hit=x=>x&&x.email&&tl.indexOf(String(x.email).toLowerCase())>=0;
   const pA=C.pid?(proj(C.pid)||{}).accountId:C.aid;
   const c=hit(C.contact)?C.contact:(contactsOf(pA||"").find(hit)||live(S.contacts).find(hit)||null);
   const now=Date.now(),xid=uid("ac"),mid=uid("ml");const recType=C.pid?"project":"account",recId=C.pid||C.aid||(c&&c.accountId)||"";
   closeModal();
   await setDoc("activity/"+xid,{id:xid,recType,recId:String(recId),kind:"note",type:"email",direction:"out",subject,text:body+(atts.length?"\n\n📎 "+atts.map(a=>a.name).join(", "):""),
-    contactId:c?c.id:"",whoId:meId(),who:me(),when:today(),due:"",backOn:"",noBack:true,at:now,done:true,deleted:false,mailId:send?mid:"",sendState:send?(hold?"approval":"queued"):"opened",to:to.join(", ")});
-  if(send){await setDoc("mail/"+mid,{id:mid,kind:"customer",to,cc,from:myMailFrom(),fromName:meName(),byId:meId(),message:{subject,text:body},attachments:atts,
-      status:hold?"approval":"queued",at:now,activityId:xid,recType,recId:String(recId),signId:C.signId||""});
-    toast(hold?"Sent to the owner to approve — it goes out from "+myMailFrom()+" once they OK it.":"Sending — it goes out from "+myMailFrom()+" within about a minute.")}
+    contactId:c?c.id:"",whoId:meId(),who:me(),when:today(),due:"",backOn:"",noBack:true,at:now,done:true,deleted:false,mailId:send?mid:"",sendState:send?(needOk?"approval":"queued"):"opened",to:to.join(", ")});
+  if(send){await setDoc("mail/"+mid,Object.assign({id:mid,kind:"customer",to,cc,from:myMailFrom(),fromName:meName(),byId:meId(),message:{subject,text:body},attachments:atts,
+      status:"queued",at:now,activityId:xid,recType,recId:String(recId),signId:C.signId||""},
+      quoteOut?{quote:{pid:pq.id,hash:quoteHash(pq),no:pq.quote||""}}:{},C.follow?{follow:{pid:C.follow.pid,id:C.follow.id}}:{}));
+    toast(needOk?"Quote sent to Matt to approve — it goes out from "+myMailFrom()+" as soon as he OKs it.":"Sending — it goes out from "+myMailFrom()+" within about a minute.")}
   else{mailOpen(to.join(","),subject,body,{cc:false});toast("Opened in your email — it's logged here.")}
   if(C.draft)await draftSet(C.draft.pid,C.draft.id,{status:"sent",sentAt:now,by:me(),subject,body});
-  if(C.follow)await followSet(C.follow.pid,C.follow.id,{status:"sent",sentAt:now,by:me(),subject,body});
-  if(C.pid)logEvent("project",C.pid,"Email "+(send?"sent":"opened")+" to "+to.join(", ")+" — "+subject);
-  // the quote went to the customer (its PDF attached, the quote template, or a signature link for it): that's when follow-ups start
-  {const pq=C.pid?proj(C.pid):null;const quoteOut=pq&&(atts.some(a=>/quote/i.test(a.name))||C.tplUsed==="quote"||(C.signId&&((S.signreq||new Map()).get(C.signId)||{}).kind!=="proof"));
-    if(pq&&(quoteOut||C.kind==="quote")){const at=now;await push("projects/"+pq.id,{quoteSentAt:pq.quoteSentAt||at,quoteSentTo:to.join(", "),updatedAt:at});pq.quoteSentAt=pq.quoteSentAt||at;
-      if(["lead","inquiry","quoted"].indexOf(pq.stage)>=0)try{await followPlan(pq.id,today(),true)}catch(e){}
-      // the quote went out on a project still at Lead / Inquiry: offer to move it to Quoted
-      if(quoteOut&&(pq.stage==="lead"||pq.stage==="inquiry")&&!hold)setTimeout(()=>askConfirm("Move P-"+pq.num+" to Quoted?",
-        `<p style="margin:0">The quote just went to the customer, but the project still says ${esc((SG[pq.stage]||{}).label||pq.stage)}.</p>`,"Move to Quoted",false,()=>setStage(pq.id,"quoted","quote emailed")),400)}}
+  // a follow-up sent through the CRM is marked sent by the mail worker once it has actually gone
+  if(C.follow)await followSet(C.follow.pid,C.follow.id,send?{status:"sending",subject,body,by:me()}:{status:"sent",sentAt:now,by:me(),subject,body});
+  if(C.pid)logEvent("project",C.pid,"Email "+(send?(needOk?"waiting for Matt's OK":"sent"):"opened")+" to "+to.join(", ")+" — "+subject);
+  // the quote counts as sent (and the follow-ups start) only once it has really gone: the mail worker marks it when Gmail
+  // takes it; "Open in my email" is marked now, since the CRM can't see your own email go
+  if(pq&&quoteOut&&!send){const at=now;await push("projects/"+pq.id,{quoteSentAt:pq.quoteSentAt||at,quoteSentTo:to.join(", "),updatedAt:at});pq.quoteSentAt=pq.quoteSentAt||at;
+    if(FOLLOW_STAGES.indexOf(pq.stage)>=0)try{await followPlan(pq.id,today(),true)}catch(e){}}
+  if(pq&&quoteOut&&!needOk&&(pq.stage==="lead"||pq.stage==="inquiry"))setTimeout(()=>askConfirm("Move P-"+pq.num+" to Quoted?",
+    `<p style="margin:0">The quote is going to the customer, but the project still says ${esc((SG[pq.stage]||{}).label||pq.stage)}.</p>`,"Move to Quoted",false,()=>setStage(pq.id,"quoted","quote emailed")),400);
   render()}
 // what the mail worker reported back on an email sent from the CRM
 function sendBadge(x){const s=x&&x.sendState;if(!s||s==="opened")return "";
-  if(s==="approval")return `<span class="pill o">waiting for the owner's OK</span>`;
+  if(s==="approval")return `<span class="pill o">quote waiting for Matt's OK</span>`;
   if(s==="rejected")return `<span class="pill r">not approved${x.sendErr?" — "+esc(String(x.sendErr).slice(0,60)):""}</span>`;
   return s==="sent"?`<span class="pill g">sent${x.sentAt?" "+esc(fmtTs(x.sentAt)):""}</span>`:s==="queued"?`<span class="pill y">sending…</span>`
     :`<span class="pill r" title="${esc(x.sendErr||"")}">didn't send${x.sendErr?" — "+esc(String(x.sendErr).slice(0,60)):""}</span>`}
@@ -16850,7 +16896,10 @@ function bind(){
     {const x=t.closest("[data-signreq]");if(x){const dd=x.closest("details");if(dd)dd.open=false;signModal(x.dataset.signreq);return}}
     {const x=t.closest("[data-signwon]");if(x){setStage(x.dataset.signwon,"won");return}}
     {const x=t.closest("[data-signfile]");if(x){signFile(x.dataset.signfile);return}}
-    {const x=t.closest("[data-signcopy]");if(x){const u=signUrl(x.dataset.signcopy);try{navigator.clipboard.writeText(u);toast("Link copied")}catch(e2){prompt("Copy the link",u)}return}}
+    {const x=t.closest("[data-signcopy]");if(x){const r0=(S.signreq||new Map()).get(x.dataset.signcopy)||{};const p0=proj(r0.projectId);
+      // a quote's signing link is the quote itself: copying it to send yourself needs the owner's OK on this quote too
+      if(r0.kind!=="proof"&&myAccess()!=="owner"&&p0&&!(p0.quoteApproval&&p0.quoteApproval.hash===quoteHash(p0)))return toast("This quote needs Matt's OK first — use Email it again and it goes out once he approves.");
+      const u=signUrl(x.dataset.signcopy);try{navigator.clipboard.writeText(u);toast("Link copied")}catch(e2){prompt("Copy the link",u)}return}}
     {const x=t.closest("[data-signmail]");if(x){const r=(S.signreq||new Map()).get(x.dataset.signmail);if(r)composeModal({pid:r.projectId,to:r.contactEmail,tpl:r.kind==="proof"?"proof":"quote",signUrl:signUrl(r.token),signId:r.token,attach:r.fileId?[r.fileId]:[],title:"Email the signature link"});return}}
     {const x=t.closest("[data-signcancel]");if(x){const r=(S.signreq||new Map()).get(x.dataset.signcancel);if(r)askConfirm("Cancel this signature link?","<p style=\"margin:0\">The link stops working. You can make a new one any time.</p>","Cancel the link",true,async()=>{await setDoc("signreq/"+r.token,Object.assign({},r,{status:"cancelled"}));render()});return}}
     if(t.closest("[data-auditclear]")){S.auditF={type:"",who:"",days:"",src:""};render();return}
@@ -17204,14 +17253,11 @@ function bind(){
         };
         const unsched8=p8?((reconStatus(p8).rows)||[]).filter(r=>!r.charge&&!r.extra&&r.sched<r.ordered):[];
         if(unsched8.length){
-          askConfirm("Some quote lines aren't on a work order",
-            `<p style="margin:0 0 8px">${unsched8.length} line${unsched8.length===1?" is":"s are"} on the quote but not on any work order, so the shop may never make ${unsched8.length===1?"it":"them"}:</p>
+          openModal(mshell("Some quote lines aren't on a work order","proj",
+            `<div style="padding:12px 16px"><p style="margin:0 0 8px">${unsched8.length} line${unsched8.length===1?" is":"s are"} on the quote but not on any work order, so the shop may never make ${unsched8.length===1?"it":"them"}:</p>
              <p style="margin:0 0 10px">${unsched8.slice(0,8).map(r=>esc((r.ordered-r.sched)+" × "+(r.label||r.desc||r.code||"line"))).join("<br>")}</p>
-             <p class="note">Best: press Create work order first. To invoice anyway, say why — it goes in the history.</p>
-             <input data-cin="why" data-req="Say why you're invoicing before those lines are on a work order." placeholder="e.g. already made and delivered by hand" style="width:100%;margin-top:6px">`,
-            "Invoice anyway",false,async v=>{
-              recordHistory("project",id2,[{f:"Billing",o:"",n:"Invoiced with "+unsched8.length+" quote line(s) not on a work order — "+((v&&v.why)||""),ev:1}]);
-              await go8()});return}
+             <p class="note" style="margin:0">It can't be invoiced until every line is on a work order — or taken off the quote if it isn't being made.</p></div>`,
+            `<button class="btn" data-close="1">Close</button><button class="btn p" data-quickwo="${esc(id2)}">Create work order</button>`));return}
         if(open8.length){
           askConfirm("Not everything has shipped",
             `<p style="margin:0 0 8px">${open8.map(j=>`<b class="mono">${j.num}</b> ${esc(j.desc||"")} — ${esc((JS[j.status]||{}).label||j.status)}`).join("<br>")}</p>
