@@ -2251,6 +2251,9 @@ async function approvalModal(){const w=mailWaiting();const mails={};
   S._mailOk=mails;
   openModal(mshell("Quotes waiting for your OK","",
     `<div style="padding:6px 0">${w.length?w.map(a=>{const m=mails[a.id]||{};const t=S.team.get(m.byId||a.whoId)||{};const p=m.quote?proj(m.quote.pid):null;
+      if(!mails[a.id])return `<div style="padding:12px 18px;border-bottom:1px solid var(--line2)"><b>${esc(a.subject||"(no subject)")}</b> <span class="sub">from ${esc(t.name||a.who||"")} to ${esc(a.to||"")}</span>
+        <div class="warn" style="margin:6px 0">This email never got into the send queue (the database turned it away), so there's nothing to approve — ${esc(t.name||"they")} should send it again.</div>
+        <button class="btn sm" data-mailgone="${esc(a.id)}">Clear it</button></div>`;
       const changed=p&&m.quote&&m.quote.hash!==quoteHash(p);const atts=m.attachments||[];const pdf=atts.find(x=>/pdf/i.test((x.type||"")+(x.name||"")));
       return `<div style="padding:12px 18px;border-bottom:1px solid var(--line2)">
         <div><b>${esc((m.message||{}).subject||a.subject||"(no subject)")}</b></div>
@@ -2273,6 +2276,9 @@ async function mailDecide(xid,ok){const a=S.activity.get(xid);const m=(S._mailOk
   logEvent("project",p.id,"Quote "+(p.quote||"")+" to "+(m.to||[]).join(", ")+(ok?" approved by ":" turned down by ")+me()+(why?" — "+why:""));
   toast(ok?"Approved — it goes out within a minute.":"Turned down — it won't be sent.");
   if(mailWaiting().filter(x=>x.id!==xid).length)approvalModal();else{closeModal();render()}}
+document.addEventListener("click",async e=>{const t=e.target&&e.target.closest&&e.target.closest("[data-mailgone]");if(!t)return;e.preventDefault();
+  await push("activity/"+t.dataset.mailgone,{sendState:"failed",sendErr:"never queued — send it again"});const x=S.activity.get(t.dataset.mailgone);if(x){x.sendState="failed";x.sendErr="never queued — send it again"}
+  if(mailWaiting().length)approvalModal();else{closeModal();render()}},true);
 document.addEventListener("click",e=>{const t=e.target&&e.target.closest&&e.target.closest("[data-mailok],[data-mailno],[data-mailok-open]");if(!t)return;e.preventDefault();
   if(t.dataset.mailokOpen)return approvalModal();if(t.dataset.mailok)return mailDecide(t.dataset.mailok,true);mailDecide(t.dataset.mailno,false)},true);
 function claimBanner(){
@@ -10715,7 +10721,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-120";
+const APP_VERSION="2026.11.25-121";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
