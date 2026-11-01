@@ -48,10 +48,11 @@ service cloud.firestore {
       allow update: if isOwner() || (member() && isSelf(resource.data) && !changed().hasAny(["access", "companyDash", "email", "role"])
                                      && ownIdsOnly());
     }
-    // settings: owners and office; keys and tokens live in settings/secrets, which only they can read;
+    // settings: owners and office change them; keys and tokens live in settings/secrets;
     // the record of what's been sent to the sheet is kept up by every copy of the CRM; the lock switch is the owner's
     match /settings/{id} {
-      allow read: if (id == "secrets" || id == "qbinv") ? isOffice() : member();
+      // everyone on the team reads only what the CRM pages need; the rest (secrets, QuickBooks, mail settings, the lock) office and owners
+      allow read: if isOffice() || (member() && (id in ["brand", "costsheet", "pricelist", "prodtypes", "signlib", "syncsent", "pipefeed"] || id.matches("^webcat_.*")));
       // the sign-picture library: anyone but the shop can set a picture (only the byCode list changes)
       allow write: if id == "syncsent" ? member() : (id == "signlib" ? (member() && !isShop() && (resource == null || changed().hasOnly(["byCode"]))) : (id == "dbLock" ? isOwner()
                     : isOffice() && !(id != "secrets" && request.resource.data.get("shopToken", "") != "")));
@@ -72,8 +73,11 @@ service cloud.firestore {
     }
     // quotes and projects: the shop doesn't change prices, billing or the stage
     match /projects/{id} {
-      allow read, create: if member();
-      allow update: if member() && !(isShop() && changed().hasAny(["orderLines", "value", "amountAuto", "billStatus", "billDate", "paidDate", "invNum", "invTax", "depositAmt", "quote", "price"]));
+      allow read: if member();
+      allow create: if member() && (isOwner() || !request.resource.data.keys().hasAny(["quoteApproval", "quoteRejected"]));
+      // only an owner approves (or turns down) a quote going to a customer
+      allow update: if member() && !(isShop() && changed().hasAny(["orderLines", "value", "amountAuto", "billStatus", "billDate", "paidDate", "invNum", "invTax", "depositAmt", "quote", "price"]))
+                    && (isOwner() || !changed().hasAny(["quoteApproval", "quoteRejected"]));
       allow delete: if isOffice();
     }
     // inventory: sales and shop count and move stock; only owners and office change what things cost
@@ -117,28 +121,22 @@ service cloud.firestore {
       allow delete: if isOffice();
     }
     // email the CRM sends: a task notice to one person on the team, or a customer email the team wrote. A customer email
-    // always goes from the writer's own @streetsignsupply.com address (never anyone else's), to at most 10 people, and
-    // waits for the owner's OK ("approval") unless an owner wrote it. Only the owner approves or turns one down;
-    // the mail worker checks the approval again before it sends, and only it marks one sent.
+    // always goes from the writer's own @streetsignsupply.com address (never anyone else's), to at most 6 people (To and Cc
+    // together). The mail worker checks the sender again, holds a quote from anyone but an owner until the owner approves
+    // that exact quote for those people (projects.quoteApproval), and is the only one that marks anything sent.
     function custMail() { return request.resource.data.get("kind", "") == "customer"; }
     match /mail/{id} {
       allow read: if isOffice();
       allow create: if member() && request.resource.data.to is list && (
                       (!custMail() && request.resource.data.to.size() == 1 && request.resource.data.to[0] is string
                        && exists(/databases/$(db)/documents/access/$(request.resource.data.to[0].lower())))
-                   || (custMail() && request.resource.data.to.size() >= 1 && request.resource.data.to.size() <= 10
-                       && request.resource.data.get("cc", []) is list && request.resource.data.get("cc", []).size() <= 10
+                   || (custMail() && request.resource.data.get("status", "") == "queued"
+                       && request.resource.data.to.size() >= 1 && request.resource.data.get("cc", []) is list
+                       && request.resource.data.to.size() + request.resource.data.get("cc", []).size() <= 6
                        && request.resource.data.get("from", "") is string && myMail() != ""
                        && request.resource.data.get("from", "").lower() == myMail()
-                       && request.resource.data.get("byId", "") == myTeamId()
-                       && !request.resource.data.keys().hasAny(["approvedUid", "approvedAt", "approvedBy"])
-                       && (request.resource.data.get("status", "") == "approval"
-                           || (request.resource.data.get("status", "") == "queued" && isOwner()))));
-      allow update: if isOwner() && resource.data.get("status", "") == "approval"
-                    && changed().hasOnly(["status", "approvedUid", "approvedAt", "approvedBy", "rejectedAt", "rejectedBy"])
-                    && ((request.resource.data.status == "queued" && request.resource.data.get("approvedUid", "") is string && request.resource.data.get("approvedUid", "") != "")
-                        || request.resource.data.status == "rejected");
-      allow delete: if false;
+                       && request.resource.data.get("byId", "") == myTeamId()));
+      allow update, delete: if false;
     }
     // signature requests: the link's long random code is the key. Anyone with the link can read that one request (never
     // list them), and the customer can change it once — from "sent" to signed or "changes asked for", before it expires —

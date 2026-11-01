@@ -125,16 +125,36 @@ async function docsOf(key, q) { await watch(key, q); return [...WATCH[key].docs.
 const ACC = new Map();
 async function accOf(k) { k = String(k || "").toLowerCase(); if (!k) return null; const c = ACC.get(k); if (c && Date.now() - c.at < 10 * 60000) return c.d;
   const d = (await fs.doc("access/" + k).get()).data() || null; ACC.set(k, { d, at: Date.now() }); return d; }
-async function mailApproved(m, from) {
+// the quote's fingerprint — the same as quoteHash() in the CRM (next/index.html); keep the two in step
+function quoteHash(p) { if (!p) return ""; const nv = (x) => { const t = String(x == null ? "" : x).replace(/[$,\s]/g, ""); return t !== "" && isFinite(Number(t)) ? String(Number(t)) : String(x == null ? "" : x).trim(); };
+  const L = (p.orderLines || []).filter((l) => l).map((l) => [l.code, l.desc, l.size, l.grade, l.build, nv(l.qty), nv(l.price), l.lam === true, l.charge || ""].map((x) => String(x == null ? "" : x)));
+  const s = JSON.stringify([String(p.quote || ""), String(p.accountId || ""), L]); let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return "q" + (h >>> 0).toString(36); }
+const isOwnerT = (t) => !!t && !t.deleted && (t.access === "owner");
+const MAX_RECIP = 6;
+// what to do with a customer email: "send", "wait" (a quote waiting for the owner's OK) or a reason it can't go
+async function mailCheck(d, m, from, to, cc) {
   const team = (await docsOf("all_team", fs.collection("team"))).map((x) => Object.assign({ id: x.id }, x.data()));
   const writer = team.find((t) => t.id === m.byId && !t.deleted);
-  // the from address must be the writer's own team address
-  if (!writer || String(writer.email || "").toLowerCase() !== from) return "reject";
-  const wa = await accOf(from); if (wa && wa.role === "owner") return true;
-  if (m.approvedUid) { const ap = await accOf(m.approvedUid); if (ap && ap.role === "owner") return true; }
+  // it goes only from the writer's own team address — nobody sends as someone else
+  if (!writer || String(writer.email || "").toLowerCase() !== from) return "the sender isn't on the team with that address";
+  if (to.length + cc.length > MAX_RECIP) return "more than " + MAX_RECIP + " people on one email";
+  const projects = await docsOf("all_projects", fs.collection("projects"));
+  const pid = m.quote ? m.quote.pid : (m.recType === "project" ? m.recId : "");
+  const pd = pid ? projects.find((x) => x.id === String(pid)) : null; const p = pd ? pd.data() : null;
+  // a dry run / test project never emails anyone outside
+  if (p && (p.internal || p.sample || /\bTEST\b/.test(String(p.name || "")) || /dry ?run|do not submit|do not send|internal test/i.test([p.name, p.scope, p.notes].join(" ")))) return "the project is marked dry run / test";
+  if (!m.quote) return "send";
+  if (!p) return "the quote's project is gone";
+  if (p.quoteRejected && p.quoteRejected.mailId === d.id) return "Matt didn't approve it" + (p.quoteRejected.why ? ": " + String(p.quoteRejected.why).slice(0, 80) : "");
+  const cur = quoteHash(p);
+  if (m.quote.hash !== cur) return "the quote changed after this email was written — send it again";
+  if (isOwnerT(writer)) return "send";
+  const ap = p.quoteApproval; const okP = new Set(((ap && ap.to) || []).concat((ap && ap.cc) || []).map((x) => String(x).toLowerCase()));
+  if (ap && ap.hash === cur && isOwnerT(team.find((t) => t.id === ap.byId)) && to.concat(cc).every((x) => okP.has(String(x).toLowerCase()))) return "send";
   return "wait"; }
 async function sendQueued() {
-  const queued = (await docsOf("mailq", fs.collection("mail").where("status", "==", "queued"))).slice(0, 40);
+  const queued = (await docsOf("mailq", fs.collection("mail").where("status", "==", "queued"))).slice(0, 40)
+    .concat((await docsOf("mailhold", fs.collection("mail").where("status", "==", "approval"))).slice(0, 40));
   // task notices written before there was a status field: checked once, when the worker starts
   const legacy = sendQueued.didLegacy ? [] : (await fs.collection("mail").where("at", ">", Date.now() - 864e5).get()).docs.filter((d) => !d.data().status); sendQueued.didLegacy = true;
   sendQueued.done = sendQueued.done || new Set();
@@ -143,12 +163,18 @@ async function sendQueued() {
     const m = d.data(); const now = Date.now();
     const from = m.kind === "customer" ? String(m.from || "").toLowerCase() : mailFrom;
     const to = (m.to || []).filter((x) => /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(String(x))), cc = (m.cc || []).filter((x) => /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(String(x)));
-    // a customer email goes out only from the writer's own address, and only once an owner wrote it or approved it.
-    // Anything else waits for the owner's OK in the CRM (status "approval"), whatever copy of the CRM queued it.
-    if (m.kind === "customer") { const ok = await mailApproved(m, from);
-      if (ok !== true) { await d.ref.set({ status: ok === "reject" ? "failed" : "approval", err: ok === "reject" ? "the sender isn't on the team with that address" : "" }, { merge: true });
-        if (m.activityId) await fs.doc("activity/" + m.activityId).set({ sendState: ok === "reject" ? "failed" : "approval", sendErr: ok === "reject" ? "the sender isn't on the team with that address" : "" }, { merge: true }).catch(() => {});
-        sendQueued.done.delete(d.id); n.held = (n.held || 0) + 1; continue; } }
+    // a customer email: from the writer's own address, to at most 6 people, never from a test project; a quote from anyone
+    // but an owner waits (status "approval") until the owner approves that exact quote for those people
+    if (m.kind === "customer") { const v = await mailCheck(d, m, from, to, cc);
+      if (v === "wait") { if (m.status !== "approval") { await d.ref.set({ status: "approval", heldAt: now }, { merge: true });
+          if (m.activityId) await fs.doc("activity/" + m.activityId).set({ sendState: "approval", sendErr: "" }, { merge: true }).catch(() => {}); n.held = (n.held || 0) + 1; }
+        sendQueued.done.delete(d.id); continue; }
+      if (v !== "send") { await d.ref.set({ status: "failed", failedAt: now, err: v }, { merge: true });
+        if (m.activityId) await fs.doc("activity/" + m.activityId).set({ sendState: "failed", sendErr: v }, { merge: true }).catch(() => {}); n.failed++; continue; } }
+    else {
+      // notices go only to people on the team
+      const teamMails = new Set((await docsOf("all_team", fs.collection("team"))).map((x) => String(x.data().email || "").toLowerCase()).filter(Boolean));
+      if (!to.length || !to.concat(cc).every((x) => teamMails.has(String(x).toLowerCase()))) { await d.ref.set({ status: "failed", failedAt: now, err: "a notice goes only to the team" }, { merge: true }); n.failed++; continue; } }
     try {
       if (!isOurs(from)) throw new Error("the sender has no @" + DOMAIN + " address");
       if (!to.length) throw new Error("no one to send it to");
@@ -162,6 +188,12 @@ async function sendQueued() {
       const raw = mime({ from, fromName: m.kind === "customer" ? m.fromName : "Street Sign Supply CRM", to, cc, subject: msg.subject, text: body + (sig ? "\n\n-- \n" + sigText(sig) : ""), html, atts });
       const res = await gmail(from, SEND, "messages/send", { method: "POST", body: JSON.stringify({ raw: b64u(raw) }) });
       await d.ref.set({ status: "sent", sentAt: now, gmailId: res.id || "", threadId: res.threadId || "" }, { merge: true });
+      // the quote has really gone: that's when it counts as sent (and the CRM plans the follow-ups); a follow-up is marked sent
+      if (m.quote && m.quote.pid) { const pr = fs.doc("projects/" + m.quote.pid); const pv = (await pr.get()).data() || {};
+        await pr.set(Object.assign({ quoteSentTo: to.join(", ").slice(0, 200), updatedAt: now }, pv.quoteSentAt ? {} : { quoteSentAt: now }), { merge: true }); }
+      if (m.follow && m.follow.pid) { const pr = fs.doc("projects/" + m.follow.pid); const pv = (await pr.get()).data() || {};
+        const fus = (pv.followups || []).map((f) => f.id === m.follow.id ? Object.assign({}, f, { status: "sent", sentAt: now }) : f);
+        if (fus.length) await pr.set({ followups: fus, updatedAt: now }, { merge: true }); }
       if (m.activityId) await fs.doc("activity/" + m.activityId).set({ sendState: "sent", sentAt: now, gmailId: res.id || "", sendErr: "" }, { merge: true }).catch(() => {});
       n.sent++;
     } catch (e) {
@@ -300,9 +332,10 @@ async function taskMail() {
       n.bell = (n.bell || 0) + 1; }
     // the email goes only for a task a person gave someone else (not their own, not the CRM's automatic ones), not to anyone
     // who switched task emails off, and at most 5 a person each day — the bell and the 7 AM list carry the rest
-    taskMail.sent = taskMail.sent || {}; const capK = who.id + ":" + today;
+    // today's count is kept in settings/mailsync, so restarting the worker doesn't reset it
+    taskMail.sent = taskMail.sent || ((sy.taskSent && sy.taskSent.day === today) ? Object.assign({}, sy.taskSent.n || {}) : {}); const capK = who.id + ":" + today;
     if (isOurs(who.email) && a.assignedById && a.assignedById !== who.id && !a.auto && who.taskMail !== false && (taskMail.sent[capK] || 0) < 5) {
-      taskMail.sent[capK] = (taskMail.sent[capK] || 0) + 1;
+      taskMail.sent[capK] = (taskMail.sent[capK] || 0) + 1; await syncRef.set({ taskSent: { day: today, n: taskMail.sent } }, { merge: true });
       await fs.collection("mail").add({ to: [who.email], status: "queued", kind: "notice", at: Date.now(), message: { subject: "Task for you: " + String(a.text || "").slice(0, 70),
         text: txt + "\n\nFrom " + (a.assignedByName || "the CRM") + "\n\nOpen it: " + link(a) + "\nAll your tasks: https://crm.streetsignsupply.com/#/tasks" } });
       n.assignMail = (n.assignMail || 0) + 1; }

@@ -1,5 +1,14 @@
 # What changed
 
+## 2026.11.25-120 (only quotes wait for Matt; everything else sends straight away)
+- **Ordinary emails send right away again** — reps' emails, follow-ups without the quote, notices and task emails. Anything held by -119 goes out on the mail worker's next pass.
+- **Only a quote waits for Matt's OK** — the quote PDF, the quote template, or a signing link for the quote, from anyone but an owner. Matt's review shows the real email: To, Cc, every attachment and the quote PDF itself, plus the message. Approving records that exact quote (a fingerprint of its number, account and every line) and those exact people. The mail worker sends only if the quote hasn't changed since and every recipient was approved; a changed quote has to be sent again. "Open in my email" and "Copy link" on a quote's signing link are blocked until it's approved.
+- **A quote counts as sent only when it has actually gone**: the mail worker marks it sent (and the CRM then plans the follow-ups); a follow-up sent through the CRM shows "sending…" until it goes.
+- **Security:** a customer email goes from the writer's own address only (the mail worker checks this now, whatever rules are live), at most 6 people To and Cc together; notices go only to team addresses; test / dry-run projects (and accounts marked internal) never email outside; team members read only the settings the pages need; only an owner can record a quote approval.
+- **Quotes and work orders:** $0 lines no longer print "sheeting grade to be confirmed"; a work order line on a project is priced only by its quote line (one not tied to a priced quote line is $0 and flagged); Create work order and "Move it anyway" can't get past unpriced lines; invoicing is blocked while any quote line isn't on a work order.
+- **Win rate** counts lost projects with no lost date.
+- **Lists:** board cards and project names are real links (right-click, new tab); History filters by record and date range; Accounts has a Rep filter; the bell lists unread notifications; the daily cap on task emails survives a worker restart.
+
 ## 2026.11.25-119 (the audit list: 49 fixes)
 - **Customer emails need the owner's OK.** Anyone but an owner who presses Send gets "Send for approval"; the owner sees "N customer emails waiting for your OK" at the top, reads each one and presses Approve and send or Don't send. The database (new rules) and the mail worker both check it, so no copy of the CRM can skip it. A customer email always goes from the writer's own @streetsignsupply.com address — never anyone else's — to at most 10 people.
 - **Access:** a team record with no level set is Shop, not Owner; typed initials no longer identify anyone once the owner has claimed their record; an unknown sign-in gets nothing.
