@@ -1,8 +1,6 @@
 name: CRM one-time clean-up
+# Run by hand only — it was a one-time clean-up (10/27); a push must never run it against the live database again.
 on:
-  push:
-    branches: [main]
-    paths: ["worker/datafix.mjs", ".github/workflows/crm-datafix.yml"]
   workflow_dispatch: {}
 permissions:
   contents: read
