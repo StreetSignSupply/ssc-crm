@@ -643,6 +643,9 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
 .tri > div > .card:last-child{margin-bottom:0}
 
 .cols.flow > div > .card{margin-bottom:16px}
+.hl .pill{word-break:normal;overflow-wrap:normal}
+.main.ptab-one .cols,.main.ptab-one .tri{display:block}.main.ptab-one .cols > div,.main.ptab-one .tri > div{display:block}
+.main.ptab-one .cols > div > .card,.main.ptab-one .tri > div > .card{margin-bottom:16px}
 .cols.flow > div > .card:last-child{margin-bottom:0}
 .cols.flow.placed{align-items:stretch}.cols.flow.placed > div{display:flex;flex-direction:column}
 .cols.flow.placed > div > .card:last-child,.tri.placed > div > .card:last-child{flex:1 1 auto}
@@ -963,6 +966,7 @@ a.kc{color:inherit;text-decoration:none}
 
 /* ========= print ========= */
 #print{display:none}
+@media (pointer:coarse){.helpq{position:relative}.helpq::after{content:"";position:absolute;inset:-8px}}
 .helpq{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;
   border:1px solid var(--line);background:var(--card);color:var(--ink3);font:700 12px/1 Overpass,sans-serif;
   cursor:pointer;vertical-align:middle;padding:0;flex:0 0 auto}
@@ -5941,6 +5945,8 @@ function decorateProjectTabs(){
   const slot=main.querySelector(".pstick-tabs"),hl=main.querySelector(".pad > .hl");
   if(slot)slot.appendChild(strip);else if(hl)hl.insertAdjacentElement("afterend",strip);else cards[0].parentNode.insertBefore(strip,cards[0]);
   if(cur!=="all")cards.forEach(c=>{if(tabOf(c)!==cur)c.style.display="none"});
+  // one tab open: what's left uses the full width instead of sitting in one of two columns
+  main.classList.toggle("ptab-one",cur!=="all")
 }
 function trackingMail(j){
   const p=j.projectId?proj(j.projectId):null;const c=(p&&(p.contacts||[]).map(x=>S.contacts.get(x)).filter(Boolean)[0])||contactsOf(j.accountId)[0]||null;
@@ -6337,13 +6343,15 @@ function stcDiagram(s,o){o=o||{};const d=stcDims(s);const VW=o.w||320,VH=o.h||25
   const L=58,T=34,R=74,B=W?34:22;const sc=Math.min((VW-L-R)/sw,(VH-T-B)/sh);
   const x0=L,y0=T,X=sw*sc,Y=sh*sc,px=x0+(X-pw*sc)/2,py=y0+(Y-ph*sc)/2,PX=pw*sc,PY=ph*sc;
   const red=o.color||"#D50101";
-  const ar=(x1,y1,x2,y2)=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="currentColor" stroke-width="1" marker-start="url(#stca)" marker-end="url(#stca)"/>`;
+  // each drawing's arrowhead has its own id (two drawings on one page used to share one)
+  const mk="stca"+Math.random().toString(36).slice(2,8);
+  const ar=(x1,y1,x2,y2)=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="currentColor" stroke-width="1" marker-start="url(#${mk})" marker-end="url(#${mk})"/>`;
   const tick=(x1,y1,x2,y2)=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="currentColor" stroke-width=".6" opacity=".5"/>`;
   const gfs=Math.min(PY/0.72,PX/0.8);
   const glyph=d.chars&&!W?`<text transform="translate(${px+PX/2} ${py+PY}) scale(1 ${PY/(0.72*gfs)})" x="0" y="0" text-anchor="middle" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-size="${gfs}" fill="${red}" opacity=".85">${/number/i.test(s.n)&&!/alphabet/i.test(s.n)?"8":"A"}</text>`
     :`<rect x="${px}" y="${py}" width="${PX}" height="${PY}" fill="${red}" fill-opacity=".14" stroke="${red}" stroke-width="1.4" stroke-dasharray="5 3"/>`;
   return `<svg viewBox="0 0 ${VW} ${VH}" width="100%" style="max-width:${VW}px;color:var(--ink2);display:block" role="img" aria-label="How ${esc(s.n||"this stencil")} is measured">
-    <defs><marker id="stca" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 z" fill="currentColor"/></marker></defs>
+    <defs><marker id="${mk}" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 z" fill="currentColor"/></marker></defs>
     <rect x="${x0}" y="${y0}" width="${X}" height="${Y}" rx="2" fill="var(--card2)" stroke="currentColor" stroke-width="1.4"/>
     ${glyph}
     ${tick(x0,y0-3,x0,y0-18)}${tick(x0+X,y0-3,x0+X,y0-18)}${ar(x0,y0-12,x0+X,y0-12)}
@@ -6397,8 +6405,8 @@ function stencilsView(){
       <table><thead><tr><th>Grade</th><th>Cut from</th><th style="text-align:right">Sheet cost</th><th style="text-align:right">Sq ft</th><th style="text-align:right">$/sq ft</th><th style="text-align:right">Cut factor</th><th></th></tr></thead><tbody>${matCards}</tbody></table></section>`:""}
     <section class="card flush wide"><header><span class="oi oi-file">${ic("inventory",14)}</span><h2>Stencils</h2><span class="n">${list.length}${list.length!==all.length?" of "+all.length:""}</span>
       <span class="sp"><input class="btn" id="lq" placeholder="Search SKU or name" value="${esc(S.q)}" style="font-weight:400;width:170px">
-        <select id="stc-cat" class="btn" style="font-weight:400"><option value="">Every category</option>${cats.map(x=>`<option${x===f.cat?" selected":""}>${esc(x)}</option>`).join("")}</select>
-        <select id="stc-gi" class="btn" style="font-weight:400">${STC_GRADES.map((g,i)=>`<option value="${i}"${i===gi?" selected":""}>${esc(g.label)}</option>`).join("")}</select>
+        <select id="stc-cat" class="btn" aria-label="Category" style="font-weight:400"><option value="">Every category</option>${cats.map(x=>`<option${x===f.cat?" selected":""}>${esc(x)}</option>`).join("")}</select>
+        <select id="stc-gi" class="btn" aria-label="Material grade" style="font-weight:400">${STC_GRADES.map((g,i)=>`<option value="${i}"${i===gi?" selected":""}>${esc(g.label)}</option>`).join("")}</select>
         <button class="btn${f.flag?" p":""}" data-stcflag="1">${flagged.length} flagged</button>
         ${showCost?`<button class="btn" data-stccsv="1">${ic("file",14)}Download CSV</button>`:""}</span></header>
       <div class="sub" style="padding:8px 15px">${esc((S.stc.source||""))}. Prices are per stencil in the grade picked above; the price date says which list it came from.</div>
@@ -9664,6 +9672,14 @@ function sortTable(tb,col,dir){const body=tb.tBodies[0];if(!body)return;
   rows.sort((a,b)=>{const x=sortVal(a.cells[col]),y=sortVal(b.cells[col]);if(x==null&&y==null)return 0;if(x==null)return 1;if(y==null)return -1;
     const r=(typeof x==="number"&&typeof y==="number")?x-y:String(x).localeCompare(String(y),undefined,{numeric:true});return dir*r});
   rows.concat(rest).forEach(r=>body.appendChild(r))}
+// every box and dropdown gets a name a screen reader (and voice control) can use: its field label, the table column it
+// sits in, or its placeholder — many are laid out with a label above them rather than a <label>
+function labelFields(){document.querySelectorAll(".main input:not([type=hidden]):not([aria-label]), .main select:not([aria-label]), .main textarea:not([aria-label]), .modal input:not([type=hidden]):not([aria-label]), .modal select:not([aria-label]), .modal textarea:not([aria-label])").forEach(e=>{
+  if(e.id&&document.querySelector('label[for="'+e.id+'"]'))return;if(e.closest("label"))return;
+  let t="";const f=e.closest(".fld");if(f){const k=f.querySelector(".k");if(k)t=k.textContent.trim()}
+  if(!t){const td=e.closest("td");const tb=td&&td.closest("table");if(td&&tb){const i=[...td.parentElement.children].indexOf(td);const th=tb.querySelectorAll("thead th")[i];if(th)t=th.textContent.trim()}}
+  if(!t)t=(e.getAttribute("placeholder")||e.title||"").trim();
+  if(t)e.setAttribute("aria-label",t.slice(0,80))})}
 function decorateSorts(){const v=S.route&&S.route.v;if(!SORT_VIEWS[v])return;S.tsort=S.tsort||{};
   document.querySelectorAll(".main table").forEach((tb,ti)=>{const ths=[...tb.querySelectorAll(":scope > thead > tr > th")];
     if(ths.length&&tb.parentElement&&tb.parentElement.classList.contains("card")&&tb.tBodies[0]&&tb.tBodies[0].rows.length>12)tb.classList.add("stickyhead");
@@ -9709,6 +9725,7 @@ function render(){
   decorateCollapsible();
   decorateTables();
   try{decorateSorts()}catch(e){}
+  try{labelFields()}catch(e){}
   decorateRows();
   decorateHeaders();
   decoratePics();
@@ -10819,7 +10836,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-130";
+const APP_VERSION="2026.11.25-131";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -11780,7 +11797,7 @@ function fileTile(f,showSrc){
     <div class="th" title="Open ${esc(f.name)}"${isPdf?` data-pdfth="${esc(f.id)}"`:""}>
       ${pth?`<img src="${pth}" alt="${esc(f.name)}" style="object-fit:cover;object-position:top;background:#fff">`:isImg?`<img src="${esc(f.url)}" alt="${esc(f.name)}" loading="lazy"${/svg/i.test(f.type||"")||/\.svg$/i.test(f.name||"")?` style="background:#fff"`:""}>`:`<span class="ext">${esc(ext||"FILE")}</span>`}</div>
     <div class="meta"><b class="nm" title="${esc(f.name)}">${esc(f.name)}</b>
-      <span class="sub">${esc(f.cat||"Other")} · ${bytes(f.size)}${fileVersionPill(f)}</span>
+      <span class="sub">${esc([f.cat||"Other",bytes(f.size)].filter(Boolean).join(" · "))}${fileVersionPill(f)}</span>
       <span class="sub" style="font-size:11.5px">${esc(fileWho(f))}${fileLocked(f)?" · 🔒 kept":""}</span>
       ${showSrc&&f._src?`<span class="pill" style="margin-top:3px">${esc(f._src)}</span>`:""}</div>
     <div class="row" data-stop="1">
@@ -13210,7 +13227,7 @@ function archiveView(){
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <input class="btn" id="lq" placeholder="Search name, number, PO or invoice"
           value="${esc(S.q)}" style="font-weight:400;flex:1 1 240px">
-        <select data-archacct="1" style="padding:7px 10px;border:1px solid var(--line);
+        <select data-archacct="1" aria-label="Account" style="padding:7px 10px;border:1px solid var(--line);
           border-radius:3px;background:var(--card2);font-weight:600">
           <option value="">Every account</option>
           ${accs.map(a=>`<option value="${esc(a.id)}" ${af===a.id?"selected":""}>${esc(a.name)}</option>`).join("")}
@@ -14712,7 +14729,7 @@ const LOCKED_CATS=["Signed quote","Signed proof","Signed work order","Purchase o
 function fileLocked(f){return !!f&&LOCKED_CATS.indexOf(f.cat||"")>=0&&!f.gen}
 function canDelFile(f){if(!f)return false;const r=myAccess();if(r==="owner")return true;if(fileLocked(f))return false;
   return r==="office"||(!!f.byId&&f.byId===meId())}
-function fileWho(f){if(!f)return "";if(f.who==="AI")return "added by the agents";const t=f.byId&&S.team.get(f.byId);return "added by "+((t&&t.name)||f.who||"someone")}
+function fileWho(f){if(!f)return "";if(f.who==="AI")return "added by the agents";if(f.who==="Sign")return "signed online";const t=f.byId&&S.team.get(f.byId);const n=(t&&t.name)||f.who||"";return n?"added by "+n:""}
 async function delFile(fid){const f0=S.files.get(fid);if(f0&&!canDelFile(f0))return toast(fileLocked(f0)?"Signed copies, purchase orders and invoices can only be removed by the owner.":"Only the person who uploaded it, office or the owner can remove this file.");
   try{if(document.getElementById("viewer"))closeViewer()}catch(e){}
   await push("files/"+fid,{deleted:true,deletedAt:Date.now(),deletedBy:me()});
