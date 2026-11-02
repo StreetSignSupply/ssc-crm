@@ -12,7 +12,7 @@ const now = Date.now(), day = 86400000;
 const D = {
   team: { t1: { name: "Test Owner", initials: "TO", access: "owner", claudeId: "u1", email: "owner@example.com" }, t2: { name: "Test Sales", initials: "TS", access: "sales", email: "sales@example.com" } },
   accounts: { a1: { name: "Test County", city: "Town", state: "UT", type: "Government agency", terms: "Net 30", repId: "t1" }, a2: { name: "Test Contractor", type: "Contractor", terms: "Prepay" } },
-  contacts: { c1: { name: "Pat Example", accountId: "a1", email: "pat@example.com", phone: "4355550100", role: "Buyer" } },
+  contacts: { c1: { name: "Pat Example", accountId: "a1", email: "pat@example.com", phone: "4355550100", role: "Buyer" }, c2: { name: "Lee Sample", accountId: "a2", phone: "4355550101", role: "Buyer" } },
   vendors: { v1: { name: "Test Plastics" }, v2: { name: "Test Metals" } },
   items: {
     i1: { name: "LDPE .125 Stencil Sheet 5x10", cat: "Stencil material", cost: "91.20", vendorId: "v1", vendorPrice: "91.20", unit: "sheet", onHand: 4, reorderPoint: 2,
@@ -64,10 +64,11 @@ const rows = () => pg.evaluate(() => document.querySelectorAll(".main section.wi
 const filt = [["accounts", "select[data-acfilt=type]", "Contractor"], ["accounts", "select[data-acfilt=rep]", "t1"], ["inventory", "select[data-invfilt=cat]", "Substrate"]];
 for (const [r, sel, v] of filt) { await pg.evaluate((r) => { location.hash = "#/" + r; }, r); await pg.waitForTimeout(400); const n0 = await rows();
   if (!(await pg.$(sel))) { bad.push(r + " " + sel + ": filter missing"); continue; }
-  await pg.selectOption(sel, v); await pg.waitForTimeout(400); const n1 = await rows(); if (!(n1 < n0)) bad.push(r + " " + sel + ": filter didn't change the list (" + n0 + " → " + n1 + ")"); }
+  await pg.selectOption(sel, v); await pg.waitForTimeout(400); const n1 = await rows(); if (!(n1 < n0)) bad.push(r + " " + sel + ": filter didn't change the list (" + n0 + " → " + n1 + ")");
+  await pg.selectOption(sel, ""); await pg.waitForTimeout(300); }
 for (const [r, sel] of [["contacts", "[data-ctfilt=noemail]"], ["inventory", "button[data-invfilt=stock][data-v=zero]"]]) { await pg.evaluate((r) => { location.hash = "#/" + r; }, r); await pg.waitForTimeout(400);
-  const el = await pg.$(sel); if (!el) { bad.push(r + " " + sel + ": filter missing"); continue; } await el.click(); await pg.waitForTimeout(300);
-  if (!(await pg.$(sel + ".p"))) bad.push(r + " " + sel + ": filter button didn't react"); }
+  const n0 = await rows(); const el = await pg.$(sel); if (!el) { bad.push(r + " " + sel + ": filter missing"); continue; } await el.click(); await pg.waitForTimeout(300);
+  const n1 = await rows(); if (!(await pg.$(sel + ".p")) || !(n1 < n0)) bad.push(r + " " + sel + ": filter didn't change the list (" + n0 + " → " + n1 + ")"); }
 const ver = await pg.evaluate(() => { const m = document.documentElement.innerHTML.match(/APP_VERSION="([^"]+)"/); return m ? m[1] : ""; });
 await browser.close(); fs.unlinkSync(PAGE);
 if (bad.length) { console.log("::error::release check failed: " + bad.slice(0, 8).join(" || ")); process.exit(1); }

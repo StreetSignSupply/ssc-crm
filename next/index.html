@@ -2243,7 +2243,13 @@ function syncViewer(){
    for it), the mail worker holds it. The owner sees the real email — recipients, cc, the quote PDF and every attachment —
    and approves that exact quote for those exact people, or turns it down. Ordinary emails never wait. */
 function mailWaiting(){return live(S.activity).filter(a=>a.sendState==="approval"&&a.mailId).sort((a,b)=>(a.at||0)-(b.at||0))}
-function approvalBanner(){if(myAccess()!=="owner"||!window.sscHosted)return "";const w=mailWaiting();if(!w.length)return "";
+function approvalBanner(){
+  // reps: quotes Matt approved before 1 Nov (the older kind of approval) need his OK again — say so once, until dismissed
+  if(myAccess()!=="owner"&&window.sscHosted){let off="";try{off=localStorage.getItem("sscReapprove")||""}catch(e){}
+    const old=live(S.projects).filter(p=>p.quoteApproval&&p.quoteApproval.v!==2&&FOLLOW_STAGES.indexOf(p.stage)>=0);
+    return old.length&&!off?`<div class="alert strip"><span><b>Quote approvals were reset.</b> ${old.length} quote${old.length===1?"":"s"} Matt approved before 1 Nov (${esc(old.slice(0,4).map(p=>p.quote||"P-"+p.num).join(", "))}) need his OK again — just press Send on the email as usual and it goes out once he approves.</span>
+      <span class="sp"><button class="btn sm" data-reapok="1">Got it</button></span></div>`:""}
+  if(!window.sscHosted)return "";const w=mailWaiting();if(!w.length)return "";
   return `<div class="alert strip"><span><b>${w.length} quote${w.length===1?"":"s"}</b> waiting for your OK before ${w.length===1?"it goes":"they go"} to the customer.</span>
     <span class="sp"><button class="btn sm p" data-mailok-open="1">Review</button></span></div>`}
 async function approvalModal(){const w=mailWaiting();const mails={};
@@ -2262,15 +2268,16 @@ async function approvalModal(){const w=mailWaiting();const mails={};
         <div style="font-size:13.5px"><b>Attached:</b> ${atts.length?atts.map(x=>`<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.name)}</a>`).join(", "):"nothing"}${m.signId?" · with a signing link":""}</div>
         ${pdf?`<iframe src="${esc(pdf.url)}" title="${esc(pdf.name)}" style="width:100%;height:340px;border:1px solid var(--line2);border-radius:6px;margin:8px 0;background:#fff"></iframe>`:""}
         <div class="rr-p" style="white-space:pre-wrap;max-height:180px;overflow:auto;margin:6px 0;background:var(--card2);padding:8px;border-radius:6px">${esc((m.message||{}).text||"")}</div>
-        ${changed?`<div class="warn" style="margin:6px 0">The quote changed after this email was written — it can't be approved as it is. Ask ${esc(t.name||"them")} to send it again.</div>`:""}
-        <div style="display:flex;gap:8px">${changed||!m.quote?"":`<button class="btn sm p" data-mailok="${esc(a.id)}">Approve and send</button>`}<button class="btn sm" data-mailno="${esc(a.id)}">Don't send</button></div></div>`}).join("")
+        ${changed?`<div class="warn" style="margin:6px 0">The quote on the project has changed since this email and its PDF were made (or it was written before 1 Nov). Approving sends <b>exactly this email and the PDF shown</b> — if the PDF is out of date, press Don't send and ask ${esc(t.name||"them")} to make a new one.</div>`:""}
+        ${m.quote&&!m.attSha&&atts.length?`<div class="sub" style="margin:6px 0">Checking the attachments — the Approve button appears within a minute.</div>`:""}
+        <div style="display:flex;gap:8px">${!m.quote||(atts.length&&!m.attSha)?"":`<button class="btn sm p" data-mailok="${esc(a.id)}">${changed?"Approve this email as shown":"Approve and send"}</button>`}<button class="btn sm" data-mailno="${esc(a.id)}">Don't send</button></div></div>`}).join("")
       :`<div class="empty"><b>Nothing waiting</b>Every quote has been approved or turned down.</div>`}</div>`,
     `<button class="btn" data-close="1">Close</button>`))}
 async function mailDecide(xid,ok){const a=S.activity.get(xid);const m=(S._mailOk||{})[xid];if(!a||!m||!m.quote)return;const p=proj(m.quote.pid);if(!p)return;const now=Date.now();
-  if(ok&&m.quote.hash!==quoteHash(p))return toast("The quote changed since this was written — it can't be approved.");
+  if(ok&&(m.attachments||[]).length&&!m.attSha)return toast("Still checking the attachments — try again in a minute.");
   let why="";if(!ok){why=prompt("Why not? (they see this)","")||""}
   // the approval is for this quote as it stands and these people; the mail worker checks both before it sends
-  try{await push("projects/"+p.id,ok?{quoteApproval:{hash:m.quote.hash,to:m.to||[],cc:m.cc||[],atts:(m.attachments||[]).map(x=>x.url),byId:meId(),by:me(),at:now,mailId:a.mailId},updatedAt:now}
+  try{await push("projects/"+p.id,ok?{quoteApproval:{v:2,hash:m.quote.hash,to:m.to||[],cc:m.cc||[],files:(m.attachments||[]).map(x=>x.fileId||""),sha:m.attSha||[],byId:meId(),by:me(),at:now,mailId:a.mailId},updatedAt:now}
       :{quoteRejected:{mailId:a.mailId,byId:meId(),by:me(),at:now,why:why.slice(0,200)},updatedAt:now})}catch(e){return toast("That didn't save — try again.")}
   await push("activity/"+xid,ok?{sendState:"queued",approvedBy:me(),approvedAt:now}:{sendState:"rejected",sendErr:why.slice(0,200),rejectedBy:me(),rejectedAt:now});
   logEvent("project",p.id,"Quote "+(p.quote||"")+" to "+(m.to||[]).join(", ")+(ok?" approved by ":" turned down by ")+me()+(why?" — "+why:""));
@@ -2755,7 +2762,7 @@ function teamModal(t){
       This is separate from customer contacts.</p>
      <div class="fgrid">${inp("t-name","Name",t.name,"text",1)}
       ${inp("t-init","Initials",t.initials||"")}${inp("t-role","Role",t.role||"")}
-      ${inp("t-email","Email",t.email||"","email")}${inp("t-phone","Phone",t.phone||"","tel")}
+      ${inp("t-email","Email — their @streetsignsupply.com address (customer email goes out from it)",t.email||"","email")}${inp("t-phone","Phone",t.phone||"","tel")}
       ${inp("t-remail","Reminders to (email)",t.remEmail||t.email||"","email")}
       ${can("settings")?sel("t-rscope","Reminders for",remScopeOf(t),[{v:"own",l:"Their own projects (and the owner gets the ones with no rep)"},{v:"all",l:"Everything"}]):""}
       ${chk("t-taskmail","Email when someone gives them a task, and the 7 AM task list",t.taskMail!==false)}
@@ -2780,7 +2787,7 @@ function teamModal(t){
       access:(can("settings")&&$("#t-access"))?$("#t-access").value:(t.access||"owner"),
       deleted:false,createdAt:t.createdAt||Date.now(),updatedAt:Date.now()};
     closeModal();
-    try{await setDoc("team/"+id,mergeDoc("team/"+id,rec));toast("Team member saved")}catch(e){toast("That didn't save.")}
+    try{await setDoc("team/"+id,mergeDoc("team/"+id,rec));toast(rec.email&&!/@streetsignsupply\.com$/i.test(rec.email)&&rec.access!=="shop"?"Saved — but without an @streetsignsupply.com address they can't send customer email from the CRM.":"Team member saved")}catch(e){toast("That didn't save.")}
   };
   focusFirst("t-name");
 }
@@ -4952,7 +4959,7 @@ function closeList(p){
     const has=re=>fs.some(f=>re.test(f.cat||"")||(!f.cat&&re.test(f.name||"")));
     const wrong=projFiles(p.id).filter(f=>!mine(f));
     if(wrong.length)auto("c_wrongcust","No other customer's documents filed here",false,wrong.map(f=>f.name).join(", ")+" names another customer","file");
-    auto("c_qpdf","Quote PDF filed on the project",has(/quote/i),has(/quote/i)?"On file":"Make the quote PDF and file it under Files","file");
+    auto("c_qpdf","Quote PDF (made by the CRM) filed on the project",projFiles(p.id).some(f=>!f.deleted&&f.gen==="quote"),projFiles(p.id).some(f=>!f.deleted&&f.gen==="quote")?"On file":"Make the quote PDF from Documents → Quote — a file just named quote doesn't count","file");
     auto("c_po","PO or signed quote filed",has(/\bpo\b|purchase order|signed quote/i),has(/\bpo\b|purchase order|signed quote/i)?"On file":"Nothing filed shows they ordered it","file");
     auto("c_invf","Invoice filed",has(/invoice/i),has(/invoice/i)?"On file":"File the QuickBooks invoice PDF","file");})();
 
@@ -5047,13 +5054,19 @@ async function closeSave(pid,thenClose){
 }
 
 // the paperwork a project can never close without, override or not: the quote PDF, the PO or signed quote, and the invoice
-const CLOSE_MUST=["c_qpdf","c_po","c_invf"];
+// checked strictly — the quote PDF the CRM itself made (not any file called "quote"), the PO or signed quote, the invoice —
+// and on every way a project can be closed (the stage buttons, close-out, the agents feed): setStage refuses too
+function closePaperMissing(p){if(!p)return [];const fl=projFiles(p.id).filter(f=>!f.deleted);const out=[];
+  if(!fl.some(f=>f.gen==="quote"))out.push("The quote PDF made by the CRM (Documents → Quote)");
+  if(!fl.some(f=>f.cat==="Purchase order"||f.cat==="Signed quote")&&!signReqsFor(p.id).some(r=>r.status==="signed"&&r.kind!=="proof"))out.push("The PO or the signed quote");
+  if(!fl.some(f=>f.cat==="Invoice"))out.push("The invoice");
+  return out}
 async function doClose(pid,skipCheck){
   const p=proj(pid);if(!p)return;
   const open=closeOpen(p);
-  {const must=closeList(p).filter(r=>CLOSE_MUST.indexOf(r.key)>=0&&r.auto&&!r.ok);
+  {const must=closePaperMissing(p);
     if(must.length){openModal(mshell("Not ready to close","proj",`<div style="padding:12px 16px"><p style="margin:0 0 8px">P-${esc(p.num)} can't close until these are in its Files:</p>
-      <ul style="margin:0;padding-left:20px">${must.map(r=>`<li>${esc(r.label)} — ${esc(r.help||"")}</li>`).join("")}</ul></div>`,
+      <ul style="margin:0;padding-left:20px">${must.map(r=>`<li>${esc(r)}</li>`).join("")}</ul></div>`,
       `<button class="btn" data-close="1">Close</button><button class="btn p" data-ptabgo2="${esc(pid)}">Go to Files</button>`));return}}
   if(open.length&&!skipCheck){
     askConfirm("Still "+open.length+" not settled",
@@ -10625,6 +10638,7 @@ document.addEventListener("change",e=>{const t=e.target&&e.target.closest&&e.tar
   const AF=S.acFilt||(S.acFilt={});AF[t.dataset.acfilt]=t.type==="checkbox"?t.checked:t.value;S.acctShow=0;render()},true);
 document.addEventListener("click",e=>{const t=e.target&&e.target.closest&&e.target.closest("[data-acfilt='clear']");if(!t)return;e.preventDefault();S.acFilt={};render()},true);
 document.addEventListener("click",e=>{const t=e.target&&e.target.closest&&e.target.closest("[data-ptabgo2]");if(!t)return;e.preventDefault();closeModal();S.ptab="files";go("project/"+t.dataset.ptabgo2)},true);
+document.addEventListener("click",e=>{const t=e.target&&e.target.closest&&e.target.closest("[data-reapok]");if(!t)return;e.preventDefault();try{localStorage.setItem("sscReapprove","1")}catch(x){}render()},true);
 document.addEventListener("click",e=>{const t=e.target&&e.target.closest&&e.target.closest("[data-ctfilt]");if(!t)return;e.preventDefault();S.ctFilt=t.dataset.ctfilt;render()},true);
 function contactRec(id){
   const c=S.contacts.get(id);if(!c||c.deleted)return notFound("Contact");
@@ -10735,7 +10749,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-122";
+const APP_VERSION="2026.11.25-123";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -13715,6 +13729,7 @@ function accountModal(a,then){
       ${sel("f-plevel","Pricing level",a.priceLevel||"",[{v:"",l:"List price — no discount"}].concat(priceLevels().map(l=>({v:l.id,l:l.name+" — "+l.pct+"% off"}))))}
       ${inp("f-disc","Or their own % off (overrides the level)",a.discountPct==null?"":a.discountPct,"number")}
       ${chk("f-savings","Show list price and their savings on quotes",a.showSavings)}
+      ${chk("f-internal","Internal / test account — never email anyone outside from it",!!(a.internal||a.test))}
       ${sel("f-pbasis","Quote prices from",a.priceBasis||"",[{v:"",l:"Automatic — the website's suggested price (the default)"},{v:"list",l:"Our price list (contractor pricing)"},{v:"web",l:"The website (retail pricing)"}])}
       <div class="fld"></div>
       ${a.id&&contactsOf(a.id).length?sel("f-bc","Billing contact — invoices go here",a.billingContactId||"",
@@ -13736,6 +13751,7 @@ function accountModal(a,then){
       priceLevel:$("#f-plevel")?$("#f-plevel").value:(a.priceLevel||""),
       discountPct:$("#f-disc")?($("#f-disc").value.trim()===""?"":Math.max(0,Math.min(90,Number($("#f-disc").value)||0))):(a.discountPct==null?"":a.discountPct),
       showSavings:$("#f-savings")?$("#f-savings").checked:!!a.showSavings,
+      internal:$("#f-internal")?$("#f-internal").checked:!!a.internal,
       priceBasis:$("#f-pbasis")?$("#f-pbasis").value:(a.priceBasis||""),
       notes:$("#f-notes").value.trim(),deleted:false,
       createdAt:a.createdAt||Date.now(),updatedAt:Date.now()};
@@ -14433,6 +14449,7 @@ async function advance(num,to,force){
   }
 }
 async function setStage(id,stage,why){
+  if(stage==="closed"){const miss=closePaperMissing(proj(id));if(miss.length){toast("P-"+((proj(id)||{}).num||"")+" can't close yet — missing: "+miss.join("; ")+".");return "blocked"}}
   if(["quoted","won","production","shipped","invoiced","closed"].indexOf(stage)>=0){
     const p0=proj(id);if(p0&&!p0.quote)await ensureQuote(id,{noPlan:stage!=="quoted"});
   }
@@ -15353,6 +15370,7 @@ function agentStageWhy(p,st){
 // move it through setStage (stage log, follow-up auto-stop, history, order sync); "" when moved, else the reason it didn't
 async function agentStage(p,st,why){
   const r=agentStageWhy(p,st);if(r)return r;
+  if(st==="closed"&&closePaperMissing(p).length)return "the paperwork isn't all in Files ("+closePaperMissing(p).join("; ")+")";
   if(st==="lost")await push("projects/"+p.id,{lostWhy:"other",lostTo:"",lostNote:String(why||""),updatedAt:Date.now()});
   await asAI(()=>setStage(p.id,st,"by the agents"));
   if(st==="invoiced"){const p2=proj(p.id)||p;const bs=billState(p2);if(bs==="none"||bs==="deposit")await asAI(()=>setBill(p.id,"invoiced",true))}
@@ -16294,6 +16312,15 @@ function dbLockCard(){const d=S.dbLock||{};const want=d.want||"off",st=d.state||
     <p style="margin:0 0 10px">When it's on, the database itself only lets people on your team list in, and enforces their level: only owners change levels,
       owners and office change settings and permanently delete, and nobody but an owner can erase change history.</p>
     <p class="sub" style="margin:0 0 10px">After it's turned on, keep this page open for a few minutes: it confirms everything still opens. If nothing confirms within 20 minutes, the old rules come back by themselves. ${esc(d.note||"")}${d.error?" — last problem: "+esc(d.error):""}</p>
+    ${(function(){if(!(want==="on"&&st==="on"&&d.available&&d.available!==d.liveHash))return "";
+      // before Apply: everyone who sends customer email needs their own @streetsignsupply.com address on their team record,
+      // and their access record needs it too (this page writes it when an owner has it open)
+      const ppl=live(S.team).filter(t=>String(t.name||"").trim()&&teamRole(t)!=="shop");
+      const noAddr=ppl.filter(t=>!/@streetsignsupply\.com$/i.test(String(t.email||"").trim()));
+      const want2=accessWanted();const unsynced=Object.keys(want2).filter(k=>want2[k].mail&&((S.access.get(k)||{}).mail||"")!==want2[k].mail);
+      return `<div class="${noAddr.length||unsynced.length?"warn":"note"}" style="margin:0 0 10px"><b>Before you apply:</b>
+        ${noAddr.length?`${esc(noAddr.map(t=>t.name).join(", "))} ${noAddr.length===1?"has":"have"} no @streetsignsupply.com address on ${noAddr.length===1?"their":"their"} team record, so ${noAddr.length===1?"they":"they"} won't be able to send customer email from the CRM under the new rules — add it in Team (Edit).`:"every rep has their own @streetsignsupply.com address."}
+        ${unsynced.length?` ${unsynced.length} access record${unsynced.length===1?" is":"s are"} still being updated with the sending address — keep this page open a minute.`:" Every access record has its sending address."}</div>`})()}
     ${want==="on"&&st==="on"&&d.available&&d.available!==d.liveHash?`<div class="warn" style="margin:0 0 10px"><b>Tighter rules are ready.</b> Customer emails from anyone but an owner wait for your OK, and always go from the writer's own address;
       only the uploader, office or an owner can bin a file, and signed copies, POs and invoices only an owner; each person reads only their own AI drafts.
       Press Apply, then keep this page open a few minutes so it can confirm.</div>`:""}
@@ -16380,7 +16407,7 @@ function myMailFrom(){const t=S.viewerTeam;const e=String((t&&t.email)||"").trim
 function mailNeedsOk(){return false}
 // a dry run or internal test project never emails anyone outside (flag on the project, or "dry run" in its name or notes)
 function noMail(p){if(!p)return false;const a=acct(p.accountId)||S.accounts.get(p.accountId)||{};
-  return !!(p.internal||a.internal||isTestRec(p)||/dry ?run|do not submit|internal test/i.test((p.name||"")+" "+(p.scope||"")+" "+(p.notes||"")))}
+  return !!(p.internal||a.internal||a.test||isTestRec(p)||/\btest\b|dry ?run|do not submit|do not send|internal test/i.test((p.name||"")+" "+(p.scope||"")+" "+(p.notes||"")))}
 // the sender's Gmail signature (read from Gmail by the mail worker) goes on every email the CRM sends — so templates
 // end with just "Thanks," and the signature carries the name, company and phone
 function mySig(){const t=S.viewerTeam;return mailSendOn()&&t&&String(t.mailSig||"").trim()?String(t.mailSig):""}
@@ -16485,8 +16512,9 @@ function isQuoteFile(a){return !!a&&(a.gen==="quote"||/^(Quote|Signed quote)$/.t
 function isQuoteMail(C,atts){const pq=C&&C.pid?proj(C.pid):null;if(!pq)return false;
   return (atts||[]).some(isQuoteFile)||C.tplUsed==="quote"||C.kind==="quote"||(!!C.signId&&((S.signreq||new Map()).get(C.signId)||{}).kind!=="proof")}
 // the owner approved this exact quote for these exact people
-function quoteOkFor(p,to,cc,atts){const ap=p&&p.quoteApproval;if(!ap||ap.hash!==quoteHash(p))return false;
-  if(atts&&atts.length){const au=new Set(ap.atts||[]);if(!atts.every(x=>au.has(x.url)))return false}
+function quoteOkFor(p,to,cc,atts){const ap=p&&p.quoteApproval;if(!ap||ap.v!==2||ap.hash!==quoteHash(p))return false;
+  // the same files (the mail worker also checks their actual contents)
+  if(atts&&atts.length){const au=new Set(ap.files||[]);if(!atts.every(x=>au.has(x.fileId)))return false}
   const ok=new Set((ap.to||[]).concat(ap.cc||[]).map(x=>String(x).toLowerCase()));return to.concat(cc||[]).every(x=>ok.has(String(x).toLowerCase()))}
 const MAX_RECIP=6;
 async function composeGo(send){const C=S._cmp||{};const to=$("#cm-to").value.split(/[,;]/).map(x=>x.trim()).filter(x=>/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(x));
@@ -16925,7 +16953,7 @@ function bind(){
     {const x=t.closest("[data-signfile]");if(x){signFile(x.dataset.signfile);return}}
     {const x=t.closest("[data-signcopy]");if(x){const r0=(S.signreq||new Map()).get(x.dataset.signcopy)||{};const p0=proj(r0.projectId);
       // a quote's signing link is the quote itself: copying it to send yourself needs the owner's OK on this quote too
-      if(r0.kind!=="proof"&&myAccess()!=="owner"&&p0&&!(p0.quoteApproval&&p0.quoteApproval.hash===quoteHash(p0)))return toast("This quote needs Matt's OK first — use Email it again and it goes out once he approves.");
+      if(r0.kind!=="proof"&&myAccess()!=="owner"&&p0&&!(p0.quoteApproval&&p0.quoteApproval.v===2&&p0.quoteApproval.hash===quoteHash(p0)))return toast("This quote needs Matt's OK first — use Email it again and it goes out once he approves.");
       const u=signUrl(x.dataset.signcopy);try{navigator.clipboard.writeText(u);toast("Link copied")}catch(e2){prompt("Copy the link",u)}return}}
     {const x=t.closest("[data-signmail]");if(x){const r=(S.signreq||new Map()).get(x.dataset.signmail);if(r)composeModal({pid:r.projectId,to:r.contactEmail,tpl:r.kind==="proof"?"proof":"quote",signUrl:signUrl(r.token),signId:r.token,attach:r.fileId?[r.fileId]:[],title:"Email the signature link"});return}}
     {const x=t.closest("[data-signcancel]");if(x){const r=(S.signreq||new Map()).get(x.dataset.signcancel);if(r)askConfirm("Cancel this signature link?","<p style=\"margin:0\">The link stops working. You can make a new one any time.</p>","Cancel the link",true,async()=>{await setDoc("signreq/"+r.token,Object.assign({},r,{status:"cancelled"}));render()});return}}

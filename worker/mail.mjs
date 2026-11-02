@@ -141,8 +141,12 @@ async function mailCheck(d, m, from, to, cc) {
   const projects = await docsOf("all_projects", fs.collection("projects"));
   const pid = m.quote ? m.quote.pid : (m.recType === "project" ? m.recId : "");
   const pd = pid ? projects.find((x) => x.id === String(pid)) : null; const p = pd ? pd.data() : null;
-  // a dry run / test project never emails anyone outside
-  if (p && (p.internal || p.sample || /\bTEST\b/.test(String(p.name || "")) || /dry ?run|do not submit|do not send|internal test/i.test([p.name, p.scope, p.notes].join(" ")))) return "the project is marked dry run / test";
+  const accts = await docsOf("all_accounts", fs.collection("accounts"));
+  const aid = p ? p.accountId : (m.recType === "account" ? m.recId : ""); const ad = aid ? accts.find((x) => x.id === String(aid)) : null; const acc = ad ? ad.data() : null;
+  // a dry run / test project (or an account marked internal / test) never emails anyone outside — "test" in any case
+  const testy = (x) => !!x && (x.internal || x.sample || /\btest\b|dry ?run|do not submit|do not send|internal test/i.test([x.name, x.scope, x.notes].join(" ")));
+  if (testy(p)) return "the project is marked dry run / test";
+  if (acc && (acc.internal || acc.test)) return "the account is marked internal / test";
   // is it the quote? the client says so, but the worker checks for itself: a CRM-made quote PDF, a file filed as the quote,
   // or a signing link for the quote — whatever the file is called
   let isQ = !!m.quote;
@@ -152,17 +156,27 @@ async function mailCheck(d, m, from, to, cc) {
   if (!m.quote) return isOwnerT(writer) ? "send" : "a quote has to be sent from the CRM's email window so Matt can approve it — send it again";
   if (!p) return "the quote's project is gone";
   if (p.quoteRejected && p.quoteRejected.mailId === d.id) return "Matt didn't approve it" + (p.quoteRejected.why ? ": " + String(p.quoteRejected.why).slice(0, 80) : "");
-  const accts = await docsOf("all_accounts", fs.collection("accounts")); const ad = accts.find((x) => x.id === String(p.accountId || ""));
   if (!quoteHash.brandAt || Date.now() - quoteHash.brandAt > 5 * 60000) { quoteHash.brand = (await fs.doc("settings/brand").get()).data() || {}; quoteHash.brandAt = Date.now(); }
-  const cur = quoteHash(p, ad ? ad.data() : {}, quoteHash.brand);
+  const cur = quoteHash(p, acc || {}, quoteHash.brand);
   if (isOwnerT(writer)) return m.quote.hash === cur ? "send" : "the quote changed after this email was written — send it again";
-  // a quote that changed after it was written waits — Matt's review shows it can't be approved and he turns it down
-  if (m.quote.hash !== cur) return "wait";
-  const ap = p.quoteApproval; const okP = new Set(((ap && ap.to) || []).concat((ap && ap.cc) || []).map((x) => String(x).toLowerCase()));
-  const okA = new Set((ap && ap.atts) || []);
-  if (ap && ap.hash === cur && isOwnerT(team.find((t) => t.id === ap.byId)) && to.concat(cc).every((x) => okP.has(String(x).toLowerCase()))
-      && (m.attachments || []).every((x) => okA.has(x.url))) return "send";
+  // the attachments' actual contents (SHA-256 of the bytes), kept on the email so Matt approves exactly these files
+  const shas = await attShas(m);
+  if (shas === null) return "couldn't read an attachment to check it";
+  if (JSON.stringify(m.attSha || []) !== JSON.stringify(shas)) await d.ref.set({ attSha: shas }, { merge: true });
+  const ap = p.quoteApproval;
+  if (!ap || ap.v !== 2 || !isOwnerT(team.find((t) => t.id === ap.byId))) return "wait";      // approvals before -123 don't count: re-approve
+  const okP = new Set((ap.to || []).concat(ap.cc || []).map((x) => String(x).toLowerCase()));
+  const okS = new Set(ap.sha || []);
+  const same = to.concat(cc).every((x) => okP.has(String(x).toLowerCase())) && shas.every((h) => okS.has(h));
+  // Matt approved this very email (he saw its PDF), or this exact quote with these exact files and people
+  if (same && (ap.mailId === d.id || (ap.hash === cur && m.quote.hash === cur))) return "send";
   return "wait"; }
+// SHA-256 of each attachment's bytes (cached 10 minutes per link)
+const SHA = new Map();
+async function attShas(m) { const out = [];
+  for (const a of (m.attachments || []).slice(0, 10)) { const c = SHA.get(a.url); if (c && Date.now() - c.at < 600000) { out.push(c.h); continue; }
+    try { const r = await fetch(a.url); if (!r.ok) return null; const h = crypto.createHash("sha256").update(Buffer.from(await r.arrayBuffer())).digest("hex"); SHA.set(a.url, { h, at: Date.now() }); out.push(h); } catch (e) { return null; } }
+  return out; }
 async function sendQueued() {
   const queued = (await docsOf("mailq", fs.collection("mail").where("status", "==", "queued"))).slice(0, 40)
     .concat((await docsOf("mailhold", fs.collection("mail").where("status", "==", "approval"))).slice(0, 40));

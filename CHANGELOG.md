@@ -1,5 +1,13 @@
 # What changed
 
+## 2026.11.25-123
+- **Release check:** the Contacts "No email" and Inventory "None on the shelf" filters must actually shorten the list (not just light up), alongside the Accounts and Inventory selects.
+- **Quote approval is tied to the PDF's contents:** the mail worker reads each attachment and records its SHA-256; Matt's approval holds those exact contents, so a regenerated or swapped PDF needs approving again, even at the same link. Matt can approve "this email as shown" when the quote changed after it was written (he sees the PDF itself).
+- **Approvals from before 1 Nov no longer count** (the older kind had no file check). Reps see a one-time note: just press Send as usual and it goes out once Matt approves.
+- **Test projects:** "test" in a project's name in any case, the project's Dry run / internal box, or an account's new "Internal / test account" box blocks all outside email — in the CRM, the mail worker and the database rules.
+- **Close-out needs the real paperwork:** the quote PDF the CRM made (a file just called "quote" doesn't count), the PO or signed quote, and the invoice — checked on every way to close: the stage buttons, close-out, and the agents feed.
+- **Database lock card:** before Apply it lists anyone without their own @streetsignsupply.com address (they couldn't send customer email under the new rules) and whether every access record has its sending address. Team → Edit says the email should be their company address.
+
 ## 2026.11.25-122
 - **Accounts filters work again** (-120 dropped the code that made them react). The release check now tries the Accounts, Contacts and Inventory filters and fails the release if a list doesn't change.
 - **Quote approval:** a quote is recognised by where the file came from (the CRM-made quote PDF, a file filed as Quote or Signed quote, or a signing link for the quote), not just its name — the CRM and the mail worker both check. The approval fingerprint now also covers the scope printed on the quote, the customer's terms and the quote terms/days, and the approval covers the exact PDF and attachments: a different file means it isn't approved.

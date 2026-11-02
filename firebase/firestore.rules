@@ -125,6 +125,15 @@ service cloud.firestore {
     // together). The mail worker checks the sender again, holds a quote from anyone but an owner until the owner approves
     // that exact quote for those people (projects.quoteApproval), and is the only one that marks anything sent.
     function custMail() { return request.resource.data.get("kind", "") == "customer"; }
+    // a test / dry-run project or an internal account never emails anyone outside (the mail worker checks the same)
+    function recPath(c) { return /databases/$(db)/documents/$(c)/$(request.resource.data.get("recId", "-")); }
+    function testRec() {
+      return (request.resource.data.get("recType", "") == "project" && exists(recPath("projects"))
+               && (get(recPath("projects")).data.get("internal", false) == true
+                   || string(get(recPath("projects")).data.get("name", "")).lower().matches("(^|.*[^a-z0-9])(test|dry ?run)([^a-z0-9].*|$)")))
+          || (request.resource.data.get("recType", "") == "account" && exists(recPath("accounts"))
+               && get(recPath("accounts")).data.get("internal", false) == true);
+    }
     match /mail/{id} {
       allow read: if isOffice();
       allow create: if member() && request.resource.data.to is list && (
@@ -135,7 +144,7 @@ service cloud.firestore {
                        && request.resource.data.to.size() + request.resource.data.get("cc", []).size() <= 6
                        && request.resource.data.get("from", "") is string && myMail() != ""
                        && request.resource.data.get("from", "").lower() == myMail()
-                       && request.resource.data.get("byId", "") == myTeamId()));
+                       && request.resource.data.get("byId", "") == myTeamId() && !testRec()));
       allow update, delete: if false;
     }
     // signature requests: the link's long random code is the key. Anyone with the link can read that one request (never

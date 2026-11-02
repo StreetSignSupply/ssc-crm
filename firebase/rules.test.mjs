@@ -6,7 +6,7 @@ await env.withSecurityRulesDisabled(async (c) => { const d = c.firestore();
   await setDoc(doc(d, "access/matt@streetsignsupply.com"), { role: "owner", teamId: "t1", mail: "matt@streetsignsupply.com" });
   await setDoc(doc(d, "access/bob@streetsignsupply.com"), { role: "sales", teamId: "t2", mail: "bob@streetsignsupply.com" });
   await setDoc(doc(d, "files/f1"), { name: "a.pdf", cat: "Artwork", byId: "t2" }); await setDoc(doc(d, "files/f2"), { name: "po.pdf", cat: "Purchase order", byId: "t2" });
-  await setDoc(doc(d, "files/f3"), { name: "b.pdf", cat: "Artwork", byId: "t1" }); await setDoc(doc(d, "settings/mailsync"), { a: 1 }); await setDoc(doc(d, "mail/w1"), { kind: "customer", status: "queued", to: ["buyer@city.gov"], from: "bob@streetsignsupply.com", byId: "t2" });
+  await setDoc(doc(d, "files/f3"), { name: "b.pdf", cat: "Artwork", byId: "t1" }); await setDoc(doc(d, "settings/mailsync"), { a: 1 }); await setDoc(doc(d, "projects/ptest"), { name: "Yonkers Test bid" }); await setDoc(doc(d, "accounts/aint"), { name: "Us", internal: true }); await setDoc(doc(d, "mail/w1"), { kind: "customer", status: "queued", to: ["buyer@city.gov"], from: "bob@streetsignsupply.com", byId: "t2" });
   await setDoc(doc(d, "aidraft/a0"), { status: "done", byId: "t1", body: "x" });
   await setDoc(doc(d, "access/uid-shop"), { role: "shop", teamId: "t3" });
   await setDoc(doc(d, "team/t2"), { name: "Bob", access: "sales", phone: "1", email: "bob@streetsignsupply.com" });
@@ -104,6 +104,9 @@ await no("sales can't send as the owner", setDoc(doc(sales, "mail/c6"), { kind: 
 await no("sales can't pose as another team member", setDoc(doc(sales, "mail/c7"), { kind: "customer", status: "queued", to: ["buyer@city.gov"], from: "bob@streetsignsupply.com", byId: "t1" }));
 await no("at most 6 people on a customer email", setDoc(doc(sales, "mail/c8"), { kind: "customer", status: "queued", to: Array.from({ length: 4 }, (_, i) => "x" + i + "@city.gov"), cc: ["a@b.co", "c@d.co", "e@f.co"], from: "bob@streetsignsupply.com", byId: "t2" }));
 await ok("the owner sends", setDoc(doc(owner, "mail/c9"), { kind: "customer", status: "queued", to: ["buyer@city.gov"], from: "matt@streetsignsupply.com", byId: "t1", message: { subject: "x" } }));
+await no("a test project can't email outside", setDoc(doc(sales, "mail/ct1"), { kind: "customer", status: "queued", to: ["buyer@city.gov"], from: "bob@streetsignsupply.com", byId: "t2", recType: "project", recId: "ptest" }));
+await no("an internal account can't email outside", setDoc(doc(sales, "mail/ct2"), { kind: "customer", status: "queued", to: ["buyer@city.gov"], from: "bob@streetsignsupply.com", byId: "t2", recType: "account", recId: "aint" }));
+await ok("a real project emails out", setDoc(doc(sales, "mail/ct3"), { kind: "customer", status: "queued", to: ["buyer@city.gov"], from: "bob@streetsignsupply.com", byId: "t2", recType: "project", recId: "p1" }));
 await no("nobody changes a queued email", updateDoc(doc(owner, "mail/w1"), { status: "queued" }));
 await no("a customer email must come from our domain", setDoc(doc(sales, "mail/c2"), { kind: "customer", status: "queued", to: ["buyer@city.gov"], from: "bob@gmail.com", byId: "t2", message: { subject: "x" } }));
 await no("outsiders can't queue email", setDoc(doc(anon, "mail/c3"), { kind: "customer", status: "queued", to: ["a@b.com"], from: "matt@streetsignsupply.com" }));
