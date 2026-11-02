@@ -107,6 +107,14 @@ else if (STEP === "apply") {
     step("fixes applied");
   }
 }
+// FIX_STEP=review -> read-only: what the owner's "quotes to review" bar lists right now (P-numbers and counts only)
+if (STEP === "review") {
+  result = await page.evaluate(() => { const T = window.__T; const L = T.reviewQuotes();
+    const all = [...T.S.projects.values()].filter((p) => !p.deleted && /^20(3[0-9]|4[0-9])$/.test(String(p.num)));
+    return { onList: L.map((x) => ({ p: "P-" + x.p.num, stage: x.p.stage, stalePdf: x.stale, recipients: T.reviewTo(x.p).length, makerIsTeam: !!x.maker })),
+      recentQuotes: all.map((p) => { const f = T.projFiles(p.id).filter((x) => !x.deleted && x.gen === "quote"); return { p: "P-" + p.num, stage: p.stage, pdfs: f.length, pdfCurrent: f.some((x) => x.qhash === T.quoteHash(p)), byOwner: f.some((x) => { const t = x.byId && T.S.team.get(x.byId); return !!t && T.teamRole(t) === "owner"; }), approved: !!(p.quoteApproval && p.quoteApproval.v === 2 && p.quoteApproval.hash === T.quoteHash(p)) }; }) }; });
+  step("review list read");
+}
 // FIX_STEP=stencils -> the stencil export (one row per stencil per grade, with today's cost) goes to the
 // "CRM Stencils" tab of the SSS Pipeline sheet for the weekly cost audit. Counts only in the log.
 if (STEP === "stencils") {
@@ -214,6 +222,7 @@ if (STEP === "qb") {
 // only a "sync" run sends everything; the AI check sends nothing; an apply run sends just its changes (or all when asked)
 const fixSrc = fsys.existsSync(path.resolve(here, "fixes.js")) ? fsys.readFileSync(path.resolve(here, "fixes.js"), "utf8") : "";
 const wantAll = STEP === "sync" || (STEP === "apply" && /\/\/ send all/.test(fixSrc));
+if (STEP === "review") { console.log("::notice::fix step review: " + JSON.stringify(result).slice(0, 3000) + " | " + errors + " page errors"); await browser.close(); process.exit(0); }
 if (STEP === "aitest") { console.log("::notice::fix step aitest: " + JSON.stringify(result).slice(0, 1800) + " | " + errors + " page errors " + JSON.stringify(errs.slice(0, 3)));
   await browser.close(); process.exit((result && result.error) || errors > 0 ? 1 : 0); }
 const sent = wantAll ? await page.evaluate(async () => { try { await window.__T.syncAll(); return "ok"; } catch (e) { return "sync error " + String(e).slice(0, 100); } }) : "changes only";
