@@ -71,6 +71,12 @@ for (const [r, sel, v] of filt) { await pg.evaluate((r) => { location.hash = "#/
 for (const [r, sel] of [["contacts", "[data-ctfilt=noemail]"], ["inventory", "button[data-invfilt=stock][data-v=zero]"]]) { await pg.evaluate((r) => { location.hash = "#/" + r; }, r); await pg.waitForTimeout(400);
   const n0 = await rows(); const el = await pg.$(sel); if (!el) { bad.push(r + " " + sel + ": filter missing"); continue; } await el.click(); await pg.waitForTimeout(300);
   const n1 = await rows(); if (!(await pg.$(sel + ".p")) || !(n1 < n0)) bad.push(r + " " + sel + ": filter didn't change the list (" + n0 + " → " + n1 + ")"); }
+// no two elements share an id on any page (it breaks labels and drawings), and every box/dropdown has a name
+for (const r of ROUTES) { await pg.evaluate((r) => { location.hash = "#/" + r; }, r); await pg.waitForTimeout(r === "stencils" ? 1500 : 300);
+  const a = await pg.evaluate(() => { const ids = {}; document.querySelectorAll("[id]").forEach((e) => { ids[e.id] = (ids[e.id] || 0) + 1; });
+    const unnamed = [...document.querySelectorAll(".main input:not([type=hidden]):not([type=checkbox]):not([type=radio]), .main select, .main textarea")].filter((e) => e.offsetParent && !e.getAttribute("aria-label") && !e.closest("label") && !(e.id && document.querySelector('label[for="' + e.id + '"]'))).length;
+    return { dup: Object.keys(ids).filter((k) => ids[k] > 1), unnamed }; });
+  if (a.dup.length) bad.push(r + ": duplicate ids " + a.dup.slice(0, 3).join(", ")); if (a.unnamed) bad.push(r + ": " + a.unnamed + " unnamed field(s)"); }
 // on a phone, no page may be wider than the screen (layout check)
 await pg.setViewportSize({ width: 390, height: 844 });
 for (const r of ROUTES) { await pg.evaluate((r) => { location.hash = "#/" + r; }, r); await pg.waitForTimeout(r === "stencils" ? 1500 : 350);

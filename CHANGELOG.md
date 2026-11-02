@@ -1,5 +1,15 @@
 # What changed
 
+## 2026.11.25-131 (second audit: design, function, layout)
+Checked every page on desktop and phone for errors, overflow, clipped text, tiny tap targets, unnamed fields, duplicate ids and broken layouts, plus the close-out, email and Files windows. Put right (all of these were there before today too):
+- A project tab other than All (Files, Quote, Billing…) now uses the full width instead of one of two columns with the other left empty.
+- Every box and dropdown has a name for screen readers and voice control (work order shipping fields, Reports filters, Settings text boxes and more).
+- The little "?" help buttons have a bigger touch area on phones (same look).
+- Two drawings on the stencil page shared one id — each has its own now.
+- Pills in the project header ("Not invoiced") wrap between words, not mid-word.
+- File tiles: no stray "·" when a file has no size; uploader shown only when known.
+- The release check now also fails on duplicate ids or unnamed fields on any page.
+
 ## 2026.11.25-130 (layout audit against -118)
 Every page compared, desktop and phone, with -118 (before the day's changes): no page errors, nothing wider than the screen, nothing removed. Put right:
 - The project tabs had a second summary (stage, value, next step) next to the one the project bar already has — removed; the project page looks as it did.
