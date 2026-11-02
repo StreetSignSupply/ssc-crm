@@ -424,7 +424,7 @@ async function aiDrafts() {
         + (r.sig ? "End with just \"Thanks,\" on its own line — the sender's email signature (name, company, phone) is added automatically, so don't write them." : "Sign off with the sender's first name and the company.")
         + " Keep any link exactly as given, on its own line.";
       const msgs = [{ role: "system", content: RULES + " Reply with JSON only: {\"subject\":\"...\",\"body\":\"...\"}." },
-        { role: "user", content: "What to say: " + (r.ask || "(use the subject and context)") + "\nSubject so far: " + (r.subject || "") + "\nDraft so far:\n" + (r.draft || "") + "\n\nContext:\n" + (r.ctx || "") }];
+        { role: "user", content: "What to say: " + (r.ask || (String(r.draft || "").replace(/\s+/g, " ").trim().split(" ").length > 12 ? "(rewrite the draft below so it reads like a real person wrote it — keep every fact, number and link, change the wording)" : "(use the subject and context)")) + "\nSubject so far: " + (r.subject || "") + "\nDraft so far:\n" + (r.draft || "") + "\n\nContext:\n" + (r.ctx || "") }];
       // each model is tried in turn until one sends back an email; the answer is read whatever shape it comes in
       const pick = (txt) => { const t = String(txt || "").trim(); if (!t) return null; let j = null;
         try { j = JSON.parse(t.replace(/^```(?:json)?\s*|\s*```$/g, "")); } catch (e) { const m = t.match(/\{[\s\S]*\}/); if (m) { try { j = JSON.parse(m[0]); } catch (e2) {} } }
