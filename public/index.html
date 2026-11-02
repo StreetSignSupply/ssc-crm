@@ -933,6 +933,21 @@ a.kc{color:inherit;text-decoration:none}
 .mbox .fgrid,.mbox .fld{min-width:0}
 .mbox .fld input,.mbox .fld select,.mbox .fld textarea{max-width:100%}
 .mbox>.foot{position:sticky;bottom:0}
+/* iPhone: "vh" counts the screen behind Safari's bars, so a tall window's title (with its ×) and its Close were off screen.
+   dvh is the part you can actually see. */
+.mbox{max-height:90dvh}
+@media (max-width:640px){.mbox{max-height:calc(100dvh - 16px)}.modal{padding-top:max(8px,env(safe-area-inset-top));padding-bottom:max(8px,env(safe-area-inset-bottom))}
+  .mbox table.stcgr thead{display:none}
+  .mbox table.stcgr,.mbox table.stcgr tbody{display:block;width:100%}
+  .mbox table.stcgr tr{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));column-gap:8px;row-gap:4px;padding:10px 14px;border-bottom:1px solid var(--line2)}
+  .mbox table.stcgr td{display:block;border:0!important;padding:0!important;text-align:left!important;white-space:normal!important;min-width:0}
+  .mbox table.stcgr td{background:none!important}
+  .mbox table.stcgr td.g{grid-column:1 / 3;grid-row:1;align-self:center;font-size:15px}
+  .mbox table.stcgr td.p{grid-column:3 / 5;grid-row:1;text-align:right!important;font-size:16px}
+  .mbox table.stcgr td.m{grid-column:1;grid-row:2}.mbox table.stcgr td.l{grid-column:2;grid-row:2}
+  .mbox table.stcgr td.c{grid-column:3;grid-row:2}.mbox table.stcgr td.mg{grid-column:4;grid-row:2}
+  .mbox table.stcgr td[data-label]::before{content:attr(data-label);display:block;font-family:Overpass,"Helvetica Neue",Arial,sans-serif;font-size:11.5px;font-weight:700;color:var(--ink2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:1px}
+  .mbox table.stcgr td.mg{text-align:right!important}}
 @media (max-width:640px){
   .modal{padding:8px}
   .mbox>.foot .btn{flex:1 1 auto}
@@ -953,6 +968,29 @@ a.kc{color:inherit;text-decoration:none}
 .mbox>.body{padding:6px 0;overflow:auto;flex:1}
 .mbox>.foot{padding:13px 18px;border-top:1px solid var(--line);display:flex;gap:8px;
   justify-content:flex-end;flex-wrap:wrap;background:var(--hd)}
+@media (max-width:760px){.cal .day{padding:4px 3px}.cal .day .dadd{min-width:20px;min-height:24px;padding:0;font-size:14px}}
+/* stencil list on a phone: picture, name and price across the top, SKU under the name, then size, sheet, cost and margin,
+   then any flags — the rest (sq ft, material, CNC, price date) is in the stencil's window (tap its name) */
+@media (max-width:760px){.main table.stack.stclist tr{display:grid!important;grid-template-columns:64px minmax(0,1fr) auto;column-gap:10px;row-gap:1px;padding:12px 14px}
+  .main table.stack.stclist td{grid-column:1 / -1}
+  .main table.stack.stclist td.pic{grid-column:1;grid-row:1 / span 2;display:block!important;padding:2px 0!important}
+  .main table.stack.stclist td.nm{grid-column:2;grid-row:1;display:block!important;text-align:left!important;font-size:14.5px}
+  .main table.stack.stclist td.pr{grid-column:3;grid-row:1;display:block!important;font-size:16px}
+  .main table.stack.stclist td.sku{grid-column:2 / -1;grid-row:2;display:block!important;text-align:left!important;font-size:12.5px}
+  .main table.stack.stclist td.pic::before,.main table.stack.stclist td.nm::before,.main table.stack.stclist td.pr::before,.main table.stack.stclist td.sku::before,.main table.stack.stclist td.fl::before{display:none!important}
+  .main table.stack.stclist td.pcs,.main table.stack.stclist td.sq,.main table.stack.stclist td.mi,.main table.stack.stclist td.ma,.main table.stack.stclist td.cnc,.main table.stack.stclist td.pd{display:none!important}
+  .main table.stack.stclist td.fl{display:block!important;text-align:left!important;max-width:none!important;margin-top:4px}
+  .main table.stack.stclist td.fl > span.sub:only-child{display:none}
+  .main table.stack.stclist td.fl > div.sub{color:var(--danger-ink)!important}
+  .main table.stack.stclist td{background:none!important}
+  .card > header .sp #lq{flex:1 1 100%;width:100%!important}}
+/* phones: a stacked row is one card — the stripe goes on the whole card, not on each cell (it left patches) */
+@media (max-width:760px){.main table.stack > tbody > tr:nth-child(even) > td,.mbox table.stack > tbody > tr:nth-child(even) > td{background:none!important}
+  .main table.stack > tbody > tr:nth-child(even){background:color-mix(in srgb,var(--card2) 55%,var(--card))}}
+/* phones: no row you have to swipe sideways to find things — tabs, setting sections and filter buttons wrap onto a second line */
+@media (max-width:760px){.ptabs,.main .ptabs{flex-wrap:wrap!important;overflow:visible!important;row-gap:4px}
+  .chipbar{flex-wrap:wrap!important;overflow:visible!important}.chipbar>*{flex:0 0 auto}
+  .snav{flex-wrap:wrap!important;overflow:visible!important}.snav button{flex:0 0 auto}}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));
   background:var(--plate);color:#fff;padding:11px 18px;border-radius:8px;z-index:99;font-size:13.5px;
   box-shadow:var(--sh2);max-width:92vw;border-left:4px solid var(--act);font-weight:600}
@@ -6445,7 +6483,7 @@ function stencilsView(){
   const c=stcCfg();
   const matCards=STC_GRADES.map((g,i)=>{const m=stcMatFor(i);const per=m?stcSheetSqft(m.it):0;const r=m&&Number(m.it.cost)>0&&per?Number(m.it.cost)/per:0;
     return `<tr><td><b>${esc(g.label)}</b></td>
-      <td>${m?`<a class="lnk" href="#/item/${esc(m.it.id)}">${esc(m.it.name)}</a>${m.auto?` <span class="sub">(cheapest match)</span>`:""}`:`<span class="pill r">No sheet in inventory</span>`}</td>
+      <td><div>${m?`<a class="lnk" href="#/item/${esc(m.it.id)}">${esc(m.it.name)}</a>${m.auto?` <span class="sub">(cheapest match)</span>`:""}`:`<span class="pill r">No sheet in inventory</span>`}</div></td>
       <td class="mono" style="text-align:right">${m&&Number(m.it.cost)>0?money2(Number(m.it.cost)):"—"}</td>
       <td class="mono" style="text-align:right">${per?Math.round(per*10)/10:"—"}</td>
       <td class="mono" style="text-align:right;font-weight:700">${r?money2(r):"—"}</td>
@@ -6464,25 +6502,25 @@ function stencilsView(){
         <button class="btn${f.flag?" p":""}" data-stcflag="1">${flagged.length} flagged</button>
         ${showCost?`<button class="btn" data-stccsv="1">${ic("file",14)}Download CSV</button>`:""}</span></header>
       <div class="sub" style="padding:8px 15px">${esc((S.stc.source||""))}. Prices are per stencil in the grade picked above; the price date says which list it came from.</div>
-      ${shown.length?`<div style="overflow-x:auto"><table style="table-layout:auto;width:100%"><thead><tr><th style="width:70px"></th><th>SKU</th><th>Stencil</th><th>Painted size</th><th>Sheet</th><th style="text-align:right">Pcs</th><th style="text-align:right">Sq ft</th>
+      ${shown.length?`<div style="overflow-x:auto"><table class="stclist" style="table-layout:auto;width:100%"><thead><tr><th style="width:70px"></th><th>SKU</th><th>Stencil</th><th>Painted size</th><th>Sheet</th><th style="text-align:right">Pcs</th><th style="text-align:right">Sq ft</th>
         ${showCost?`<th>Material item</th><th style="text-align:right">Material</th><th style="text-align:right">CNC</th><th style="text-align:right">Cost</th>`:""}<th style="text-align:right">Price</th>${showCost?`<th style="text-align:right">Margin</th>`:""}<th>Price set</th><th>Flags</th></tr></thead><tbody>
         ${shown.map(s=>{const pr=stcPrice(s,gi);const r=showCost?stcCost(s,gi):null;const mg=(pr&&r&&r.cost!=null)?(pr-r.cost)/pr*100:null;const fl=stcFlags(s);
           return `<tr>
-          <td>${s.img?`<img src="${esc(stcPicUrl(s))}" alt="" loading="lazy" style="width:62px;height:34px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:3px">`:`<span class="sub">no picture</span>`}</td>
-          <td class="mono" style="white-space:nowrap"><button class="lnk mono" data-stcview="${esc(s.sku)}">${esc(s.sku)}</button></td>
-          <td style="max-width:320px;white-space:normal"><button class="lnk" style="text-align:left" data-stcview="${esc(s.sku)}">${esc(s.n)}</button><div class="sub">${esc(s.cat||"")} · ${(function(){const d=stcDims(s);const w=stcWhat(s);return d.onePiece?`<b style="color:var(--danger-ink)">${esc(w)}</b>`:esc(w)})()}</div></td>
-          <td class="mono" style="white-space:nowrap">${(function(){const d=stcDims(s);return d.H?esc(d.W?d.H+"″ × "+d.W+"″":d.H+"″"+(d.chars?" letters":" tall")):"—"})()}</td>
-          <td class="mono" style="white-space:nowrap">${s.w&&s.h?esc(s.w+"″ × "+s.h+"″")+(stcDims(s).fits?"":` <span class="pill o" title="Smaller than the painted size — check the artwork">check</span>`):"—"}</td>
-          <td class="mono" style="text-align:right">${esc(s.pc||1)}</td>
-          <td class="mono" style="text-align:right">${stcSq(s)?Math.round(stcSq(s)*100)/100:"—"}</td>
-          ${showCost?`<td style="max-width:180px;white-space:normal" class="sub">${r&&r.mat?esc(r.mat.name):`<span class="pill r">none</span>`}</td>
-            <td class="mono" style="text-align:right;white-space:nowrap">${r&&r.cost!=null?money2(r.matCost):"—"}</td>
-            <td class="mono" style="text-align:right;white-space:nowrap" title="${esc(r&&r.min!=null?r.min+" min":"")}">${r&&r.cost!=null?money2(r.labor):"—"}</td>`:""}
-          ${showCost?`<td class="mono" style="text-align:right;white-space:nowrap" title="${esc(r&&r.why||r&&r.flags.join("; ")||"")}">${r&&r.cost!=null?money2(r.cost):`<span class="pill r">not costed</span>`}</td>`:""}
-          <td class="mono" style="text-align:right;font-weight:700;white-space:nowrap">${pr?money2(pr):"—"}${pr&&Number(s.pc)>1?`<div class="sub" style="font-weight:400">${money2(pr/Number(s.pc))} a piece</div>`:""}</td>
-          ${showCost?`<td style="text-align:right">${mg==null?`<span class="sub">—</span>`:`<span class="pill ${mg>=40?"g":mg>=25?"o":"r"}">${Math.round(mg)}%</span>`}</td>`:""}
-          <td class="sub" style="white-space:nowrap">${esc(fmtDate(stcPd(s)))}</td>
-          <td style="max-width:260px;white-space:normal">${fl.length?fl.map(x=>`<div class="sub" style="color:var(--danger-ink,#C00)">${esc(x)}</div>`).join(""):`<span class="sub">—</span>`}</td></tr>`}).join("")}
+          <td class="pic">${s.img?`<img src="${esc(stcPicUrl(s))}" alt="" loading="lazy" style="width:62px;height:34px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:3px">`:`<span class="sub">no picture</span>`}</td>
+          <td class="mono sku" style="white-space:nowrap"><button class="lnk mono" data-stcview="${esc(s.sku)}">${esc(s.sku)}</button></td>
+          <td class="nm" style="max-width:320px;white-space:normal"><button class="lnk" style="text-align:left" data-stcview="${esc(s.sku)}">${esc(s.n)}</button><div class="sub">${esc(s.cat||"")} · ${(function(){const d=stcDims(s);const w=stcWhat(s);return d.onePiece?`<b style="color:var(--danger-ink)">${esc(w)}</b>`:esc(w)})()}</div></td>
+          <td class="mono ps" style="white-space:nowrap">${(function(){const d=stcDims(s);return d.H?esc(d.W?d.H+"″ × "+d.W+"″":d.H+"″"+(d.chars?" letters":" tall")):"—"})()}</td>
+          <td class="mono sh" style="white-space:nowrap">${s.w&&s.h?esc(s.w+"″ × "+s.h+"″")+(stcDims(s).fits?"":` <span class="pill o" title="Smaller than the painted size — check the artwork">check</span>`):"—"}</td>
+          <td class="mono pcs" style="text-align:right">${esc(s.pc||1)}</td>
+          <td class="mono sq" style="text-align:right">${stcSq(s)?Math.round(stcSq(s)*100)/100:"—"}</td>
+          ${showCost?`<td style="max-width:180px;white-space:normal" class="sub mi">${r&&r.mat?esc(r.mat.name):`<span class="pill r">none</span>`}</td>
+            <td class="mono ma" style="text-align:right;white-space:nowrap">${r&&r.cost!=null?money2(r.matCost):"—"}</td>
+            <td class="mono cnc" style="text-align:right;white-space:nowrap" title="${esc(r&&r.min!=null?r.min+" min":"")}">${r&&r.cost!=null?money2(r.labor):"—"}</td>`:""}
+          ${showCost?`<td class="mono co" style="text-align:right;white-space:nowrap" title="${esc(r&&r.why||r&&r.flags.join("; ")||"")}">${r&&r.cost!=null?money2(r.cost):`<span class="pill r">not costed</span>`}</td>`:""}
+          <td class="mono pr" style="text-align:right;font-weight:700;white-space:nowrap">${pr?money2(pr):"—"}${pr&&Number(s.pc)>1?`<div class="sub" style="font-weight:400">${money2(pr/Number(s.pc))} a piece</div>`:""}</td>
+          ${showCost?`<td class="mg" style="text-align:right">${mg==null?`<span class="sub">—</span>`:`<span class="pill ${mg>=40?"g":mg>=25?"o":"r"}">${Math.round(mg)}%</span>`}</td>`:""}
+          <td class="sub pd" style="white-space:nowrap">${esc(fmtDate(stcPd(s)))}</td>
+          <td class="fl" style="max-width:260px;white-space:normal">${fl.length?fl.map(x=>`<div class="sub" style="color:var(--danger-ink,#C00)">${esc(x)}</div>`).join(""):`<span class="sub">—</span>`}</td></tr>`}).join("")}
         </tbody></table></div>
         ${pages>1?`<div style="display:flex;gap:6px;align-items:center;padding:10px 15px">${f.page>0?`<button class="btn sm" data-stcpage="${f.page-1}">Previous</button>`:""}
           <span class="sub">Page ${f.page+1} of ${pages}</span>${f.page<pages-1?`<button class="btn sm" data-stcpage="${f.page+1}">Next</button>`:""}</div>`:""}`
@@ -6509,11 +6547,11 @@ function stcViewModal(sku){const s=stcBySku(sku);if(!s)return;const showCost=can
           <input id="stc-sq" value="${esc(String(stcSq(s)||""))}" style="width:90px" inputmode="decimal"><button class="btn sm" data-stcsq="${esc(s.sku)}">Save</button></div>
           <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" data-stcfloor="${esc(s.sku)}" title="Each grade at cost ÷ 0.60, rounded up to the next 50¢ — the 25 Oct rule">Price at the 40% floor</button>
             ${s.src==="sep"?(stcHeld(s)?`<button class="btn sm p" data-stcrel="${esc(s.sku)}:1">Release for quoting</button>`:`<button class="btn sm" data-stcrel="${esc(s.sku)}:0">Hold again</button>`):""}</div>`:""}</div></div>
-    <div style="overflow-x:auto"><table style="table-layout:auto;width:100%"><thead><tr><th>Grade</th>${showCost?`<th style="text-align:right">Material</th><th style="text-align:right">Labor</th><th style="text-align:right">Cost</th>`:""}<th style="text-align:right">Price</th>${showCost?`<th style="text-align:right">Margin</th>`:""}</tr></thead><tbody>
+    <div style="overflow-x:auto"><table class="stcgr" style="table-layout:auto;width:100%"><thead><tr><th>Grade</th>${showCost?`<th style="text-align:right">Material</th><th style="text-align:right">Labor</th><th style="text-align:right">Cost</th>`:""}<th style="text-align:right">Price</th>${showCost?`<th style="text-align:right">Margin</th>`:""}</tr></thead><tbody>
       ${STC_GRADES.map((g,i)=>{const pr=stcPrice(s,i);const r=stcCost(s,i);const mg=(pr&&r.cost!=null)?(pr-r.cost)/pr*100:null;
-        return `<tr><td style="white-space:nowrap"><b>${esc(g.k)}</b></td>${showCost?`<td class="mono" style="text-align:right;white-space:nowrap">${r.cost!=null?money2(r.matCost):"—"}</td><td class="mono" style="text-align:right;white-space:nowrap">${r.cost!=null?money2(r.labor):"—"}</td>
-          <td class="mono" style="text-align:right;font-weight:700;white-space:nowrap" title="${esc(r.why||r.flags.join("; "))}">${r.cost!=null?money2(r.cost):`<span class="pill r">${/sheet/.test(r.flags[0]||"")?"no sheet":/sq ft/.test(r.flags[0]||"")?"no sq ft":"not costed"}</span>`}</td>`:""}
-          <td class="mono" style="text-align:right;font-weight:700;white-space:nowrap">${pr?money2(pr):"—"}${pr&&Number(s.pc)>1?`<div class="sub" style="font-weight:400">${money2(pr/Number(s.pc))} a piece</div>`:""}</td>${showCost?`<td style="text-align:right">${mg==null?"—":`<span class="pill ${mg>=40?"g":mg>=25?"o":"r"}">${Math.round(mg)}%</span>`}</td>`:""}</tr>`}).join("")}
+        return `<tr><td class="g" style="white-space:nowrap"><b>${esc(g.k)}</b></td>${showCost?`<td class="mono m" data-label="Material" style="text-align:right;white-space:nowrap">${r.cost!=null?money2(r.matCost):"—"}</td><td class="mono l" data-label="Labor" style="text-align:right;white-space:nowrap">${r.cost!=null?money2(r.labor):"—"}</td>
+          <td class="mono c" data-label="Cost" style="text-align:right;font-weight:700;white-space:nowrap" title="${esc(r.why||r.flags.join("; "))}">${r.cost!=null?money2(r.cost):`<span class="pill r">${/sheet/.test(r.flags[0]||"")?"no sheet":/sq ft/.test(r.flags[0]||"")?"no sq ft":"not costed"}</span>`}</td>`:""}
+          <td class="mono p" style="text-align:right;font-weight:700;white-space:nowrap">${pr?money2(pr):"—"}${pr&&Number(s.pc)>1?`<div class="sub" style="font-weight:400">${money2(pr/Number(s.pc))} a piece</div>`:""}</td>${showCost?`<td class="mg" data-label="Margin" style="text-align:right">${mg==null?"—":`<span class="pill ${mg>=40?"g":mg>=25?"o":"r"}">${Math.round(mg)}%</span>`}</td>`:""}</tr>`}).join("")}
     </tbody></table></div>`,`<button class="btn" data-close="1">Close</button>`))}
 function stcMatModal(gi){const g=STC_GRADES[gi];if(!g)return;const c=stcCfg();
   const opts=itemList().filter(it=>/stencil|ldpe|hdpe|polyeth|alum|5052/i.test([it.cat,it.name,it.sku].join(" "))).sort((a,b)=>a.name.localeCompare(b.name));
@@ -10904,7 +10942,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-134";
+const APP_VERSION="2026.11.25-135";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -13745,7 +13783,12 @@ function viewFile(fid){
 }
 function closeViewer(fromBack){const was=!!S.viewerFile;S.viewerFile=null;render();
   if(was&&!fromBack&&history.state&&history.state.sscViewer){S._viewerBackSkip=true;try{history.back()}catch(e){S._viewerBackSkip=false}}}
-window.addEventListener("popstate",()=>{if(S._viewerBackSkip){S._viewerBackSkip=false;return}if(S.viewerFile)closeViewer(true)});
+window.addEventListener("popstate",()=>{if(S._viewerBackSkip){S._viewerBackSkip=false;return}if(S._modalBackSkip){S._modalBackSkip=false;return}
+  if(S.viewerFile){closeViewer(true);return}
+  if(S.modal){
+    // something typed: the first Back warns (like Escape), the second closes
+    if(modalDirty()&&!S.discardArmed){S.discardArmed=true;try{history.pushState(Object.assign({},history.state||{},{sscModal:1}),"")}catch(e){}toast("Press Back again to discard what you typed.");return}
+    S.discardArmed=false;closeModal(true)}});
 function viewerHTML(){
   const fid=S.viewerFile;if(!fid)return "";
   const f=S.files.get(fid);if(!f||f.deleted)return "";
@@ -13800,11 +13843,15 @@ async function downloadFile(fid){
 }
 function openModal(h){S.modal=h;S.modalTouched=false;S.discardArmed=false;render();decorateAddress()}
 function modalDirty(){return !!S.modalTouched}
-function closeModal(){S.modal=null;S._modalShown=null;const s=$(".scrim"),m=$(".modal");if(s)s.remove();if(m)m.remove();
+function closeModal(fromBack){S.modal=null;S._modalShown=null;const s=$(".scrim"),m=$(".modal");if(s)s.remove();if(m)m.remove();
+  // take the window's history step back off — unless another window opens straight away (it reuses the step)
+  if(!fromBack)setTimeout(()=>{if(!S.modal&&history.state&&history.state.sscModal){S._modalBackSkip=true;try{history.back()}catch(e){S._modalBackSkip=false}}},0);
   // put the keyboard back on the button that opened the window
   const o=S._modalOpener;S._modalOpener=null;if(o&&o.isConnected&&o.focus)setTimeout(()=>{if(!S.modal&&document.activeElement===document.body)try{o.focus({preventScroll:true})}catch(e){}},0)}
 // every window: tell screen readers it's a dialog with a title, and put the cursor in it (the first box, or the first button)
 function modalA11y(){const m=$(".modal");if(!m)return;m.setAttribute("role","dialog");m.setAttribute("aria-modal","true");
+  // a history step for the window, so the phone's Back (swipe back) closes it instead of leaving the page
+  if(!(history.state&&history.state.sscModal)){try{history.pushState(Object.assign({},history.state||{},{sscModal:1}),"")}catch(e){}}
   const h=m.querySelector("h2");if(h){if(!h.id)h.id="mdl-title";m.setAttribute("aria-labelledby",h.id)}
   setTimeout(()=>{const mm=$(".modal");if(!mm||mm.contains(document.activeElement))return;
     const vis=q=>[...mm.querySelectorAll(q)].find(e=>e.offsetParent);
