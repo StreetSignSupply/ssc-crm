@@ -107,6 +107,31 @@ else if (STEP === "apply") {
     step("fixes applied");
   }
 }
+// FIX_STEP=recent -> read-only: what the team created or changed in the last 4 days, whether it's in the database and
+// whether the owner's lists would show it — team initials and counts only, no names, emails or text
+if (STEP === "recent") {
+  const lock = (await fs.doc("settings/dbLock").get()).data() || {};
+  const acc = (await fs.collection("access").get()).docs.map((d) => d.data());
+  result = await page.evaluate((x) => { const T = window.__T, S = T.S; const since = Date.now() - 4 * 864e5;
+    const ini = (id, who) => { const t = id && S.team.get(id); return t ? String(t.initials || "?") + (t.deleted ? "(deleted)" : "") + "/" + T.teamRole(t) : (who ? "who:" + String(who).slice(0, 3) : "unknown"); };
+    const tally = (col, at, by) => { const o = {}; for (const r of S[col].values()) { const t = Math.max(Number(r[at[0]]) || 0, Number(r[at[1]]) || 0); if (t < since) continue;
+        const k = ini(r[by[0]] || r[by[1]], r.who || r.by || r.createdBy); o[k] = o[k] || { n: 0, deleted: 0, noName: 0, test: 0, merged: 0, noAcct: 0 }; const z = o[k]; z.n++;
+        if (r.deleted) z.deleted++; if (!String(r.name || r.text || r.subject || r.desc || "x").trim()) z.noName++; if (T.isTestRec && T.isTestRec(r)) z.test++; if (r.mergedInto) z.merged++;
+        if (col === "contacts" && !r.accountId) z.noAcct++; } return o; };
+    const team = [...S.team.values()].map((t) => ({ i: t.initials, role: T.teamRole(t), deleted: !!t.deleted, hasEmail: /@/.test(t.email || ""), access: t.access || "" }));
+    return { team, accounts: tally("accounts", ["createdAt", "updatedAt"], ["createdById", "byId"]), contacts: tally("contacts", ["createdAt", "updatedAt"], ["createdById", "byId"]),
+      projects: tally("projects", ["createdAt", "updatedAt"], ["createdById", "repId"]), activity: tally("activity", ["at", "at"], ["whoId", "byId"]),
+      totals: { accounts: S.accounts.size, contacts: S.contacts.size, vendors: S.vendors.size },
+      accFields: [...new Set([...S.accounts.values()].flatMap((a) => Object.keys(a)))].sort().join(","), conFields: [...new Set([...S.contacts.values()].flatMap((a) => Object.keys(a)))].sort().join(","),
+      vendorNamed: [...S.accounts.values()].filter((a) => !a.deleted && [...S.vendors.values()].some((v) => !v.deleted && T.acctKey(v.name) === T.acctKey(a.name))).length,
+      vendorTyped: [...S.accounts.values()].filter((a) => !a.deleted && /vendor|supplier/i.test(String(a.type || ""))).length,
+      lock: x.lock, access: x.acc }; }, { lock: { applied: lock.applied || lock.appliedAt || "", apply: lock.apply || "", rulesAt: lock.rulesAt || lock.at || "", noAddr: lock.noAddr, orphans: (lock.orphans || []).length },
+      acc: acc.map((a) => ({ role: a.role || "", team: !!a.teamId, mail: !!a.mail })) });
+  // what the Accounts page lists for the owner right now
+  await page.evaluate(() => { location.hash = "#/accounts"; }); await page.waitForTimeout(3000);
+  result.accountsPage = await page.evaluate(() => ({ rows: document.querySelectorAll(".main section.wide tbody tr").length, head: ((document.querySelector(".main h2") || {}).textContent || "") + " " + ((document.querySelector(".main .card header .n") || {}).textContent || ""), filters: [...document.querySelectorAll(".main select")].map((s) => (s.dataset.acfilt || "") + "=" + s.value).join(" ") }));
+  step("recent read");
+}
 // FIX_STEP=review -> read-only: what the owner's "quotes to review" bar lists right now (P-numbers and counts only)
 if (STEP === "review") {
   result = await page.evaluate(() => { const T = window.__T; const L = T.reviewQuotes();
@@ -222,6 +247,7 @@ if (STEP === "qb") {
 // only a "sync" run sends everything; the AI check sends nothing; an apply run sends just its changes (or all when asked)
 const fixSrc = fsys.existsSync(path.resolve(here, "fixes.js")) ? fsys.readFileSync(path.resolve(here, "fixes.js"), "utf8") : "";
 const wantAll = STEP === "sync" || (STEP === "apply" && /\/\/ send all/.test(fixSrc));
+if (STEP === "recent") { console.log("::notice::fix step recent: " + JSON.stringify(result).slice(0, 6000) + " | " + errors + " page errors"); await browser.close(); process.exit(0); }
 if (STEP === "review") { console.log("::notice::fix step review: " + JSON.stringify(result).slice(0, 3000) + " | " + errors + " page errors"); await browser.close(); process.exit(0); }
 if (STEP === "aitest") { console.log("::notice::fix step aitest: " + JSON.stringify(result).slice(0, 1800) + " | " + errors + " page errors " + JSON.stringify(errs.slice(0, 3)));
   await browser.close(); process.exit((result && result.error) || errors > 0 ? 1 : 0); }
