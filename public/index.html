@@ -730,6 +730,7 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
   .card{margin-bottom:12px;border-radius:8px}
   .card > header{flex-wrap:wrap;row-gap:6px}
   .card > header .sp{margin-left:0;width:100%;justify-content:flex-start;flex-wrap:wrap}
+  .card > header h2{flex:1 1 150px;min-width:0}
   .hl-facts{grid-template-columns:repeat(2,minmax(0,1fr))}
   .hl-facts > div:last-child:nth-child(odd){grid-column:1 / -1}
   .pill{font-size:12px;padding:5px 10px 4px}
@@ -871,6 +872,12 @@ a.kc{color:inherit;text-decoration:none}
 .viewer .nav{position:absolute;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.5);
   border:1px solid rgba(255,255,255,.3);color:#fff;width:42px;height:56px;font-size:22px;border-radius:2px}
 .viewer .nav.prev{left:10px}.viewer .nav.next{right:10px}
+@media (max-width:760px){.viewer header{padding:calc(10px + env(safe-area-inset-top,0px)) 112px 10px 12px;position:relative}
+  .viewer header .btn{min-height:40px}
+  .viewer header [data-closeview]{position:absolute;top:calc(8px + env(safe-area-inset-top,0px));right:10px;min-height:44px;min-width:92px;font-size:15px;font-weight:700;
+    background:#fff!important;color:#141412!important;border-color:#fff!important;border-radius:22px}
+  .viewer header [data-closeview]::before{content:"✕ "}
+  .viewer .nav{width:44px;height:56px}}
 .viewer .nav:hover{background:var(--act);border-color:var(--act)}
 .drop{border:2px dashed var(--line);border-radius:var(--r);padding:20px;text-align:center;color:var(--ink2);
   margin:16px;font-size:13.5px;background:var(--card2)}
@@ -934,6 +941,12 @@ a.kc{color:inherit;text-decoration:none}
 .mbox>h2 .mx{margin-left:auto;flex:0 0 auto;width:30px;height:30px;border-radius:6px;border:1px solid rgba(255,255,255,.25);
   background:transparent;color:inherit;font-size:22px;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0}
 .mbox>h2 .mx:hover{background:rgba(255,255,255,.14)}
+/* touch screens: a big ×, and text links and boxes inside windows tall enough to hit with a thumb */
+@media (pointer:coarse),(max-width:760px){.mbox>h2 .mx{width:40px;height:40px;font-size:20px}
+  .mbox .lnk{display:inline-block;padding:9px 0;min-height:36px}
+  .mbox .btn,.mbox .btn.sm{min-height:38px}
+  .mbox input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=color]):not([type=file]),.mbox select{min-height:40px}
+  .mbox input[type=file]{min-height:40px;padding:6px 0}}
 .mbox>h2{margin:0;padding:15px 18px;font-size:15px;display:flex;gap:10px;align-items:center;
   background:var(--plate);color:#fff;font-weight:800;letter-spacing:-.01em;
   box-shadow:inset 0 -3px 0 var(--act)}
@@ -943,6 +956,17 @@ a.kc{color:inherit;text-decoration:none}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));
   background:var(--plate);color:#fff;padding:11px 18px;border-radius:8px;z-index:99;font-size:13.5px;
   box-shadow:var(--sh2);max-width:92vw;border-left:4px solid var(--act);font-weight:600}
+@media (max-width:760px){body:has(.modal) .toast,body:has(#viewer) .toast{bottom:auto;top:calc(12px + env(safe-area-inset-top,0px))}}
+/* new purchase order on a phone: the item across the top, then quantity, price and remove side by side */
+@media (max-width:760px){.potbl{width:100%}.potbl thead{display:none}.potbl,.potbl tbody{display:block}
+  .potbl tr{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;padding:10px 15px;border-bottom:1px solid var(--line2)}
+  .potbl td{display:block;padding:0!important;border:0!important}.potbl td:first-child{grid-column:1 / -1}
+  .potbl select,.potbl input{width:100%!important;min-height:40px}.potbl td:last-child .btn{min-height:40px;min-width:40px}
+  .potbl td:nth-child(2)::before{content:"Qty";display:block;font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:3px}
+  .potbl td:nth-child(3)::before{content:"Price each";display:block;font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:3px}
+  .potbl td:last-child{align-self:end}}
+/* touch screens: 16px text in every box and dropdown, so iPhone doesn't zoom the page in each time one is tapped (and leave it zoomed) */
+@media (pointer:coarse){input:not([type=checkbox]):not([type=radio]):not([type=color]),select,textarea{font-size:16px!important}}
 .boot{padding:56px 20px;text-align:center;color:var(--ink2)}
 .gate{display:flex;gap:10px;align-items:flex-start;padding:9px 15px;border-bottom:1px solid var(--line2)}
 .gate:last-child{border-bottom:0}
@@ -1257,6 +1281,7 @@ details.omore>summary{cursor:pointer;font-weight:700;padding:6px 0;color:var(--a
 .ftile{overflow:visible!important}.ftile .th{overflow:hidden}
 .ftile .dd-m{top:auto;bottom:calc(100% + 6px);z-index:20}
 @media (max-width:760px){.sub,.mono.sub{font-size:13px!important;color:var(--ink2)!important}}
+@media (max-width:760px){.hl-top .sub{color:#CFCBC3!important}.viewer .sub{color:#B9BEC4!important}}
 .btn.segtab{background:none;border-color:transparent;border-radius:0;border-bottom:2px solid transparent;color:var(--ink2);padding-left:8px;padding-right:8px}
 .btn.segtab:hover{background:none;color:var(--ink);border-color:transparent;border-bottom-color:var(--line)}
 .btn.segtab.on{color:var(--act-ink,var(--act));border-bottom-color:var(--act);font-weight:800}
@@ -1310,12 +1335,25 @@ body:has(.modal) .updbar{display:none!important}
   .updbar{bottom:72px!important;right:12px}
   .gfull{display:none}.gshort{display:inline}
   /* quote lines as cards: what it is across the top, the numbers in two columns, the buttons always on screen */
-  .main table.stack.qlines tr{display:grid!important;grid-template-columns:1fr 1fr;column-gap:14px;padding:12px 14px}
-  .main table.stack.qlines td{grid-column:auto}
-  .main table.stack.qlines td:first-child,.main table.stack.qlines td:last-child{grid-column:1/-1}
-  .main table.stack.qlines td:last-child{justify-content:flex-end!important;flex-wrap:wrap;gap:6px;margin-top:6px}
-  .main table.stack.qlines td[data-label]::before{flex:0 0 auto;margin-right:8px}
+  /* -133: one card per line — the item and its line total across the top, then one detail per row (label left, value
+     right, never clipped), then the work-order status and the buttons */
+  .main table.stack.qlines tr{display:grid!important;grid-template-columns:minmax(0,1fr) auto;column-gap:12px;row-gap:0;padding:14px 14px 12px}
+  .main table.stack.qlines td{grid-column:1 / -1;display:grid!important;grid-template-columns:minmax(96px,36%) minmax(0,1fr);column-gap:12px;align-items:baseline;
+    padding:4px 0!important;border-top:1px solid var(--line2)!important;text-align:right!important}
+  .main table.stack.qlines td[data-label]::before{grid-column:1;grid-row:1 / span 2;flex:none;margin:0;align-self:start}
+  .main table.stack.qlines td > *{grid-column:2;justify-self:end;text-align:right;white-space:normal!important;min-width:0}
+  .main table.stack.qlines td:first-child{grid-column:1;grid-row:1;display:block!important;border-top:0!important;padding:0 0 8px!important;text-align:left!important}
+  .main table.stack.qlines td:first-child > *{justify-self:start;text-align:left}
+  .main table.stack.qlines td:nth-child(7){grid-column:2;grid-row:1;display:block!important;border-top:0!important;padding:0 0 8px!important;font-size:17px;align-self:start}
+  .main table.stack.qlines td:nth-child(7)::before{display:none}
+  .main table.stack.qlines td:last-child{display:flex!important;justify-content:flex-end!important;flex-wrap:wrap;gap:8px;margin-top:4px;padding-top:10px!important}
+  .main table.stack.qlines td:last-child > *{justify-self:auto}
   .main table.stack.qlines td:last-child .btn{margin-left:0!important}
+  .main table.stack.qlines td.stack-empty,.main table.stack.qlines td.stack-dash:not(:nth-child(7)){display:none!important}
+  .main table.stack.qlines td{background:none!important}
+  .main table.stack.qlines tr{border-bottom:6px solid var(--line2)!important}
+  .main table.stack.qlines .gfull{display:inline}.main table.stack.qlines .gshort{display:none}
+  .main table.stack.qlines tr.qtot td:first-child{padding-bottom:4px!important}
   /* one Back link instead of a row of crumbs */
   .main .crumbs > button.c,.main .crumbs > .sep,.main .crumbs > .here{display:none}
   .main .crumbs > button.c:last-of-type{display:inline-flex}
@@ -2635,7 +2673,7 @@ function txModal(iid,type,jobNum,amount,poRef){
     `<p class="note" style="margin:10px 15px">On hand right now: <b>${esc(stockText(it))}</b>${
       type==="count"?". Enter what you actually counted and the difference is recorded for you.":""}</p>
      <div class="fgrid">
-      ${(function(){const per=itemSqft(it);const area=per>0&&/roll|sheet/i.test(it.unit||"")&&type!=="receive";
+      ${(function(){const per=Math.round(itemSqft(it)*100)/100;const area=per>0&&/roll|sheet/i.test(it.unit||"")&&type!=="receive";
         const lab=type==="count"?"Counted quantity":type==="adjust"?"Change by (use a minus sign to reduce)":"Quantity";
         return `<div class="fld"><div class="k">${area?lab+" in square feet":lab}</div>
           <input id="x-qty" type="number" step="any" data-xper="${area?per:0}" value="${esc(type==="receive"?(poLine?Math.max(0,Number(poLine.left)||0):(it.reorderQty||"")):(amount||""))}">${poLine?`<div class="sub" style="margin-top:4px">Against ${esc(poRef)} — ${esc(poLine.left)} still to come.</div>`:""}
@@ -2733,11 +2771,11 @@ function poModal(){const vs=vendorList();S.poLines=S.poLines||[{itemId:"",qty:""
   const priceOf=(iid)=>{const it=S.items.get(iid);if(!it)return "";const r=itemVendors(it).find(v=>v.vendorId===vid);return r&&Number(r.cost)>0?String(r.cost):""};
   openModal(mshell("New purchase order","job",
     `<div class="fgrid">${sel("po-vend","Vendor",vid,vs.map(v=>({v:v.id,l:v.name})),1)}${inp("po-exp","Expected",S.poExp||"","date")}</div>
-     <table><thead><tr><th>Item</th><th style="width:90px">Qty</th><th style="width:110px">Price each</th><th style="width:40px"></th></tr></thead><tbody>
+     <table class="potbl"><thead><tr><th>Item</th><th style="width:90px">Qty</th><th style="width:110px">Price each</th><th style="width:40px"></th></tr></thead><tbody>
        ${S.poLines.map((l,i)=>`<tr><td><select data-poitem="${i}" style="width:100%"><option value="">— pick an item —</option>${its.map(it=>`<option value="${esc(it.id)}"${l.itemId===it.id?" selected":""}>${esc(it.name)}${itemVendors(it).some(v=>v.vendorId===vid)?"":" (not linked to this vendor)"}</option>`).join("")}</select></td>
          <td><input data-poqty="${i}" type="number" step="any" value="${esc(l.qty)}" style="width:80px"></td>
          <td><input data-poprice="${i}" type="number" step="any" value="${esc(l.price||priceOf(l.itemId))}" style="width:100px"></td>
-         <td><button class="btn sm" data-podel="${i}" title="Remove">×</button></td></tr>`).join("")}</tbody></table>
+         <td><button class="btn sm" data-podel="${i}" title="Remove this line" aria-label="Remove this line">×</button></td></tr>`).join("")}</tbody></table>
      <div style="padding:8px 15px"><button class="btn sm" data-poadd="1">Add a line</button></div>
      <div class="fgrid">${ta("po-note","Note for the vendor (optional)",S.poNote||"")}</div>`,
     `<button class="btn" data-close="1">Cancel</button><button class="btn" id="po-save">Save</button><button class="btn p" id="po-send">Save and email it</button>`));
@@ -5062,7 +5100,7 @@ function closeoutModal(pid,thenClose){
              <input type="checkbox" data-cna="${ix}" style="width:16px;height:16px;accent-color:var(--slate)">
              Doesn't apply</label>
            <input data-cwhy="${ix}" placeholder="Why not — one line"
-             style="width:100%;margin-top:6px;padding:6px 8px;border:1px solid var(--line);
+             style="width:100%;margin-top:6px;padding:8px 10px;min-height:38px;border:1px solid var(--line);
              border-radius:2px;background:var(--card2);font-size:12.5px">
          </div></div>`).join("")}
      </div>`,
@@ -7315,7 +7353,7 @@ function prepModal(num,thenRelease){
              <input type="checkbox" data-pna="${ix}" style="width:16px;height:16px;accent-color:var(--slate)">
              Doesn't apply to this work order</label>
            <input data-pwhy="${ix}" placeholder="Why not — one line"
-             style="width:100%;margin-top:6px;padding:6px 8px;border:1px solid var(--line);
+             style="width:100%;margin-top:6px;padding:8px 10px;min-height:38px;border:1px solid var(--line);
              border-radius:2px;background:var(--card2);font-size:12.5px">
          </div></div>`).join("")}
      </div>`,
@@ -7551,9 +7589,12 @@ function itemSqft(it){
   if(Number(it.sqftPer))return Number(it.sqftPer);
   let m=nm.match(/(\d+(?:\.\d+)?)\s*(?:in|")?\s*x\s*(\d+(?:\.\d+)?)\s*yd/i);
   if(m)return (+m[1])*(+m[2])*36/144;
-  m=nm.match(/(\d+(?:\.\d+)?)\s*(?:in|")?\s*x\s*(\d+(?:\.\d+)?)\s*(?:in|")?/i);
-  if(m)return (+m[1])*(+m[2])/144;
-  return 0;
+  m=nm.match(/(\d+(?:\.\d+)?)\s*(in|"|ft|')?\s*x\s*(\d+(?:\.\d+)?)\s*(in|"|ft|')?/i);
+  if(!m)return 0;
+  const a=+m[1],b=+m[3],u=(m[2]||m[4]||"").toLowerCase();
+  // "5x10" or "4x8" on a sheet or roll means feet (no sheet is 5 inches); 48x96 and 12x18 are inches
+  if(u==="ft"||u==="'"||(!u&&Math.max(a,b)<=10&&/sheet|roll|board|panel/i.test(nm+" "+(it.unit||""))))return a*b;
+  return a*b/144;
 }
 function lineSqft(j){let sq=0;woItems(j).forEach(x=>{const m=String(x.size||"").match(/(\d+(?:\.\d+)?)\s*[x×]\s*(\d+(?:\.\d+)?)/);
   if(m)sq+=(+m[1])*(+m[2])/144*(Number(x.qty)||0)});return sq}
@@ -9398,7 +9439,7 @@ window.addEventListener("hashchange",()=>{
   if(SET_DIRTY&&S.route&&S.route.v==="settings"&&parseHash().v!=="settings"){
     if(!confirm("You have changes in Settings that aren't saved. Leave without saving?")){history.replaceState(null,"","#/settings");return}}
   SET_DIRTY=false;
-  S.route=parseHash();S.ptab="all";S.czOpen={};S.gsearch="";S.q="";
+  S.route=parseHash();S.ptab="all";S.czOpen={};S.gsearch="";S.q="";S.viewerFile=null;   // going to another page closes an open file
   S.actFilter="";S.fileFilter="";S.showClosed=false;S.showArchive=false;S.noRep=false;S.fuEdit="";S.drEdit="";
   if(S.route.v!=="projects")S.projFollow=false;
   if(S.route.v!=="archive")S.archAcct="";
@@ -9670,6 +9711,8 @@ function decorateTables(){
         const span=Number(td.getAttribute("colspan"))||1;
         if(span===1&&heads[col])td.setAttribute("data-label",heads[col]);
         if(!td.textContent.trim()&&!td.querySelector("input,button,select,a,img"))td.classList.add("stack-empty");
+        // on a phone a quote line skips details that are just a dash (a charge has no size or grade)
+        else if(tb.classList.contains("qlines")&&/^[—–-]$/.test(td.textContent.trim())&&!td.querySelector("input,button,select,a,img"))td.classList.add("stack-dash");
         col+=span;
       });
     });
@@ -10861,7 +10904,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-132";
+const APP_VERSION="2026.11.25-133";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -13695,10 +13738,14 @@ function viewFile(fid){
   if(!f){toast("That file isn't in the list any more — reload the page.");return}
   if(f.deleted){toast("That file is in the recycle bin.");return}
   if(f.link&&!driveId(f.url)){const w=window.open(f.url,"_blank","noopener");if(!w)toast("Your browser blocked the new tab — the link is "+f.url);return}
+  // a history step for the viewer, so the phone's Back (swipe back) closes the file instead of leaving the page
+  if(!S.viewerFile){try{history.pushState(Object.assign({},history.state||{},{sscViewer:1}),"")}catch(e){}}
   S.viewerFile=fid;
   render();
 }
-function closeViewer(){S.viewerFile=null;render()}
+function closeViewer(fromBack){const was=!!S.viewerFile;S.viewerFile=null;render();
+  if(was&&!fromBack&&history.state&&history.state.sscViewer){S._viewerBackSkip=true;try{history.back()}catch(e){S._viewerBackSkip=false}}}
+window.addEventListener("popstate",()=>{if(S._viewerBackSkip){S._viewerBackSkip=false;return}if(S.viewerFile)closeViewer(true)});
 function viewerHTML(){
   const fid=S.viewerFile;if(!fid)return "";
   const f=S.files.get(fid);if(!f||f.deleted)return "";
@@ -13718,7 +13765,7 @@ function viewerHTML(){
     <header>
       <span class="oi sm oi-file">${ic("file",14)}</span><b>${esc(f.name)}</b>
       <span class="pill">${esc(f.cat||"Other")}</span>
-      <span class="sub" style="color:#9BA1A7">${f.link?"saved in Google Drive":bytes(f.size)} · ${esc(f.who==="AI"?"agents":f.who||"")} · ${esc(f.when||"")}</span>
+      <span class="sub" style="color:#9BA1A7">${[f.link?"saved in Google Drive":bytes(f.size),f.who==="AI"?"agents":f.who==="Sign"?"signed online":(f.who||""),f.when||""].filter(Boolean).map(esc).join(" · ")}</span>
       ${p2?`<button class="btn sm" data-vgo="project/${esc(p2.id)}">${esc(p2.name)}</button>`:""}
       ${f.jobId?`<button class="btn sm" data-vgo="job/${esc(f.jobId)}">Work order ${esc(f.jobId)}</button>`:""}
       <span class="sp">
@@ -13760,7 +13807,8 @@ function closeModal(){S.modal=null;S._modalShown=null;const s=$(".scrim"),m=$(".
 function modalA11y(){const m=$(".modal");if(!m)return;m.setAttribute("role","dialog");m.setAttribute("aria-modal","true");
   const h=m.querySelector("h2");if(h){if(!h.id)h.id="mdl-title";m.setAttribute("aria-labelledby",h.id)}
   setTimeout(()=>{const mm=$(".modal");if(!mm||mm.contains(document.activeElement))return;
-    const f=[...mm.querySelectorAll(".body input:not([type=hidden]):not([disabled]),.body select:not([disabled]),.body textarea:not([disabled]),.foot .btn.p,.foot button,button")].find(e=>e.offsetParent);
+    const vis=q=>[...mm.querySelectorAll(q)].find(e=>e.offsetParent);
+    const f=vis(".body input:not([type=hidden]):not([disabled]),.body select:not([disabled]),.body textarea:not([disabled])")||vis(".foot .btn.p")||vis(".foot button")||vis("button");
     if(f)try{f.focus({preventScroll:true})}catch(e){}},80)}
 function modalTabs(){const m=$(".modal");return m?[...m.querySelectorAll('a[href],button:not([disabled]),input:not([type=hidden]):not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')].filter(e=>e.offsetParent||e===document.activeElement):[]}
 function mshell(title,icon,b,f){
@@ -16627,13 +16675,16 @@ async function composeAI(){const C=S._cmp||{};const p=C.pid?proj(C.pid):null;con
   if(b){b.disabled=false;b.innerHTML=ic("email",14)+"Write it with AI"}}
 async function composeAIRemote(){const C=S._cmp||{};const p=C.pid?proj(C.pid):null;const b=$("#cm-ai");
   const ctx=[p?"Project P-"+p.num+" "+p.name+" for "+accName(p.accountId)+", stage "+((SG[p.stage]||{}).label||p.stage)+", value "+money2(projValue(p)):"",
-    p?"Lines: "+linesSummary(p).slice(0,900):"",C.contact?"Writing to "+C.contact.name:"",C.signUrl?"Include this approval link on its own line: "+C.signUrl:"",
+    p?"Lines: "+linesSummary(p).slice(0,900):"",C.contact?"Writing to "+C.contact.name+" — start with \"Hi "+String(C.contact.name||"").trim().split(/\s+/)[0]+",\"":"",C.signUrl?"Include this approval link on its own line: "+C.signUrl:"",
     "From "+((p&&repFor(p))||S.viewerTeam||{}).name+" at "+((S.brand||{}).name||"Street Sign Supply")+", a sign and stencil maker in Washington, Utah"+((S.brand||{}).phone?", phone "+fmtPhone((S.brand||{}).phone):"")].filter(Boolean).join("\n");
-  const id=uid("ai");if(b){b.disabled=true;b.textContent="Writing… (10–30 seconds)"}
-  const done=(msg)=>{if(b){b.disabled=false;b.innerHTML=ic("email",14)+"Write it with AI"}if(msg)toast(msg)};
+  const id=uid("ai");const tS=Date.now();if(b){b.disabled=true;b.textContent="Writing… 0s"}
+  // the button counts the seconds so it's plain it's working; past 40 seconds it says why it can take longer
+  const tick=setInterval(()=>{const bb=$("#cm-ai");if(!bb){clearInterval(tick);return}const n=Math.round((Date.now()-tS)/1000);
+    bb.textContent="Writing… "+n+"s"+(n>40?" — the email helper is busy, still working":"")},1000);
+  const done=(msg)=>{clearInterval(tick);const bb=$("#cm-ai")||b;if(bb){bb.disabled=false;bb.innerHTML=ic("email",14)+"Write it with AI"}if(msg)toast(msg)};
   try{await setDoc("aidraft/"+id,{id,status:"queued",at:Date.now(),byId:meId(),sig:!!mySig(),ask:String(($("#cm-ask")||{}).value||"").slice(0,600),
     subject:String($("#cm-subj").value||"").slice(0,200),draft:String($("#cm-body").value||"").slice(0,2500),ctx:ctx.slice(0,2500)})}catch(e){return done("Couldn't ask for a draft.")}
-  let off=null;const t=setTimeout(()=>{try{off&&off()}catch(e){}done("The AI is slow right now — try again in a minute.")},120000);
+  let off=null;const t=setTimeout(()=>{try{off&&off()}catch(e){}done("The AI didn't answer in 3 minutes — press Write it with AI again.")},180000);
   try{off=db.doc("aidraft/"+id).onSnapshot(sn=>{const d=sn&&sn.exists?(typeof sn.data==="function"?sn.data():sn.data):null;if(!d)return;
     if(d.status==="done"){clearTimeout(t);try{off()}catch(e){}if(!$("#cm-body"))return done();$("#cm-body").value=String(d.body||"");if(d.subject)$("#cm-subj").value=String(d.subject);S.modalTouched=true;done()}
     else if(d.status==="failed"){clearTimeout(t);try{off()}catch(e){}done("The AI couldn't write it: "+String(d.err||"").slice(0,80))}},()=>{})}catch(e){clearTimeout(t);done("Couldn't ask for a draft.")}}
@@ -17499,7 +17550,7 @@ function bind(){
         "Delete",true,()=>delFile(dfx.dataset.delfile));return}
     const vw=t.closest("[data-view]");
     if(vw){const ctl=t.closest("button, a, input, select");if(!ctl||ctl===vw){viewFile(vw.dataset.view);return}}
-    const vg=t.closest("[data-vgo]");if(vg){closeViewer();go(vg.dataset.vgo);return}
+    const vg=t.closest("[data-vgo]");if(vg){closeViewer(true);go(vg.dataset.vgo);return}
     const df=t.closest("[data-delfile]");
     if(df){const f=S.files.get(df.dataset.delfile);
       askConfirm("Delete this file?",
