@@ -11,15 +11,20 @@
   const LINK = "https://ssc-crm-a7224.web.app/sign.html?t=TESTLINK0123456789abcdef";
   const banned = /hope this (email |message )?finds you|delighted|don'?t hesitate|thrilled|i trust this|kindly|reach out at your earliest|\[your name\]|\[name\]|\[company\]/i;
   const draft = async (o, ask, label) => {
+    // whatever the CRM says while it waits (e.g. "The AI couldn't write it: …") is kept, so a failure shows its reason
+    const said = []; const ob = new MutationObserver(() => { const t = document.querySelector(".toast"); if (t && said.indexOf(t.textContent) < 0) said.push(String(t.textContent).replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "<email>").slice(0, 140)); });
+    ob.observe(document.body, { childList: true, subtree: true });
     T.composeModal(o); await new Promise((r) => setTimeout(r, 400));
     const body0 = ($("#cm-body") || {}).value || ""; if ($("#cm-ask")) $("#cm-ask").value = ask || "";
     const t0 = Date.now(); T.composeAIRemote();
-    let b = body0, i = 0; for (; i < 90; i++) { await new Promise((r) => setTimeout(r, 1000)); b = ($("#cm-body") || {}).value || ""; if (b && b !== body0) break; }
+    // done when the button is back (the CRM puts it back when the draft lands or fails), up to 3 minutes
+    let b = body0, i = 0; for (; i < 180; i++) { await new Promise((r) => setTimeout(r, 1000)); b = ($("#cm-body") || {}).value || ""; if (/write it with ai/i.test(($("#cm-ai") || {}).textContent || "") && i > 1) break; }
+    ob.disconnect();
     const subj = ($("#cm-subj") || {}).value || ""; const btn = ($("#cm-ai") || {}).textContent || "";
     const lines = b.trim().split(/\n+/).map((x) => x.trim()).filter(Boolean); const last = lines[lines.length - 1] || "";
     const r = { label, secs: Math.round((Date.now() - t0) / 1000), filled: !!b && b !== body0, subject: !!subj.trim(), words: b.split(/\s+/).filter(Boolean).length,
       noExclaim: b.indexOf("!") < 0, noAIphrases: !banned.test(b), endsThanks: out.sig ? /^thanks,?$/i.test(last) : true, noSigTyped: !/street sign supply.*\n.*\(?\d{3}\)?|\(435\)\s*218/i.test(b),
-      greetsContact: first ? new RegExp("\\b" + first.replace(/[^A-Za-z]/g, ""), "i").test(b) : null, buttonBack: /write it with ai/i.test(btn) };
+      said: said.slice(0, 3), greetsContact: first ? new RegExp("\\b" + first.replace(/[^A-Za-z]/g, ""), "i").test(b) : null, buttonBack: /write it with ai/i.test(btn) };
     if (o.signUrl) r.linkExact = b.indexOf(o.signUrl) >= 0;
     T.closeModal(); return { r, b };
   };

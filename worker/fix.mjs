@@ -75,7 +75,9 @@ await page.addInitScript(() => {
     if (!(name in caps)) { const e = new Error(name + " not available"); e.code = "not_declared"; throw e; } return caps[name]; } };
 });
 // the page must never reload or navigate during a run (a release mid-run used to pull the rug out): say so loudly if it tries
-let loaded = false; page.on("framenavigated", (f) => { if (loaded && f === page.mainFrame()) { errors++; errs.push("the page navigated mid-run — " + String(f.url()).slice(0, 60)); } });
+// (moving between the CRM's own pages only changes the #part of the address — that's fine; loading a different page isn't)
+let loaded = false; const base = (u) => String(u).split("#")[0];
+page.on("framenavigated", (f) => { if (loaded && f === page.mainFrame() && base(f.url()) !== base("file://" + PAGE)) { errors++; errs.push("the page navigated mid-run — " + base(f.url()).slice(0, 60)); } });
 await page.route(/firebase-adapter\.js$/, (r) => r.fulfill({ status: 200, contentType: "text/javascript", body: "" }));
 await page.goto("file://" + PAGE);
 await page.evaluate(() => window.__sscResolve && window.__sscResolve(window.__workerCore));
