@@ -65,7 +65,7 @@ for (const [r, sel] of forms) { await pg.evaluate((r) => { location.hash = "#/" 
 const rows = () => pg.evaluate(() => document.querySelectorAll(".main section.wide tbody tr").length);
 const filt = [["accounts", "select[data-acfilt=type]", "Contractor"], ["accounts", "select[data-acfilt=rep]", "t1"], ["inventory", "select[data-invfilt=cat]", "Substrate"]];
 for (const [r, sel, v] of filt) { await pg.evaluate((r) => { location.hash = "#/" + r; }, r); await pg.waitForTimeout(400); const n0 = await rows();
-  if (!(await pg.$(sel))) { bad.push(r + " " + sel + ": filter missing"); continue; }
+  if (!(await pg.$(sel))) { const why = await pg.evaluate(() => location.hash + " | modal:" + !!document.querySelector(".modal") + " | state:" + JSON.stringify(history.state) + " | " + ((document.querySelector(".main") || {}).innerText || "").replace(/\s+/g, " ").slice(0, 160) + " | selects:" + [...document.querySelectorAll(".main select")].map((x) => Object.keys(x.dataset).join("/")).join(",")); bad.push(r + " " + sel + ": filter missing (" + why + ")"); continue; }
   await pg.selectOption(sel, v); await pg.waitForTimeout(400); const n1 = await rows(); if (!(n1 < n0)) bad.push(r + " " + sel + ": filter didn't change the list (" + n0 + " → " + n1 + ")");
   await pg.selectOption(sel, ""); await pg.waitForTimeout(300); }
 for (const [r, sel] of [["contacts", "[data-ctfilt=noemail]"], ["inventory", "button[data-invfilt=stock][data-v=zero]"]]) { await pg.evaluate((r) => { location.hash = "#/" + r; }, r); await pg.waitForTimeout(400);
