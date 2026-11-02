@@ -146,7 +146,8 @@ if (STEP === "review") {
   result = await page.evaluate(() => { const T = window.__T; const L = T.reviewQuotes();
     const all = [...T.S.projects.values()].filter((p) => !p.deleted && /^20(3[0-9]|4[0-9])$/.test(String(p.num)));
     const VL = T.vendorLookalikes ? T.vendorLookalikes() : [];
-    return { vendorLookalikes: VL.length, vendorsMatched: new Set(VL.map((x) => x.v.id)).size, vendorsTotal: [...T.S.vendors.values()].filter((v) => !v.deleted).length, onList: L.map((x) => ({ p: "P-" + x.p.num, stage: x.p.stage, stalePdf: x.stale, recipients: T.reviewTo(x.p).length, makerIsTeam: !!x.maker })),
+    const VM = T.vendorMaybes ? T.vendorMaybes() : [];
+    return { vendorMaybes: VM.length, vendorMaybeByName: VM.filter((x) => x.v).length, vendorLookalikes: VL.length, vendorsMatched: new Set(VL.map((x) => x.v.id)).size, vendorsTotal: [...T.S.vendors.values()].filter((v) => !v.deleted).length, onList: L.map((x) => ({ p: "P-" + x.p.num, stage: x.p.stage, stalePdf: x.stale, recipients: T.reviewTo(x.p).length, makerIsTeam: !!x.maker })),
       recentQuotes: all.map((p) => { const f = T.projFiles(p.id).filter((x) => !x.deleted && x.gen === "quote"); return { p: "P-" + p.num, stage: p.stage, pdfs: f.length, pdfCurrent: f.some((x) => x.qhash === T.quoteHash(p)), byOwner: f.some((x) => { const t = x.byId && T.S.team.get(x.byId); return !!t && T.teamRole(t) === "owner"; }), approved: !!(p.quoteApproval && p.quoteApproval.v === 2 && p.quoteApproval.hash === T.quoteHash(p)) }; }) }; });
   step("review list read");
 }
