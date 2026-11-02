@@ -1,5 +1,10 @@
 # What changed
 
+## 2026.11.25-134 (Write it with AI: fast and with a working backup)
+- Live tests of -133 showed Google's Gemini sometimes took 75–110 seconds a draft (the worker tried its slow "thinking" models first) and the backup service's answers weren't being read. Now the quick Gemini models go first (about 1 second a draft), every AI call gives up after 25 seconds and the next is tried, several drafts are written at the same time, the backup (GitHub's free models) is read correctly, and every failure's full reason is logged.
+- With nothing typed in "What should it say?", a draft that's already there (a template) is rewritten in natural wording instead of handed back unchanged.
+- The AI check now also proves the backup service writes a draft.
+
 ## 2026.11.25-133 (Matt's phone: AI email, quote lines, closing pictures — plus a full phone sweep)
 From Matt's iPhone screenshots, then every window and page re-tested at iPhone size (61 windows, light and dark):
 - **Write it with AI works reliably.** The email worker only looked for draft requests between its passes (a pass that read Gmail could take minutes), so the window gave up at 2 minutes. Drafts are now picked up every 3 seconds the whole time the worker runs; if Google's free Gemini is over its allowance, GitHub's free AI models write the draft instead (no key, no bill). Live test: 6 of 6 drafts came back. The button counts the seconds ("Writing… 14s"), waits up to 3 minutes, and drafts greet the person by first name.

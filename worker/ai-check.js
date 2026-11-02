@@ -40,5 +40,8 @@
   out.runs.push(e.r); out.keptMeaning = /double/i.test(e.b) && /single/i.test(e.b) && /friday/i.test(e.b);
   const f = await draft({ pid: p.id, contactId: ct && ct.id, subject: "Proof ready", body: "" }, "the proof is ready, ask them to check spelling and mounting holes before we make the signs", "6 proof wording");
   out.runs.push(f.r); out.proofTopics = /spell/i.test(f.b) && /(hole|mount)/i.test(f.b);
+  // the backup AI (GitHub's free models) — used when Google's Gemini is over its allowance or down
+  S._aiVia = "github"; const g = await draft({ pid: p.id, contactId: ct && ct.id, subject: "Your quote", body: "" }, "tell them the quote is ready and ask if they want to go ahead", "7 backup AI service"); S._aiVia = "";
+  out.runs.push(g.r);
   return out;
 })

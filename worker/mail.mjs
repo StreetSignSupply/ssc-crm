@@ -450,7 +450,9 @@ async function aiDrafts() {
       globalThis.__gm429 = globalThis.__gm429 || {};
       const gmTry = (globalThis.__gmList || ["gemini-flash-latest", "gemini-2.5-flash"]).filter((m) => !(Date.now() < (globalThis.__gm429[m] || 0))).slice(0, 3);
       if (gk && !gmTry.length) err = "Google's free AI allowance is used up for now — try again in a few minutes";
-      if (gk) for (const gm of gmTry) {
+      // the AI check (made-up "fix-run" person only) can ask for the backup service, to prove it works
+      const backupTest = r.via === "github" && r.byId === "fix-run";
+      if (gk && !backupTest) for (const gm of gmTry) {
         try {
           const x = await fetchT("https://generativelanguage.googleapis.com/v1beta/models/" + gm + ":generateContent", { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": gk },
             body: JSON.stringify({ systemInstruction: { parts: [{ text: msgs[0].content }] }, contents: [{ role: "user", parts: [{ text: msgs[1].content }] }], generationConfig: { temperature: 0.5, maxOutputTokens: 1200, responseMimeType: "application/json" } }) });
@@ -473,7 +475,8 @@ async function aiDrafts() {
           const raw = await x.text().catch(() => ""); let j = {}; try { j = JSON.parse(raw); } catch (e) {}
           if (x.status === 429) { globalThis.__gh429 = globalThis.__gh429 || {}; globalThis.__gh429[gm] = Date.now() + 600000; }
           if (!x.ok) { errs.push("github " + gm + " " + x.status + " " + String((j.error || {}).message || j.message || raw).replace(/\s+/g, " ").slice(0, 90)); err = errs.join(" | "); continue; }
-          const t = String(((((j.choices || [])[0] || {}).message || {}).content) || "").trim(); if (!t) { errs.push(gm + " sent back nothing (" + String(((j.choices || [])[0] || {}).finish_reason || "") + ")"); err = errs.join(" | "); continue; }
+          // the service can answer as JSON (choices[0].message.content) or as the plain text of the reply — both are read
+          const t = String(((((j.choices || [])[0] || {}).message || {}).content) || (j && j.choices ? "" : raw) || "").trim(); if (!t) { errs.push(gm + " sent back nothing (" + String(((j.choices || [])[0] || {}).finish_reason || "") + ")"); err = errs.join(" | "); continue; }
           const pk = pick(t); if (!pk || !String(pk.body || "").trim()) { errs.push(gm + " didn't send back an email"); err = errs.join(" | "); continue; }
           o = pk; via = "github " + gm; break;
         } catch (e) { errs.push(gm + " " + (e.name === "AbortError" ? "took over 25s" : String(e.message || e).slice(0, 80))); err = errs.join(" | "); } }
@@ -496,8 +499,8 @@ if (LOOP_MIN) (async () => { if (!GH) return say("AI backup check: no GitHub tok
   for (const m of ["openai/gpt-4.1-mini", "openai/gpt-4o-mini", "meta/llama-3.3-70b-instruct"]) { try {
     const x = await fetchT("https://models.github.ai/inference/chat/completions", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + GH, Accept: "application/vnd.github+json" },
       body: JSON.stringify({ model: m, messages: [{ role: "user", content: "Reply with the word OK" }], max_tokens: 10 }) });
-    const raw = await x.text().catch(() => ""); let j = {}; try { j = JSON.parse(raw); } catch (e) {} const c = String(((((j.choices || [])[0] || {}).message || {}).content) || "").trim();
-    say("AI backup check: " + m + " → " + x.status + (c ? " answered" : " no answer — " + (x.headers.get("content-type") || "") + " " + raw.replace(/\s+/g, " ").slice(0, 220)));
+    const raw = await x.text().catch(() => ""); let j = {}; try { j = JSON.parse(raw); } catch (e) {} const c = String(((((j.choices || [])[0] || {}).message || {}).content) || (j && j.choices ? "" : raw) || "").trim();
+    say("AI backup check: " + m + " → " + x.status + (c ? " answered" : " no answer — " + raw.replace(/\s+/g, " ").slice(0, 120)));
   } catch (e) { say("AI backup check: " + m + " → " + (e.name === "AbortError" ? "over 25s" : String(e.message || e).slice(0, 60))); } } })();
 let aiBusy = false; const aiTimer = LOOP_MIN ? setInterval(async () => { if (aiBusy) return; aiBusy = true; try { await aiDrafts(); } catch (e) {} aiBusy = false; }, 3000) : null;
 do {
