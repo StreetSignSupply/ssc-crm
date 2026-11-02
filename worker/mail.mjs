@@ -413,7 +413,9 @@ async function aiDrafts() {
   let k = 0;
   const q = (await docsOf("aiq", fs.collection("aidraft").where("status", "==", "queued"))).slice(0, 5);
   aiDrafts.done = aiDrafts.done || new Set();
-  for (const d of q) { if (aiDrafts.done.has(d.id)) continue; aiDrafts.done.add(d.id); const r = d.data(); k++;
+  for (const d of q) { if (aiDrafts.done.has(d.id)) continue; aiDrafts.done.add(d.id); const r = d.data(); k++; const tA = Date.now();
+    // the email window stops waiting after 2 minutes — an older request is closed instead of spending the free allowance on it
+    if (Date.now() - (Number(r.at) || 0) > 3 * 60000) { await d.ref.set({ status: "failed", err: "asked too long ago", doneAt: Date.now() }, { merge: true }); say("AI draft: skipped one asked over 3 minutes ago"); continue; }
     try {
       const RULES = "Write a short, plain business email a real person at a small sign shop would send — friendly, direct, no hype, no exclamation marks, no AI-sounding phrases (no 'I hope this finds you well', no 'delighted', no 'don't hesitate'). "
         + (r.sig ? "End with just \"Thanks,\" on its own line — the sender's email signature (name, company, phone) is added automatically, so don't write them." : "Sign off with the sender's first name and the company.")
@@ -455,10 +457,26 @@ async function aiDrafts() {
           const pk = pick(t); if (!pk || pk.body === t) { err = gm + " didn't send back an email"; continue; }
           o = pk; break;
         } catch (e) { err = gm + " " + String(e.message || e).slice(0, 80); } }
-      if (!o && !gk) err = "no Gemini key — add the free key in Settings → Write it with AI";
+      // GitHub's free AI models next (the workflow's own token, no key, no bill) — used when Gemini has no key, is over its
+      // free allowance, or fails, so a draft still comes back
+      let via = o ? "gemini" : "";
+      if (!o && GH) for (const gm of ["openai/gpt-4.1-mini", "openai/gpt-4o-mini", "meta/llama-3.3-70b-instruct"]) {
+        if (Date.now() < ((globalThis.__gh429 || {})[gm] || 0)) continue;
+        try {
+          const x = await fetch("https://models.github.ai/inference/chat/completions", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + GH, Accept: "application/vnd.github+json" },
+            body: JSON.stringify(Object.assign({ model: gm, messages: msgs, temperature: 0.5, max_tokens: 1200 }, /^openai\//.test(gm) ? { response_format: { type: "json_object" } } : {})) });
+          const raw = await x.text().catch(() => ""); let j = {}; try { j = JSON.parse(raw); } catch (e) {}
+          if (x.status === 429) { globalThis.__gh429 = globalThis.__gh429 || {}; globalThis.__gh429[gm] = Date.now() + 600000; }
+          if (!x.ok) { errs.push("github " + gm + " " + x.status); err = errs.join(" | "); continue; }
+          const t = String(((((j.choices || [])[0] || {}).message || {}).content) || "").trim(); if (!t) { err = gm + " sent back nothing"; continue; }
+          const pk = pick(t); if (!pk || !String(pk.body || "").trim()) { err = gm + " didn't send back an email"; continue; }
+          o = pk; via = "github " + gm; break;
+        } catch (e) { err = gm + " " + String(e.message || e).slice(0, 80); } }
+      if (!o && !gk && !GH) err = "no Gemini key — add the free key in Settings → Write it with AI";
       if (!o) throw new Error(err || "no answer");
+      say("AI draft: done in " + Math.round((Date.now() - tA) / 1000) + "s via " + (via || "gemini"));
       await d.ref.set({ status: "done", subject: String(o.subject || r.subject || "").slice(0, 200), body: String(o.body).slice(0, 5000), doneAt: Date.now() }, { merge: true }); n.ai = (n.ai || 0) + 1;
-    } catch (e) { await d.ref.set({ status: "failed", err: String(e.message || e).slice(0, 160), doneAt: Date.now() }, { merge: true }); n.aiErr = (n.aiErr || 0) + 1; }
+    } catch (e) { await d.ref.set({ status: "failed", err: String(e.message || e).slice(0, 160), doneAt: Date.now() }, { merge: true }); n.aiErr = (n.aiErr || 0) + 1; say("AI draft failed: " + String(e.message || e).slice(0, 200)); }
   }
   return k;
 }
@@ -467,9 +485,12 @@ async function waitAndDraft(ms) { const end = Date.now() + ms; while (Date.now()
 // one job runs for most of a day's quarter: every minute it sends what's queued and follows up signatures, and every
 // 10 minutes it reads Gmail — so an email goes out within about a minute of pressing Send (the schedule starts the next one)
 const LOOP_MIN = Number(process.env.LOOP_MIN) || 0, t0 = Date.now(); let pass = 0;
+// AI drafts don't wait for a pass to finish: they're checked every 3 seconds the whole time the worker runs
+let aiBusy = false; const aiTimer = LOOP_MIN ? setInterval(async () => { if (aiBusy) return; aiBusy = true; try { await aiDrafts(); } catch (e) {} aiBusy = false; }, 3000) : null;
 do {
   try { await signFollow(); if (pass % 5 === 0) await taskMail().catch((e) => say("task mail: " + String(e.message || e).slice(0, 100))); await sendQueued(); if (pass % 3 === 0) await verifyFiles().catch((e) => say("file check: " + String(e.message || e).slice(0, 80))); if (pass % 10 === 0) await logGmail(); } catch (e) { say("pass error: " + String(e.message || e).replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "<email>").slice(0, 140)); }
   pass++;
-  if (LOOP_MIN && Date.now() - t0 < LOOP_MIN * 60000) await waitAndDraft(60000); else await aiDrafts().catch(() => {});
+  if (LOOP_MIN && Date.now() - t0 < LOOP_MIN * 60000) await new Promise((r) => setTimeout(r, 60000)); else await aiDrafts().catch(() => {});
 } while (LOOP_MIN && Date.now() - t0 < LOOP_MIN * 60000);
+if (aiTimer) clearInterval(aiTimer);
 note("mail: " + pass + " passes — " + n.sent + " sent, " + n.failed + " didn't send, " + n.logged + " customer emails logged" + (n.userErr ? " (" + n.userErr + " inbox reads failed: " + JSON.stringify(errKinds) + ")" : "") + ", " + n.signs + " signature updates, " + (n.digest || 0) + " task digests, " + (n.overdue || 0) + " overdue notices, " + (n.ai || 0) + " AI drafts" + (n.aiErr ? " (" + n.aiErr + " failed)" : "") + ", " + (n.sigs || 0) + " Gmail signatures found");
