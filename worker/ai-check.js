@@ -23,7 +23,7 @@
     const subj = ($("#cm-subj") || {}).value || ""; const btn = ($("#cm-ai") || {}).textContent || "";
     const lines = b.trim().split(/\n+/).map((x) => x.trim()).filter(Boolean); const last = lines[lines.length - 1] || "";
     const r = { label, secs: Math.round((Date.now() - t0) / 1000), filled: !!b && b !== body0, subject: !!subj.trim(), words: b.split(/\s+/).filter(Boolean).length,
-      noExclaim: b.indexOf("!") < 0, noAIphrases: !banned.test(b), endsThanks: out.sig ? /^thanks,?$/i.test(last) : true, noSigTyped: !/street sign supply.*\n.*\(?\d{3}\)?|\(435\)\s*218/i.test(b),
+      noExclaim: b.indexOf("!") < 0, noAIphrases: !banned.test(b), endsThanks: out.sig ? /^thanks,?$/i.test(last) : true, noSigTyped: !out.sig || !/street sign supply.*\n.*\(?\d{3}\)?|\(435\)\s*218/i.test(b),
       said: said.slice(0, 3), greetsContact: first ? new RegExp("\\b" + first.replace(/[^A-Za-z]/g, ""), "i").test(b) : null, buttonBack: /write it with ai/i.test(btn) };
     if (o.signUrl) r.linkExact = b.indexOf(o.signUrl) >= 0;
     T.closeModal(); return { r, b };
