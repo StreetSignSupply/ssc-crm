@@ -1,10 +1,10 @@
-// Write it with AI — full test through the CRM's own email window and code (Matt, 1 Nov). Six drafts on a real quoted
+// Write it with AI — full test through the CRM's own email window and code. Run with FIX_STEP=aitest (never by "apply"). Six drafts on a real quoted
 // project, each checked against what the feature promises. Prints only pass/fail and counts — never names or text.
 (async (T) => {
   const S = T.S, $ = (q) => document.querySelector(q), out = { runs: [] };
-  // act as Matt in memory only (so his Gmail signature rule applies) — nothing is saved
-  const matt = [...S.team.values()].find((t) => !t.deleted && /^matt@/i.test(t.email || ""));
-  if (matt) S.viewerTeam = matt; out.sig = !!T.mySig(); out.sendOn = !!T.mailSendOn();
+  // runs as a made-up "CRM test" person held in memory — never as Matt or anyone on the team; nothing is saved but the
+  // AI draft requests themselves (tagged fix-run)
+  S.viewerTeam = { id: "fix-run", name: "CRM test", initials: "FIX", email: "", mailSig: "" }; out.sig = !!T.mySig(); out.sendOn = !!T.mailSendOn();
   const p = [...S.projects.values()].filter((x) => !x.deleted && ["quoted", "inquiry"].indexOf(x.stage) >= 0 && (x.orderLines || []).length && (x.contacts || []).length).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))[0];
   if (!p) return "no quoted project with a contact";
   const ct = S.contacts.get(p.contacts[0]); const first = String((ct && ct.name) || "").trim().split(/\s+/)[0];
@@ -18,7 +18,7 @@
     const subj = ($("#cm-subj") || {}).value || ""; const btn = ($("#cm-ai") || {}).textContent || "";
     const lines = b.trim().split(/\n+/).map((x) => x.trim()).filter(Boolean); const last = lines[lines.length - 1] || "";
     const r = { label, secs: Math.round((Date.now() - t0) / 1000), filled: !!b && b !== body0, subject: !!subj.trim(), words: b.split(/\s+/).filter(Boolean).length,
-      noExclaim: b.indexOf("!") < 0, noAIphrases: !banned.test(b), endsThanks: /^thanks,?$/i.test(last), noSigTyped: !/street sign supply.*\n.*\(?\d{3}\)?|\(435\)\s*218/i.test(b),
+      noExclaim: b.indexOf("!") < 0, noAIphrases: !banned.test(b), endsThanks: out.sig ? /^thanks,?$/i.test(last) : true, noSigTyped: !/street sign supply.*\n.*\(?\d{3}\)?|\(435\)\s*218/i.test(b),
       greetsContact: first ? new RegExp("\\b" + first.replace(/[^A-Za-z]/g, ""), "i").test(b) : null, buttonBack: /write it with ai/i.test(btn) };
     if (o.signUrl) r.linkExact = b.indexOf(o.signUrl) >= 0;
     T.closeModal(); return { r, b };

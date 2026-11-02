@@ -84,7 +84,14 @@ await page.waitForTimeout(20000);   // let every collection arrive
 loaded = true;
 step("CRM loaded");
 let result = {};
-if (STEP === "apply") {
+// FIX_STEP=aitest -> the Write it with AI check (ai-check.js): read-only apart from the AI draft requests it makes
+if (STEP === "aitest") {
+  const code = fsys.readFileSync(path.resolve(here, "ai-check.js"), "utf8");
+  result = await page.evaluate(async (src) => { try { return await (0, eval)(src)(window.__T); } catch (e) { return { error: String(e && e.message || e).slice(0, 200) }; } }, code);
+  step("AI check done");
+}
+if (STEP === "apply" && !fsys.existsSync(path.resolve(here, "fixes.js"))) { result = { skipped: "no fixes.js — nothing to apply" }; step("nothing to apply"); }
+else if (STEP === "apply") {
   const code = fsys.readFileSync(path.resolve(here, "fixes.js"), "utf8");
   // a fixes.js that already ran is never run again (the CRM keeps the fingerprint of each one it ran)
   const crypto = await import("node:crypto");

@@ -59,7 +59,16 @@ const forms = [["purchasing", "[data-ponew]"], ["purchasing", "[data-porecv]"], 
 for (const [r, sel] of forms) { await pg.evaluate((r) => { location.hash = "#/" + r; }, r); await pg.waitForTimeout(400); const before = errs.length;
   const el = await pg.$(sel); if (el) { await el.click().catch(() => {}); await pg.waitForTimeout(400); if (!(await pg.$(".modal"))) bad.push(r + " " + sel + ": form didn't open"); await pg.keyboard.press("Escape"); }
   if (errs.length > before) bad.push(r + " " + sel + ": " + errs.slice(before).join(" | ")); }
+// list filters must actually filter (a release once dropped the Accounts filter handler and nothing reacted)
+const rows = () => pg.evaluate(() => document.querySelectorAll(".main section.wide tbody tr").length);
+const filt = [["accounts", "select[data-acfilt=type]", "Contractor"], ["accounts", "select[data-acfilt=rep]", "t1"], ["inventory", "select[data-invfilt=cat]", "Substrate"]];
+for (const [r, sel, v] of filt) { await pg.evaluate((r) => { location.hash = "#/" + r; }, r); await pg.waitForTimeout(400); const n0 = await rows();
+  if (!(await pg.$(sel))) { bad.push(r + " " + sel + ": filter missing"); continue; }
+  await pg.selectOption(sel, v); await pg.waitForTimeout(400); const n1 = await rows(); if (!(n1 < n0)) bad.push(r + " " + sel + ": filter didn't change the list (" + n0 + " → " + n1 + ")"); }
+for (const [r, sel] of [["contacts", "[data-ctfilt=noemail]"], ["inventory", "button[data-invfilt=stock][data-v=zero]"]]) { await pg.evaluate((r) => { location.hash = "#/" + r; }, r); await pg.waitForTimeout(400);
+  const el = await pg.$(sel); if (!el) { bad.push(r + " " + sel + ": filter missing"); continue; } await el.click(); await pg.waitForTimeout(300);
+  if (!(await pg.$(sel + ".p"))) bad.push(r + " " + sel + ": filter button didn't react"); }
 const ver = await pg.evaluate(() => { const m = document.documentElement.innerHTML.match(/APP_VERSION="([^"]+)"/); return m ? m[1] : ""; });
 await browser.close(); fs.unlinkSync(PAGE);
 if (bad.length) { console.log("::error::release check failed: " + bad.slice(0, 8).join(" || ")); process.exit(1); }
-console.log("::notice::release check passed: " + ROUTES.length + " pages and " + forms.length + " forms, no errors");
+console.log("::notice::release check passed: " + ROUTES.length + " pages, " + forms.length + " forms and " + (filt.length + 2) + " list filters, no errors");

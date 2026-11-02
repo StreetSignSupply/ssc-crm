@@ -1,5 +1,14 @@
 # What changed
 
+## 2026.11.25-122
+- **Accounts filters work again** (-120 dropped the code that made them react). The release check now tries the Accounts, Contacts and Inventory filters and fails the release if a list doesn't change.
+- **Quote approval:** a quote is recognised by where the file came from (the CRM-made quote PDF, a file filed as Quote or Signed quote, or a signing link for the quote), not just its name — the CRM and the mail worker both check. The approval fingerprint now also covers the scope printed on the quote, the customer's terms and the quote terms/days, and the approval covers the exact PDF and attachments: a different file means it isn't approved.
+- **Close-out:** a project can't close — override or not — until the quote PDF, the PO or signed quote, and the invoice are in its Files.
+- **One past-due count** (pastDue) feeds the dashboard, banner, tracker, calendar and menu badge.
+- **Real links:** tracker rows, board cards and the record links in list tables open with right-click / new tab.
+- **Inventory:** placeholder reorder points are flagged on each item; Set reorder points fills in suggestions from the last 90 days' pulls.
+- **The AI check** (worker/ai-check.js) runs as a made-up "CRM test" person in memory, never as Matt, and only with FIX_STEP=aitest; worker/fixes.js is gone (an "apply" run with no fixes.js does nothing).
+
 ## 2026.11.25-121
 - Emails a rep sent under -119 that the database turned away (they show "waiting for the owner's OK" but never reached the send queue) now say so in Matt's review, with Clear it — the rep sends them again.
 

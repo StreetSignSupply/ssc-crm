@@ -3,7 +3,7 @@ name: CRM fixes (run by hand only)
 on:
   workflow_dispatch:
     inputs:
-      step: { description: "sync or apply", default: "sync" }
+      step: { description: "sync, apply, aitest (the Write it with AI check), qb or stencils", default: "sync" }
 permissions:
   contents: read
   id-token: write

@@ -126,9 +126,9 @@ const ACC = new Map();
 async function accOf(k) { k = String(k || "").toLowerCase(); if (!k) return null; const c = ACC.get(k); if (c && Date.now() - c.at < 10 * 60000) return c.d;
   const d = (await fs.doc("access/" + k).get()).data() || null; ACC.set(k, { d, at: Date.now() }); return d; }
 // the quote's fingerprint — the same as quoteHash() in the CRM (next/index.html); keep the two in step
-function quoteHash(p) { if (!p) return ""; const nv = (x) => { const t = String(x == null ? "" : x).replace(/[$,\s]/g, ""); return t !== "" && isFinite(Number(t)) ? String(Number(t)) : String(x == null ? "" : x).trim(); };
+function quoteHash(p, a, b) { a = a || {}; b = b || {}; if (!p) return ""; const nv = (x) => { const t = String(x == null ? "" : x).replace(/[$,\s]/g, ""); return t !== "" && isFinite(Number(t)) ? String(Number(t)) : String(x == null ? "" : x).trim(); };
   const L = (p.orderLines || []).filter((l) => l).map((l) => [l.code, l.desc, l.size, l.grade, l.build, nv(l.qty), nv(l.price), l.lam === true, l.charge || ""].map((x) => String(x == null ? "" : x)));
-  const s = JSON.stringify([String(p.quote || ""), String(p.accountId || ""), L]); let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return "q" + (h >>> 0).toString(36); }
+  const s = JSON.stringify([String(p.quote || ""), String(p.accountId || ""), L, String(p.custScope || "").trim(), String(a.terms || ""), String(b.quoteNote || "").trim(), String(b.quoteDays || "")]); let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return "q" + (h >>> 0).toString(36); }
 const isOwnerT = (t) => !!t && !t.deleted && (t.access === "owner");
 const MAX_RECIP = 6;
 // what to do with a customer email: "send", "wait" (a quote waiting for the owner's OK) or a reason it can't go
@@ -143,14 +143,25 @@ async function mailCheck(d, m, from, to, cc) {
   const pd = pid ? projects.find((x) => x.id === String(pid)) : null; const p = pd ? pd.data() : null;
   // a dry run / test project never emails anyone outside
   if (p && (p.internal || p.sample || /\bTEST\b/.test(String(p.name || "")) || /dry ?run|do not submit|do not send|internal test/i.test([p.name, p.scope, p.notes].join(" ")))) return "the project is marked dry run / test";
-  if (!m.quote) return "send";
+  // is it the quote? the client says so, but the worker checks for itself: a CRM-made quote PDF, a file filed as the quote,
+  // or a signing link for the quote — whatever the file is called
+  let isQ = !!m.quote;
+  if (!isQ) isQ = (m.attachments || []).some((x) => x && (x.gen === "quote" || /^(Quote|Signed quote)$/.test(x.cat || "") || /quote/i.test(x.name || "")));
+  if (!isQ && m.signId) { const sr = (await fs.doc("signreq/" + m.signId).get()).data() || {}; isQ = sr.kind !== "proof"; }
+  if (!isQ) return "send";
+  if (!m.quote) return isOwnerT(writer) ? "send" : "a quote has to be sent from the CRM's email window so Matt can approve it — send it again";
   if (!p) return "the quote's project is gone";
   if (p.quoteRejected && p.quoteRejected.mailId === d.id) return "Matt didn't approve it" + (p.quoteRejected.why ? ": " + String(p.quoteRejected.why).slice(0, 80) : "");
-  const cur = quoteHash(p);
-  if (m.quote.hash !== cur) return "the quote changed after this email was written — send it again";
-  if (isOwnerT(writer)) return "send";
+  const accts = await docsOf("all_accounts", fs.collection("accounts")); const ad = accts.find((x) => x.id === String(p.accountId || ""));
+  if (!quoteHash.brandAt || Date.now() - quoteHash.brandAt > 5 * 60000) { quoteHash.brand = (await fs.doc("settings/brand").get()).data() || {}; quoteHash.brandAt = Date.now(); }
+  const cur = quoteHash(p, ad ? ad.data() : {}, quoteHash.brand);
+  if (isOwnerT(writer)) return m.quote.hash === cur ? "send" : "the quote changed after this email was written — send it again";
+  // a quote that changed after it was written waits — Matt's review shows it can't be approved and he turns it down
+  if (m.quote.hash !== cur) return "wait";
   const ap = p.quoteApproval; const okP = new Set(((ap && ap.to) || []).concat((ap && ap.cc) || []).map((x) => String(x).toLowerCase()));
-  if (ap && ap.hash === cur && isOwnerT(team.find((t) => t.id === ap.byId)) && to.concat(cc).every((x) => okP.has(String(x).toLowerCase()))) return "send";
+  const okA = new Set((ap && ap.atts) || []);
+  if (ap && ap.hash === cur && isOwnerT(team.find((t) => t.id === ap.byId)) && to.concat(cc).every((x) => okP.has(String(x).toLowerCase()))
+      && (m.attachments || []).every((x) => okA.has(x.url))) return "send";
   return "wait"; }
 async function sendQueued() {
   const queued = (await docsOf("mailq", fs.collection("mail").where("status", "==", "queued"))).slice(0, 40)
