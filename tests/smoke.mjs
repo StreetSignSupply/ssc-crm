@@ -80,7 +80,10 @@ for (const r of ROUTES) { await pg.evaluate((r) => { location.hash = "#/" + r; }
 // text must be readable in light and dark mode (WCAG AA contrast), and anything clickable must be reachable with the keyboard
 const contrastBad = () => { const parse = (c) => { const k = c.match(/color\(srgb ([^)]+)\)/); if (k) { const p = k[1].split(/[ \/]+/).filter(Boolean).map(Number); return [p[0] * 255, p[1] * 255, p[2] * 255, p[3] === undefined ? 1 : p[3]]; } const m = c.match(/rgba?\(([^)]+)\)/); if (!m) return null; const p = m[1].split(/[ ,\/]+/).filter(Boolean).map(Number); return [p[0], p[1], p[2], p[3] === undefined ? 1 : p[3]]; };
   const lum = (c) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
-  const bgOf = (e) => { const layers = []; for (let n = e; n && n.nodeType === 1; n = n.parentElement) { const c = parse(getComputedStyle(n).backgroundColor); if (c && c[3] > 0) { layers.push(c); if (c[3] >= 1) break; } }
+  const bgOf = (e) => { const layers = []; for (let n = e; n && n.nodeType === 1; n = n.parentElement) { const cs = getComputedStyle(n); let c = parse(cs.backgroundColor);
+      // a gradient background counts as its first colour (dark headers are drawn that way)
+      if ((!c || c[3] === 0) && /gradient/.test(cs.backgroundImage)) { const g = cs.backgroundImage.match(/rgba?\([^)]+\)|color\(srgb[^)]+\)/); if (g) c = parse(g[0]); }
+      if (c && c[3] > 0) { layers.push(c); if (c[3] >= 1) break; } }
     let base = [255, 255, 255]; if (!layers.length || layers[layers.length - 1][3] < 1) { const b = parse(getComputedStyle(document.body).backgroundColor); if (b) base = b.slice(0, 3); }
     for (let i = layers.length - 1; i >= 0; i--) { const c = layers[i]; base = [0, 1, 2].map((k) => c[k] * c[3] + base[k] * (1 - c[3])); } return base; };
   const out = [];
@@ -120,6 +123,28 @@ for (const r of ROUTES) { await pg.evaluate((r) => { location.hash = "#/" + r; }
 await pg.setViewportSize({ width: 390, height: 844 });
 for (const r of ROUTES) { await pg.evaluate((r) => { location.hash = "#/" + r; }, r); await pg.waitForTimeout(r === "stencils" ? 1500 : 350);
   if (await pg.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 2)) bad.push(r + ": wider than a phone screen"); }
+// phone: windows have thumb-sized controls (the ×, boxes, dropdowns, buttons)
+for (const [r, sel] of [["accounts", "[data-new='account']"], ["project/p1", "[data-ordadd]"], ["purchasing", "[data-ponew]"]]) {
+  await pg.evaluate((r) => { location.hash = "#/" + r; }, r); await pg.waitForTimeout(400);
+  if (!(await pg.evaluate((sel) => { const b = document.querySelector(sel); if (!b) return false; b.click(); return true; }, sel))) { bad.push(r + " " + sel + ": button missing on a phone"); continue; } await pg.waitForTimeout(400);
+  const t = await pg.evaluate(() => { const d = document.querySelector(".modal .mbox"); if (!d) return null; return [...d.querySelectorAll("button, input:not([type=checkbox]):not([type=radio]):not([type=hidden]), select")].filter((e) => { const b = e.getBoundingClientRect(); return b.width && b.height && b.height < 32; }).map((e) => (e.getAttribute("aria-label") || e.innerText || e.placeholder || e.tagName).trim().slice(0, 20)); });
+  if (!t) bad.push(r + " " + sel + ": window didn't open on a phone"); else if (t.length) bad.push(r + " window on a phone: too small to tap — " + t.slice(0, 3).join(", "));
+  await pg.evaluate(() => { const x = document.querySelector(".modal .mx"); if (x) x.click(); }); await pg.waitForTimeout(200); }
+// phone (light mode): readable text too — phone-only styles can change colours
+for (const r of ROUTES) { await pg.evaluate((r) => { location.hash = "#/" + r; }, r); await pg.waitForTimeout(r === "stencils" ? 1500 : 300);
+  const c = await pg.evaluate(contrastBad); if (c.length) bad.push(r + " (phone): hard-to-read text " + c.slice(0, 3).join(", ")); }
+// phone: quote lines read as cards (nothing cut off), and a file opened full screen has a big Close and closes with Back
+{ await pg.evaluate(() => { location.hash = "#/project/p1"; }); await pg.waitForTimeout(500);
+  const q = await pg.evaluate(() => { const t = document.querySelector("table.qlines"); if (!t) return "no quote lines"; const c = t.closest(".card"); if (c && c.classList.contains("collapsed")) { const b = c.querySelector("button.cz"); if (b) b.click(); } return ""; });
+  if (q) bad.push(q); await pg.waitForTimeout(300);
+  const ql = await pg.evaluate(() => [...document.querySelectorAll("table.qlines td")].filter((td) => td.offsetParent && (td.scrollWidth > td.clientWidth + 2 || td.getBoundingClientRect().right > innerWidth + 1)).map((td) => td.getAttribute("data-label") || "item").slice(0, 3));
+  if (ql.length) bad.push("phone quote lines: cut off in " + ql.join(", "));
+  await pg.evaluate(() => { const b = document.createElement("button"); b.setAttribute("data-view", "f1"); document.querySelector(".main").appendChild(b); b.click(); }); await pg.waitForTimeout(400);
+  const v = await pg.evaluate(() => { const c = document.querySelector("#viewer [data-closeview]"); if (!c) return null; const r = c.getBoundingClientRect(); return { h: r.height, on: r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight, hit: document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2) === c }; });
+  if (!v) bad.push("phone: the file viewer didn't open"); else { if (v.h < 44 || !v.on || !v.hit) bad.push("phone: the file viewer's Close isn't a big, visible button");
+    const h0 = await pg.evaluate(() => location.hash); await pg.goBack(); await pg.waitForTimeout(400);
+    const st = await pg.evaluate(() => ({ open: !!document.getElementById("viewer"), hash: location.hash }));
+    if (st.open || st.hash !== h0) bad.push("phone: Back didn't just close the file viewer (" + (st.open ? "still open" : "left the page") + ")"); } }
 await pg.setViewportSize({ width: 1400, height: 900 });
 // the owner always has Settings
 { await pg.evaluate(() => { location.hash = "#/home"; }); await pg.waitForTimeout(400);

@@ -4,7 +4,7 @@ on:
   workflow_dispatch: {}
   push:
     branches: [main]
-    paths: ["docs/**", "worker/hosting.mjs"]
+    paths: ["docs/**", "worker/hosting.mjs", "tests/sign-check.mjs"]
 permissions: { contents: read, id-token: write }
 concurrency: { group: crm-hosting, cancel-in-progress: false }
 jobs:
@@ -22,5 +22,8 @@ jobs:
           access_token_scopes: https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/firebase
       - uses: actions/setup-node@v4
         with: { node-version: "22" }
+      # the page must pass its phone check before it goes live
+      - working-directory: tests
+        run: npm install --no-audit --no-fund --loglevel=error 2>&1 | tail -1 && npx playwright install --with-deps chromium > /tmp/pw.log 2>&1 && node sign-check.mjs
       - env: { HOSTING_TOKEN: "${{ steps.gauth.outputs.access_token }}" }
         run: node worker/hosting.mjs

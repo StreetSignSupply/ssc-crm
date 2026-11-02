@@ -1,5 +1,19 @@
 # What changed
 
+## 2026.11.25-133 (Matt's phone: AI email, quote lines, closing pictures — plus a full phone sweep)
+From Matt's iPhone screenshots, then every window and page re-tested at iPhone size (61 windows, light and dark):
+- **Write it with AI works reliably.** The email worker only looked for draft requests between its passes (a pass that read Gmail could take minutes), so the window gave up at 2 minutes. Drafts are now picked up every 3 seconds the whole time the worker runs; if Google's free Gemini is over its allowance, GitHub's free AI models write the draft instead (no key, no bill). Live test: 6 of 6 drafts came back. The button counts the seconds ("Writing… 14s"), waits up to 3 minutes, and drafts greet the person by first name.
+- **Quote lines on a phone** are one clear card per line: the item and its line total across the top, then one detail per row (size, grade, qty, cost, price, margin, work order) with nothing cut off, then the buttons. Details that are just "—" (a charge has no size) are left out. The full grade name shows instead of a shortened one.
+- **Pictures close on a phone.** On the customer's quote/proof page, a picture (and now the signature) opened full screen with no Close button and only closed on a tap outside, which iPhones don't always register. It now has a big Close button, closes on a tap outside, Escape, or the phone's Back/swipe-back, and nothing shows through behind it. In the CRM, a file opened full screen has a big Close at the top right on a phone, Back closes it, and it closes when you go to another page (it used to stay open over the next page).
+- **iPhone no longer zooms in when you tap a box.** Every box and dropdown is 16px on touch screens (it was 13–14px, which makes iPhone zoom the page and leave it zoomed). Same on the customer page.
+- Windows on a phone: the × is a 40px target, text links and boxes are thumb-sized, the cursor starts in the first box (not on the ×), and pop-up messages show at the top instead of covering the Save/Send buttons.
+- New purchase order on a phone: the item on its own row, then Qty, Price and remove — no tiny boxes.
+- Close-out and release checklists: the "Why not" boxes are a usable size.
+- Stock windows: a "5x10" or "4x8" sheet is read as feet (50 sq ft), not inches (0.35 sq ft), and sq ft numbers are rounded ("0.34722222222222" is gone).
+- Section titles on a phone stay beside their arrow and wrap inside the card instead of dropping to a line of their own.
+- "Signed in as …" on My dashboard and the file details in the viewer were dark grey on black on phones; readable now.
+- Release checks added: quote line cards not cut off on a phone; the file viewer's Close is big and Back closes it; windows have thumb-sized controls on a phone; readable text on phone pages (and dark headers drawn with a gradient are now checked); the customer page must pass a phone check (pictures open and close every way, no tiny typing boxes, nothing wider than the phone) before it's published.
+
 ## 2026.11.25-132 (deep audit: readability, keyboard, windows, tablets)
 Checked every page in light and dark mode for text contrast (WCAG AA), every clickable thing for keyboard access, every button for errors or dead clicks, every window for focus, a brand-new empty database, and layouts at 820px and 1024px (tablets) and 360px (small phones). Put right:
 - Tablets: the project stage bar no longer cuts off labels ("Productio…") or pushes "Change stage" off the screen; under 960px it goes to two rows like on a phone.
