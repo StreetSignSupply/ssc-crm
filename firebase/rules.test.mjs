@@ -11,7 +11,8 @@ await env.withSecurityRulesDisabled(async (c) => { const d = c.firestore();
   await setDoc(doc(d, "projects/pacct"), { name: "Signs", accountId: "atest" }); await setDoc(doc(d, "accounts/atest"), { name: "test account co" });
   await setDoc(doc(d, "projects/pc"), { name: "Close me", stage: "invoiced" }); await setDoc(doc(d, "projects/pc2"), { name: "Other", stage: "invoiced" });
   await setDoc(doc(d, "files/q1"), { projectId: "pc", gen: "quote", cat: "Quote", verified: true }); await setDoc(doc(d, "files/po1"), { projectId: "pc", cat: "Purchase order", verified: true });
-  await setDoc(doc(d, "files/in1"), { projectId: "pc", cat: "Invoice", verified: true }); await setDoc(doc(d, "files/qfake"), { projectId: "pc", gen: "quote", cat: "Quote", byId: "t2", needsCheck: true }); await setDoc(doc(d, "files/qx"), { projectId: "pc", cat: "Quote", name: "my quote.pdf" }); await setDoc(doc(d, "accounts/aint"), { name: "Us", internal: true }); await setDoc(doc(d, "mail/w1"), { kind: "customer", status: "queued", to: ["buyer@city.gov"], from: "bob@streetsignsupply.com", byId: "t2" });
+  await setDoc(doc(d, "files/in1"), { projectId: "pc", cat: "Invoice", verified: true }); await setDoc(doc(d, "files/qfake"), { projectId: "pc3", gen: "quote", cat: "Quote", byId: "t2", needsCheck: true });
+  await setDoc(doc(d, "projects/pc3"), { name: "Third", stage: "invoiced" }); await setDoc(doc(d, "files/po3"), { projectId: "pc3", cat: "Purchase order", verified: true }); await setDoc(doc(d, "files/in3"), { projectId: "pc3", cat: "Invoice", verified: true }); await setDoc(doc(d, "files/qx"), { projectId: "pc", cat: "Quote", name: "my quote.pdf" }); await setDoc(doc(d, "accounts/aint"), { name: "Us", internal: true }); await setDoc(doc(d, "mail/w1"), { kind: "customer", status: "queued", to: ["buyer@city.gov"], from: "bob@streetsignsupply.com", byId: "t2" });
   await setDoc(doc(d, "aidraft/a0"), { status: "done", byId: "t1", body: "x" });
   await setDoc(doc(d, "access/uid-shop"), { role: "shop", teamId: "t3" });
   await setDoc(doc(d, "team/t2"), { name: "Bob", access: "sales", phone: "1", email: "bob@streetsignsupply.com" });
@@ -124,7 +125,7 @@ await no("a made-up file record can't claim to be checked", setDoc(doc(sales, "f
 await no("a file record can't name someone else as the uploader", setDoc(doc(sales, "files/fk2"), { projectId: "pc", cat: "Invoice", byId: "t1" }));
 await ok("the CRM adds a file record, unchecked", setDoc(doc(sales, "files/fk3"), { projectId: "pc", gen: "quote", cat: "Quote", byId: "t2", needsCheck: true }));
 await no("nobody marks a file checked from the CRM", updateDoc(doc(owner, "files/fk3"), { verified: true }));
-await no("closing on a made-up (unchecked) quote record is refused", updateDoc(doc(sales, "projects/pc"), { stage: "closed", closePaper: { quote: "qfake", po: "po1", inv: "in1" } }));
+await no("closing on a made-up (unchecked) quote record is refused", updateDoc(doc(sales, "projects/pc3"), { stage: "closed", closePaper: { quote: "qfake", po: "po3", inv: "in3" } }));
 await ok("a real project emails out", setDoc(doc(sales, "mail/ct3"), { kind: "customer", status: "queued", to: ["buyer@city.gov"], from: "bob@streetsignsupply.com", byId: "t2", recType: "project", recId: "p1" }));
 await no("nobody changes a queued email", updateDoc(doc(owner, "mail/w1"), { status: "queued" }));
 await no("a customer email must come from our domain", setDoc(doc(sales, "mail/c2"), { kind: "customer", status: "queued", to: ["buyer@city.gov"], from: "bob@gmail.com", byId: "t2", message: { subject: "x" } }));
