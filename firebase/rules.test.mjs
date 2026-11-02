@@ -21,6 +21,8 @@ await env.withSecurityRulesDisabled(async (c) => { const d = c.firestore();
     stageLog: Array.from({ length: 30 }, (_, i) => ({ stage: "quoted", at: i, who: "MJ" })), followups: [{ id: "f1", n: 1, status: "sent" }] });
   await setDoc(doc(d, "files/qr2"), { projectId: "preal2", gen: "quote", cat: "Quote", verified: true }); await setDoc(doc(d, "files/por2"), { projectId: "preal2", cat: "Purchase order", verified: true });
   await setDoc(doc(d, "files/inr2"), { projectId: "preal2", cat: "Invoice", verified: true });
+  await setDoc(doc(d, "accounts/anopo2"), { name: "No PO Two", noPO: true, noInvoice: true });
+  await setDoc(doc(d, "projects/pm2"), { name: "Moved between no-PO accounts", stage: "invoiced", accountId: "anopo", origAccountId: "anopo2" }); await setDoc(doc(d, "files/qm2"), { projectId: "pm2", gen: "quote", cat: "Quote", verified: true });
   await setDoc(doc(d, "projects/pmove"), { name: "Moved", stage: "invoiced", accountId: "anopo", origAccountId: "aplain" }); await setDoc(doc(d, "accounts/aplain"), { name: "Plain Co" }); await setDoc(doc(d, "files/qmv"), { projectId: "pmove", gen: "quote", cat: "Quote", verified: true }); await setDoc(doc(d, "files/qw2"), { projectId: "pw2", gen: "quote", cat: "Quote", verified: true }); await setDoc(doc(d, "files/po3"), { projectId: "pc3", cat: "Purchase order", verified: true }); await setDoc(doc(d, "files/in3"), { projectId: "pc3", cat: "Invoice", verified: true }); await setDoc(doc(d, "files/qx"), { projectId: "pc", cat: "Quote", name: "my quote.pdf" }); await setDoc(doc(d, "accounts/aint"), { name: "Us", internal: true }); await setDoc(doc(d, "mail/w1"), { kind: "customer", status: "queued", to: ["buyer@city.gov"], from: "bob@streetsignsupply.com", byId: "t2" });
   await setDoc(doc(d, "aidraft/a0"), { status: "done", byId: "t1", body: "x" });
   await setDoc(doc(d, "access/uid-shop"), { role: "shop", teamId: "t3" });
@@ -139,6 +141,7 @@ await ok("a checked quote PDF plus an account that uses no POs or invoices close
 await no("a project moved onto a no-PO account still needs its paperwork", updateDoc(doc(sales, "projects/pmove"), { stage: "closed", closePaper: { quote: "qmv", po: "", inv: "" } }));
 await no("nobody changes a project's original account", updateDoc(doc(sales, "projects/pmove"), { origAccountId: "anopo" }));
 await no("a new project can't start with a different original account", setDoc(doc(sales, "projects/porig"), { name: "x", accountId: "a1", origAccountId: "anopo" }));
+await ok("moved between two no-PO / no-invoice accounts: closes on the quote PDF alone (the most reads a close needs)", updateDoc(doc(sales, "projects/pm2"), { stage: "closed", closePaper: { quote: "qm2", po: "", inv: "" } }));
 await ok("a real job on a customer account (60 lines) closes with its three checked files", updateDoc(doc(sales, "projects/preal2"), { stage: "closed", closePaper: { quote: "qr2", po: "por2", inv: "inr2" }, updatedAt: 5 }));
 await ok("the owner closes a real job too", updateDoc(doc(owner, "projects/preal2"), { notes: "done" }));
 await ok("closing with the checked quote PDF, PO and invoice", updateDoc(doc(sales, "projects/pc"), { stage: "closed", closePaper: { quote: "q1", po: "po1", inv: "in1" } }));
