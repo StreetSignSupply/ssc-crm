@@ -29,7 +29,9 @@ const D = {
     p2: { num: 2002, name: "Inquiry only", accountId: "a2", stage: "inquiry", createdAt: now - 2 * day } },
   jobs: { 1001: { num: 1001, desc: "Signs and stencils", projectId: "p1", accountId: "a1", prod: "sign", status: "production", due: new Date(now + 3 * day).toISOString().slice(0, 10),
     items: [{ qty: "4", code: "R1-1", desc: "Stop", size: "30x30", grade: "HIP", lineId: "l1" }], gates: {}, route: {}, ship: {}, statusLog: [{ status: "new", at: now - day }] } },
-  files: { f1: { name: "Proof.png", type: "image/png", url: "", cat: "Artwork proof", projectId: "p1", accountId: "a1", at: now } },
+  files: { f1: { name: "Proof.png", type: "image/png", url: "", cat: "Artwork proof", projectId: "p1", accountId: "a1", at: now },
+    // a quote PDF a sales rep made (like the sales agent's starter quotes): it has to show on the owner's review list
+    f2: { name: "Quote-Q-1001.pdf", type: "application/pdf", url: "", cat: "Quote", gen: "quote", qhash: "old", projectId: "p1", accountId: "a1", byId: "t2", who: "Test Sales", at: now } },
   activity: { x1: { id: "x1", recType: "account", recId: "a1", kind: "note", type: "call", text: "Called about the bid", contactId: "c1", at: now - day, when: new Date(now - day).toISOString().slice(0, 10) } },
   events: {}, history: {}, invtx: {}, notifications: {}, reminders: {}, access: { "u1": { role: "owner", teamId: "t1" }, "owner@example.com": { role: "owner", teamId: "t1" } } };
 const ROUTES = ["home", "mybook", "accounts", "account/a1", "contacts", "contact/c1", "projects", "project/p1", "project/p2", "jobs", "job/1001", "tracker", "calendar",
@@ -169,6 +171,14 @@ for (const r of ROUTES) { await pg.evaluate((r) => { location.hash = "#/" + r; }
     const st = await pg.evaluate(() => ({ open: !!document.getElementById("viewer"), hash: location.hash }));
     if (st.open || st.hash !== h0) bad.push("phone: Back didn't just close the file viewer (" + (st.open ? "still open" : "left the page") + ")"); } }
 await pg.setViewportSize({ width: 1400, height: 900 });
+// the owner sees quotes the team made, to review before anything is sent
+{ await pg.evaluate(() => { location.hash = "#/home"; }); await pg.waitForTimeout(500);
+  const rb = await pg.evaluate(() => { const b = document.querySelector("[data-rvopen]"); return b ? b.closest(".alert").innerText : ""; });
+  if (!/1 quote to review/.test(rb)) bad.push("a quote PDF a sales rep made doesn't show on the owner's review list (" + rb.slice(0, 60) + ")");
+  else { await pg.evaluate(() => document.querySelector("[data-rvopen]").click()); await pg.waitForTimeout(400);
+    const t = await pg.evaluate(() => (document.querySelector(".modal") || {}).innerText || "");
+    if (!/Quotes to review/.test(t) || !/Test County/.test(t) || !/made by Test Sales/.test(t)) bad.push("the Quotes to review window doesn't list the rep's quote");
+    await pg.evaluate(() => { const x = document.querySelector(".modal .mx"); if (x) x.click(); }); await pg.waitForTimeout(350); } }
 // the owner always has Settings
 { await pg.evaluate(() => { location.hash = "#/home"; }); await pg.waitForTimeout(400);
   if (!(await pg.$('a[href="#/settings"], [data-go="settings"]'))) bad.push("the owner (a team record with no level set) lost Settings in the menu");

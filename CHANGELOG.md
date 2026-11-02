@@ -1,5 +1,11 @@
 # What changed
 
+## 2026.11.25-136 (quotes the team makes show up for Matt to review)
+- **Quotes to review.** A quote only reached Matt's approval list when someone pressed Send in the CRM's email window, so quotes a rep or the sales agent made and emailed to Matt (P-2031–P-2035, P-2038–P-2041) never showed up in the CRM. Now any current quote PDF on an open project made by someone who isn't an owner shows on a "quotes to review" bar for the owner, with the PDF, the lines, the total and who it would go to. **Approve** records the same lock the mail worker checks (this exact quote, this PDF, these people) — it doesn't email anyone; the quote can then be sent from the project's Email window without waiting again. **Send back** asks what should change; the project shows Matt's note and the quote comes back on the list once a new PDF is made. The project page says whether its quote is waiting for review, approved, or sent back.
+- Quote PDF intro: plaques (R7-8P and the like) are counted as plaques, not signs ("4 signs and 2 plaques with 12 posts and hardware pieces").
+- A single size prints with its inch mark (a 24" Stop, not "24").
+- Release check: a quote PDF made by a sales rep must show on the owner's review list.
+
 ## 2026.11.25-135 (phone: windows you can always close, nothing cut off)
 From Matt's iPhone screenshots of a stencil, then every page, every window and one stencil from each of the 15 categories re-tested at iPhone size with Safari's bars showing (390×664):
 - **Every window can be closed on an iPhone.** Windows were sized to 90% of the screen height, but on iPhone Safari that counts the area behind the address bar and toolbar — so a tall window (a stencil's details) had its title and × above the screen and its Close under the toolbar. Windows now fit the part of the screen you can see, with the title/× at the top and the buttons at the bottom always showing. The phone's Back (swipe back) now closes a window instead of leaving the page (if you've typed something, the first Back warns you, like Escape).
