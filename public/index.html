@@ -9875,7 +9875,10 @@ const ACCESS={owner:{label:"Owner",settings:1,del:1,cost:1,price:1},office:{labe
   sales:{label:"Sales",settings:0,del:0,cost:0,price:1},shop:{label:"Shop",settings:0,del:0,cost:0,price:0}};
 // once an owner has claimed their record, anyone not on the team list (or wearing someone else's initials) gets Shop only
 // on crm.streetsignsupply.com the database lets only the team in, and an owner's sign-in email is their proof
+// a team record's level: the one set on it; if none is set (records made before levels existed — they meant owner), the
+// level its access record already carries; only a brand-new record with neither is Shop (or Owner when nobody is yet)
 function teamRole(t){if(t&&t.access&&ACCESS[t.access])return t.access;
+  if(t&&S.access&&S.access.size){for(const a of S.access.values())if(a&&String(a.teamId)===String(t.id)&&ACCESS[a.role])return a.role}
   return S.team&&live(S.team).some(x=>x.access==="owner")?"shop":"owner"}
 function ownerClaimed(){return !!(S.team&&live(S.team).some(x=>teamRole(x)==="owner"&&(x.claudeId||(isHosted()&&String(x.email||"").includes("@")))))}
 function myAccess(){const vid=viewerId();
@@ -10813,7 +10816,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-128";
+const APP_VERSION="2026.11.25-129";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
