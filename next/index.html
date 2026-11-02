@@ -4904,7 +4904,8 @@ function docChecklist(p,all){if(!p)return "";const fl=(all||projFiles(p.id)).fil
   const other=fl.filter(f=>f.accountId&&p.accountId&&f.accountId!==p.accountId);
   const seen={},dup=[];fl.forEach(f=>{const k=String(f.name||"").toLowerCase()+"|"+(f.size||0);if(seen[k])dup.push(f);seen[k]=1});
   return `<div style="padding:9px 15px;border-bottom:1px solid var(--line2);display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="sub">Paperwork:</span>
-    ${items.map(x=>`<span class="pill ${x[1]?"g":"o"}">${x[1]?"✓":"missing"} ${esc(x[0])}</span>`).join("")}
+    ${items.map(x=>{const wk={"Quote PDF":"quote","PO or signed quote":"po","Invoice":"inv"}[x[0]];const w=wk&&!x[1]?paperWaiver(p,wk):null;
+      return w?`<span class="pill y" title="${esc(w.why)}">waived ${esc(x[0])}</span>`:`<span class="pill ${x[1]?"g":"o"}">${x[1]?"✓":"missing"} ${esc(x[0])}</span>${!x[1]&&wk?" "+paperButtons(p,{k:wk}):""}`}).join("")}
     ${other.length?`<span class="pill r" title="${esc(other.map(f=>f.name).join(", "))}">${other.length} filed under another account</span>`:""}
     ${dup.length?`<span class="pill y" title="${esc(dup.map(f=>f.name).join(", "))}">${dup.length} duplicate file${dup.length===1?"":"s"}</span>`:""}</div>`}
 function closeList(p){
@@ -5072,18 +5073,42 @@ function closePaper(p){if(!p)return {};const fl=projFiles(p.id).filter(f=>!f.del
 // files that would count once checked: ask the mail worker to check them now (it does within a few minutes)
 function closePaperPending(p){if(!p)return [];const fl=projFiles(p.id).filter(f=>!f.deleted&&f.projectId===p.id&&f.verified!==true&&(f.gen==="quote"||/^(Purchase order|Signed quote|Invoice)$/.test(f.cat||"")));
   fl.forEach(f=>{if(!f.needsCheck&&!f.link)push("files/"+f.id,{needsCheck:true}).catch(()=>{})});return fl}
-function closePaperMissing(p){if(!p)return [];const c=closePaper(p);const out=[];const pend=closePaperPending(p);
-  if(pend.length&&(!c.quote||!c.po||!c.inv))out.push(pend.length+" file"+(pend.length===1?" is":"s are")+" still being checked against the CRM's storage"+(pend.some(f=>/402/.test(f.checkErr||""))?" (file storage needs the paid plan before it can be checked)":"")+" — try again in a few minutes");
-  if(!c.quote)out.push("The quote PDF made by the CRM (Documents → Quote)");
-  if(!c.po)out.push("The PO or the signed quote, filed on the project");
-  if(!c.inv)out.push("The invoice, filed on the project");
-  return out}
+// the three papers, and whether each is covered: a checked file, the owner's waiver for this project (with a reason), or the
+// account doesn't use POs / invoices (set by the owner). The database rules accept a close on exactly the same terms.
+const PAPER=[["quote","The quote PDF made by the CRM (Documents → Quote)","Quote PDF"],["po","The PO or the signed quote, filed on the project","PO / signed quote"],["inv","The invoice, filed on the project","Invoice"]];
+function paperWaiver(p,k){const w=((p&&p.closeWaive)||{})[k];if(w&&String(w.why||"").trim().length>=3)return w;
+  const a=p?acct(p.accountId)||S.accounts.get(p.accountId):null;
+  if(a&&k==="po"&&a.noPO)return {why:"This customer doesn't use POs (account setting)",acct:true};
+  if(a&&k==="inv"&&a.noInvoice)return {why:"This customer doesn't need an invoice (account setting)",acct:true};return null}
+function closePaperNeeds(p){if(!p)return [];const c=closePaper(p);return PAPER.filter(([k])=>!c[k]&&!paperWaiver(p,k)).map(([k,l,short])=>({k,label:l,short}))}
+function closePaperMissing(p){if(!p)return [];const need=closePaperNeeds(p);const out=[];const pend=need.length?closePaperPending(p):[];
+  if(pend.length)out.push(pend.length+" file"+(pend.length===1?" is":"s are")+" still being checked against the CRM's storage"+(pend.some(f=>/402/.test(f.checkErr||""))?" (file storage needs the paid plan before it can be checked)":"")+" — try again in a few minutes");
+  return out.concat(need.map(x=>x.label))}
+function waivedTag(p){const ks=PAPER.filter(([k])=>((p&&p.closeWaive)||{})[k]).map(x=>x[2]);
+  return ks.length?` <span class="pill y" title="${esc(ks.map(k=>k+" waived").join(", "))}">Waived: ${esc(ks.join(", "))}</span>`:""}
+// the owner says a paper isn't needed for this project — with a reason, recorded on the project's activity and history
+function waiveModal(pid,k){const p=proj(pid);const it=PAPER.find(x=>x[0]===k);if(!p||!it)return;
+  if(myAccess()!=="owner"){return askWaive(pid,k)}
+  askConfirm("Not required: "+it[2]+"?",`<p style="margin:0 0 8px">P-${esc(p.num)} ${esc(p.name)} can close without ${esc(it[2].toLowerCase())}. Say why — it goes on the project's activity.</p>
+    <input data-cin="why" data-req="Give a short reason." placeholder="e.g. Customer doesn't issue POs / Paid at counter, no invoice needed" style="width:100%">`,"Mark not required",false,async v=>{
+    const why=String((v&&v.why)||"").trim();if(why.length<3)return toast("Give a short reason.");const now=Date.now();
+    const cw=Object.assign({},p.closeWaive||{},{[k]:{why:why.slice(0,200),by:me(),byId:meId(),at:now}});
+    try{await push("projects/"+pid,{closeWaive:cw,updatedAt:now})}catch(e){return toast("That didn't save.")}p.closeWaive=cw;
+    const xid=uid("ac");await setDoc("activity/"+xid,{id:xid,recType:"project",recId:String(pid),kind:"note",type:"note",subject:it[2]+" waived",text:it[2]+" not required for close-out — "+why+" (waived by "+me()+")",
+      whoId:meId(),who:me(),when:today(),at:now,done:true,deleted:false,noBack:true});
+    recordHistory("project",pid,[{f:"Close-out",o:"",n:it[2]+" waived by "+me()+" — "+why,ev:1}]);toast(it[2]+" marked not required.");render()})}
+// a rep asks the owner to waive it: a notification to the owner with the project
+async function askWaive(pid,k){const p=proj(pid);const it=PAPER.find(x=>x[0]===k);const o=live(S.team).find(t=>teamRole(t)==="owner");if(!p||!it||!o)return;
+  const nid=uid("nt");await setDoc("notifications/"+nid,{id:nid,toId:o.id,fromId:meId(),fromName:me(),kind:"waive",text:me()+" asks you to waive "+it[2].toLowerCase()+" on P-"+p.num+" "+p.name+" so it can close.",link:"project/"+pid,at:Date.now(),read:false,deleted:false});
+  toast("Asked Matt to waive it.")}
+function paperButtons(p,x){return myAccess()==="owner"?`<button class="btn sm" data-waive="${esc(p.id)}:${esc(x.k)}">Not required…</button>`:`<button class="btn sm" data-waiveask="${esc(p.id)}:${esc(x.k)}">Ask Matt to waive</button>`}
 async function doClose(pid,skipCheck){
   const p=proj(pid);if(!p)return;
   const open=closeOpen(p);
   {const must=closePaperMissing(p);
-    if(must.length){openModal(mshell("Not ready to close","proj",`<div style="padding:12px 16px"><p style="margin:0 0 8px">P-${esc(p.num)} can't close until these are in its Files:</p>
-      <ul style="margin:0;padding-left:20px">${must.map(r=>`<li>${esc(r)}</li>`).join("")}</ul></div>`,
+    if(must.length){const need=closePaperNeeds(p);openModal(mshell("Not ready to close","proj",`<div style="padding:12px 16px"><p style="margin:0 0 8px">P-${esc(p.num)} can't close until these are in its Files — or marked not required:</p>
+      <div>${need.map(x=>`<div style="display:flex;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid var(--line2)"><span style="flex:1">${esc(x.label)}</span>${paperButtons(p,x)}</div>`).join("")}
+      ${must.filter(m=>!need.some(x=>x.label===m)).map(m=>`<p class="note" style="margin:8px 0 0">${esc(m)}</p>`).join("")}</div></div>`,
       `<button class="btn" data-close="1">Close</button><button class="btn p" data-ptabgo2="${esc(pid)}">Go to Files</button>`));return}}
   if(open.length&&!skipCheck){
     askConfirm("Still "+open.length+" not settled",
@@ -5903,7 +5928,7 @@ function decorateProjectTabs(){
   // the summary that stays in view while you scroll: stage, billing, value, and what's next
   {const p=proj(S.route.id);if(p){let nx="";try{nx=nextStepFor(p)||""}catch(e){}
     strip.insertAdjacentHTML("beforeend",`<span class="ptsum" style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12.5px">
-      <span class="pill ${stageCls(p.stage)}">${esc((SG[p.stage]||{}).label||p.stage)}</span>${billState(p)!=="none"?billPill(p):""}
+      <span class="pill ${stageCls(p.stage)}">${esc((SG[p.stage]||{}).label||p.stage)}</span>${billState(p)!=="none"?billPill(p):""}${waivedTag(p)}
       ${can("price")?`<b class="mono">${money(projValue(p))}</b>`:""}${nx?nx.replace(/class="btn p"/,'class="btn sm p"'):""}</span>`)}}
   const slot=main.querySelector(".pstick-tabs"),hl=main.querySelector(".pad > .hl");
   if(slot)slot.appendChild(strip);else if(hl)hl.insertAdjacentElement("afterend",strip);else cards[0].parentNode.insertBefore(strip,cards[0]);
@@ -10543,7 +10568,7 @@ function projRows(ps,arch){
     <th>${sortBtn("stage","Stage",cp,"p")}</th><th>${sortBtn("value","Value",cp,"p")}</th>
     <th>${sortBtn("due","Due",cp,"p")}</th><th>Billing</th><th>Work orders</th><th>Files</th></tr></thead><tbody>
     ${ps.map(p=>`<tr><td><a class="lnk" href="#/project/${esc(p.id)}">${esc(p.name)}</a>
-      <div class="sub mono">P-${p.num}${p.po?" · PO "+esc(p.po):""}${p.reorderOf?" · reorder":""}${followAutoOk(p)?` <span class="pill o" title="The agents send this project's follow-ups by themselves">AUTO-SEND</span>`:""}${noMail(p)?` <span class="pill" title="Dry run / internal — no outside email">dry run</span>`:""}</div></td>
+      <div class="sub mono">P-${p.num}${p.po?" · PO "+esc(p.po):""}${p.reorderOf?" · reorder":""}${followAutoOk(p)?` <span class="pill o" title="The agents send this project's follow-ups by themselves">AUTO-SEND</span>`:""}${noMail(p)?` <span class="pill" title="Dry run / internal — no outside email">dry run</span>`:""}${waivedTag(p)}</div></td>
       <td><span class="pill ${stageCls(p.stage)}">${esc((SG[p.stage]||{}).label||"")}</span></td>
       <td class="mono">${money(projValue(p))}</td>
       <td>${projDuePill(p)}</td>
@@ -10670,6 +10695,8 @@ async function mailRetry(xid){const a=S.activity.get(xid);const c=a&&a.mailCopy;
 document.addEventListener("click",e=>{const t=e.target&&e.target.closest&&e.target.closest("[data-mailretry]");if(!t)return;e.preventDefault();mailRetry(t.dataset.mailretry)},true);
 document.addEventListener("click",e=>{const t=e.target&&e.target.closest&&e.target.closest("[data-accrm]");if(!t)return;e.preventDefault();const k=t.dataset.accrm;
   askConfirm("Remove this sign-in's access?",`<p style="margin:0">${esc(k)} won't be able to open the CRM any more.</p>`,"Remove access",true,async()=>{try{await db.doc("access/"+k).delete();S.access.delete(k);toast("Removed.");render()}catch(x){toast("That didn't save.")}})},true);
+document.addEventListener("click",e=>{const t=e.target&&e.target.closest&&e.target.closest("[data-waive],[data-waiveask]");if(!t)return;e.preventDefault();
+  const [pid,k]=String(t.dataset.waive||t.dataset.waiveask).split(":");if(t.dataset.waive){closeModal();waiveModal(pid,k)}else askWaive(pid,k)},true);
 document.addEventListener("click",e=>{const t=e.target&&e.target.closest&&e.target.closest("[data-ctfilt]");if(!t)return;e.preventDefault();S.ctFilt=t.dataset.ctfilt;render()},true);
 function contactRec(id){
   const c=S.contacts.get(id);if(!c||c.deleted)return notFound("Contact");
@@ -10780,7 +10807,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-125";
+const APP_VERSION="2026.11.25-126";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -13761,6 +13788,7 @@ function accountModal(a,then){
       ${inp("f-disc","Or their own % off (overrides the level)",a.discountPct==null?"":a.discountPct,"number")}
       ${chk("f-savings","Show list price and their savings on quotes",a.showSavings)}
       ${chk("f-internal","Internal / test account — never email anyone outside from it",!!(a.internal||a.test))}
+      ${myAccess()==="owner"?chk("f-nopo","This customer doesn't use POs — their projects close without one",!!a.noPO)+chk("f-noinv","This customer doesn't need an invoice (paid at the counter) — their projects close without one",!!a.noInvoice):""}
       ${sel("f-pbasis","Quote prices from",a.priceBasis||"",[{v:"",l:"Automatic — the website's suggested price (the default)"},{v:"list",l:"Our price list (contractor pricing)"},{v:"web",l:"The website (retail pricing)"}])}
       <div class="fld"></div>
       ${a.id&&contactsOf(a.id).length?sel("f-bc","Billing contact — invoices go here",a.billingContactId||"",
@@ -13783,6 +13811,7 @@ function accountModal(a,then){
       discountPct:$("#f-disc")?($("#f-disc").value.trim()===""?"":Math.max(0,Math.min(90,Number($("#f-disc").value)||0))):(a.discountPct==null?"":a.discountPct),
       showSavings:$("#f-savings")?$("#f-savings").checked:!!a.showSavings,
       internal:$("#f-internal")?$("#f-internal").checked:!!a.internal,
+      ...($("#f-nopo")?{noPO:$("#f-nopo").checked,noInvoice:$("#f-noinv").checked}:{}),
       priceBasis:$("#f-pbasis")?$("#f-pbasis").value:(a.priceBasis||""),
       notes:$("#f-notes").value.trim(),deleted:false,
       createdAt:a.createdAt||Date.now(),updatedAt:Date.now()};

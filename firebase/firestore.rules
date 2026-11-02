@@ -81,18 +81,28 @@ service cloud.firestore {
         && (kind == "quote" ? get(/databases/$(db)/documents/files/$(fid)).data.get("gen", "") == "quote"
             : kind == "po" ? get(/databases/$(db)/documents/files/$(fid)).data.get("cat", "") in ["Purchase order", "Signed quote"]
             : get(/databases/$(db)/documents/files/$(fid)).data.get("cat", "") == "Invoice"); }
+    // ...or the owner waived that item for this project (closeWaive, which only an owner can write, with a reason), or the
+    // account doesn't use POs / invoices (noPO / noInvoice, which only an owner can set)
+    function waived(k) { return request.resource.data.get("closeWaive", {}) is map && request.resource.data.get("closeWaive", {}).get(k, null) is map
+        && request.resource.data.get("closeWaive", {}).get(k, {}).get("why", "") is string && request.resource.data.get("closeWaive", {}).get(k, {}).get("why", "").size() >= 3; }
+    function waiveShape() { return request.resource.data.get("closeWaive", {}) is map && request.resource.data.get("closeWaive", {}).keys().hasOnly(["quote", "po", "inv"])
+        && (request.resource.data.get("closeWaive", {}).get("quote", null) == null || waived("quote"))
+        && (request.resource.data.get("closeWaive", {}).get("po", null) == null || waived("po"))
+        && (request.resource.data.get("closeWaive", {}).get("inv", null) == null || waived("inv")); }
+    function acctFlag(f) { return exists(/databases/$(db)/documents/accounts/$(request.resource.data.get("accountId", "-")))
+        && get(/databases/$(db)/documents/accounts/$(request.resource.data.get("accountId", "-"))).data.get(f, false) == true; }
+    function paperOk(k, pid) { return waived(k) || (k == "po" && acctFlag("noPO")) || (k == "inv" && acctFlag("noInvoice"))
+        || (request.resource.data.get("closePaper", {}) is map && fileOk(request.resource.data.get("closePaper", {}).get(k, ""), pid, k)); }
     function closingOk(pid) { return request.resource.data.get("stage", "") != "closed"
         || (resource != null && resource.data.get("stage", "") == "closed")
-        || (request.resource.data.get("closePaper", {}) is map
-            && fileOk(request.resource.data.closePaper.get("quote", ""), pid, "quote")
-            && fileOk(request.resource.data.closePaper.get("po", ""), pid, "po")
-            && fileOk(request.resource.data.closePaper.get("inv", ""), pid, "inv")); }
+        || (paperOk("quote", pid) && paperOk("po", pid) && paperOk("inv", pid)); }
     match /projects/{id} {
       allow read: if member();
-      allow create: if member() && (isOwner() || !request.resource.data.keys().hasAny(["quoteApproval", "quoteRejected"])) && closingOk(id);
+      allow create: if member() && (isOwner() || !request.resource.data.keys().hasAny(["quoteApproval", "quoteRejected", "closeWaive"])) && closingOk(id);
       // only an owner approves (or turns down) a quote going to a customer
       allow update: if member() && !(isShop() && changed().hasAny(["orderLines", "value", "amountAuto", "billStatus", "billDate", "paidDate", "invNum", "invTax", "depositAmt", "quote", "price"]))
-                    && (isOwner() || !changed().hasAny(["quoteApproval", "quoteRejected"])) && closingOk(id);
+                    && (isOwner() || !changed().hasAny(["quoteApproval", "quoteRejected", "closeWaive"]))
+                    && (!changed().hasAny(["closeWaive"]) || waiveShape()) && closingOk(id);
       allow delete: if isOffice();
     }
     // inventory: sales and shop count and move stock; only owners and office change what things cost
@@ -109,7 +119,9 @@ service cloud.firestore {
     // accounts and contacts: owners, office and sales; the shop reads them
     match /accounts/{id} {
       allow read: if member();
-      allow create, update: if member() && !isShop();
+      // "doesn't use POs / invoices" lets its projects close without them, so only an owner sets it
+      allow create: if member() && !isShop() && (isOwner() || !request.resource.data.keys().hasAny(["noPO", "noInvoice"]));
+      allow update: if member() && !isShop() && (isOwner() || !changed().hasAny(["noPO", "noInvoice"]));
       allow delete: if isOffice();
     }
     match /contacts/{id} {

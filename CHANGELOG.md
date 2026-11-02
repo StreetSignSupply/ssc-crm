@@ -1,5 +1,10 @@
 # What changed
 
+## 2026.11.25-126
+- **Close-out waivers:** when a project is missing the quote PDF, the PO / signed quote or the invoice, each missing one has **Not required…** (owner only — asks for a short reason) or **Ask Matt to waive** (everyone else — sends Matt a notification). A waiver is saved on the project with who, when and why, noted on its Activity and history, and the project shows a **Waived** tag (lists and the project summary). Works while file storage is down.
+- **Account settings (owner only):** "This customer doesn't use POs" and "This customer doesn't need an invoice" — their projects close without them, no waiver each time.
+- **Database rules:** a close is accepted when each of the three has a checked file, an owner's waiver with a reason, or the account setting. Only an owner can write a waiver or the account settings. Rules tests cover a waived close, a mixed close (checked file + account setting), a rep trying to waive, a rep closing with a waiver they wrote, and a waiver with no reason.
+
 ## 2026.11.25-125
 - **Close-out checks the real files:** a file record only counts once the mail worker has looked it up in the CRM's own storage (the CRM's upload) and marked it verified. Nobody can write "verified" from the CRM, a new record must name its own uploader, and the database rules accept Closed won only on three verified file records. Rules tests cover made-up file records. (While Firebase file storage is unpaid, files can't be checked, so projects can't close — the CRM says so.)
 - **Right before sending,** the mail worker compares the files it has just downloaded to the approved versions (SHA-256) and refuses to send if they don't match.
