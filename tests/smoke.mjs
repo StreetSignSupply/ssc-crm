@@ -77,6 +77,45 @@ for (const r of ROUTES) { await pg.evaluate((r) => { location.hash = "#/" + r; }
     const unnamed = [...document.querySelectorAll(".main input:not([type=hidden]):not([type=checkbox]):not([type=radio]), .main select, .main textarea")].filter((e) => e.offsetParent && !e.getAttribute("aria-label") && !e.closest("label") && !(e.id && document.querySelector('label[for="' + e.id + '"]'))).length;
     return { dup: Object.keys(ids).filter((k) => ids[k] > 1), unnamed }; });
   if (a.dup.length) bad.push(r + ": duplicate ids " + a.dup.slice(0, 3).join(", ")); if (a.unnamed) bad.push(r + ": " + a.unnamed + " unnamed field(s)"); }
+// text must be readable in light and dark mode (WCAG AA contrast), and anything clickable must be reachable with the keyboard
+const contrastBad = () => { const parse = (c) => { const m = c.match(/rgba?\(([^)]+)\)/); if (!m) return null; const p = m[1].split(/[ ,\/]+/).filter(Boolean).map(Number); return [p[0], p[1], p[2], p[3] === undefined ? 1 : p[3]]; };
+  const lum = (c) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+  const bgOf = (e) => { const layers = []; for (let n = e; n && n.nodeType === 1; n = n.parentElement) { const c = parse(getComputedStyle(n).backgroundColor); if (c && c[3] > 0) { layers.push(c); if (c[3] >= 1) break; } }
+    let base = [255, 255, 255]; if (!layers.length || layers[layers.length - 1][3] < 1) { const b = parse(getComputedStyle(document.body).backgroundColor); if (b) base = b.slice(0, 3); }
+    for (let i = layers.length - 1; i >= 0; i--) { const c = layers[i]; base = [0, 1, 2].map((k) => c[k] * c[3] + base[k] * (1 - c[3])); } return base; };
+  const out = [];
+  document.querySelectorAll(".main *, .rail *, .gbar *").forEach((e) => { const t = [...e.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join("").trim(); if (!t) return;
+    const r = e.getBoundingClientRect(); const cs = getComputedStyle(e); if (!r.width || cs.visibility === "hidden") return; if (e.closest("[disabled], .dim, .disabled")) return;
+    let op = 1; for (let n = e; n && n.nodeType === 1; n = n.parentElement) op *= +getComputedStyle(n).opacity; if (!op) return;
+    const fg = parse(cs.color); if (!fg) return; const bg = bgOf(e); const a = fg[3] * op; const f2 = [0, 1, 2].map((k) => fg[k] * a + bg[k] * (1 - a));
+    const L1 = lum(f2), L2 = lum(bg); const ratio = (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05);
+    const big = parseFloat(cs.fontSize) >= 24 || (parseFloat(cs.fontSize) >= 18.6 && +cs.fontWeight >= 700);
+    if (ratio < (big ? 3 : 4.5)) out.push('"' + t.slice(0, 20) + '" ' + ratio.toFixed(1)); });
+  return [...new Set(out)]; };
+const kbdBad = () => [...document.querySelectorAll(".main *")].filter((e) => { if (getComputedStyle(e).cursor !== "pointer" || !e.getBoundingClientRect().width) return false;
+  if (/^(BUTTON|A|INPUT|SELECT|TEXTAREA|LABEL|SUMMARY|OPTION)$/.test(e.tagName) || e.hasAttribute("tabindex") || e.getAttribute("role")) return false;
+  if (e.closest("button, a, label, summary, [tabindex], [role=button]") !== e && e.closest("button, a, label, summary, [tabindex], [role=button]")) return false;
+  if (e.matches("h2[data-cz], tr.rowgo") || (e.parentElement && getComputedStyle(e.parentElement).cursor === "pointer")) return false; return true; })
+  .map((e) => e.tagName.toLowerCase() + "." + String(e.className).split(" ")[0]);
+for (const theme of ["light", "dark"]) { await pg.evaluate((t) => document.documentElement.setAttribute("data-theme", t), theme);
+  for (const r of ROUTES) { await pg.evaluate((r) => { location.hash = "#/" + r; }, r); await pg.waitForTimeout(r === "stencils" ? 1500 : 300);
+    const c = await pg.evaluate(contrastBad); if (c.length) bad.push(r + " (" + theme + "): hard-to-read text " + c.slice(0, 3).join(", "));
+    if (theme === "light") { const k = await pg.evaluate(kbdBad); if (k.length) bad.push(r + ": clickable but not reachable by keyboard " + [...new Set(k)].slice(0, 3).join(", ")); } } }
+await pg.evaluate(() => document.documentElement.removeAttribute("data-theme"));
+// a window that opens is a dialog, has the cursor inside it, and Tab doesn't escape it
+for (const [r, sel] of [["account/a1", "[data-negadd]"], ["accounts", "[data-new='account']"], ["project/p1", "[data-ordadd]"]]) {
+  await pg.evaluate((r) => { location.hash = "#/" + r; }, r); await pg.waitForTimeout(400); const el = await pg.$(sel); if (!el) { bad.push(r + " " + sel + ": button missing"); continue; }
+  await el.click(); await pg.waitForTimeout(400);
+  const m = await pg.evaluate(() => { const d = document.querySelector(".modal"); return d ? { role: d.getAttribute("role"), inside: d.contains(document.activeElement) } : null; });
+  if (!m) { bad.push(r + " " + sel + ": window didn't open"); continue; }
+  let left = false; for (let i = 0; i < 30; i++) { await pg.keyboard.press("Tab"); if (!(await pg.evaluate(() => !!(document.activeElement && document.activeElement.closest(".modal"))))) left = true; }
+  if (m.role !== "dialog" || !m.inside || left) bad.push(r + " " + sel + ": window " + (m.role !== "dialog" ? "isn't marked as a dialog " : "") + (!m.inside ? "doesn't put the cursor inside " : "") + (left ? "lets Tab escape" : ""));
+  await pg.evaluate(() => { const x = document.querySelector(".modal .mx"); if (x) x.click(); }); await pg.waitForTimeout(200); }
+// tablets: no page wider than the screen at 820px either
+await pg.setViewportSize({ width: 820, height: 1180 });
+for (const r of ROUTES) { await pg.evaluate((r) => { location.hash = "#/" + r; }, r); await pg.waitForTimeout(r === "stencils" ? 1500 : 300);
+  if (await pg.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 2)) bad.push(r + ": wider than a tablet screen");
+  if (r === "project/p1" && await pg.evaluate(() => { const d = document.querySelector(".path > details"); return !!d && d.getBoundingClientRect().right > innerWidth; })) bad.push("project stage bar runs off a tablet screen"); }
 // on a phone, no page may be wider than the screen (layout check)
 await pg.setViewportSize({ width: 390, height: 844 });
 for (const r of ROUTES) { await pg.evaluate((r) => { location.hash = "#/" + r; }, r); await pg.waitForTimeout(r === "stencils" ? 1500 : 350);
@@ -91,4 +130,4 @@ await pg.setViewportSize({ width: 1400, height: 900 });
 const ver = await pg.evaluate(() => { const m = document.documentElement.innerHTML.match(/APP_VERSION="([^"]+)"/); return m ? m[1] : ""; });
 await browser.close(); fs.unlinkSync(PAGE);
 if (bad.length) { console.log("::error::release check failed: " + bad.slice(0, 8).join(" || ")); process.exit(1); }
-console.log("::notice::release check passed: " + ROUTES.length + " pages (desktop and phone), " + forms.length + " forms and " + (filt.length + 2) + " list filters, no errors");
+console.log("::notice::release check passed: " + ROUTES.length + " pages (desktop, tablet and phone; light and dark), " + forms.length + " forms and " + (filt.length + 2) + " list filters, no errors");

@@ -1,5 +1,19 @@
 # What changed
 
+## 2026.11.25-132 (deep audit: readability, keyboard, windows, tablets)
+Checked every page in light and dark mode for text contrast (WCAG AA), every clickable thing for keyboard access, every button for errors or dead clicks, every window for focus, a brand-new empty database, and layouts at 820px and 1024px (tablets) and 360px (small phones). Put right:
+- Tablets: the project stage bar no longer cuts off labels ("Productio…") or pushes "Change stage" off the screen; under 960px it goes to two rows like on a phone.
+- Tablets: quote lines keep item names readable (no one-word-per-line) and scroll sideways instead of hiding the Margin column.
+- Header facts (Type, Terms…) no longer break words in the middle ("Governme nt agency").
+- Dark mode: blue links, active tabs and "Today" were too dim to read; they use a lighter blue for text now. Blue buttons keep enough contrast on hover.
+- The stage chevrons' small text ("—", "9 days here") and "No picture yet" were below readable contrast; fixed.
+- Windows: every window is announced as a dialog, puts the cursor inside when it opens (Add a negotiated price didn't), keeps Tab inside it, and returns you to the button you came from when it closes.
+- Keyboard: column sort headers, file tiles, sign pictures and report chart pieces can be reached with Tab and opened with Enter.
+- Account and inventory filter dropdowns are the same height as the search box next to them; the calendar's "+" on a day is a proper tap size.
+- Settings → Colours: the labels said the brand colour changes buttons (it doesn't since buttons went blue); they now say what it does.
+- The release check now also fails on hard-to-read text (light and dark), anything clickable that the keyboard can't reach, a window that doesn't take focus or lets Tab escape, and any page wider than a tablet.
+Checked and fine: an empty database shows a helpful message on every page (no blanks, "NaN" or "undefined"); every page draws in under 0.2 s; no button throws an error.
+
 ## 2026.11.25-131 (second audit: design, function, layout)
 Checked every page on desktop and phone for errors, overflow, clipped text, tiny tap targets, unnamed fields, duplicate ids and broken layouts, plus the close-out, email and Files windows. Put right (all of these were there before today too):
 - A project tab other than All (Files, Quote, Billing…) now uses the full width instead of one of two columns with the other left empty.
