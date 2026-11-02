@@ -409,13 +409,16 @@ async function taskMail() {
 // AI drafts for the website's compose screen, written with GitHub's free AI models (the workflow's own token — no key,
 // no bill; GitHub limits it to a modest number a day, plenty for a shop). Checked every few seconds while the worker waits.
 const GH = process.env.GH_TOKEN || "";
+// every call to an AI service gives up after 25 seconds, so one slow model can't hold up the draft — the next one is tried
+const fetchT = (url, opt, ms = 25000) => { const c = new AbortController(); const t = setTimeout(() => c.abort(), ms); return fetch(url, Object.assign({}, opt, { signal: c.signal })).finally(() => clearTimeout(t)); };
 async function aiDrafts() {
   let k = 0;
   const q = (await docsOf("aiq", fs.collection("aidraft").where("status", "==", "queued"))).slice(0, 5);
   aiDrafts.done = aiDrafts.done || new Set();
-  for (const d of q) { if (aiDrafts.done.has(d.id)) continue; aiDrafts.done.add(d.id); const r = d.data(); k++; const tA = Date.now();
+  // each request is worked on at the same time, so one slow draft never makes another wait
+  await Promise.all(q.map(async (d) => { if (aiDrafts.done.has(d.id)) return; aiDrafts.done.add(d.id); const r = d.data(); k++; const tA = Date.now();
     // the email window stops waiting after 2 minutes — an older request is closed instead of spending the free allowance on it
-    if (Date.now() - (Number(r.at) || 0) > 3 * 60000) { await d.ref.set({ status: "failed", err: "asked too long ago", doneAt: Date.now() }, { merge: true }); say("AI draft: skipped one asked over 3 minutes ago"); continue; }
+    if (Date.now() - (Number(r.at) || 0) > 3 * 60000) { await d.ref.set({ status: "failed", err: "asked too long ago", doneAt: Date.now() }, { merge: true }); say("AI draft: skipped one asked over 3 minutes ago"); return; }
     try {
       const RULES = "Write a short, plain business email a real person at a small sign shop would send — friendly, direct, no hype, no exclamation marks, no AI-sounding phrases (no 'I hope this finds you well', no 'delighted', no 'don't hesitate'). "
         + (r.sig ? "End with just \"Thanks,\" on its own line — the sender's email signature (name, company, phone) is added automatically, so don't write them." : "Sign off with the sender's first name and the company.")
@@ -437,7 +440,9 @@ async function aiDrafts() {
       if (gk && !globalThis.__gmList) { try { const lr = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200", { headers: { "x-goog-api-key": gk } });
         const lj = await lr.json().catch(() => ({})); const ok = (lj.models || []).filter((m) => (m.supportedGenerationMethods || []).includes("generateContent")).map((m) => String(m.name || "").replace(/^models\//, ""));
         const flash = ok.filter((n) => /flash/i.test(n) && !/image|tts|audio|live|thinking|exp|preview|lite/i.test(n)).sort((x, y) => (y.match(/\d+(\.\d+)?/) || [0])[0] - (x.match(/\d+(\.\d+)?/) || [0])[0]);
-        globalThis.__gmList = [...new Set(["gemini-flash-latest"].filter((n) => ok.includes(n)).concat(flash, ok.filter((n) => /flash/i.test(n) && /lite/i.test(n)), ["gemini-2.5-flash"]))].slice(0, 5);
+        // the quick "lite" models first (fastest, biggest free allowance — a short email doesn't need more), then flash
+        const lite = ok.filter((n) => /flash/i.test(n) && /lite/i.test(n) && !/image|tts|audio|live|preview|exp/i.test(n)).sort((x, y) => (y.match(/\d+(\.\d+)?/) || [0])[0] - (x.match(/\d+(\.\d+)?/) || [0])[0]);
+        globalThis.__gmList = [...new Set(["gemini-flash-lite-latest"].filter((n) => ok.includes(n)).concat(lite.slice(0, 2), ["gemini-flash-latest"].filter((n) => ok.includes(n)), flash.slice(0, 2), ["gemini-2.5-flash"]))].slice(0, 6);
         say("Gemini models available: " + globalThis.__gmList.join(", ")); } catch (e) { globalThis.__gmList = ["gemini-flash-latest", "gemini-2.5-flash"]; } }
       const errs = [];
       // at most 3 attempts; a model that just said "over the free quota" (429) is skipped for 10 minutes, and one that said
@@ -447,37 +452,37 @@ async function aiDrafts() {
       if (gk && !gmTry.length) err = "Google's free AI allowance is used up for now — try again in a few minutes";
       if (gk) for (const gm of gmTry) {
         try {
-          const x = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + gm + ":generateContent", { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": gk },
+          const x = await fetchT("https://generativelanguage.googleapis.com/v1beta/models/" + gm + ":generateContent", { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": gk },
             body: JSON.stringify({ systemInstruction: { parts: [{ text: msgs[0].content }] }, contents: [{ role: "user", parts: [{ text: msgs[1].content }] }], generationConfig: { temperature: 0.5, maxOutputTokens: 1200, responseMimeType: "application/json" } }) });
           const raw = await x.text().catch(() => ""); let j = {}; try { j = JSON.parse(raw); } catch (e) {}
           if (x.status === 429) globalThis.__gm429[gm] = Date.now() + 600000; else if (x.status === 503) globalThis.__gm429[gm] = Date.now() + 120000;
           if (!x.ok) { errs.push(gm + " " + x.status + " " + String((j.error || {}).message || "").slice(0, 70)); err = errs.join(" | "); if (x.status === 403) break; continue; }
           const txt = ((((j.candidates || [])[0] || {}).content || {}).parts || []).map((p) => p.text || "").join("");
-          const t = String(txt || "").trim(); if (!t) { err = gm + " sent back nothing"; continue; }
-          const pk = pick(t); if (!pk || pk.body === t) { err = gm + " didn't send back an email"; continue; }
+          const t = String(txt || "").trim(); if (!t) { errs.push(gm + " sent back nothing"); err = errs.join(" | "); continue; }
+          const pk = pick(t); if (!pk || pk.body === t) { errs.push(gm + " didn't send back an email"); err = errs.join(" | "); continue; }
           o = pk; break;
-        } catch (e) { err = gm + " " + String(e.message || e).slice(0, 80); } }
+        } catch (e) { errs.push(gm + " " + (e.name === "AbortError" ? "took over 25s" : String(e.message || e).slice(0, 80))); err = errs.join(" | "); } }
       // GitHub's free AI models next (the workflow's own token, no key, no bill) — used when Gemini has no key, is over its
       // free allowance, or fails, so a draft still comes back
       let via = o ? "gemini" : "";
       if (!o && GH) for (const gm of ["openai/gpt-4.1-mini", "openai/gpt-4o-mini", "meta/llama-3.3-70b-instruct"]) {
         if (Date.now() < ((globalThis.__gh429 || {})[gm] || 0)) continue;
         try {
-          const x = await fetch("https://models.github.ai/inference/chat/completions", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + GH, Accept: "application/vnd.github+json" },
+          const x = await fetchT("https://models.github.ai/inference/chat/completions", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + GH, Accept: "application/vnd.github+json" },
             body: JSON.stringify(Object.assign({ model: gm, messages: msgs, temperature: 0.5, max_tokens: 1200 }, /^openai\//.test(gm) ? { response_format: { type: "json_object" } } : {})) });
           const raw = await x.text().catch(() => ""); let j = {}; try { j = JSON.parse(raw); } catch (e) {}
           if (x.status === 429) { globalThis.__gh429 = globalThis.__gh429 || {}; globalThis.__gh429[gm] = Date.now() + 600000; }
-          if (!x.ok) { errs.push("github " + gm + " " + x.status); err = errs.join(" | "); continue; }
-          const t = String(((((j.choices || [])[0] || {}).message || {}).content) || "").trim(); if (!t) { err = gm + " sent back nothing"; continue; }
-          const pk = pick(t); if (!pk || !String(pk.body || "").trim()) { err = gm + " didn't send back an email"; continue; }
+          if (!x.ok) { errs.push("github " + gm + " " + x.status + " " + String((j.error || {}).message || j.message || raw).replace(/\s+/g, " ").slice(0, 90)); err = errs.join(" | "); continue; }
+          const t = String(((((j.choices || [])[0] || {}).message || {}).content) || "").trim(); if (!t) { errs.push(gm + " sent back nothing (" + String(((j.choices || [])[0] || {}).finish_reason || "") + ")"); err = errs.join(" | "); continue; }
+          const pk = pick(t); if (!pk || !String(pk.body || "").trim()) { errs.push(gm + " didn't send back an email"); err = errs.join(" | "); continue; }
           o = pk; via = "github " + gm; break;
-        } catch (e) { err = gm + " " + String(e.message || e).slice(0, 80); } }
+        } catch (e) { errs.push(gm + " " + (e.name === "AbortError" ? "took over 25s" : String(e.message || e).slice(0, 80))); err = errs.join(" | "); } }
       if (!o && !gk && !GH) err = "no Gemini key — add the free key in Settings → Write it with AI";
       if (!o) throw new Error(err || "no answer");
-      say("AI draft: done in " + Math.round((Date.now() - tA) / 1000) + "s via " + (via || "gemini"));
+      say("AI draft: done in " + Math.round((Date.now() - tA) / 1000) + "s via " + (via || "gemini") + (errs.length ? " after: " + errs.join(" | ").slice(0, 300) : ""));
       await d.ref.set({ status: "done", subject: String(o.subject || r.subject || "").slice(0, 200), body: String(o.body).slice(0, 5000), doneAt: Date.now() }, { merge: true }); n.ai = (n.ai || 0) + 1;
-    } catch (e) { await d.ref.set({ status: "failed", err: String(e.message || e).slice(0, 160), doneAt: Date.now() }, { merge: true }); n.aiErr = (n.aiErr || 0) + 1; say("AI draft failed: " + String(e.message || e).slice(0, 200)); }
-  }
+    } catch (e) { await d.ref.set({ status: "failed", err: "no AI service answered — " + String(e.message || e).slice(0, 140), doneAt: Date.now() }, { merge: true }); n.aiErr = (n.aiErr || 0) + 1; say("AI draft failed after " + Math.round((Date.now() - tA) / 1000) + "s: " + String(e.message || e).slice(0, 400)); }
+  }));
   return k;
 }
 async function waitAndDraft(ms) { const end = Date.now() + ms; while (Date.now() < end) { try { await aiDrafts(); } catch (e) {} await new Promise((r) => setTimeout(r, 4000)); } }
@@ -486,6 +491,14 @@ async function waitAndDraft(ms) { const end = Date.now() + ms; while (Date.now()
 // 10 minutes it reads Gmail — so an email goes out within about a minute of pressing Send (the schedule starts the next one)
 const LOOP_MIN = Number(process.env.LOOP_MIN) || 0, t0 = Date.now(); let pass = 0;
 // AI drafts don't wait for a pass to finish: they're checked every 3 seconds the whole time the worker runs
+// once at start: does each backup AI model answer? (status only — no text is printed)
+if (LOOP_MIN) (async () => { if (!GH) return say("AI backup check: no GitHub token");
+  for (const m of ["openai/gpt-4.1-mini", "openai/gpt-4o-mini", "meta/llama-3.3-70b-instruct"]) { try {
+    const x = await fetchT("https://models.github.ai/inference/chat/completions", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + GH, Accept: "application/vnd.github+json" },
+      body: JSON.stringify({ model: m, messages: [{ role: "user", content: "Reply with the word OK" }], max_tokens: 10 }) });
+    const j = await x.json().catch(() => ({})); const c = String(((((j.choices || [])[0] || {}).message || {}).content) || "").trim();
+    say("AI backup check: " + m + " → " + x.status + (c ? " answered" : " no answer " + String((j.error || {}).code || (j.error || {}).message || j.message || "").slice(0, 80)));
+  } catch (e) { say("AI backup check: " + m + " → " + (e.name === "AbortError" ? "over 25s" : String(e.message || e).slice(0, 60))); } } })();
 let aiBusy = false; const aiTimer = LOOP_MIN ? setInterval(async () => { if (aiBusy) return; aiBusy = true; try { await aiDrafts(); } catch (e) {} aiBusy = false; }, 3000) : null;
 do {
   try { await signFollow(); if (pass % 5 === 0) await taskMail().catch((e) => say("task mail: " + String(e.message || e).slice(0, 100))); await sendQueued(); if (pass % 3 === 0) await verifyFiles().catch((e) => say("file check: " + String(e.message || e).slice(0, 80))); if (pass % 10 === 0) await logGmail(); } catch (e) { say("pass error: " + String(e.message || e).replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "<email>").slice(0, 140)); }
