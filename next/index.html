@@ -766,6 +766,11 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
 .kbody{background:var(--card2);border:1px solid var(--line);border-top:0;
   padding:7px;display:flex;flex-direction:column;gap:7px;min-height:52px}
 a.kc{color:inherit;text-decoration:none}
+.filtbar select{height:30px;border:1px solid var(--line);border-radius:6px;padding:0 26px 0 9px;font:inherit;font-size:13px;background-color:var(--card);color:var(--ink);width:auto;min-width:0}
+.filtbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:8px 15px;border-bottom:1px solid var(--line2)}
+@media (max-width:700px){.filtbar select{flex:1 1 44%}.chipbar{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.chipbar>*{flex:0 0 auto}.chipbar select{flex:0 0 auto}}
+.acctname{min-width:170px}
+
 .kc{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--line);
   padding:8px 9px;text-align:left;width:100%;box-shadow:var(--sh);display:block;border-radius:2px;min-width:0}
 .kc .r1 .mono{font-size:13px}
@@ -5347,10 +5352,12 @@ function priceOddities(p){const ls=orderedLines(p).filter(l=>!isCharge(l)&&Numbe
 function reconMoney(p){const rows=(reconStatus(p).rows)||[];let onWO=0,unsched=0,charges=0;const un=[];
   orderedLines(p).forEach(l=>{if(isCharge(l))charges+=(Number(l.qty)||0)*(Number(l.price)||0)});
   rows.forEach(r=>{if(r.charge||r.extra)return;const pr=Number(r.price)||0;onWO+=Math.min(r.sched,r.ordered)*pr;if(r.sched<r.ordered){unsched+=(r.ordered-r.sched)*pr;un.push(r)}});
-  return {quote:projValue(p),onWO,unsched,un,charges}}
+  const quote=orderedLines(p).reduce((t,l)=>t+(Number(l.qty)||0)*(Number(l.price)||0),0);
+  return {quote,onWO,unsched,un,charges}}
 function reconMoneyStrip(p,j){if(!p||!orderedLines(p).length||!can("price"))return "";const m=reconMoney(p);
   const own=j?(j.items||[]).filter(it=>!isCharge(it)&&!(Number((projLineFor(j,it)||{}).price)>0)):[];
   const bad=m.un.length&&jobsOf(p.id).length;
+  if(!(bad&&SO(p.stage)>=SO("won"))&&!own.length)return "";
   return `<div class="${bad||own.length?"warn":"note"}" style="margin:0 0 14px;border-radius:6px;display:flex;gap:6px 14px;align-items:center;flex-wrap:wrap">
     <span>Quote total <b>${money2(m.quote)}</b></span><span>On work orders <b>${money2(m.onWO)}</b></span>
     ${m.charges?`<span title="Design, setup, freight and other charges are billed but never made, so they're never on a work order">Charges <b>${money2(m.charges)}</b></span>`:""}
@@ -5931,11 +5938,6 @@ function decorateProjectTabs(){
   let cur=S.ptab||"all";
   const strip=document.createElement("div");strip.className="ptabs";strip.setAttribute("role","tablist");
   strip.innerHTML=tabs.map(([k,l])=>`<button type="button" role="tab" aria-selected="${cur===k}" data-ptab="${k}" class="${cur===k?"on":""}">${l}</button>`).join("");
-  // the summary that stays in view while you scroll: stage, billing, value, and what's next
-  {const p=proj(S.route.id);if(p){let nx="";try{nx=nextStepFor(p)||""}catch(e){}
-    strip.insertAdjacentHTML("beforeend",`<span class="ptsum" style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12.5px">
-      <span class="pill ${stageCls(p.stage)}">${esc((SG[p.stage]||{}).label||p.stage)}</span>${billState(p)!=="none"?billPill(p):""}${waivedTag(p)}
-      ${can("price")?`<b class="mono">${money(projValue(p))}</b>`:""}${nx?nx.replace(/class="btn p"/,'class="btn sm p"'):""}</span>`)}}
   const slot=main.querySelector(".pstick-tabs"),hl=main.querySelector(".pad > .hl");
   if(slot)slot.appendChild(strip);else if(hl)hl.insertAdjacentElement("afterend",strip);else cards[0].parentNode.insertBefore(strip,cards[0]);
   if(cur!=="all")cards.forEach(c=>{if(tabOf(c)!==cur)c.style.display="none"});
@@ -9805,6 +9807,7 @@ function assistMenu(){
     ${ai.length?`<div class="dd-h">${S.ai?"Claude reads only the record that's open":"Drafts are written by the agents and land on the project"}</div>${ai.join("")}<div class="dd-sep"></div>`:""}
     <button data-helptoggle="1">${ic("note",14)}${helpOn()?"Hide the long explanations":"Show the long explanations"}</button>
     <button data-palette="1">${ic("search",14)}Find or start anything<kbd>Ctrl K</kbd></button>
+    <div class="dd-h" style="padding-top:8px">CRM version ${esc(APP_VERSION)}</div>
     <button data-wizstart="1">${ic("task",14)}Walk me through a new order</button>
   </div></details>`;
 }
@@ -9879,6 +9882,7 @@ const ACCESS={owner:{label:"Owner",settings:1,del:1,cost:1,price:1},office:{labe
 // level its access record already carries; only a brand-new record with neither is Shop (or Owner when nobody is yet)
 function teamRole(t){if(t&&t.access&&ACCESS[t.access])return t.access;
   if(t&&S.access&&S.access.size){for(const a of S.access.values())if(a&&String(a.teamId)===String(t.id)&&ACCESS[a.role])return a.role}
+  if(!(S.access&&S.access.size))return "owner";
   return S.team&&live(S.team).some(x=>x.access==="owner")?"shop":"owner"}
 function ownerClaimed(){return !!(S.team&&live(S.team).some(x=>teamRole(x)==="owner"&&(x.claudeId||(isHosted()&&String(x.email||"").includes("@")))))}
 function myAccess(){const vid=viewerId();
@@ -9958,7 +9962,7 @@ function rail(){
     </nav>
     <div class="rail-web"><a class="rail-i" href="${esc((S.brand||{}).website||"https://streetsignsupply.com")}" target="_blank" rel="noopener" title="Open streetsignsupply.com in a new tab">${ic("globe",18)}<span>Our website</span><span class="rail-ext">↗</span></a></div>
     <div class="rail-foot"><button class="rail-i" data-railtog="1" title="Collapse the menu">${ic("collapse",18)}<span class="rl-c">Collapse</span><span class="rl-x">Expand</span></button>
-      <div class="rl-c" style="font-size:10.5px;opacity:.6;padding:2px 10px 6px" title="The CRM version you're running">v${esc(APP_VERSION)}</div></div>
+</div>
   </aside>`;
 }
 function body(){
@@ -10232,8 +10236,8 @@ function accountList(){
   if(AF.rep)list=list.filter(a=>AF.rep==="__none"?!a.repId:a.repId===AF.rep);
   list.sort((a,b)=>(a.name||"").localeCompare(b.name||""));
   const states=[...new Set(live(S.accounts).map(a=>String(a.state||"").toUpperCase()).filter(Boolean))].sort();
-  const fsel=(k,lbl,opts)=>`<select data-acfilt="${k}" aria-label="${esc(lbl)}" style="width:auto"><option value="">${esc(lbl)}: all</option>${opts.map(o=>`<option value="${esc(o[0])}" ${AF[k]===o[0]?"selected":""}>${esc(o[1])}</option>`).join("")}</select>`;
-  const filtBar=`<div style="padding:8px 15px;border-bottom:1px solid var(--line2);display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+  const fsel=(k,lbl,opts)=>`<select data-acfilt="${k}" aria-label="${esc(lbl)}"><option value="">${esc(lbl)}: all</option>${opts.map(o=>`<option value="${esc(o[0])}" ${AF[k]===o[0]?"selected":""}>${esc(o[1])}</option>`).join("")}</select>`;
+  const filtBar=`<div class="filtbar">
     ${fsel("rep","Rep",repList().map(t=>[t.id,t.name]).concat([["__none","No rep"]]))}${fsel("type","Type",ACCT_TYPE.map(x=>[x,x]))}${fsel("stage","Stage",ACCT_STAGES.map(x=>[x.id,x.l]))}${fsel("state","State",states.map(x=>[x,x]))}${fsel("terms","Terms",TERMS.map(x=>[x,x]))}
     <label class="sub" style="display:flex;gap:5px;align-items:center"><input type="checkbox" data-acfilt="nocon" ${AF.nocon?"checked":""}> No contacts</label>
     ${Object.keys(AF).some(k=>AF[k])?`<button class="btn sm q" data-acfilt="clear">Clear filters</button>`:""}</div>`;
@@ -10258,14 +10262,13 @@ function accountList(){
         <select data-acctbulk="terms" aria-label="Set the terms"><option value="">Set the terms…</option>${TERMS.map(x=>`<option>${esc(x)}</option>`).join("")}</select>
         <button class="btn sm" data-acexport="1">Export CSV</button><button class="btn sm q" data-acclear="1">Clear</button></div>`:"";
       return `${filtBar}${bar}<table><thead><tr>${canBulk?`<th style="width:34px"><input type="checkbox" data-acsel="*" aria-label="Select all shown" ${shown.length&&shown.every(a=>sel.has(a.id))?"checked":""}></th>`:""}<th>Account</th><th>Stage</th><th>Rep</th><th>Type</th><th>Terms</th><th>Tax exempt</th>
-      <th>Contacts</th><th>Open projects</th><th>Open WOs</th></tr></thead><tbody>
+      <th>Open projects</th><th>Open WOs</th></tr></thead><tbody>
       ${shown.map(a=>`<tr>${canBulk?`<td><input type="checkbox" data-acsel="${esc(a.id)}" aria-label="Select ${esc(a.name)}" ${sel.has(a.id)?"checked":""}></td>`:""}
-        <td><a class="lnk" href="#/account/${esc(a.id)}">${esc(a.name)}</a>
-          <div class="sub">${esc([a.city,a.state].filter(Boolean).join(", "))}</div></td>
+        <td class="acctname"><a class="lnk" href="#/account/${esc(a.id)}">${esc(a.name)}</a>
+          <div class="sub">${esc([a.city,a.state].filter(Boolean).join(", "))}${ncon[a.id]?`${a.city||a.state?" · ":""}${ncon[a.id]} contact${ncon[a.id]===1?"":"s"}`:` <span class="pill y" title="Nobody to contact at this account">no contacts</span>`}</div></td>
         <td>${acctStagePill(a)}</td>
         <td>${a.repId&&reps.find(t=>t.id===a.repId)?`<span style="font-weight:700;font-size:12.5px">${esc(reps.find(t=>t.id===a.repId).name)}</span>`:`<span class="pill r" title="Open the account and press Edit to give it a rep">No rep</span>`}</td>
         <td>${esc(a.type||"—")}</td><td>${esc(a.terms||"—")}</td><td>${exemptPill(a)}</td>
-        <td class="mono">${ncon[a.id]||`<span class="pill y" title="Nobody to contact at this account">0</span>`}</td>
         <td class="mono">${cp[a.id]||"—"}</td>
         <td class="mono">${cj[a.id]||"—"}</td></tr>`).join("")}</tbody></table>
       ${list.length>lim?`<div style="padding:12px 15px;display:flex;gap:10px;align-items:center"><span class="sub">Showing ${lim} of ${list.length} — search to find one fast.</span>
@@ -10577,7 +10580,7 @@ function projRows(ps,arch){
     <th>${sortBtn("stage","Stage",cp,"p")}</th><th>${sortBtn("value","Value",cp,"p")}</th>
     <th>${sortBtn("due","Due",cp,"p")}</th><th>Billing</th><th>Work orders</th><th>Files</th></tr></thead><tbody>
     ${ps.map(p=>`<tr><td><a class="lnk" href="#/project/${esc(p.id)}">${esc(p.name)}</a>
-      <div class="sub mono">P-${p.num}${p.po?" · PO "+esc(p.po):""}${p.reorderOf?" · reorder":""}${followAutoOk(p)?` <span class="pill o" title="The agents send this project's follow-ups by themselves">AUTO-SEND</span>`:""}${noMail(p)?` <span class="pill" title="Dry run / internal — no outside email">dry run</span>`:""}${waivedTag(p)}</div></td>
+      <div class="sub mono">P-${p.num}${p.po?" · PO "+esc(p.po):""}${p.reorderOf?" · reorder":""}${followAutoOk(p)?` <span class="pill o" title="The agents send this project's follow-ups by themselves">AUTO-SEND</span>`:""}${noMail(p)?` <span class="pill" title="A test / internal project or account — no outside email">test · no email</span>`:""}${waivedTag(p)}</div></td>
       <td><span class="pill ${stageCls(p.stage)}">${esc((SG[p.stage]||{}).label||"")}</span></td>
       <td class="mono">${money(projValue(p))}</td>
       <td>${projDuePill(p)}</td>
@@ -10650,7 +10653,7 @@ function contactList(){
   const cf=S.ctFilt||"";if(cf&&CQ[cf])list=list.filter(CQ[cf]);
   list.sort((a,b)=>(a.name||"").localeCompare(b.name||""));
   const all0=live(S.contacts);
-  const cqBar=`<div style="padding:8px 15px;border-bottom:1px solid var(--line2);display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="sub">Show:</span>
+  const cqBar=`<div class="filtbar chipbar"><span class="sub">Show:</span>
     ${[["","All"],["noemail","No email"],["noreach","No email or phone"],["badname","Name needs fixing"],["dup","Same email twice"],["placeholder","Placeholders"]].map(([k,l])=>`<button class="btn sm ${cf===k?"p":""}" data-ctfilt="${k}">${esc(l)}${k?" "+all0.filter(CQ[k]).length:""}</button>`).join("")}</div>`;
   // the last call, email or meeting logged with each person
   const last={};live(S.activity).forEach(x=>{if(!x.contactId||!/call|email|meeting/.test(String(x.type||"")))return;const t=Number(x.at)||0;if(t>(last[x.contactId]||0))last[x.contactId]=t});
@@ -10816,7 +10819,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-129";
+const APP_VERSION="2026.11.25-130";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -11492,7 +11495,6 @@ function jobRec(num){
   const sl=j.statusLog||[];
   return `<div class="pad">
     ${crumbBar(crumbsForJob(j))}
-    ${p?reconMoneyStrip(p,j):""}
     ${(function(){
       const cut=prodOf(j)==="sign"&&methodOf(j)==="film";
       const noLeg=cut&&woItems(j).filter(x=>Number(x.qty)>0&&!(x.legend||"").trim());
@@ -11524,6 +11526,7 @@ function jobRec(num){
       ?`<div class="warn" style="margin-bottom:14px;border-radius:6px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:260px"><b>These lines are stencil sheeting, but this is set up as a ${esc(prodLabel(j).toLowerCase())}.</b>
         That's why it shows a sign route, cut film and legend film. Make it a stencil and the route, checklist and material follow.</span>
         <button class="btn sm" data-mkstencil="${j.num}">Make it a stencil</button></div>`:""}
+    ${p?reconMoneyStrip(p,j):""}
     <div class="hl">
       <div class="hl-top"><span class="oi lg oi-job">${ic("job",18)}</span>
         <div class="tt"><div class="kicker">Work order · ${j.num}</div><h1>${esc(j.desc||"Untitled")}</h1>
@@ -12166,8 +12169,8 @@ function inventoryView(){
   const SF={zero:i=>onHand(i)<=0,recount:i=>!!i.needsCount||onHand(i)<0,noreorder:i=>i.reorderPoint===""||i.reorderPoint==null||placeholderReorder().indexOf(i)>=0};
   if(IF.cat)list=list.filter(i=>(i.cat||"")===IF.cat);if(IF.stock&&SF[IF.stock])list=list.filter(SF[IF.stock]);
   const recount=itemList().filter(SF.recount);
-  const invBar=`<div style="padding:8px 15px;border-bottom:1px solid var(--line2);display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-    <select data-invfilt="cat" style="width:auto" aria-label="Category"><option value="">Category: all</option>${cats.map(c=>`<option ${IF.cat===c?"selected":""}>${esc(c)}</option>`).join("")}</select>
+  const invBar=`<div class="filtbar chipbar">
+    <select data-invfilt="cat" aria-label="Category"><option value="">Category: all</option>${cats.map(c=>`<option ${IF.cat===c?"selected":""}>${esc(c)}</option>`).join("")}</select>
     ${[["","All stock"],["zero","None on the shelf"],["recount","Needs a count"],["noreorder","No reorder point"]].map(([k,l])=>`<button class="btn sm ${(IF.stock||"")===k?"p":""}" data-invfilt="stock" data-v="${k}">${esc(l)}${k?" "+itemList().filter(SF[k]).length:""}</button>`).join("")}</div>`;
   const low=lowStock();
   const value=itemList().reduce((t,i)=>t+onHand(i)*(Number(i.cost)||0),0);

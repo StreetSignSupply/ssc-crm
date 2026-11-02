@@ -71,6 +71,11 @@ for (const [r, sel, v] of filt) { await pg.evaluate((r) => { location.hash = "#/
 for (const [r, sel] of [["contacts", "[data-ctfilt=noemail]"], ["inventory", "button[data-invfilt=stock][data-v=zero]"]]) { await pg.evaluate((r) => { location.hash = "#/" + r; }, r); await pg.waitForTimeout(400);
   const n0 = await rows(); const el = await pg.$(sel); if (!el) { bad.push(r + " " + sel + ": filter missing"); continue; } await el.click(); await pg.waitForTimeout(300);
   const n1 = await rows(); if (!(await pg.$(sel + ".p")) || !(n1 < n0)) bad.push(r + " " + sel + ": filter didn't change the list (" + n0 + " → " + n1 + ")"); }
+// on a phone, no page may be wider than the screen (layout check)
+await pg.setViewportSize({ width: 390, height: 844 });
+for (const r of ROUTES) { await pg.evaluate((r) => { location.hash = "#/" + r; }, r); await pg.waitForTimeout(r === "stencils" ? 1500 : 350);
+  if (await pg.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 2)) bad.push(r + ": wider than a phone screen"); }
+await pg.setViewportSize({ width: 1400, height: 900 });
 // the owner always has Settings
 { await pg.evaluate(() => { location.hash = "#/home"; }); await pg.waitForTimeout(400);
   if (!(await pg.$('a[href="#/settings"], [data-go="settings"]'))) bad.push("the owner (a team record with no level set) lost Settings in the menu");
@@ -80,4 +85,4 @@ for (const [r, sel] of [["contacts", "[data-ctfilt=noemail]"], ["inventory", "bu
 const ver = await pg.evaluate(() => { const m = document.documentElement.innerHTML.match(/APP_VERSION="([^"]+)"/); return m ? m[1] : ""; });
 await browser.close(); fs.unlinkSync(PAGE);
 if (bad.length) { console.log("::error::release check failed: " + bad.slice(0, 8).join(" || ")); process.exit(1); }
-console.log("::notice::release check passed: " + ROUTES.length + " pages, " + forms.length + " forms and " + (filt.length + 2) + " list filters, no errors");
+console.log("::notice::release check passed: " + ROUTES.length + " pages (desktop and phone), " + forms.length + " forms and " + (filt.length + 2) + " list filters, no errors");

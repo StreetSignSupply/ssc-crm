@@ -1,5 +1,15 @@
 # What changed
 
+## 2026.11.25-130 (layout audit against -118)
+Every page compared, desktop and phone, with -118 (before the day's changes): no page errors, nothing wider than the screen, nothing removed. Put right:
+- The project tabs had a second summary (stage, value, next step) next to the one the project bar already has — removed; the project page looks as it did.
+- The side menu's version line pushed Settings and Change history off shorter screens — the version is in the Help menu now.
+- The money strip ("not on any work order") shows only when something doesn't add up, sits with the other warnings on the work order, and its quote total is the quote lines (it read $0 when the project's value was typed in).
+- Filters on Accounts, Contacts and Inventory match the app's style; on a phone the chips scroll sideways instead of taking three rows. The Accounts contact count moved under the account name, so the table fits as before.
+- No flash of "Shop" (no Settings) while a page is still loading for an owner whose record has no level set.
+- "dry run" tag on lists now reads "test · no email".
+- The release check now also opens every page at phone width and fails if any is wider than the screen.
+
 ## 2026.11.25-129
 - **Settings came back for Matt.** Cause: release -119 started treating a team record with no level set as Shop whenever another record was set to Owner. Matt's team records were made before levels existed (no level set — they meant Owner), and another person's record was set to Owner on 30 Oct, so from -119 on the CRM page showed Matt as Shop (no Settings). The database itself was never changed: Matt's access records still said owner. Now a record with no level keeps the level its access record has, the lock check never lowers anyone's level, and Matt's two records have Owner set explicitly. The release check now signs in as an owner whose record has no level set (next to another explicit owner) and fails if Settings is missing or doesn't open.
 
