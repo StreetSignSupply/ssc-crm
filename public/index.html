@@ -1869,7 +1869,10 @@ const isClosed=p=>p.stage==="closed"||p.stage==="lost";
 const FOLLOW_STAGES=["lead","inquiry","quoted"];
 // sample records stay out of every total, badge and report — they still show in the lists with their pill
 // sample records and test projects (TEST / do not send / dry run in the name) stay out of every count, forecast and report
-const isTestRec=x=>!!x&&(x.sample||/\bTEST\b|do not send|dry ?run/.test(String(x.name||"")));
+// THE definition of a test record (project or account) — the same in the database rules (testRec) and the mail worker (testy):
+// its Internal / test box, or the word "test", "dry run" or "do not send" in its NAME, in any case. Scope and notes never count.
+const TEST_NAME=/(^|[^a-z0-9])(test|dry ?run|do not send)([^a-z0-9]|$)/i;
+const isTestRec=x=>!!x&&!!(x.sample||x.internal||x.test||TEST_NAME.test(String(x.name||"")));
 const real=list=>list.filter(x=>!isTestRec(x));
 // a project's due date is for the shipment — once it has shipped (or been invoiced) it can't be late any more
 const stillDue=p=>!isClosed(p)&&p.stage!=="shipped"&&p.stage!=="invoiced";
@@ -2260,7 +2263,7 @@ async function approvalModal(){const w=mailWaiting();const mails={};
       if(!mails[a.id])return `<div style="padding:12px 18px;border-bottom:1px solid var(--line2)"><b>${esc(a.subject||"(no subject)")}</b> <span class="sub">from ${esc(t.name||a.who||"")} to ${esc(a.to||"")}</span>
         <div class="warn" style="margin:6px 0">This email never got into the send queue (the database turned it away), so there's nothing to approve — ${esc(t.name||"they")} should send it again.</div>
         <button class="btn sm" data-mailgone="${esc(a.id)}">Clear it</button></div>`;
-      const changed=p&&m.quote&&m.quote.hash!==quoteHash(p);const atts=m.attachments||[];const pdf=atts.find(x=>/pdf/i.test((x.type||"")+(x.name||"")));
+      const changed=p&&m.quote&&(m.quote.hash!==quoteHash(p)||quoteFileStale(p,m.attachments||[]));const atts=m.attachments||[];const pdf=atts.find(x=>/pdf/i.test((x.type||"")+(x.name||"")));
       return `<div style="padding:12px 18px;border-bottom:1px solid var(--line2)">
         <div><b>${esc((m.message||{}).subject||a.subject||"(no subject)")}</b></div>
         <div class="sub" style="margin:3px 0">From ${esc(t.name||a.who||"")} &lt;${esc(m.from||"")}&gt;${p?" · P-"+esc(p.num)+" "+esc(p.name)+(p.quote?" · "+esc(p.quote)+" "+money2(projValue(p)):""):""}</div>
@@ -2268,13 +2271,14 @@ async function approvalModal(){const w=mailWaiting();const mails={};
         <div style="font-size:13.5px"><b>Attached:</b> ${atts.length?atts.map(x=>`<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.name)}</a>`).join(", "):"nothing"}${m.signId?" · with a signing link":""}</div>
         ${pdf?`<iframe src="${esc(pdf.url)}" title="${esc(pdf.name)}" style="width:100%;height:340px;border:1px solid var(--line2);border-radius:6px;margin:8px 0;background:#fff"></iframe>`:""}
         <div class="rr-p" style="white-space:pre-wrap;max-height:180px;overflow:auto;margin:6px 0;background:var(--card2);padding:8px;border-radius:6px">${esc((m.message||{}).text||"")}</div>
-        ${changed?`<div class="warn" style="margin:6px 0">The quote on the project has changed since this email and its PDF were made (or it was written before 1 Nov). Approving sends <b>exactly this email and the PDF shown</b> — if the PDF is out of date, press Don't send and ask ${esc(t.name||"them")} to make a new one.</div>`:""}
+        ${changed?`<div class="warn" style="margin:6px 0">The quote changed after this PDF was made (or the email was written before 1 Nov), so it can't be approved. Press Don't send — ${esc(t.name||"they")} makes a new quote PDF and sends it again.</div>`:""}
         ${m.quote&&!m.attSha&&atts.length?`<div class="sub" style="margin:6px 0">Checking the attachments — the Approve button appears within a minute.</div>`:""}
-        <div style="display:flex;gap:8px">${!m.quote||(atts.length&&!m.attSha)?"":`<button class="btn sm p" data-mailok="${esc(a.id)}">${changed?"Approve this email as shown":"Approve and send"}</button>`}<button class="btn sm" data-mailno="${esc(a.id)}">Don't send</button></div></div>`}).join("")
+        <div style="display:flex;gap:8px">${!m.quote||changed||(atts.length&&!m.attSha)?"":`<button class="btn sm p" data-mailok="${esc(a.id)}">Approve and send</button>`}<button class="btn sm" data-mailno="${esc(a.id)}">Don't send</button></div></div>`}).join("")
       :`<div class="empty"><b>Nothing waiting</b>Every quote has been approved or turned down.</div>`}</div>`,
     `<button class="btn" data-close="1">Close</button>`))}
 async function mailDecide(xid,ok){const a=S.activity.get(xid);const m=(S._mailOk||{})[xid];if(!a||!m||!m.quote)return;const p=proj(m.quote.pid);if(!p)return;const now=Date.now();
   if(ok&&(m.attachments||[]).length&&!m.attSha)return toast("Still checking the attachments — try again in a minute.");
+  if(ok&&(m.quote.hash!==quoteHash(p)||quoteFileStale(p,m.attachments||[])))return toast("The quote changed after this PDF was made — it can't be approved. Press Don't send.");
   let why="";if(!ok){why=prompt("Why not? (they see this)","")||""}
   // the approval is for this quote as it stands and these people; the mail worker checks both before it sends
   try{await push("projects/"+p.id,ok?{quoteApproval:{v:2,hash:m.quote.hash,to:m.to||[],cc:m.cc||[],files:(m.attachments||[]).map(x=>x.fileId||""),sha:m.attSha||[],byId:meId(),by:me(),at:now,mailId:a.mailId},updatedAt:now}
@@ -5056,10 +5060,15 @@ async function closeSave(pid,thenClose){
 // the paperwork a project can never close without, override or not: the quote PDF, the PO or signed quote, and the invoice
 // checked strictly — the quote PDF the CRM itself made (not any file called "quote"), the PO or signed quote, the invoice —
 // and on every way a project can be closed (the stage buttons, close-out, the agents feed): setStage refuses too
-function closePaperMissing(p){if(!p)return [];const fl=projFiles(p.id).filter(f=>!f.deleted);const out=[];
-  if(!fl.some(f=>f.gen==="quote"))out.push("The quote PDF made by the CRM (Documents → Quote)");
-  if(!fl.some(f=>f.cat==="Purchase order"||f.cat==="Signed quote")&&!signReqsFor(p.id).some(r=>r.status==="signed"&&r.kind!=="proof"))out.push("The PO or the signed quote");
-  if(!fl.some(f=>f.cat==="Invoice"))out.push("The invoice");
+// the three files, as the database rules check them: each must be a file record on this project (projectId), the quote
+// one made by the CRM (gen "quote"), the PO filed as Purchase order or Signed quote, the invoice filed as Invoice
+function closePaper(p){if(!p)return {};const fl=projFiles(p.id).filter(f=>!f.deleted&&f.projectId===p.id).sort((a,b)=>(b.at||0)-(a.at||0));
+  const q=fl.find(f=>f.gen==="quote"),po=fl.find(f=>f.cat==="Purchase order"||f.cat==="Signed quote"),inv=fl.find(f=>f.cat==="Invoice");
+  return {quote:q?q.id:"",po:po?po.id:"",inv:inv?inv.id:""}}
+function closePaperMissing(p){if(!p)return [];const c=closePaper(p);const out=[];
+  if(!c.quote)out.push("The quote PDF made by the CRM (Documents → Quote)");
+  if(!c.po)out.push("The PO or the signed quote, filed on the project");
+  if(!c.inv)out.push("The invoice, filed on the project");
   return out}
 async function doClose(pid,skipCheck){
   const p=proj(pid);if(!p)return;
@@ -10639,6 +10648,15 @@ document.addEventListener("change",e=>{const t=e.target&&e.target.closest&&e.tar
 document.addEventListener("click",e=>{const t=e.target&&e.target.closest&&e.target.closest("[data-acfilt='clear']");if(!t)return;e.preventDefault();S.acFilt={};render()},true);
 document.addEventListener("click",e=>{const t=e.target&&e.target.closest&&e.target.closest("[data-ptabgo2]");if(!t)return;e.preventDefault();closeModal();S.ptab="files";go("project/"+t.dataset.ptabgo2)},true);
 document.addEventListener("click",e=>{const t=e.target&&e.target.closest&&e.target.closest("[data-reapok]");if(!t)return;e.preventDefault();try{localStorage.setItem("sscReapprove","1")}catch(x){}render()},true);
+// Retry a failed email: the same message, attachments and people, as a new send (the quote check runs again)
+async function mailRetry(xid){const a=S.activity.get(xid);const c=a&&a.mailCopy;if(!c)return;if(!myMailFrom())return toast("Sending needs your own @streetsignsupply.com address on your team record.");
+  if(c.quote&&c.quote.pid&&proj(c.quote.pid)&&quoteFileStale(proj(c.quote.pid),c.atts||[]))return toast("The quote changed after its PDF was made — make a new quote PDF and send a new email.");
+  const mid=uid("ml"),now=Date.now();
+  try{await setDoc("mail/"+mid,Object.assign({id:mid,kind:"customer",to:c.to||[],cc:c.cc||[],from:myMailFrom(),fromName:meName(),byId:meId(),message:{subject:c.subject||"",text:c.body||""},attachments:c.atts||[],
+      status:"queued",at:now,activityId:xid,recType:c.recType||"",recId:c.recId||"",signId:c.signId||"",retryOf:a.mailId||""},c.quote?{quote:Object.assign({},c.quote,{hash:c.quote.pid&&proj(c.quote.pid)?quoteHash(proj(c.quote.pid)):c.quote.hash})}:{},c.follow?{follow:c.follow}:{}))}
+  catch(e){return toast("Couldn't queue it again — "+(e&&e.message?String(e.message).slice(0,80):"try in a minute"))}
+  await push("activity/"+xid,{mailId:mid,sendState:"queued",sendErr:"",retriedAt:now});a.sendState="queued";a.sendErr="";toast("Sending it again…");render()}
+document.addEventListener("click",e=>{const t=e.target&&e.target.closest&&e.target.closest("[data-mailretry]");if(!t)return;e.preventDefault();mailRetry(t.dataset.mailretry)},true);
 document.addEventListener("click",e=>{const t=e.target&&e.target.closest&&e.target.closest("[data-ctfilt]");if(!t)return;e.preventDefault();S.ctFilt=t.dataset.ctfilt;render()},true);
 function contactRec(id){
   const c=S.contacts.get(id);if(!c||c.deleted)return notFound("Contact");
@@ -10749,7 +10767,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-123";
+const APP_VERSION="2026.11.25-124";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -13911,6 +13929,9 @@ function projectModal(p,aid,then){
       billStatus:p.billStatus||"none",billDate:p.billDate||"",paidDate:p.paidDate||"",
       depositAmt:p.depositAmt||"",deleted:false,internal:$("#f-internal")?$("#f-internal").checked:!!p.internal,
       createdAt:p.createdAt||Date.now(),updatedAt:Date.now()};
+    // Edit project can't close it without the paperwork either (the database rules refuse it too)
+    if(stage==="closed"&&p.stage!=="closed"){const miss=closePaperMissing(p.id?p:rec);
+      if(miss.length)return toast("It can't be Closed won yet — missing: "+miss.join("; ")+".");rec.closePaper=closePaper(p)}
     const movedAcct=p.id&&p.accountId&&p.accountId!==rec.accountId;
     if(movedAcct){
       const okIds=contactsOf(rec.accountId).map(c=>c.id);
@@ -14086,7 +14107,7 @@ async function docToFiles(d){if(!d||!d.pid)return;if(!assets)throw {code:"no fil
   const file=(typeof File!=="undefined")?new File([d.blob],d.name,{type:"application/pdf"}):d.blob;
   const up=await assets.upload(file);const fid=uid("f");const now=Date.now();
   await setDoc("files/"+fid,{id:fid,assetId:up.id,url:up.url,name:d.name,size:up.sizeBytes||(d.blob&&d.blob.size)||0,type:"application/pdf",
-    cat:d.kind==="invoice"?"Invoice":"Quote",who:me(),when:stamp(),at:now,deleted:false,accountId:p.accountId||"",projectId:p.id,jobId:"",gen:d.kind||"quote",docNo:String(d.docNo||"")});
+    cat:d.kind==="invoice"?"Invoice":"Quote",qhash:d.kind==="invoice"?"":quoteHash(p),who:me(),when:stamp(),at:now,deleted:false,accountId:p.accountId||"",projectId:p.id,jobId:"",gen:d.kind||"quote",docNo:String(d.docNo||"")});
   // only PDFs the CRM made itself for this same quote or invoice number are replaced — never a signed quote, a PO or anything uploaded
   const no=String(d.docNo||"");
   if(no)for(const f of live(S.files).filter(f=>f.id!==fid&&f.projectId===p.id&&f.gen===(d.kind||"quote")&&String(f.docNo||"")===no))
@@ -14456,7 +14477,7 @@ async function setStage(id,stage,why){
   const p=proj(id);if(!p||p.stage===stage)return;
   const sl=(p.stageLog||[]).concat([{stage,at:Date.now(),who:me(),auto:/^moved (itself|automatically)/.test(why||"")}]).slice(-60);
   const unBill=p.stage==="invoiced"&&PATH.indexOf(stage)>=0&&PATH.indexOf(stage)<PATH.indexOf("invoiced")&&p.billStatus==="invoiced"&&!(p.invNum||"").trim()&&!p.paidDate;
-  await push("projects/"+id,Object.assign({stage,stageLog:sl,updatedAt:Date.now()},unBill?{billStatus:(Number(p.depositAmt)>0&&p.billWhen==="deposit")?"deposit":"none",billDate:""}:{}));
+  await push("projects/"+id,Object.assign({stage,stageLog:sl,updatedAt:Date.now()},stage==="closed"?{closePaper:closePaper(p)}:{},unBill?{billStatus:(Number(p.depositAmt)>0&&p.billWhen==="deposit")?"deposit":"none",billDate:""}:{}));
   recordHistory("project",id,[{f:"Stage",o:(SG[p.stage]||{}).label||p.stage,
     n:((SG[stage]||{}).label||stage)+(why?" ("+why+")":"")}]);
   if(LOCK_STAGES.indexOf(stage)>=0){try{const cur0=S.projects.get(id);if(cur0)cur0.stage=stage;await lockLineCosts(id)}catch(e){}}
@@ -16112,7 +16133,7 @@ async function followPlan(pid,fromIso,sent){
   const p=p0;if(!p||(p.followups||[]).length||p.followStop||FOLLOW_STAGES.indexOf(p.stage)<0)return null;
   if(!quoteState(p).ok)return null;           // no follow-ups on a quote with no prices
   {const fc=followContact(p);if(!fc||!fc.email)return null}   // nobody to send them to
-  if(/dry ?run|do not submit/i.test((p.name||"")+" "+(p.scope||"")+" "+(p.notes||"")))return null;
+  if(noMail(p))return null;
   const fus=followPlanList(fromIso||p.quoteDate||today());
   const patch={followups:fus,followAuto:false,updatedAt:Date.now()};
   Object.assign(p,patch);await push("projects/"+pid,patch);
@@ -16324,8 +16345,16 @@ function dbLockCard(){const d=S.dbLock||{};const want=d.want||"off",st=d.state||
     ${want==="on"&&st==="on"&&d.available&&d.available!==d.liveHash?`<div class="warn" style="margin:0 0 10px"><b>Tighter rules are ready.</b> Customer emails from anyone but an owner wait for your OK, and always go from the writer's own address;
       only the uploader, office or an owner can bin a file, and signed copies, POs and invoices only an owner; each person reads only their own AI drafts.
       Press Apply, then keep this page open a few minutes so it can confirm.</div>`:""}
-    <div class="setrow">${want==="on"?`${st==="on"&&d.available&&d.available!==d.liveHash?`<button class="btn p" data-dblock="apply">Apply the updated rules</button>`:""}<details class="dd"><summary class="btn q">More</summary><div class="dd-m"><button class="danger" data-dblock="off">Turn the lock off…</button></div></details>`:`<button class="btn p" data-dblock="on">Turn the lock on</button>`}</div></div></section>`}
-async function dbLockApply(){try{await push("settings/dbLock",{apply:(S.dbLock||{}).available,askedAt:Date.now(),askedBy:me(),error:""});toast("The updated rules go on within 10 minutes — keep the CRM open so it can confirm")}catch(e){toast("That didn't save.")}}
+    <div class="setrow">${want==="on"?`${st==="on"&&d.available&&d.available!==d.liveHash?`${applyBlockers().length?`<button class="btn p" disabled title="${esc(applyBlockers().join(" "))}">Apply the updated rules</button>`:`<button class="btn p" data-dblock="apply">Apply the updated rules</button>`}`:""}<details class="dd"><summary class="btn q">More</summary><div class="dd-m"><button class="danger" data-dblock="off">Turn the lock off…</button></div></details>`:`<button class="btn p" data-dblock="on">Turn the lock on</button>`}</div></div></section>`}
+// the new rules need every person who sends customer email to have their own @streetsignsupply.com address, with it on their
+// access record (the lock job fills those in every 10 minutes, nobody's CRM needs to be open)
+function applyBlockers(){const out=[];const ppl=live(S.team).filter(t=>String(t.name||"").trim()&&teamRole(t)!=="shop");
+  const noAddr=ppl.filter(t=>!/@streetsignsupply\.com$/i.test(String(t.email||"").trim()));
+  if(noAddr.length)out.push(noAddr.map(t=>t.name).join(", ")+" need"+(noAddr.length===1?"s":"")+" an @streetsignsupply.com address on their team record.");
+  const want2=accessWanted();const uns=Object.keys(want2).filter(k=>want2[k].mail&&((S.access.get(k)||{}).mail||"")!==want2[k].mail);
+  if(uns.length)out.push(uns.length+" access record"+(uns.length===1?" doesn't":"s don't")+" have the sending address yet — the lock job fills them in within 10 minutes.");
+  return out}
+async function dbLockApply(){if(applyBlockers().length)return toast(applyBlockers().join(" "));try{await push("settings/dbLock",{apply:(S.dbLock||{}).available,askedAt:Date.now(),askedBy:me(),error:""});toast("The updated rules go on within 10 minutes — keep the CRM open so it can confirm")}catch(e){toast("That didn't save.")}}
 async function dbLockSet(want){try{await setDoc("settings/dbLock",Object.assign({},S.dbLock||{},{want,askedAt:Date.now(),askedBy:me(),error:""}));toast(want==="on"?"The lock turns on within 10 minutes — keep the CRM open so it can confirm":"The lock turns off within 10 minutes")}catch(e){toast("That didn't save.")}}
 // while the lock is being checked, any owner or office copy of the CRM that can still read and write says so
 function qbinvWatch(){try{db.doc("settings/qbinv").onSnapshot(sn=>{const d=sn&&sn.exists?(typeof sn.data==="function"?sn.data():sn.data):null;S.qbinv=d||null;if(S.route&&S.route.v==="reports"&&!typing()&&!S.modal)render()},()=>{})}catch(e){}}
@@ -16407,7 +16436,7 @@ function myMailFrom(){const t=S.viewerTeam;const e=String((t&&t.email)||"").trim
 function mailNeedsOk(){return false}
 // a dry run or internal test project never emails anyone outside (flag on the project, or "dry run" in its name or notes)
 function noMail(p){if(!p)return false;const a=acct(p.accountId)||S.accounts.get(p.accountId)||{};
-  return !!(p.internal||a.internal||a.test||isTestRec(p)||/\btest\b|dry ?run|do not submit|do not send|internal test/i.test((p.name||"")+" "+(p.scope||"")+" "+(p.notes||"")))}
+  return isTestRec(p)||isTestRec(a)}
 // the sender's Gmail signature (read from Gmail by the mail worker) goes on every email the CRM sends — so templates
 // end with just "Thanks," and the signature carries the name, company and phone
 function mySig(){const t=S.viewerTeam;return mailSendOn()&&t&&String(t.mailSig||"").trim()?String(t.mailSig):""}
@@ -16512,9 +16541,15 @@ function isQuoteFile(a){return !!a&&(a.gen==="quote"||/^(Quote|Signed quote)$/.t
 function isQuoteMail(C,atts){const pq=C&&C.pid?proj(C.pid):null;if(!pq)return false;
   return (atts||[]).some(isQuoteFile)||C.tplUsed==="quote"||C.kind==="quote"||(!!C.signId&&((S.signreq||new Map()).get(C.signId)||{}).kind!=="proof")}
 // the owner approved this exact quote for these exact people
-function quoteOkFor(p,to,cc,atts){const ap=p&&p.quoteApproval;if(!ap||ap.v!==2||ap.hash!==quoteHash(p))return false;
-  // the same files (the mail worker also checks their actual contents)
-  if(atts&&atts.length){const au=new Set(ap.files||[]);if(!atts.every(x=>au.has(x.fileId)))return false}
+// SHA-256 of a file's bytes, read fresh every time (no cache), so a file swapped at the same link is always caught
+async function shaOfUrl(url){const r=await fetch(url,{cache:"no-store"});if(!r.ok)throw new Error("HTTP "+r.status);
+  const b=await crypto.subtle.digest("SHA-256",await r.arrayBuffer());return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
+// a quote PDF made before the quote last changed is out of date
+function quoteFileStale(p,atts){const cur=quoteHash(p);return (atts||[]).some(a=>a.gen==="quote"&&a.qhash!==cur)}
+async function quoteOkFor(p,to,cc,atts){const ap=p&&p.quoteApproval;if(!ap||ap.v!==2||ap.hash!==quoteHash(p))return false;
+  if(quoteFileStale(p,atts))return false;
+  // the attachments' actual contents must be the ones Matt approved
+  if(atts&&atts.length){const ok=new Set(ap.sha||[]);for(const a of atts){let h="";try{h=await shaOfUrl(a.url)}catch(e){return false}if(!ok.has(h))return false}}
   const ok=new Set((ap.to||[]).concat(ap.cc||[]).map(x=>String(x).toLowerCase()));return to.concat(cc||[]).every(x=>ok.has(String(x).toLowerCase()))}
 const MAX_RECIP=6;
 async function composeGo(send){const C=S._cmp||{};const to=$("#cm-to").value.split(/[,;]/).map(x=>x.trim()).filter(x=>/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(x));
@@ -16527,9 +16562,10 @@ async function composeGo(send){const C=S._cmp||{};const to=$("#cm-to").value.spl
   if(noMail(pq))return toast("This project is marked dry run / test — nothing goes to anyone outside from it.");
   if(send&&!myMailFrom())return toast("This one can't be sent from the CRM — use Open in my email.");
   // each attachment carries where it came from (the CRM-made quote PDF says gen "quote"), not just its name
-  const atts=[...document.querySelectorAll("[data-cmatt]:checked")].map(e=>S.files.get(e.dataset.cmatt)).filter(Boolean).map(f=>({name:f.name,url:f.url,type:f.type||"",fileId:f.id,gen:f.gen||"",cat:f.cat||""}));
+  const atts=[...document.querySelectorAll("[data-cmatt]:checked")].map(e=>S.files.get(e.dataset.cmatt)).filter(Boolean).map(f=>({name:f.name,url:f.url,type:f.type||"",fileId:f.id,gen:f.gen||"",cat:f.cat||"",qhash:f.qhash||""}));
   // a quote going to the customer needs the owner's OK on that exact quote and those exact people (owners send their own)
-  const quoteOut=isQuoteMail(C,atts);const needOk=quoteOut&&myAccess()!=="owner"&&!quoteOkFor(pq,to,cc,atts);
+  const quoteOut=isQuoteMail(C,atts);if(quoteOut&&pq&&quoteFileStale(pq,atts))return toast("The quote PDF attached is older than the quote — make a new one (Documents → Quote) and attach that.");
+  const needOk=quoteOut&&myAccess()!=="owner"&&!(await quoteOkFor(pq,to,cc,atts));
   if(needOk&&!send)return toast("This quote needs Matt's OK first — press Send and it goes out the moment he approves it.");
   const tl=to.map(x=>x.toLowerCase()),hit=x=>x&&x.email&&tl.indexOf(String(x.email).toLowerCase())>=0;
   const pA=C.pid?(proj(C.pid)||{}).accountId:C.aid;
@@ -16537,7 +16573,8 @@ async function composeGo(send){const C=S._cmp||{};const to=$("#cm-to").value.spl
   const now=Date.now(),xid=uid("ac"),mid=uid("ml");const recType=C.pid?"project":"account",recId=C.pid||C.aid||(c&&c.accountId)||"";
   closeModal();
   await setDoc("activity/"+xid,{id:xid,recType,recId:String(recId),kind:"note",type:"email",direction:"out",subject,text:body+(atts.length?"\n\n📎 "+atts.map(a=>a.name).join(", "):""),
-    contactId:c?c.id:"",whoId:meId(),who:me(),when:today(),due:"",backOn:"",noBack:true,at:now,done:true,deleted:false,mailId:send?mid:"",sendState:send?(needOk?"approval":"queued"):"opened",to:to.join(", ")});
+    contactId:c?c.id:"",whoId:meId(),who:me(),when:today(),due:"",backOn:"",noBack:true,at:now,done:true,deleted:false,mailId:send?mid:"",sendState:send?(needOk?"approval":"queued"):"opened",to:to.join(", "),
+    mailCopy:send?{to,cc,subject,body,atts,quote:quoteOut?{pid:pq.id,hash:quoteHash(pq),no:pq.quote||""}:null,signId:C.signId||"",follow:C.follow?{pid:C.follow.pid,id:C.follow.id}:null,recType,recId:String(recId)}:null});
   if(send){await setDoc("mail/"+mid,Object.assign({id:mid,kind:"customer",to,cc,from:myMailFrom(),fromName:meName(),byId:meId(),message:{subject,text:body},attachments:atts,
       status:"queued",at:now,activityId:xid,recType,recId:String(recId),signId:C.signId||""},
       quoteOut?{quote:{pid:pq.id,hash:quoteHash(pq),no:pq.quote||""}}:{},C.follow?{follow:{pid:C.follow.pid,id:C.follow.id}}:{}));
@@ -16557,6 +16594,7 @@ async function composeGo(send){const C=S._cmp||{};const to=$("#cm-to").value.spl
 // what the mail worker reported back on an email sent from the CRM
 function sendBadge(x){const s=x&&x.sendState;if(!s||s==="opened")return "";
   if(s==="approval")return `<span class="pill o">quote waiting for Matt's OK</span>`;
+  if(s==="failed"&&x.mailCopy)return `<span class="pill r" title="${esc(x.sendErr||"")}">didn't send${x.sendErr?" — "+esc(String(x.sendErr).slice(0,90)):""}</span> <button class="btn sm" data-mailretry="${esc(x.id)}">Retry</button>`;
   if(s==="rejected")return `<span class="pill r">not approved${x.sendErr?" — "+esc(String(x.sendErr).slice(0,60)):""}</span>`;
   return s==="sent"?`<span class="pill g">sent${x.sentAt?" "+esc(fmtTs(x.sentAt)):""}</span>`:s==="queued"?`<span class="pill y">sending…</span>`
     :`<span class="pill r" title="${esc(x.sendErr||"")}">didn't send${x.sendErr?" — "+esc(String(x.sendErr).slice(0,60)):""}</span>`}
