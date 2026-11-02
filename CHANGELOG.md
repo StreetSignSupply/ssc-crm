@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-129
+- **Settings came back for Matt.** Cause: release -119 started treating a team record with no level set as Shop whenever another record was set to Owner. Matt's team records were made before levels existed (no level set — they meant Owner), and another person's record was set to Owner on 30 Oct, so from -119 on the CRM page showed Matt as Shop (no Settings). The database itself was never changed: Matt's access records still said owner. Now a record with no level keeps the level its access record has, the lock check never lowers anyone's level, and Matt's two records have Owner set explicitly. The release check now signs in as an owner whose record has no level set (next to another explicit owner) and fails if Settings is missing or doesn't open.
+
 ## 2026.11.25-128
 - **Database rules:** a new project must record the account it starts on; once the mail worker has checked a file, its category and project are fixed — only the owner can re-file or move it. Moving a work order to another project leaves its checked files where they are (unless the owner does it) and says so.
 - **Write it with AI:** a Gemini model that's over Google's free allowance is skipped for 10 minutes so the next one answers.

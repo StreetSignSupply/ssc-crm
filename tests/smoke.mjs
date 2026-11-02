@@ -10,7 +10,9 @@ const PAGE = path.resolve(here, "__smoke.html");
 fs.writeFileSync(PAGE, fs.readFileSync(SRC, "utf8"));
 const now = Date.now(), day = 86400000;
 const D = {
-  team: { t1: { name: "Test Owner", initials: "TO", access: "owner", claudeId: "u1", email: "owner@example.com" }, t2: { name: "Test Sales", initials: "TS", access: "sales", email: "sales@example.com" } },
+  // t1 (the person signed in) is an older owner record with no level set, and another record is set to owner explicitly —
+  // the owner must still get Settings (release -119..-128 turned such a record into Shop)
+  team: { t1: { name: "Test Owner", initials: "TO", claudeId: "u1", email: "owner@example.com" }, t9: { name: "Second Owner", initials: "SO", access: "owner", email: "owner2@example.com" }, t2: { name: "Test Sales", initials: "TS", access: "sales", email: "sales@example.com" } },
   accounts: { a1: { name: "Test County", city: "Town", state: "UT", type: "Government agency", terms: "Net 30", repId: "t1" }, a2: { name: "Test Contractor", type: "Contractor", terms: "Prepay" } },
   contacts: { c1: { name: "Pat Example", accountId: "a1", email: "pat@example.com", phone: "4355550100", role: "Buyer" }, c2: { name: "Lee Sample", accountId: "a2", phone: "4355550101", role: "Buyer" } },
   vendors: { v1: { name: "Test Plastics" }, v2: { name: "Test Metals" } },
@@ -29,7 +31,7 @@ const D = {
     items: [{ qty: "4", code: "R1-1", desc: "Stop", size: "30x30", grade: "HIP", lineId: "l1" }], gates: {}, route: {}, ship: {}, statusLog: [{ status: "new", at: now - day }] } },
   files: { f1: { name: "Proof.png", type: "image/png", url: "", cat: "Artwork proof", projectId: "p1", accountId: "a1", at: now } },
   activity: { x1: { id: "x1", recType: "account", recId: "a1", kind: "note", type: "call", text: "Called about the bid", contactId: "c1", at: now - day, when: new Date(now - day).toISOString().slice(0, 10) } },
-  events: {}, history: {}, invtx: {}, notifications: {}, reminders: {}, access: {} };
+  events: {}, history: {}, invtx: {}, notifications: {}, reminders: {}, access: { "u1": { role: "owner", teamId: "t1" }, "owner@example.com": { role: "owner", teamId: "t1" } } };
 const ROUTES = ["home", "mybook", "accounts", "account/a1", "contacts", "contact/c1", "projects", "project/p1", "project/p2", "jobs", "job/1001", "tracker", "calendar",
   "files", "purchasing", "inventory", "item/i1", "stencils", "vendors", "vendor/v1", "reports", "audit", "archive", "bin", "settings"];
 const browser = await chromium.launch(); const pg = await browser.newPage({ viewport: { width: 1400, height: 900 } });
@@ -69,6 +71,12 @@ for (const [r, sel, v] of filt) { await pg.evaluate((r) => { location.hash = "#/
 for (const [r, sel] of [["contacts", "[data-ctfilt=noemail]"], ["inventory", "button[data-invfilt=stock][data-v=zero]"]]) { await pg.evaluate((r) => { location.hash = "#/" + r; }, r); await pg.waitForTimeout(400);
   const n0 = await rows(); const el = await pg.$(sel); if (!el) { bad.push(r + " " + sel + ": filter missing"); continue; } await el.click(); await pg.waitForTimeout(300);
   const n1 = await rows(); if (!(await pg.$(sel + ".p")) || !(n1 < n0)) bad.push(r + " " + sel + ": filter didn't change the list (" + n0 + " → " + n1 + ")"); }
+// the owner always has Settings
+{ await pg.evaluate(() => { location.hash = "#/home"; }); await pg.waitForTimeout(400);
+  if (!(await pg.$('a[href="#/settings"], [data-go="settings"]'))) bad.push("the owner (a team record with no level set) lost Settings in the menu");
+  await pg.evaluate(() => { location.hash = "#/settings"; }); await pg.waitForTimeout(500);
+  const txt = await pg.evaluate(() => (document.querySelector(".main") || {}).innerText || "");
+  if (!/Order sync|Reminders|Our team|Team/i.test(txt) || /owner only|only the owner/i.test(txt.slice(0, 200))) bad.push("Settings didn't open for the owner"); }
 const ver = await pg.evaluate(() => { const m = document.documentElement.innerHTML.match(/APP_VERSION="([^"]+)"/); return m ? m[1] : ""; });
 await browser.close(); fs.unlinkSync(PAGE);
 if (bad.length) { console.log("::error::release check failed: " + bad.slice(0, 8).join(" || ")); process.exit(1); }
