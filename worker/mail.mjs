@@ -496,8 +496,8 @@ if (LOOP_MIN) (async () => { if (!GH) return say("AI backup check: no GitHub tok
   for (const m of ["openai/gpt-4.1-mini", "openai/gpt-4o-mini", "meta/llama-3.3-70b-instruct"]) { try {
     const x = await fetchT("https://models.github.ai/inference/chat/completions", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + GH, Accept: "application/vnd.github+json" },
       body: JSON.stringify({ model: m, messages: [{ role: "user", content: "Reply with the word OK" }], max_tokens: 10 }) });
-    const j = await x.json().catch(() => ({})); const c = String(((((j.choices || [])[0] || {}).message || {}).content) || "").trim();
-    say("AI backup check: " + m + " → " + x.status + (c ? " answered" : " no answer " + String((j.error || {}).code || (j.error || {}).message || j.message || "").slice(0, 80)));
+    const raw = await x.text().catch(() => ""); let j = {}; try { j = JSON.parse(raw); } catch (e) {} const c = String(((((j.choices || [])[0] || {}).message || {}).content) || "").trim();
+    say("AI backup check: " + m + " → " + x.status + (c ? " answered" : " no answer — " + (x.headers.get("content-type") || "") + " " + raw.replace(/\s+/g, " ").slice(0, 220)));
   } catch (e) { say("AI backup check: " + m + " → " + (e.name === "AbortError" ? "over 25s" : String(e.message || e).slice(0, 60))); } } })();
 let aiBusy = false; const aiTimer = LOOP_MIN ? setInterval(async () => { if (aiBusy) return; aiBusy = true; try { await aiDrafts(); } catch (e) {} aiBusy = false; }, 3000) : null;
 do {
