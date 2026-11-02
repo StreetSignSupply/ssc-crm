@@ -1,5 +1,14 @@
 # What changed
 
+## 2026.11.25-124
+- **Closed won needs the paperwork everywhere:** the Edit project form refuses Stage = Closed won until the project has the quote PDF the CRM made, the PO or signed quote, and the invoice in its own Files; the database rules check the same three file records (closePaper) on any change to Closed won.
+- **The AI check is allowed by the rules:** its draft requests (byId "fix-run") are accepted; it can never read the answers.
+- **One definition of a test project or account** in the CRM, the mail worker and the database rules: its Internal / test box, or the word test / dry run / do not send in its NAME, any case. Scope and notes never count, so "pressure test" or "Test Pit Rd" in a job's notes still emails. A project on a test account counts too.
+- **Quote approval checks the files' actual contents** in the CRM as well as the mail worker (SHA-256 read fresh every time, no cache).
+- **A quote can't be approved, or sent, if it changed after its PDF was made:** each quote PDF now remembers the quote it was made from; an older PDF has to be made again. "Approve this email as shown" is gone.
+- **Apply is blocked** until everyone who sends customer email has their own @streetsignsupply.com address, and the lock job fills in every access record's sending address every 10 minutes — nobody's CRM needs to be open.
+- **An attachment that can't be read** fails the email with the reason (e.g. HTTP 402 — file storage needs the paid plan) and a Retry button that sends the same email again.
+
 ## 2026.11.25-123
 - **Release check:** the Contacts "No email" and Inventory "None on the shelf" filters must actually shorten the list (not just light up), alongside the Accounts and Inventory selects.
 - **Quote approval is tied to the PDF's contents:** the mail worker reads each attachment and records its SHA-256; Matt's approval holds those exact contents, so a regenerated or swapped PDF needs approving again, even at the same link. Matt can approve "this email as shown" when the quote changed after it was written (he sees the PDF itself).

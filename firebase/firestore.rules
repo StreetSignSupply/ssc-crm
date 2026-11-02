@@ -72,12 +72,26 @@ service cloud.firestore {
       allow delete: if isOwner();
     }
     // quotes and projects: the shop doesn't change prices, billing or the stage
+    // Closed won needs the paperwork: closePaper names three file records on this project — the quote PDF the CRM made
+    // (gen "quote"), the PO or signed quote, and the invoice
+    function fileOk(fid, pid, kind) { return fid is string && fid != "" && exists(/databases/$(db)/documents/files/$(fid))
+        && get(/databases/$(db)/documents/files/$(fid)).data.get("projectId", "") == pid
+        && get(/databases/$(db)/documents/files/$(fid)).data.get("deleted", false) != true
+        && (kind == "quote" ? get(/databases/$(db)/documents/files/$(fid)).data.get("gen", "") == "quote"
+            : kind == "po" ? get(/databases/$(db)/documents/files/$(fid)).data.get("cat", "") in ["Purchase order", "Signed quote"]
+            : get(/databases/$(db)/documents/files/$(fid)).data.get("cat", "") == "Invoice"); }
+    function closingOk(pid) { return request.resource.data.get("stage", "") != "closed"
+        || (resource != null && resource.data.get("stage", "") == "closed")
+        || (request.resource.data.get("closePaper", {}) is map
+            && fileOk(request.resource.data.closePaper.get("quote", ""), pid, "quote")
+            && fileOk(request.resource.data.closePaper.get("po", ""), pid, "po")
+            && fileOk(request.resource.data.closePaper.get("inv", ""), pid, "inv")); }
     match /projects/{id} {
       allow read: if member();
-      allow create: if member() && (isOwner() || !request.resource.data.keys().hasAny(["quoteApproval", "quoteRejected"]));
+      allow create: if member() && (isOwner() || !request.resource.data.keys().hasAny(["quoteApproval", "quoteRejected"])) && closingOk(id);
       // only an owner approves (or turns down) a quote going to a customer
       allow update: if member() && !(isShop() && changed().hasAny(["orderLines", "value", "amountAuto", "billStatus", "billDate", "paidDate", "invNum", "invTax", "depositAmt", "quote", "price"]))
-                    && (isOwner() || !changed().hasAny(["quoteApproval", "quoteRejected"]));
+                    && (isOwner() || !changed().hasAny(["quoteApproval", "quoteRejected"])) && closingOk(id);
       allow delete: if isOffice();
     }
     // inventory: sales and shop count and move stock; only owners and office change what things cost
@@ -127,12 +141,16 @@ service cloud.firestore {
     function custMail() { return request.resource.data.get("kind", "") == "customer"; }
     // a test / dry-run project or an internal account never emails anyone outside (the mail worker checks the same)
     function recPath(c) { return /databases/$(db)/documents/$(c)/$(request.resource.data.get("recId", "-")); }
+    function testName(x) { return string(x.get("name", "")).lower().matches("(^|.*[^a-z0-9])(test|dry ?run|do not send)([^a-z0-9].*|$)"); }
+    // THE test definition (same as isTestRec in the CRM and testy in the mail worker): the Internal / test box or the word
+    // test / dry run / do not send in the record's name, any case — for the project and for its account
+    function testThing(x) { return x.get("internal", false) == true || x.get("test", false) == true || x.get("sample", false) == true || testName(x); }
     function testRec() {
       return (request.resource.data.get("recType", "") == "project" && exists(recPath("projects"))
-               && (get(recPath("projects")).data.get("internal", false) == true
-                   || string(get(recPath("projects")).data.get("name", "")).lower().matches("(^|.*[^a-z0-9])(test|dry ?run)([^a-z0-9].*|$)")))
-          || (request.resource.data.get("recType", "") == "account" && exists(recPath("accounts"))
-               && get(recPath("accounts")).data.get("internal", false) == true);
+               && (testThing(get(recPath("projects")).data)
+                   || (exists(/databases/$(db)/documents/accounts/$(get(recPath("projects")).data.get("accountId", "-")))
+                       && testThing(get(/databases/$(db)/documents/accounts/$(get(recPath("projects")).data.get("accountId", "-"))).data))))
+          || (request.resource.data.get("recType", "") == "account" && exists(recPath("accounts")) && testThing(get(recPath("accounts")).data));
     }
     match /mail/{id} {
       allow read: if isOffice();
@@ -172,7 +190,7 @@ service cloud.firestore {
     // The writing rules live in the worker, not in the request.
     match /aidraft/{id} {
       allow read: if member() && (resource.data.get("byId", "") == myTeamId() || isOwner());
-      allow create: if member() && request.resource.data.status == "queued" && request.resource.data.get("byId", "") == myTeamId()
+      allow create: if member() && request.resource.data.status == "queued" && request.resource.data.get("byId", "") in [myTeamId(), "fix-run"]
                     && !request.resource.data.keys().hasAny(["rules"]);
       allow update, delete: if false;
     }

@@ -144,9 +144,11 @@ async function mailCheck(d, m, from, to, cc) {
   const accts = await docsOf("all_accounts", fs.collection("accounts"));
   const aid = p ? p.accountId : (m.recType === "account" ? m.recId : ""); const ad = aid ? accts.find((x) => x.id === String(aid)) : null; const acc = ad ? ad.data() : null;
   // a dry run / test project (or an account marked internal / test) never emails anyone outside — "test" in any case
-  const testy = (x) => !!x && (x.internal || x.sample || /\btest\b|dry ?run|do not submit|do not send|internal test/i.test([x.name, x.scope, x.notes].join(" ")));
-  if (testy(p)) return "the project is marked dry run / test";
-  if (acc && (acc.internal || acc.test)) return "the account is marked internal / test";
+  // THE test definition — the same as isTestRec() in the CRM and testRec() in the database rules: the Internal / test box,
+  // or "test", "dry run" or "do not send" as a word in the NAME, any case (scope and notes never count)
+  const testy = (x) => !!x && !!(x.sample || x.internal || x.test || /(^|[^a-z0-9])(test|dry ?run|do not send)([^a-z0-9]|$)/i.test(String(x.name || "")));
+  if (testy(p)) return "the project is marked as a test (its name or its Internal / test box)";
+  if (testy(acc)) return "the account is marked as a test (its name or its Internal / test box)";
   // is it the quote? the client says so, but the worker checks for itself: a CRM-made quote PDF, a file filed as the quote,
   // or a signing link for the quote — whatever the file is called
   let isQ = !!m.quote;
@@ -158,10 +160,13 @@ async function mailCheck(d, m, from, to, cc) {
   if (p.quoteRejected && p.quoteRejected.mailId === d.id) return "Matt didn't approve it" + (p.quoteRejected.why ? ": " + String(p.quoteRejected.why).slice(0, 80) : "");
   if (!quoteHash.brandAt || Date.now() - quoteHash.brandAt > 5 * 60000) { quoteHash.brand = (await fs.doc("settings/brand").get()).data() || {}; quoteHash.brandAt = Date.now(); }
   const cur = quoteHash(p, acc || {}, quoteHash.brand);
-  if (isOwnerT(writer)) return m.quote.hash === cur ? "send" : "the quote changed after this email was written — send it again";
+  // a quote PDF made before the quote last changed, or an email written before it changed, never goes
+  const stale = m.quote.hash !== cur || (m.attachments || []).some((x) => x && x.gen === "quote" && x.qhash !== cur);
+  if (stale) return "the quote changed after its PDF was made — make a new quote PDF and send it again";
+  if (isOwnerT(writer)) return "send";
   // the attachments' actual contents (SHA-256 of the bytes), kept on the email so Matt approves exactly these files
   const shas = await attShas(m);
-  if (shas === null) return "couldn't read an attachment to check it";
+  if (typeof shas === "string") return shas;
   if (JSON.stringify(m.attSha || []) !== JSON.stringify(shas)) await d.ref.set({ attSha: shas }, { merge: true });
   const ap = p.quoteApproval;
   if (!ap || ap.v !== 2 || !isOwnerT(team.find((t) => t.id === ap.byId))) return "wait";      // approvals before -123 don't count: re-approve
@@ -169,13 +174,16 @@ async function mailCheck(d, m, from, to, cc) {
   const okS = new Set(ap.sha || []);
   const same = to.concat(cc).every((x) => okP.has(String(x).toLowerCase())) && shas.every((h) => okS.has(h));
   // Matt approved this very email (he saw its PDF), or this exact quote with these exact files and people
-  if (same && (ap.mailId === d.id || (ap.hash === cur && m.quote.hash === cur))) return "send";
+  if (same && ap.hash === cur) return "send";
   return "wait"; }
-// SHA-256 of each attachment's bytes (cached 10 minutes per link)
-const SHA = new Map();
+// SHA-256 of each attachment's bytes, read fresh every time (no cache, so a swapped file is always caught). A file that
+// can't be read gives a plain reason instead — the email fails with it and the CRM offers Retry.
 async function attShas(m) { const out = [];
-  for (const a of (m.attachments || []).slice(0, 10)) { const c = SHA.get(a.url); if (c && Date.now() - c.at < 600000) { out.push(c.h); continue; }
-    try { const r = await fetch(a.url); if (!r.ok) return null; const h = crypto.createHash("sha256").update(Buffer.from(await r.arrayBuffer())).digest("hex"); SHA.set(a.url, { h, at: Date.now() }); out.push(h); } catch (e) { return null; } }
+  for (const a of (m.attachments || []).slice(0, 10)) { const nm = String(a.name || "file").slice(0, 50);
+    try { const r = await fetch(a.url, { cache: "no-store" });
+      if (!r.ok) return "couldn't read the attachment " + nm + " (HTTP " + r.status + (r.status === 402 ? " — Firebase file storage needs the paid plan" : "") + ")";
+      out.push(crypto.createHash("sha256").update(Buffer.from(await r.arrayBuffer())).digest("hex")); }
+    catch (e) { return "couldn't read the attachment " + nm + " (" + String(e.message || e).slice(0, 60) + ")"; } }
   return out; }
 async function sendQueued() {
   const queued = (await docsOf("mailq", fs.collection("mail").where("status", "==", "queued"))).slice(0, 40)
@@ -204,7 +212,7 @@ async function sendQueued() {
       if (!isOurs(from)) throw new Error("the sender has no @" + DOMAIN + " address");
       if (!to.length) throw new Error("no one to send it to");
       const atts = []; let tot = 0;
-      for (const a of (m.attachments || []).slice(0, 10)) { const r = await fetch(a.url); if (!r.ok) throw new Error("couldn't fetch the attachment " + String(a.name || "").slice(0, 40));
+      for (const a of (m.attachments || []).slice(0, 10)) { const r = await fetch(a.url, { cache: "no-store" }); if (!r.ok) throw new Error("couldn't read the attachment " + String(a.name || "").slice(0, 40) + " (HTTP " + r.status + (r.status === 402 ? " — Firebase file storage needs the paid plan" : "") + ")");
         const b = Buffer.from(await r.arrayBuffer()); tot += b.length; if (tot > 20e6) throw new Error("attachments over 20 MB"); atts.push({ name: String(a.name || "file"), type: a.type || r.headers.get("content-type") || "", data: b }); }
       const msg = m.message || {};
       const body = msg.text || String(msg.html || "").replace(/<[^>]+>/g, " ");

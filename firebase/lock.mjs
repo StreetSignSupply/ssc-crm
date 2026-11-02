@@ -10,6 +10,23 @@ const api = async (path, method = "GET", body) => { const r = await fetch("https
   const t = await r.text(); if (!r.ok) throw new Error("rules " + method + " " + r.status + " " + ((t.match(/"message":\s*"([^"]{0,140})/) || [])[1] || "")); return JSON.parse(t || "{}"); };
 const rel = "projects/" + P + "/releases/cloud.firestore";
 const snap = await ref.get(); const d = snap.exists ? snap.data() : {}; const now = Date.now();
+// the access records (who may open the CRM, their level, and their own sending address) kept in step with the team list
+// here, every 10 minutes — the same as the owner's CRM does (accessWanted in next/index.html), so nobody needs it open
+const OURS = /@streetsignsupply\.com$/i;
+const team = (await db.collection("team").get()).docs.map((x) => Object.assign({ id: x.id }, x.data())).filter((t) => !t.deleted && String(t.name || "").trim());
+const hasOwner = team.some((t) => t.access === "owner");
+const roleOf = (t) => ["owner", "office", "sales", "shop"].includes(t.access) ? t.access : (hasOwner ? "shop" : "owner");
+const want2 = {};
+team.forEach((t) => { const em = String(t.email || "").trim().toLowerCase(), mail = OURS.test(em) ? em : "";
+  [em].concat([t.claudeId].concat(t.claudeIds || []).filter(Boolean).map(String)).filter((k) => k && !/[\/]/.test(k) && k.length < 200).forEach((k) => { want2[k] = { role: roleOf(t), teamId: String(t.id), mail }; }); });
+let synced = 0;
+if (team.length && hasOwner) { const have = new Map((await db.collection("access").get()).docs.map((x) => [x.id, x.data()]));
+  for (const k of Object.keys(want2)) { const c = have.get(k) || {}; if (c.role === want2[k].role && c.teamId === want2[k].teamId && (c.mail || "") === want2[k].mail) continue;
+    await db.doc("access/" + k).set(Object.assign({}, want2[k], { updatedAt: now, by: "lock job" })); synced++; }
+  for (const [k] of have) if (!want2[k]) { await db.doc("access/" + k).delete(); synced++; } }
+if (synced) console.log("lock: " + synced + " access records brought in step with the team list");
+// the new rules only go on when everyone who sends customer email has their own address on their record
+const noAddr = team.filter((t) => roleOf(t) !== "shop" && !OURS.test(String(t.email || "").trim())).length;
 // updated rules in the repo go live only when the owner presses "Apply the updated rules" in the CRM
 const crypto = await import("node:crypto");
 const hash = crypto.createHash("sha256").update(fs.readFileSync(new URL("./firestore.rules", import.meta.url), "utf8")).digest("hex").slice(0, 12);
@@ -18,7 +35,9 @@ let action = "none";
 if (want === "on" && (state === "off" || state === "rolled back")) action = "deploy";
 else if (want === "on" && state === "pending") action = (Number(d.seenAt) > Number(d.deployedAt)) ? "confirm" : (now - Number(d.deployedAt) > 20 * 60000 ? "rollback-unseen" : "wait");
 else if (want === "off" && (state === "on" || state === "pending")) action = "rollback";
-else if (want === "on" && state === "on" && d.liveHash !== hash) action = d.apply === hash ? "update" : (d.available === hash ? "none" : "offer");
+else if (want === "on" && state === "on" && d.liveHash !== hash) action = d.apply === hash ? (noAddr ? "blocked" : "update") : (d.available === hash ? "none" : "offer");
+if (action === "blocked" && STEP === "plan") { await ref.set({ apply: "", error: noAddr + " team member(s) who send customer email have no @streetsignsupply.com address on their team record — add it, then press Apply again", errorAt: now }, { merge: true });
+  console.log("::warning::lock: updated rules not applied — " + noAddr + " sender(s) without a company address"); out("action", "none"); process.exit(0); }
 if (STEP === "plan") { console.log("lock: want " + want + ", state " + state + " → " + action); out("action", action); process.exit(0); }
 try {
   if (action === "offer") {
