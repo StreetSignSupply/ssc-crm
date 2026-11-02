@@ -438,11 +438,17 @@ async function aiDrafts() {
         globalThis.__gmList = [...new Set(["gemini-flash-latest"].filter((n) => ok.includes(n)).concat(flash, ok.filter((n) => /flash/i.test(n) && /lite/i.test(n)), ["gemini-2.5-flash"]))].slice(0, 5);
         say("Gemini models available: " + globalThis.__gmList.join(", ")); } catch (e) { globalThis.__gmList = ["gemini-flash-latest", "gemini-2.5-flash"]; } }
       const errs = [];
-      if (gk) for (const gm of (globalThis.__gmList || ["gemini-flash-latest", "gemini-2.5-flash"]).slice(0, 2)) {
+      // at most 2 real attempts; a model that just said "over the free quota" (429) is skipped for 10 minutes, so the next
+      // model (each has its own free allowance) gets the request instead
+      globalThis.__gm429 = globalThis.__gm429 || {};
+      const gmTry = (globalThis.__gmList || ["gemini-flash-latest", "gemini-2.5-flash"]).filter((m) => !(Date.now() - (globalThis.__gm429[m] || 0) < 600000)).slice(0, 2);
+      if (gk && !gmTry.length) err = "Google's free AI allowance is used up for now — try again in a few minutes";
+      if (gk) for (const gm of gmTry) {
         try {
           const x = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + gm + ":generateContent", { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": gk },
             body: JSON.stringify({ systemInstruction: { parts: [{ text: msgs[0].content }] }, contents: [{ role: "user", parts: [{ text: msgs[1].content }] }], generationConfig: { temperature: 0.5, maxOutputTokens: 1200, responseMimeType: "application/json" } }) });
           const raw = await x.text().catch(() => ""); let j = {}; try { j = JSON.parse(raw); } catch (e) {}
+          if (x.status === 429) globalThis.__gm429[gm] = Date.now();
           if (!x.ok) { errs.push(gm + " " + x.status + " " + String((j.error || {}).message || "").slice(0, 70)); err = errs.join(" | "); if (x.status === 403) break; continue; }
           const txt = ((((j.candidates || [])[0] || {}).content || {}).parts || []).map((p) => p.text || "").join("");
           const t = String(txt || "").trim(); if (!t) { err = gm + " sent back nothing"; continue; }
