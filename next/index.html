@@ -10514,13 +10514,17 @@ function acctStage(a){if(isVendorAcct(a))return "vendor";const set=a&&a.stageSet
 // name ("Grimco" ↔ "Grimco Las Vegas"), or every word of a two-or-more-word account name is in the vendor's
 const VSTOP=/^(the|of|and|inc|llc|co|company|corp|corporation|ltd|supply|supplies|sales|group|usa|us)$/;
 function nameWords(n){return String(n||"").toLowerCase().replace(/&/g," ").split(/[^a-z0-9]+/).filter(w=>w&&!VSTOP.test(w))}
-function vendorLookalikes(){const vs=live(S.vendors).map(v=>({v,w:nameWords(v.name)})).filter(x=>x.w.length&&x.w.join("").length>=4);
-  return live(S.accounts).filter(a=>!isVendorAcct(a)).map(a=>{const aw=nameWords(a.name);if(!aw.length)return null;
-    const m=vs.find(x=>x.w.every(w=>aw.indexOf(w)>=0)||(aw.length>=2&&aw.every(w=>x.w.indexOf(w)>=0)));return m?{a,v:m.v}:null}).filter(Boolean)}
+// …or the same email domain: a vendor's website or email (or its people's emails) and an account's website or contacts' emails
+function vendorDomains(v){const out=new Set();const w=String(v.website||"").toLowerCase().replace(/^https?:\/\//,"").replace(/^www\./,"").split("/")[0];if(w)out.add(w);
+  [v.email].concat(vendPeople(v).map(c=>c.email)).forEach(e=>{const d=String(e||"").toLowerCase().split("@")[1];if(d&&!FREEMAIL.test(d))out.add(d)});return out}
+function vendorLookalikes(){const vs=live(S.vendors).map(v=>({v,w:nameWords(v.name),d:vendorDomains(v)})).filter(x=>(x.w.length&&x.w.join("").length>=4)||x.d.size);
+  return live(S.accounts).filter(a=>!isVendorAcct(a)).map(a=>{const aw=nameWords(a.name);const ad=acctDomains(a);
+    const m=vs.find(x=>(aw.length&&x.w.length&&x.w.join("").length>=4&&(x.w.every(w=>aw.indexOf(w)>=0)||(aw.length>=2&&aw.every(w=>x.w.indexOf(w)>=0))))||[...ad].some(d=>x.d.has(d)));
+    return m?{a,v:m.v,how:[...ad].some(d=>m.d.has(d))?"same email domain":"same name"}:null}).filter(Boolean)}
 function vendorAcctModal(){const L=vendorLookalikes();
   openModal(mshell("Accounts that are vendors","acct",`<p class="note" style="margin:10px 15px">These accounts have the same name as a company on your Vendors list. Marking them <b>Vendor</b> shows them as Vendor (not Lead), keeps them out of sales counts and leads, and keeps their contacts and history. Untick any that really are customers.</p>
-    <div style="padding:4px 15px 10px">${L.map(({a,v})=>`<label style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line2)"><input type="checkbox" data-vacc="${esc(a.id)}" checked>
-      <span style="flex:1"><b>${esc(a.name)}</b> <span class="sub">— account${a.city?" · "+esc(a.city):""} · now ${esc((ACCT_STAGES.find(x=>x.id===acctStage(a))||{}).l||"")}</span><br><span class="sub">matches vendor ${esc(v.name)}</span></span></label>`).join("")||`<div class="empty">No account matches a vendor's name.</div>`}</div>`,
+    <div style="padding:4px 15px 10px">${L.map(({a,v,how})=>`<label style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line2)"><input type="checkbox" data-vacc="${esc(a.id)}" checked>
+      <span style="flex:1"><b>${esc(a.name)}</b> <span class="sub">— account${a.city?" · "+esc(a.city):""} · now ${esc((ACCT_STAGES.find(x=>x.id===acctStage(a))||{}).l||"")}</span><br><span class="sub">matches vendor ${esc(v.name)} (${esc(how||"same name")})</span></span></label>`).join("")||`<div class="empty">No account matches a vendor's name.</div>`}</div>`,
     `<button class="btn" data-close="1">Cancel</button>${L.length?`<button class="btn p" id="vacc-go">Mark as vendors</button>`:""}`));
   const b=$("#vacc-go");if(b)b.onclick=async()=>{const ids=[...document.querySelectorAll("[data-vacc]:checked")].map(e=>e.dataset.vacc);let n=0;
     for(const id of ids){const a=acct(id);if(!a)continue;const v=L.find(x=>x.a.id===id).v;
