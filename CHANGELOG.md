@@ -1,5 +1,13 @@
 # What changed
 
+## 2026.11.25-125
+- **Close-out checks the real files:** a file record only counts once the mail worker has looked it up in the CRM's own storage (the CRM's upload) and marked it verified. Nobody can write "verified" from the CRM, a new record must name its own uploader, and the database rules accept Closed won only on three verified file records. Rules tests cover made-up file records. (While Firebase file storage is unpaid, files can't be checked, so projects can't close — the CRM says so.)
+- **Right before sending,** the mail worker compares the files it has just downloaded to the approved versions (SHA-256) and refuses to send if they don't match.
+- **Access records with no team record** are listed in Settings → Database lock for the owner to remove — never deleted automatically (by the lock check or by the owner's CRM).
+- **Free reads:** the lock check now syncs access records once an hour, and right before updated rules go on, instead of every 10 minutes.
+- **Retry** goes from the person who wrote the email; anyone else sees who can retry it.
+- **AI drafts:** only the AI check itself (the fix run, with the service account) uses its name — no one in the CRM can.
+
 ## 2026.11.25-124
 - **Closed won needs the paperwork everywhere:** the Edit project form refuses Stage = Closed won until the project has the quote PDF the CRM made, the PO or signed quote, and the invoice in its own Files; the database rules check the same three file records (closePaper) on any change to Closed won.
 - **The AI check is allowed by the rules:** its draft requests (byId "fix-run") are accepted; it can never read the answers.

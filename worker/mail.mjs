@@ -174,8 +174,10 @@ async function mailCheck(d, m, from, to, cc) {
   const okS = new Set(ap.sha || []);
   const same = to.concat(cc).every((x) => okP.has(String(x).toLowerCase())) && shas.every((h) => okS.has(h));
   // Matt approved this very email (he saw its PDF), or this exact quote with these exact files and people
-  if (same && ap.hash === cur) return "send";
+  if (same && ap.hash === cur) { APPROVED.set(d.id, new Set(okS)); return "send"; }
   return "wait"; }
+// the approved contents for a quote that's about to go: the bytes downloaded for sending are checked against these
+const APPROVED = new Map();
 // SHA-256 of each attachment's bytes, read fresh every time (no cache, so a swapped file is always caught). A file that
 // can't be read gives a plain reason instead — the email fails with it and the CRM offers Retry.
 async function attShas(m) { const out = [];
@@ -185,6 +187,21 @@ async function attShas(m) { const out = [];
       out.push(crypto.createHash("sha256").update(Buffer.from(await r.arrayBuffer())).digest("hex")); }
     catch (e) { return "couldn't read the attachment " + nm + " (" + String(e.message || e).slice(0, 60) + ")"; } }
   return out; }
+// Files: a file record only counts (for close-out) once the worker has checked the file is really in the CRM's own storage
+// (the CRM's upload) — not just a record someone typed in. The CRM marks new records needsCheck; this checks them.
+const BUCKETS = ["ssc-crm-a7224.firebasestorage.app", "ssc-crm-a7224.appspot.com"];
+async function verifyFiles() { const q = (await docsOf("filechk", fs.collection("files").where("needsCheck", "==", true))).slice(0, 20);
+  for (const d of q) { const f = d.data(); let ok = false, why = "", md5 = "", size = 0, type = "";
+    try { const m = /^https:\/\/firebasestorage\.googleapis\.com\/v0\/b\/([^/]+)\/o\/([^?]+)/.exec(String(f.url || ""));
+      if (!m || !BUCKETS.includes(m[1])) why = "not a file in the CRM's own storage";
+      else { await freshTok(); const r = await fetch("https://storage.googleapis.com/storage/v1/b/" + m[1] + "/o/" + m[2], { headers: { Authorization: "Bearer " + TOK } });
+        if (!r.ok) why = "storage answered " + r.status + (r.status === 402 ? " (file storage needs the paid plan)" : r.status === 404 ? " (no such file)" : "");
+        else { const o = await r.json(); md5 = o.md5Hash || ""; size = Number(o.size) || 0; type = o.contentType || "";
+          if (/^(quote|invoice)$/.test(f.gen || "") && !/pdf/i.test(type)) why = "a CRM-made " + f.gen + " must be a PDF"; else ok = true; } } }
+    catch (e) { why = String(e.message || e).slice(0, 80); }
+    // storage can't be reached right now: try again later rather than marking it bad
+    if (!ok && /storage answered (402|5\d\d)|fetch failed/.test(why)) { await d.ref.set({ checkErr: why, checkedAt: Date.now() }, { merge: true }); continue; }
+    await d.ref.set({ needsCheck: false, verified: ok, md5, size: size || f.size || 0, checkedAt: Date.now(), checkErr: ok ? "" : why }, { merge: true }); n.fchk = (n.fchk || 0) + 1; } }
 async function sendQueued() {
   const queued = (await docsOf("mailq", fs.collection("mail").where("status", "==", "queued"))).slice(0, 40)
     .concat((await docsOf("mailhold", fs.collection("mail").where("status", "==", "approval"))).slice(0, 40));
@@ -213,14 +230,16 @@ async function sendQueued() {
       if (!to.length) throw new Error("no one to send it to");
       const atts = []; let tot = 0;
       for (const a of (m.attachments || []).slice(0, 10)) { const r = await fetch(a.url, { cache: "no-store" }); if (!r.ok) throw new Error("couldn't read the attachment " + String(a.name || "").slice(0, 40) + " (HTTP " + r.status + (r.status === 402 ? " — Firebase file storage needs the paid plan" : "") + ")");
-        const b = Buffer.from(await r.arrayBuffer()); tot += b.length; if (tot > 20e6) throw new Error("attachments over 20 MB"); atts.push({ name: String(a.name || "file"), type: a.type || r.headers.get("content-type") || "", data: b }); }
+        const b = Buffer.from(await r.arrayBuffer()); tot += b.length;
+        // a quote Matt approved goes only with exactly the files he approved — checked on the bytes being sent, right now
+        if (APPROVED.has(d.id) && !APPROVED.get(d.id).has(crypto.createHash("sha256").update(b).digest("hex"))) throw new Error("the attachment " + String(a.name || "").slice(0, 40) + " changed after Matt approved it — not sent; make the quote PDF again and send it for approval"); if (tot > 20e6) throw new Error("attachments over 20 MB"); atts.push({ name: String(a.name || "file"), type: a.type || r.headers.get("content-type") || "", data: b }); }
       const msg = m.message || {};
       const body = msg.text || String(msg.html || "").replace(/<[^>]+>/g, " ");
       const sig = m.kind === "customer" ? await gmailSig(from) : "";
       const html = '<div dir="ltr">' + linkify(escH(body)).replace(/\n/g, "<br>") + "</div>" + (sig ? '<br><div dir="ltr" class="gmail_signature">' + sig + "</div>" : "");
       const raw = mime({ from, fromName: m.kind === "customer" ? m.fromName : "Street Sign Supply CRM", to, cc, subject: msg.subject, text: body + (sig ? "\n\n-- \n" + sigText(sig) : ""), html, atts });
       const res = await gmail(from, SEND, "messages/send", { method: "POST", body: JSON.stringify({ raw: b64u(raw) }) });
-      await d.ref.set({ status: "sent", sentAt: now, gmailId: res.id || "", threadId: res.threadId || "" }, { merge: true });
+      await d.ref.set({ status: "sent", sentAt: now, gmailId: res.id || "", threadId: res.threadId || "" }, { merge: true }); APPROVED.delete(d.id);
       // the quote has really gone: that's when it counts as sent (and the CRM plans the follow-ups); a follow-up is marked sent
       if (m.quote && m.quote.pid) { const pr = fs.doc("projects/" + m.quote.pid); const pv = (await pr.get()).data() || {};
         await pr.set(Object.assign({ quoteSentTo: to.join(", ").slice(0, 200), updatedAt: now }, pv.quoteSentAt ? {} : { quoteSentAt: now }), { merge: true }); }
@@ -333,7 +352,7 @@ async function signFollow() {
       const nm = (r.kind === "both" ? "Signed quote " + (r.quoteNo || "") + " + proof rev " + (r.proofRev || 1) : r.kind === "proof" ? "Signed proof rev " + (r.proofRev || 1) : "Signed quote " + (r.quoteNo || "")) + " — " + (r.signedName || "") + " — " + mtDay(r.signedAt || now);
       let url = view, link = true, size = 0, type = "text/html";
       try { const pdf = await signedPdf(view); if (pdf && pdf.length > 1000) { url = await toStorage("signed/" + d.id + ".pdf", pdf, "application/pdf"); link = false; size = pdf.length; type = "application/pdf"; } } catch (e) { say("signed pdf: " + String(e.message || e).slice(0, 100)); }
-      await fs.doc("files/" + fid).set({ id: fid, url, link, size, type, name: nm + (link ? "" : ".pdf"), cat: r.kind === "proof" ? "Signed proof" : "Signed quote", who: "Sign",
+      await fs.doc("files/" + fid).set({ id: fid, url, link, size, type, name: nm + (link ? "" : ".pdf"), cat: r.kind === "proof" ? "Signed proof" : "Signed quote", who: "Sign", needsCheck: !link, verified: false,
         when: new Date(now).toLocaleString("en-US", { timeZone: "America/Denver" }), at: now, deleted: false, accountId: pd.accountId || "", projectId: r.projectId, jobId: "" }, { merge: true }); filed = true; }
     await d.ref.set({ notified: true, notifiedAt: now, filed }, { merge: true }); n.signs++;
   }
@@ -443,7 +462,7 @@ async function waitAndDraft(ms) { const end = Date.now() + ms; while (Date.now()
 // 10 minutes it reads Gmail — so an email goes out within about a minute of pressing Send (the schedule starts the next one)
 const LOOP_MIN = Number(process.env.LOOP_MIN) || 0, t0 = Date.now(); let pass = 0;
 do {
-  try { await signFollow(); if (pass % 5 === 0) await taskMail().catch((e) => say("task mail: " + String(e.message || e).slice(0, 100))); await sendQueued(); if (pass % 10 === 0) await logGmail(); } catch (e) { say("pass error: " + String(e.message || e).replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "<email>").slice(0, 140)); }
+  try { await signFollow(); if (pass % 5 === 0) await taskMail().catch((e) => say("task mail: " + String(e.message || e).slice(0, 100))); await sendQueued(); if (pass % 3 === 0) await verifyFiles().catch((e) => say("file check: " + String(e.message || e).slice(0, 80))); if (pass % 10 === 0) await logGmail(); } catch (e) { say("pass error: " + String(e.message || e).replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "<email>").slice(0, 140)); }
   pass++;
   if (LOOP_MIN && Date.now() - t0 < LOOP_MIN * 60000) await waitAndDraft(60000); else await aiDrafts().catch(() => {});
 } while (LOOP_MIN && Date.now() - t0 < LOOP_MIN * 60000);

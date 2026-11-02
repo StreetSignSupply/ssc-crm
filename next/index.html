@@ -1766,7 +1766,9 @@ function push(path,data){
 function cleanDoc(x){if(Array.isArray(x))return x.map(cleanDoc);
   if(x&&typeof x==="object"&&!(x instanceof Date)&&!(typeof Blob!=="undefined"&&x instanceof Blob)){const o={};Object.keys(x).forEach(k=>{if(x[k]!==undefined)o[k]=cleanDoc(x[k])});return o}return x}
 function setDoc(path,data){if(!db)return Promise.resolve();
-  if(/^files\//.test(path)&&data&&data.byId===undefined&&data.who!=="AI"&&data.who!=="Sign")data=Object.assign({},data,{byId:meId()});
+  // every new file record names who added it and waits for the mail worker to check it's really in the CRM's storage
+  if(/^files\//.test(path)&&data){const x=Object.assign({},data);if(x.byId===undefined)x.byId=meId();["verified","md5","checkedAt","checkErr"].forEach(k=>delete x[k]);
+    if(!S.files.get(path.split("/")[1]))x.needsCheck=true;data=x}
   const pr=db.doc(path).set(cleanDoc(data));syncNote(path,data,true);
   // uploads and activity: read it back from the database a few seconds later, and say so loudly if it isn't there
   if(/^(files|activity)\//.test(path))pr.then(()=>setTimeout(()=>verifySaved(path,data),4000)).catch(e=>saveFailed(path,data,e));
@@ -5063,9 +5065,15 @@ async function closeSave(pid,thenClose){
 // the three files, as the database rules check them: each must be a file record on this project (projectId), the quote
 // one made by the CRM (gen "quote"), the PO filed as Purchase order or Signed quote, the invoice filed as Invoice
 function closePaper(p){if(!p)return {};const fl=projFiles(p.id).filter(f=>!f.deleted&&f.projectId===p.id).sort((a,b)=>(b.at||0)-(a.at||0));
-  const q=fl.find(f=>f.gen==="quote"),po=fl.find(f=>f.cat==="Purchase order"||f.cat==="Signed quote"),inv=fl.find(f=>f.cat==="Invoice");
+  // only files the mail worker has checked are really in the CRM's storage (verified) — a made-up record never counts
+  const v=fl.filter(f=>f.verified===true);
+  const q=v.find(f=>f.gen==="quote"),po=v.find(f=>f.cat==="Purchase order"||f.cat==="Signed quote"),inv=v.find(f=>f.cat==="Invoice");
   return {quote:q?q.id:"",po:po?po.id:"",inv:inv?inv.id:""}}
-function closePaperMissing(p){if(!p)return [];const c=closePaper(p);const out=[];
+// files that would count once checked: ask the mail worker to check them now (it does within a few minutes)
+function closePaperPending(p){if(!p)return [];const fl=projFiles(p.id).filter(f=>!f.deleted&&f.projectId===p.id&&f.verified!==true&&(f.gen==="quote"||/^(Purchase order|Signed quote|Invoice)$/.test(f.cat||"")));
+  fl.forEach(f=>{if(!f.needsCheck&&!f.link)push("files/"+f.id,{needsCheck:true}).catch(()=>{})});return fl}
+function closePaperMissing(p){if(!p)return [];const c=closePaper(p);const out=[];const pend=closePaperPending(p);
+  if(pend.length&&(!c.quote||!c.po||!c.inv))out.push(pend.length+" file"+(pend.length===1?" is":"s are")+" still being checked against the CRM's storage"+(pend.some(f=>/402/.test(f.checkErr||""))?" (file storage needs the paid plan before it can be checked)":"")+" — try again in a few minutes");
   if(!c.quote)out.push("The quote PDF made by the CRM (Documents → Quote)");
   if(!c.po)out.push("The PO or the signed quote, filed on the project");
   if(!c.inv)out.push("The invoice, filed on the project");
@@ -10649,7 +10657,10 @@ document.addEventListener("click",e=>{const t=e.target&&e.target.closest&&e.targ
 document.addEventListener("click",e=>{const t=e.target&&e.target.closest&&e.target.closest("[data-ptabgo2]");if(!t)return;e.preventDefault();closeModal();S.ptab="files";go("project/"+t.dataset.ptabgo2)},true);
 document.addEventListener("click",e=>{const t=e.target&&e.target.closest&&e.target.closest("[data-reapok]");if(!t)return;e.preventDefault();try{localStorage.setItem("sscReapprove","1")}catch(x){}render()},true);
 // Retry a failed email: the same message, attachments and people, as a new send (the quote check runs again)
-async function mailRetry(xid){const a=S.activity.get(xid);const c=a&&a.mailCopy;if(!c)return;if(!myMailFrom())return toast("Sending needs your own @streetsignsupply.com address on your team record.");
+async function mailRetry(xid){const a=S.activity.get(xid);const c=a&&a.mailCopy;if(!c)return;
+  // it goes again from the person who wrote it — nobody else can resend it as themselves
+  if(a.whoId!==meId())return toast("Only "+(((S.team.get(a.whoId)||{}).name)||"the person who wrote it")+" can send this again — it goes from their address.");
+  if(!myMailFrom())return toast("Sending needs your own @streetsignsupply.com address on your team record.");
   if(c.quote&&c.quote.pid&&proj(c.quote.pid)&&quoteFileStale(proj(c.quote.pid),c.atts||[]))return toast("The quote changed after its PDF was made — make a new quote PDF and send a new email.");
   const mid=uid("ml"),now=Date.now();
   try{await setDoc("mail/"+mid,Object.assign({id:mid,kind:"customer",to:c.to||[],cc:c.cc||[],from:myMailFrom(),fromName:meName(),byId:meId(),message:{subject:c.subject||"",text:c.body||""},attachments:c.atts||[],
@@ -10657,6 +10668,8 @@ async function mailRetry(xid){const a=S.activity.get(xid);const c=a&&a.mailCopy;
   catch(e){return toast("Couldn't queue it again — "+(e&&e.message?String(e.message).slice(0,80):"try in a minute"))}
   await push("activity/"+xid,{mailId:mid,sendState:"queued",sendErr:"",retriedAt:now});a.sendState="queued";a.sendErr="";toast("Sending it again…");render()}
 document.addEventListener("click",e=>{const t=e.target&&e.target.closest&&e.target.closest("[data-mailretry]");if(!t)return;e.preventDefault();mailRetry(t.dataset.mailretry)},true);
+document.addEventListener("click",e=>{const t=e.target&&e.target.closest&&e.target.closest("[data-accrm]");if(!t)return;e.preventDefault();const k=t.dataset.accrm;
+  askConfirm("Remove this sign-in's access?",`<p style="margin:0">${esc(k)} won't be able to open the CRM any more.</p>`,"Remove access",true,async()=>{try{await db.doc("access/"+k).delete();S.access.delete(k);toast("Removed.");render()}catch(x){toast("That didn't save.")}})},true);
 document.addEventListener("click",e=>{const t=e.target&&e.target.closest&&e.target.closest("[data-ctfilt]");if(!t)return;e.preventDefault();S.ctFilt=t.dataset.ctfilt;render()},true);
 function contactRec(id){
   const c=S.contacts.get(id);if(!c||c.deleted)return notFound("Contact");
@@ -10767,7 +10780,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-124";
+const APP_VERSION="2026.11.25-125";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -16333,6 +16346,10 @@ function dbLockCard(){const d=S.dbLock||{};const want=d.want||"off",st=d.state||
     <p style="margin:0 0 10px">When it's on, the database itself only lets people on your team list in, and enforces their level: only owners change levels,
       owners and office change settings and permanently delete, and nobody but an owner can erase change history.</p>
     <p class="sub" style="margin:0 0 10px">After it's turned on, keep this page open for a few minutes: it confirms everything still opens. If nothing confirms within 20 minutes, the old rules come back by themselves. ${esc(d.note||"")}${d.error?" — last problem: "+esc(d.error):""}</p>
+    ${(function(){const want3=accessWanted();const orph=[...S.access.keys()].filter(k=>!want3[k]);
+      return orph.length?`<div class="warn" style="margin:0 0 10px"><b>${orph.length} access record${orph.length===1?" has":"s have"} no team record behind ${orph.length===1?"it":"them"}</b> — a sign-in that can still open the CRM:
+        ${orph.map(k=>`<div style="display:flex;gap:8px;align-items:center;margin-top:4px"><span class="mono" style="font-size:12px">${esc(k)}</span> <span class="sub">${esc(((S.access.get(k)||{}).role)||"")}</span>
+          <button class="btn sm d" data-accrm="${esc(k)}">Remove access</button></div>`).join("")}</div>`:""})()}
     ${(function(){if(!(want==="on"&&st==="on"&&d.available&&d.available!==d.liveHash))return "";
       // before Apply: everyone who sends customer email needs their own @streetsignsupply.com address on their team record,
       // and their access record needs it too (this page writes it when an owner has it open)
@@ -16378,7 +16395,8 @@ async function accessSync(force){if(ACCESS_BUSY||!db||!S.ready||!S.team||!S.team
   try{const want=accessWanted();
     for(const k of Object.keys(want)){const cur=S.access.get(k);if(cur&&cur.role===want[k].role&&cur.teamId===want[k].teamId&&(cur.mail||"")===want[k].mail)continue;
       await setDoc("access/"+k,Object.assign({},want[k],{updatedAt:Date.now()}));n++}
-    for(const [k] of S.access){if(want[k])continue;try{await db.doc("access/"+k).delete();gone++}catch(e){}}}
+    // an access record with no team record behind it is never removed automatically — Settings → Database lock lists it
+  }
   finally{ACCESS_BUSY=false}
   return {n,gone,total:Object.keys(accessWanted()).length}}
 function remTick(){try{if(!db||!S.ready||!S.brandLoaded)return;remDeliver();accessSync().catch(()=>{});
@@ -16594,7 +16612,7 @@ async function composeGo(send){const C=S._cmp||{};const to=$("#cm-to").value.spl
 // what the mail worker reported back on an email sent from the CRM
 function sendBadge(x){const s=x&&x.sendState;if(!s||s==="opened")return "";
   if(s==="approval")return `<span class="pill o">quote waiting for Matt's OK</span>`;
-  if(s==="failed"&&x.mailCopy)return `<span class="pill r" title="${esc(x.sendErr||"")}">didn't send${x.sendErr?" — "+esc(String(x.sendErr).slice(0,90)):""}</span> <button class="btn sm" data-mailretry="${esc(x.id)}">Retry</button>`;
+  if(s==="failed"&&x.mailCopy)return `<span class="pill r" title="${esc(x.sendErr||"")}">didn't send${x.sendErr?" — "+esc(String(x.sendErr).slice(0,90)):""}</span> ${x.whoId===meId()?`<button class="btn sm" data-mailretry="${esc(x.id)}">Retry</button>`:`<span class="sub">${esc(((S.team.get(x.whoId)||{}).name)||"the writer")} can retry it</span>`}`;
   if(s==="rejected")return `<span class="pill r">not approved${x.sendErr?" — "+esc(String(x.sendErr).slice(0,60)):""}</span>`;
   return s==="sent"?`<span class="pill g">sent${x.sentAt?" "+esc(fmtTs(x.sentAt)):""}</span>`:s==="queued"?`<span class="pill y">sending…</span>`
     :`<span class="pill r" title="${esc(x.sendErr||"")}">didn't send${x.sendErr?" — "+esc(String(x.sendErr).slice(0,60)):""}</span>`}

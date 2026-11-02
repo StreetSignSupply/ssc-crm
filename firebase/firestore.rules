@@ -77,6 +77,7 @@ service cloud.firestore {
     function fileOk(fid, pid, kind) { return fid is string && fid != "" && exists(/databases/$(db)/documents/files/$(fid))
         && get(/databases/$(db)/documents/files/$(fid)).data.get("projectId", "") == pid
         && get(/databases/$(db)/documents/files/$(fid)).data.get("deleted", false) != true
+        && get(/databases/$(db)/documents/files/$(fid)).data.get("verified", false) == true
         && (kind == "quote" ? get(/databases/$(db)/documents/files/$(fid)).data.get("gen", "") == "quote"
             : kind == "po" ? get(/databases/$(db)/documents/files/$(fid)).data.get("cat", "") in ["Purchase order", "Signed quote"]
             : get(/databases/$(db)/documents/files/$(fid)).data.get("cat", "") == "Invoice"); }
@@ -190,7 +191,7 @@ service cloud.firestore {
     // The writing rules live in the worker, not in the request.
     match /aidraft/{id} {
       allow read: if member() && (resource.data.get("byId", "") == myTeamId() || isOwner());
-      allow create: if member() && request.resource.data.status == "queued" && request.resource.data.get("byId", "") in [myTeamId(), "fix-run"]
+      allow create: if member() && request.resource.data.status == "queued" && request.resource.data.get("byId", "") == myTeamId()
                     && !request.resource.data.keys().hasAny(["rules"]);
       allow update, delete: if false;
     }
@@ -217,9 +218,16 @@ service cloud.firestore {
     // a PDF the CRM made itself, replaced by a newer copy of the same quote or invoice
     function superseded() { return resource.data.get("gen", "") != "" && request.resource.data.get("supersededBy", "") != ""
                                    && changed().hasOnly(["deleted", "deletedAt", "deletedBy", "supersededBy", "updatedAt"]); }
+    // a file record names its uploader (the person creating it) and starts unchecked; only the mail worker (which looks the
+    // file up in the CRM's own storage) marks it verified — nobody can write verified, md5 or checkedAt from the CRM
+    function checkFields() { return ["verified", "md5", "checkedAt", "checkErr"]; }
     match /files/{id} {
-      allow read, create: if member();
-      allow update: if member() && (!changed().hasAny(["deleted", "cat", "projectId", "accountId"])
+      allow read: if member();
+      allow create: if member() && request.resource.data.get("byId", "") == myTeamId()
+                    && !request.resource.data.keys().hasAny(checkFields()) && request.resource.data.get("needsCheck", true) == true;
+      allow update: if member() && !changed().hasAny(checkFields().concat(["byId", "url", "gen", "qhash"]))
+                    && (!changed().hasAny(["needsCheck"]) || request.resource.data.needsCheck == true)
+                    && (!changed().hasAny(["deleted", "cat", "projectId", "accountId"])
                        || isOwner() || superseded()
                        || (!lockedCat() && (isOffice() || resource.data.get("byId", "") == myTeamId())));
       allow delete: if isOwner();
