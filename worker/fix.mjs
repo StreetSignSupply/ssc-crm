@@ -209,7 +209,11 @@ if (STEP === "qb") {
 }
 // Send all to the CRM Orders sheet (the toast text tells how many went)
 // changed records reach the sheet by themselves (the CRM sends each change); a full Send all only when asked
-const wantAll = STEP !== "apply" || /\/\/ send all/.test(fsys.readFileSync(path.resolve(here, "fixes.js"), "utf8"));
+// only a "sync" run sends everything; the AI check sends nothing; an apply run sends just its changes (or all when asked)
+const fixSrc = fsys.existsSync(path.resolve(here, "fixes.js")) ? fsys.readFileSync(path.resolve(here, "fixes.js"), "utf8") : "";
+const wantAll = STEP === "sync" || (STEP === "apply" && /\/\/ send all/.test(fixSrc));
+if (STEP === "aitest") { console.log("::notice::fix step aitest: " + JSON.stringify(result).slice(0, 1800) + " | " + errors + " page errors " + JSON.stringify(errs.slice(0, 3)));
+  await browser.close(); process.exit((result && result.error) || errors > 0 ? 1 : 0); }
 const sent = wantAll ? await page.evaluate(async () => { try { await window.__T.syncAll(); return "ok"; } catch (e) { return "sync error " + String(e).slice(0, 100); } }) : "changes only";
 await page.waitForTimeout(wantAll ? 90000 : 60000);
 step("sync " + (wantAll ? "Send all finished" : "changes sent"));
