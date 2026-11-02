@@ -1,5 +1,14 @@
 # What changed
 
+## 2026.11.25-135 (phone: windows you can always close, nothing cut off)
+From Matt's iPhone screenshots of a stencil, then every page, every window and one stencil from each of the 15 categories re-tested at iPhone size with Safari's bars showing (390×664):
+- **Every window can be closed on an iPhone.** Windows were sized to 90% of the screen height, but on iPhone Safari that counts the area behind the address bar and toolbar — so a tall window (a stencil's details) had its title and × above the screen and its Close under the toolbar. Windows now fit the part of the screen you can see, with the title/× at the top and the buttons at the bottom always showing. The phone's Back (swipe back) now closes a window instead of leaving the page (if you've typed something, the first Back warns you, like Escape).
+- **Stencil prices aren't cut off.** In a stencil's window the grade table was wider than the phone; each grade is now one row: the grade and its price across the top, then Material, Labor, Cost and Margin underneath.
+- **Stencil list on a phone** is a compact card per stencil: picture, name, price, SKU, then painted size, sheet, cost and margin, and any flags in red — the rest is in the stencil's window. The search box is full width. The "How stencils are costed" cards show the sheet name in one piece.
+- **Nothing on a phone page has to be scrolled sideways any more:** the project tabs (Close-out and Details were hidden off the edge), the Settings sections, and the filter buttons on Contacts and Inventory wrap onto a second line. The calendar's "+" on each day fits its box.
+- Stacked rows on a phone are striped as whole cards (the stripe used to leave patches).
+- Release checks added: windows sized to the visible iPhone screen; on a 390×664 screen the stencil, account, quote line, purchase order, work order and item windows keep their title and buttons on screen, have no sideways-scrolling part, and close with Back; no phone page has anything only reachable by scrolling sideways.
+
 ## 2026.11.25-134 (Write it with AI: fast and with a working backup)
 - Live tests of -133 showed Google's Gemini sometimes took 75–110 seconds a draft (the worker tried its slow "thinking" models first) and the backup service's answers weren't being read. Now the quick Gemini models go first (about 1 second a draft), every AI call gives up after 25 seconds and the next is tried, several drafts are written at the same time, the backup (GitHub's free models) is read correctly, and every failure's full reason is logged.
 - With nothing typed in "What should it say?", a draft that's already there (a template) is rewritten in natural wording instead of handed back unchanged.

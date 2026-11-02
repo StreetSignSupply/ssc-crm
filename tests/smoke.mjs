@@ -130,9 +130,31 @@ for (const [r, sel] of [["accounts", "[data-new='account']"], ["project/p1", "[d
   const t = await pg.evaluate(() => { const d = document.querySelector(".modal .mbox"); if (!d) return null; return [...d.querySelectorAll("button, input:not([type=checkbox]):not([type=radio]):not([type=hidden]), select")].filter((e) => { const b = e.getBoundingClientRect(); return b.width && b.height && b.height < 32; }).map((e) => (e.getAttribute("aria-label") || e.innerText || e.placeholder || e.tagName).trim().slice(0, 20)); });
   if (!t) bad.push(r + " " + sel + ": window didn't open on a phone"); else if (t.length) bad.push(r + " window on a phone: too small to tap — " + t.slice(0, 3).join(", "));
   await pg.evaluate(() => { const x = document.querySelector(".modal .mx"); if (x) x.click(); }); await pg.waitForTimeout(200); }
+// phone with Safari's bars showing (390×664): windows keep their title (with the ×) and their buttons on screen, nothing in
+// them only reachable by scrolling sideways, and Back closes the window without leaving the page
+{ const css = await pg.evaluate(() => [...document.styleSheets].map((sh) => { try { return [...sh.cssRules].map((r) => r.cssText).join("\n"); } catch (e) { return ""; } }).join("\n"));
+  if (!/\.mbox\s*\{[^}]*max-height:\s*90dvh/.test(css)) bad.push("windows aren't sized to the part of an iPhone screen you can see (dvh)");
+  await pg.setViewportSize({ width: 390, height: 664 });
+  const wins = [["stencils", "[data-stcview]"], ["accounts", "[data-new='account']"], ["project/p1", "[data-ordadd]"], ["purchasing", "[data-ponew]"], ["job/1001", "[data-edit^='job:']"], ["item/i1", "[data-edit^='item:']"]];
+  for (const [r, sel] of wins) { await pg.evaluate((r) => { location.hash = "#/" + r; }, r); await pg.waitForTimeout(r === "stencils" ? 1500 : 400);
+    if (!(await pg.evaluate((sel) => { const b = document.querySelector(sel); if (!b) return false; b.click(); return true; }, sel))) continue; await pg.waitForTimeout(400);
+    const m = await pg.evaluate(() => { const d = document.querySelector(".modal .mbox"); if (!d) return null; const h = d.querySelector("h2").getBoundingClientRect(); const f = d.querySelector(".foot"); const fr = f && f.getBoundingClientRect();
+      const side = [...d.querySelectorAll("*")].filter((e) => e.clientWidth > 0 && /auto|scroll/.test(getComputedStyle(e).overflowX) && e.scrollWidth > e.clientWidth + 4).map((e) => ((e.querySelector("th") || e.querySelector("b") || {}).textContent || e.className || e.tagName).trim().slice(0, 20));
+      return { title: d.querySelector("h2").innerText.trim().slice(0, 40), head: h.top >= 0, foot: !fr || fr.bottom <= innerHeight + 1, side }; });
+    if (!m) { bad.push(r + " " + sel + ": window didn't open on a phone"); continue; }
+    if (!m.head || !m.foot) bad.push("phone: \"" + m.title + "\" window's " + (!m.head ? "title/×" : "buttons") + " off screen");
+    if (m.side.length) bad.push("phone: \"" + m.title + "\" window has a part you have to scroll sideways (" + m.side.slice(0, 2).join(", ") + ")");
+    const h0 = await pg.evaluate(() => location.hash); await pg.goBack(); await pg.waitForTimeout(400);
+    const st = await pg.evaluate(() => ({ open: !!document.querySelector(".modal"), hash: location.hash }));
+    if (st.open || st.hash !== h0) { bad.push("phone: Back didn't just close the \"" + m.title + "\" window (" + (st.open ? "still open" : "left the page") + ")"); await pg.evaluate(() => { const x = document.querySelector(".modal .mx"); if (x) x.click(); }); await pg.evaluate((h) => { location.hash = h; }, h0); } }
+  await pg.setViewportSize({ width: 390, height: 844 }); }
 // phone (light mode): readable text too — phone-only styles can change colours
 for (const r of ROUTES) { await pg.evaluate((r) => { location.hash = "#/" + r; }, r); await pg.waitForTimeout(r === "stencils" ? 1500 : 300);
-  const c = await pg.evaluate(contrastBad); if (c.length) bad.push(r + " (phone): hard-to-read text " + c.slice(0, 3).join(", ")); }
+  const c = await pg.evaluate(contrastBad); if (c.length) bad.push(r + " (phone): hard-to-read text " + c.slice(0, 3).join(", "));
+  // nothing on a phone page hides off to the side (amounts, tabs, filter buttons) — open every section first
+  await pg.evaluate(() => document.querySelectorAll(".main .card.collapsed button.cz").forEach((b) => b.click())); await pg.waitForTimeout(150);
+  const sd = await pg.evaluate(() => [...document.querySelectorAll(".main *")].filter((e) => e.clientWidth > 0 && /auto|scroll/.test(getComputedStyle(e).overflowX) && e.scrollWidth > e.clientWidth + 4).map((e) => String(e.className).split(" ")[0] || e.tagName));
+  if (sd.length) bad.push(r + " (phone): part of the page only reachable by scrolling sideways (" + sd.slice(0, 2).join(", ") + ")"); }
 // phone: quote lines read as cards (nothing cut off), and a file opened full screen has a big Close and closes with Back
 { await pg.evaluate(() => { location.hash = "#/project/p1"; }); await pg.waitForTimeout(500);
   const q = await pg.evaluate(() => { const t = document.querySelector("table.qlines"); if (!t) return "no quote lines"; const c = t.closest(".card"); if (c && c.classList.contains("collapsed")) { const b = c.querySelector("button.cz"); if (b) b.click(); } return ""; });
