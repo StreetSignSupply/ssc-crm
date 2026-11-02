@@ -80,7 +80,7 @@ a{color:var(--blue);text-underline-offset:2px}
 .rail-i:hover{background:var(--card2);color:var(--ink)}
 .rail-i:hover .ic{opacity:1}
 .rail-i.on{background:color-mix(in srgb,var(--act) 9%,var(--card));color:var(--ink)}
-.rail-i.on .ic{opacity:1;color:var(--act)}
+.rail-i.on .ic{opacity:1;color:var(--act-ink,var(--act))}
 .rail-i.on::before{content:"";position:absolute;left:-8px;top:7px;bottom:7px;width:3px;border-radius:0 2px 2px 0;background:var(--act)}
 .rail-i .pill{margin-left:auto;flex:0 0 auto}
 .rail-tog{display:flex;margin:2px 8px 6px 40px;border:1px solid var(--line);border-radius:6px;overflow:hidden;font-size:12px;font-weight:600}
@@ -197,7 +197,7 @@ a{color:var(--blue);text-underline-offset:2px}
 .crumbs .back:hover{border-color:var(--ink3)}
 .crumbs a,.crumbs button.c{background:none;border:0;padding:2px 0;color:var(--ink2);
   font-size:12.5px;font-weight:600;text-decoration:none;text-align:left;white-space:normal}
-.crumbs button.c:hover{color:var(--act);text-decoration:underline;text-underline-offset:3px}
+.crumbs button.c:hover{color:var(--act-ink,var(--act));text-decoration:underline;text-underline-offset:3px}
 .crumbs .sep{color:var(--ink3);font-size:12px;flex:0 0 auto}
 .crumbs .here{color:var(--ink);font-weight:700;font-size:12.5px}
 @media (max-width:640px){.crumbs a,.crumbs button.c{max-width:120px}.crumbs .here{max-width:150px}}
@@ -284,11 +284,11 @@ tbody tr:hover td{background:var(--card2)}
 td.mono,th.mono{font-variant-numeric:tabular-nums}
 .lnk{background:none;border:0;padding:0;color:var(--ink);font-weight:700;text-align:left;font-size:13.5px;
   line-height:1.3;text-decoration:none;cursor:pointer}
-.lnk:hover,.lnk:focus-visible{color:var(--act);text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1.5px}
+.lnk:hover,.lnk:focus-visible{color:var(--act-ink,var(--act));text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1.5px}
 /* list rows: the whole row opens the record */
 tbody tr.rowgo{cursor:pointer;transition:background .12s}
 tbody tr.rowgo:hover td{background:var(--card2)}
-tbody tr.rowgo:hover .lnk{color:var(--act)}
+tbody tr.rowgo:hover .lnk{color:var(--act-ink,var(--act))}
 /* reference lines under a name read as text, not code */
 .sub.mono{font-family:inherit;letter-spacing:0;font-variant-numeric:tabular-nums}
 .empty{padding:28px 18px;text-align:center;color:var(--ink2);background:var(--card2);min-height:96px}
@@ -432,15 +432,15 @@ td .btn,th .btn{white-space:nowrap;word-break:normal;overflow-wrap:normal}
 .path > .step:first-child{clip-path:polygon(0 0,calc(100% - 13px) 0,100% 50%,calc(100% - 13px) 100%,0 100%);border-radius:8px 0 0 8px;padding-left:14px}
 .step b{display:block;font-size:13px;font-weight:800;color:var(--sf);white-space:nowrap}
 .step small{display:block;font-size:12px;color:var(--ss);margin-top:1px;white-space:nowrap}
-.step.done{--sb:#DCEFE3;--sf:#146B38;--ss:#2F7A4C}
+.step.done{--sb:#DCEFE3;--sf:#146B38;--ss:#246A3F}
 .step.done b::before{content:"✓ ";font-weight:900}
 .step.cur{--sb:#1F5FAD;--sf:#fff;--ss:#E3EDFA;box-shadow:none;flex:1.5 1 0;min-width:140px}
 .step.cur small{font-weight:700}
 .step.lost{--sb:#B8231C;--sf:#fff;--ss:#FCE6E4}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .step.done{--sb:#17392A;--sf:#8FE0AE;--ss:#8FE0AE}
-  :root:not([data-theme="light"]) .step.cur{--sb:#2F72C4}}
+  :root:not([data-theme="light"]) .step.cur{--sb:#235FA8}}
 :root[data-theme="dark"] .step.done{--sb:#17392A;--sf:#8FE0AE;--ss:#8FE0AE}
-:root[data-theme="dark"] .step.cur{--sb:#2F72C4}
+:root[data-theme="dark"] .step.cur{--sb:#235FA8}
 .path > details{margin-left:18px!important}
 .path > details{flex:0 0 auto;margin-left:auto;align-self:center}
 /* work order status: the same chevron path as projects — finished green with a check, the current one solid blue, what's next grey */
@@ -452,12 +452,12 @@ td .btn,th .btn{white-space:nowrap;word-break:normal;overflow-wrap:normal}
 .path>button:first-child{clip-path:polygon(0 0,calc(100% - 13px) 0,100% 50%,calc(100% - 13px) 100%,0 100%);border-radius:8px 0 0 8px;padding-left:14px}
 .path>button small{display:block;font-size:12px;font-weight:500;color:var(--ss)}
 .path>button:hover{filter:brightness(.96)}
-.path>button.done{--sb:#DCEFE3;--sf:#146B38;--ss:#2F7A4C}
+.path>button.done{--sb:#DCEFE3;--sf:#146B38;--ss:#246A3F}
 .path>button .ck{color:inherit;font-weight:900}
 .path>button.cur{--sb:#1F5FAD;--sf:#fff;--ss:#E3EDFA;flex:1.4 1 0}
 .path>button.cur small{font-weight:700}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .path>button.done{--sb:#17392A;--sf:#8FE0AE;--ss:#8FE0AE}:root:not([data-theme="light"]) .path>button.cur{--sb:#2F72C4}}
-:root[data-theme="dark"] .path>button.done{--sb:#17392A;--sf:#8FE0AE;--ss:#8FE0AE}:root[data-theme="dark"] .path>button.cur{--sb:#2F72C4}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .path>button.done{--sb:#17392A;--sf:#8FE0AE;--ss:#8FE0AE}:root:not([data-theme="light"]) .path>button.cur{--sb:#235FA8}}
+:root[data-theme="dark"] .path>button.done{--sb:#17392A;--sf:#8FE0AE;--ss:#8FE0AE}:root[data-theme="dark"] .path>button.cur{--sb:#235FA8}
 .path>button:focus-visible{outline:2px solid var(--act);outline-offset:3px}
 
 .card > header .cz{width:26px;height:26px;padding:0;margin:0 2px 0 -4px;border-radius:50%;cursor:pointer;
@@ -486,7 +486,7 @@ td.mono[style*="text-align:right"],th[style*="text-align:right"]{white-space:now
 .addrdd{position:absolute;left:0;right:0;top:100%;z-index:60;margin-top:2px;background:var(--card);
   border:1px solid var(--line);border-radius:8px;box-shadow:0 10px 28px rgba(0,0,0,.35);overflow:hidden}
 .addropt{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--line2)}
-.addropt .ic{margin-top:2px;color:var(--act)}
+.addropt .ic{margin-top:2px;color:var(--act-ink,var(--act))}
 .addropt span{display:flex;flex-direction:column;min-width:0}
 .addropt b{font-size:13.5px}.addropt span span{font-size:12px;color:var(--ink2)}
 .addropt.on,.addropt:hover{background:var(--card2)}
@@ -708,14 +708,14 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
   .trk-ph-stage .bar i.done{background:var(--ink3)}
   .trk-ph-stage .bar i.cur{background:var(--act)}
   .trk-ph-stage .lbl{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;font-size:13px}
-  .trk-ph-stage .lbl b{font-size:14px;color:var(--act);text-transform:uppercase;letter-spacing:.04em}
+  .trk-ph-stage .lbl b{font-size:14px;color:var(--act-ink,var(--act));text-transform:uppercase;letter-spacing:.04em}
   .trk-ph-stage .lbl span{color:var(--ink2);font-size:12px}
   .trk-ph-facts{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line2);
     border:1px solid var(--line2);border-radius:4px;overflow:hidden;margin-bottom:10px}
   .trk-ph-facts > div{background:var(--card2);padding:7px 10px;display:flex;flex-direction:column;gap:1px;min-width:0}
   .trk-ph-facts span{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2)}
   .trk-ph-facts b{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .trk-ph-facts b.t-r{color:var(--red)} .trk-ph-facts b.t-o{color:var(--orange-text)} .trk-ph-facts b.t-g{color:var(--green)}
+  .trk-ph-facts b.t-r{color:var(--danger-ink)} .trk-ph-facts b.t-o{color:var(--orange-text)} .trk-ph-facts b.t-g{color:var(--green)}
   .trk-jobs{gap:6px}
   .trk-jobs .jchip{font-size:12px;padding:4px 9px}
 
@@ -802,7 +802,7 @@ a.kc{color:inherit;text-decoration:none}
 .day.off .dnum{color:var(--ink3)}
 .cal .day.today{box-shadow:inset 0 0 0 2px var(--act)}
 .dnum{font-size:12px;font-weight:800;color:var(--ink2);font-family:"Overpass Mono",monospace}
-.cal .day.today .dnum{color:var(--act)}
+.cal .day.today .dnum{color:var(--act-ink,var(--act))}
 .ev{display:block;width:100%;text-align:left;border:0;border-radius:2px;padding:5px 7px;font-size:12px;
   font-weight:700;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   background:var(--card2);color:var(--ink);border-left:3px solid var(--slate);cursor:pointer;min-height:24px}
@@ -814,11 +814,11 @@ a.kc{color:inherit;text-decoration:none}
 .ev.late{border-left-color:var(--plate);background:#B8231C;color:#fff}
 .ev.ship{border-left-color:var(--green);color:var(--ink2)}.ev.ship::before{content:"✓ ";color:var(--green);font-weight:800}
 .ev.evx{border-left-color:#7A4FB5;background:var(--card);box-shadow:inset 0 0 0 1px var(--line2)}
-.dadd{margin-left:auto;background:none;border:0;color:var(--ink3);font-size:15px;line-height:1;
+.dadd{margin-left:auto;background:none;border:0;color:var(--ink);font-size:15px;line-height:1;min-width:24px;min-height:24px;
   padding:0 4px;border-radius:2px;opacity:0}
 .cal .day:hover .dadd,.dadd:focus{opacity:1}
 .dadd:hover{background:var(--act);color:#fff}
-@media (hover:none){.dadd{opacity:1;color:var(--ink2)}}
+@media (hover:none){.dadd{opacity:1;color:var(--ink)}}
 .calnav{display:flex;align-items:center;gap:8px}
 .calnav h2{margin:0;font-size:17px!important;font-weight:800;min-width:180px;letter-spacing:-.02em;
   text-transform:none!important}
@@ -853,7 +853,7 @@ a.kc{color:inherit;text-decoration:none}
 .ftile .nm{display:block;width:100%;font-size:12.5px;font-weight:700;overflow:hidden;
   text-overflow:ellipsis;white-space:nowrap;color:var(--ink)}
 .ftile:hover{border-color:var(--act)}
-.ftile:hover .nm{color:var(--act)}
+.ftile:hover .nm{color:var(--act-ink,var(--act))}
 .ftile .th{cursor:zoom-in}
 .ftile .row .btn,.ftile .row a{position:relative;z-index:2}
 .viewer{position:fixed;inset:0;z-index:95;display:flex;flex-direction:column;background:rgba(8,8,9,.92)}
@@ -961,7 +961,7 @@ a.kc{color:inherit;text-decoration:none}
   background:var(--card2);font-size:13px}
 .items input:focus{background:var(--card);border-color:var(--act)}
 .xb{background:none;border:1px solid var(--line);border-radius:2px;width:25px;height:25px;
-  color:var(--red);font-weight:700;line-height:1}
+  color:var(--danger-ink);font-weight:700;line-height:1}
 .xb:hover{border-color:var(--red)}
 
 /* ========= print ========= */
@@ -1160,7 +1160,7 @@ th .sortb.on{color:var(--ink2);border-bottom-color:var(--act)}
 .dhead{display:flex;align-items:center;gap:6px;min-height:24px}
 .dnum{font-family:inherit;font-size:13px;font-weight:700;min-width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%}
 .cal .day.istoday .dnum{background:var(--act);color:#fff}
-.dtoday{font-size:12px;font-weight:700;color:var(--act)}
+.dtoday{font-size:12px;font-weight:700;color:var(--act-ink,var(--act))}
 .ev{display:flex!important;flex-direction:column;align-items:stretch;gap:1px;-webkit-line-clamp:unset;white-space:normal!important;
   border-radius:5px;padding:4px 7px 5px;min-height:0;font-size:12px;font-weight:600;line-height:1.3;border-left-width:3px;overflow:visible}
 .ev .evk{font-size:12px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:var(--ink2);line-height:1.2}
@@ -1170,7 +1170,7 @@ th .sortb.on{color:var(--ink2);border-bottom-color:var(--act)}
 .ev.due{background:color-mix(in srgb,var(--orange) 10%,var(--card))}
 .ev.due .evk{color:var(--orange-text)}
 .ev.late{background:color-mix(in srgb,var(--red) 12%,var(--card));color:var(--ink);border-left-color:var(--red)}
-.ev.late .evk{color:var(--red)}
+.ev.late .evk{color:var(--danger-ink)}
 .ev.ship{text-decoration:none;color:var(--ink3);background:var(--card2);opacity:.85}
 .ev.ship .evk{color:var(--green)}
 .ev.evx .evk{color:var(--brand-ink)}
@@ -1210,9 +1210,9 @@ th{font-size:12px}
 .rail-ext{flex:0 0 auto!important;font-size:12px;color:var(--ink3);margin-left:auto}
 .app.rail-min .rail-ext{display:none}
 /* ===== 29 Oct visual review: readable sizes, visible fields, numbers that never wrap ===== */
-:root{--ink2:#4A4741;--ink3:#5A564F;--border-input:#8C877E;--focus:#1D4E8F;--orange-text:#8F4405;--act:#1F5FAD;--act2:#174A88}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink2:#B3AFA7;--ink3:#9A968E;--border-input:#6A665F;--focus:#7FB0E6;--orange-text:#F0A35E;--act:#2F6FC4;--act2:#3D7FD6}}
-:root[data-theme="dark"]{--ink2:#B3AFA7;--ink3:#9A968E;--border-input:#6A665F;--focus:#7FB0E6;--orange-text:#F0A35E;--act:#2F6FC4;--act2:#3D7FD6}
+:root{--ink2:#4A4741;--ink3:#5A564F;--border-input:#8C877E;--focus:#1D4E8F;--orange-text:#8F4405;--act:#1F5FAD;--act2:#174A88;--act-ink:#1A55A0}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink2:#B3AFA7;--ink3:#9A968E;--border-input:#6A665F;--focus:#7FB0E6;--orange-text:#F0A35E;--act:#2F6FC4;--act2:#2862B0;--act-ink:#8DBAEC}}
+:root[data-theme="dark"]{--ink2:#B3AFA7;--ink3:#9A968E;--border-input:#6A665F;--focus:#7FB0E6;--orange-text:#F0A35E;--act:#2F6FC4;--act2:#2862B0;--act-ink:#8DBAEC}
 /* red is kept for danger and alerts; everyday "do this next" buttons and the current place you're at are blue */
 .fdel{margin-left:auto;color:var(--ink3)}.fdel:hover{color:var(--danger-ink)!important;background:color-mix(in srgb,var(--danger-ink) 8%,var(--card))!important}
 .btn.p:hover,.hl-top .btn.p:hover{background:var(--act2);border-color:var(--act2)}
@@ -1247,7 +1247,7 @@ table.stickyhead > thead > tr > th{position:sticky;top:0;z-index:3;box-shadow:in
 .ocost{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 10px;background:var(--card2);border-radius:var(--r)}
 .ocost-t{flex:1 1 auto}
 .odet-sum{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
-details.omore>summary{cursor:pointer;font-weight:700;padding:6px 0;color:var(--act)}
+details.omore>summary{cursor:pointer;font-weight:700;padding:6px 0;color:var(--act-ink,var(--act))}
 @media (max-width:760px){
   .olform .fgrid{grid-template-columns:1fr!important}
   .olform .fld{grid-column:1/-1}
@@ -1259,12 +1259,28 @@ details.omore>summary{cursor:pointer;font-weight:700;padding:6px 0;color:var(--a
 @media (max-width:760px){.sub,.mono.sub{font-size:13px!important;color:var(--ink2)!important}}
 .btn.segtab{background:none;border-color:transparent;border-radius:0;border-bottom:2px solid transparent;color:var(--ink2);padding-left:8px;padding-right:8px}
 .btn.segtab:hover{background:none;color:var(--ink);border-color:transparent;border-bottom-color:var(--line)}
-.btn.segtab.on{color:var(--act);border-bottom-color:var(--act);font-weight:800}
+.btn.segtab.on{color:var(--act-ink,var(--act));border-bottom-color:var(--act);font-weight:800}
 .cxl .cx span,.cx span{white-space:nowrap}
 .addpic{width:40px;height:40px;padding:0;justify-content:center;font-size:12px!important;line-height:1.1;border:1px dashed var(--line)!important;flex:0 0 auto}
 .linenote{display:inline-flex;gap:4px;align-items:center;max-width:340px;margin-top:3px;padding:1px 8px;border-radius:999px;background:var(--card2);border:1px solid var(--line2);font-size:12px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media (max-width:1100px){.qlines [data-ordmove]{display:none}.qlines .gfull{display:none}.qlines .gshort{display:inline}}
 .qlines td:last-child{white-space:nowrap}
+/* -132 deep audit: tablets (761–1279px) */
+.qlwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+@media (min-width:761px){.qlines td,.qlines th{overflow-wrap:normal}.qlines td:first-child{min-width:190px}.qlines td:nth-child(2),.qlines td:nth-child(3){white-space:nowrap}}
+.hl-facts .v{overflow-wrap:break-word}
+@media (min-width:761px){.hl-facts > div{min-width:min-content}}
+@media (min-width:761px) and (max-width:1279px){
+  .path{flex-wrap:wrap;row-gap:8px}
+  .path > details{flex:0 0 100%;margin-left:0!important;align-self:flex-start}
+  .step{min-width:0;padding:7px 8px 6px 21px}
+  .step b{font-size:12.5px}.step small{font-size:12px}
+  .step.cur{min-width:118px}}
+@media (min-width:761px) and (max-width:960px){
+  .path{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px 0}
+  .path > details{grid-column:1 / -1;justify-self:start}
+  .step b,.step small{white-space:normal;line-height:1.25}}
+.filtbar select{height:34px}
 .actedit{margin-left:8px;display:inline-block;vertical-align:middle}
 .acbulk{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 15px;background:var(--act-soft,rgba(31,95,173,.07));border-bottom:1px solid var(--line2)}
 .acbulk select{min-height:34px}
@@ -5403,7 +5419,7 @@ function reconCard(p){
     ${(function(){if(!can("cost"))return "";const neg=rows.filter(r=>{if(r.charge)return false;const pr=Number(r.price)||0,c=quoteLineCost(r).cost;return pr>0&&c>0&&pr<c});
       return neg.length?`<div class="warn" style="margin:10px 14px">⚠ ${neg.length} line${neg.length===1?" sells":"s sell"} for less than ${neg.length===1?"it costs":"they cost"} us: ${neg.map(r=>esc(r.desc||r.code||"line")+" ("+money2(r.price)+" vs "+money2(quoteLineCost(r).cost)+" cost)").join(", ")}. Check the price or the cost before this goes out.</div>`:""})()}
     ${(function(){const fl=priceOddities(p);return fl.length?`<div class="warn" style="margin:10px 14px">⚠ Check these prices: ${fl.map(esc).join("; ")}.</div>`:""})()}
-    ${rows.length?`<table class="qlines"><thead><tr><th>Item</th><th>Size</th><th>Grade</th><th style="text-align:right">Qty</th>
+    ${rows.length?`<div class="qlwrap"><table class="qlines"><thead><tr><th>Item</th><th>Size</th><th>Grade</th><th style="text-align:right">Qty</th>
       <th style="text-align:right">Costs us</th><th style="text-align:right">Price ea</th><th style="text-align:right">Line</th><th style="text-align:right">Margin</th>
       <th>On work order</th><th style="width:110px"></th></tr></thead><tbody>
       ${rows.map((r,ix)=>{const d=r.sched-r.ordered;
@@ -5452,7 +5468,7 @@ function reconCard(p){
           return `<tr><td colspan="4" class="sub" style="text-align:right">Material actually pulled so far${other?" and other costs":""} — <b>what left the shelf</b>, not the estimate above</td>
             <td class="mono" style="text-align:right">${money(real)}</td><td colspan="2"></td>
             <td style="text-align:right">${rm==null?"":`<span class="pill ${rm>=35?"g":rm>=20?"o":"r"}">${Math.round(rm)}%</span>`}</td><td colspan="2"></td></tr>`})()}`})()}
-      </tbody></table>
+      </tbody></table></div>
       <div style="padding:9px 15px;border-top:1px solid var(--line2);display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <span class="sub" style="flex:1">Other costs on this project — labour, freight, outside work: <b style="color:var(--ink)">${money(Number(p.otherCost)||0)}</b></span>
         <button class="btn sm" data-othercost="${esc(p.id)}">Change</button></div>`
@@ -6428,7 +6444,7 @@ function stencilsView(){
           <td class="mono" style="text-align:right;font-weight:700;white-space:nowrap">${pr?money2(pr):"—"}${pr&&Number(s.pc)>1?`<div class="sub" style="font-weight:400">${money2(pr/Number(s.pc))} a piece</div>`:""}</td>
           ${showCost?`<td style="text-align:right">${mg==null?`<span class="sub">—</span>`:`<span class="pill ${mg>=40?"g":mg>=25?"o":"r"}">${Math.round(mg)}%</span>`}</td>`:""}
           <td class="sub" style="white-space:nowrap">${esc(fmtDate(stcPd(s)))}</td>
-          <td style="max-width:260px;white-space:normal">${fl.length?fl.map(x=>`<div class="sub" style="color:var(--red,#C00)">${esc(x)}</div>`).join(""):`<span class="sub">—</span>`}</td></tr>`}).join("")}
+          <td style="max-width:260px;white-space:normal">${fl.length?fl.map(x=>`<div class="sub" style="color:var(--danger-ink,#C00)">${esc(x)}</div>`).join(""):`<span class="sub">—</span>`}</td></tr>`}).join("")}
         </tbody></table></div>
         ${pages>1?`<div style="display:flex;gap:6px;align-items:center;padding:10px 15px">${f.page>0?`<button class="btn sm" data-stcpage="${f.page-1}">Previous</button>`:""}
           <span class="sub">Page ${f.page+1} of ${pages}</span>${f.page<pages-1?`<button class="btn sm" data-stcpage="${f.page+1}">Next</button>`:""}</div>`:""}`
@@ -9674,6 +9690,14 @@ function sortTable(tb,col,dir){const body=tb.tBodies[0];if(!body)return;
   rows.concat(rest).forEach(r=>body.appendChild(r))}
 // every box and dropdown gets a name a screen reader (and voice control) can use: its field label, the table column it
 // sits in, or its placeholder — many are laid out with a label above them rather than a <label>
+// things you click that aren't buttons (sort headers, file tiles, sign pictures, report chart pieces) can be reached with Tab and opened with Enter or Space
+function kbdClickables(){document.querySelectorAll(".main th.thsort, .main .ftile[data-view], .main img[data-signpic], .main [data-rdrill], .modal th.thsort").forEach(e=>{
+  if(e.closest("button,a"))return;if(!e.hasAttribute("tabindex"))e.setAttribute("tabindex","0");if(!e.getAttribute("role"))e.setAttribute("role","button");
+  if(e.matches("th.thsort")){const d=e.getAttribute("data-dir");e.setAttribute("aria-sort",d==="asc"?"ascending":d==="desc"?"descending":"none")}
+  else if(!e.getAttribute("aria-label")){const t=(e.getAttribute("title")||e.getAttribute("alt")||e.textContent||"").trim().replace(/\s+/g," ");if(t)e.setAttribute("aria-label",t.slice(0,80))}})}
+document.addEventListener("keydown",e=>{if(e.key!=="Enter"&&e.key!==" ")return;const t=e.target;
+  if(!t||!t.getAttribute||t.getAttribute("role")!=="button"||/^(BUTTON|A|INPUT|SELECT|TEXTAREA|SUMMARY)$/.test(t.tagName))return;
+  e.preventDefault();t.dispatchEvent(new MouseEvent("click",{bubbles:true,cancelable:true}))});
 function labelFields(){document.querySelectorAll(".main input:not([type=hidden]):not([aria-label]), .main select:not([aria-label]), .main textarea:not([aria-label]), .modal input:not([type=hidden]):not([aria-label]), .modal select:not([aria-label]), .modal textarea:not([aria-label])").forEach(e=>{
   if(e.id&&document.querySelector('label[for="'+e.id+'"]'))return;if(e.closest("label"))return;
   let t="";const f=e.closest(".fld");if(f){const k=f.querySelector(".k");if(k)t=k.textContent.trim()}
@@ -9688,7 +9712,7 @@ function decorateSorts(){const v=S.route&&S.route.v;if(!SORT_VIEWS[v])return;S.t
     ths.forEach((th,ci)=>{if(!th.textContent.trim())return;th.classList.add("thsort");th.title="Sort by "+th.textContent.trim().toLowerCase();
       th.onclick=()=>{const cur=S.tsort[key];const dir=cur&&cur.col===ci?-cur.dir:1;const first=!Object.keys(S.tsort).some(k=>k.indexOf(v+"#")===0);S.tsort[key]={col:ci,dir};
         if(first&&v==="accounts"){render();return}   // sorting the accounts shows them all, so the order is the whole list's
-        ths.forEach(h=>h.removeAttribute("data-dir"));th.setAttribute("data-dir",dir>0?"asc":"desc");sortTable(tb,ci,dir)}});
+        ths.forEach(h=>h.removeAttribute("data-dir"));th.setAttribute("data-dir",dir>0?"asc":"desc");sortTable(tb,ci,dir);try{kbdClickables()}catch(e){}}});
     const cur=S.tsort[key];if(cur&&ths[cur.col]){ths[cur.col].setAttribute("data-dir",cur.dir>0?"asc":"desc");sortTable(tb,cur.col,cur.dir)}})}
 // the browser tab says where you are: "P-2014 Yavapai… · SSS CRM"
 function pageTitle(){const r=S.route||{};const id=r.id;
@@ -9725,7 +9749,7 @@ function render(){
   decorateCollapsible();
   decorateTables();
   try{decorateSorts()}catch(e){}
-  try{labelFields()}catch(e){}
+  try{labelFields();kbdClickables()}catch(e){}
   decorateRows();
   decorateHeaders();
   decoratePics();
@@ -9743,7 +9767,8 @@ function render(){
     `<div class="alert savefail" style="margin:10px 16px">${S.saveFail.map(f=>esc(f.what)+" ("+esc(f.why)+")").join("<br>")}<span class="sp"><button class="btn sm" data-conntest="1">Check the database</button><button class="btn sm" data-savefailok="1">Dismiss</button></span></div>`)}
   try{decorateAccess();decorateProjectTabs()}catch(e){}
   // an open form isn't redrawn when data arrives in the background — that wiped what was being typed and its live boxes
-  if(S.modal&&!keepModal){document.body.insertAdjacentHTML("beforeend",S.modal);S._modalShown=S.modal;setTimeout(decorateAddress,0)}
+  if(S.modal&&!keepModal){const ae=document.activeElement;if(ae&&ae!==document.body&&!(ae.closest&&ae.closest(".modal")))S._modalOpener=ae;
+    document.body.insertAdjacentHTML("beforeend",S.modal);S._modalShown=S.modal;setTimeout(decorateAddress,0);modalA11y()}
   else if(!S.modal)S._modalShown=null;
   if(keepModal){const m=document.querySelector(".modal"),sc=document.querySelector(".scrim");if(sc)document.body.appendChild(sc);if(m)document.body.appendChild(m)}
   const vh=viewerHTML();if(vh)document.body.insertAdjacentHTML("beforeend",vh);
@@ -10214,7 +10239,7 @@ function home(){
     </div></div>`;
 }
 function tile(k,v,c){
-  const col=c==="r"?"color:var(--red)":c==="o"?"color:var(--orange-text)":"";
+  const col=c==="r"?"color:var(--danger-ink)":c==="o"?"color:var(--orange-text)":"";
   const note=(c&&c!=="r"&&c!=="o")?c:"";
   return `<div class="card" style="margin:0"><div class="body" style="padding:11px 13px">
   <div class="sub" style="font-weight:600">${esc(k)}</div>
@@ -10263,7 +10288,7 @@ function accountList(){
       <span class="sp"><input class="btn" id="lq" placeholder="Filter" value="${esc(S.q)}" style="font-weight:400;width:150px">
       ${(function(){const un=live(S.accounts).filter(a=>!a.repId).length;
         return un?`<button class="btn sm ${S.noRep?"p":""}" data-norep="1"
-          style="${S.noRep?"":"border-color:var(--red);color:var(--red)"}">Unassigned ${un}</button>`:""})()}
+          style="${S.noRep?"":"border-color:var(--red);color:var(--danger-ink)"}">Unassigned ${un}</button>`:""})()}
       ${myInitials()?`<button class="btn sm ${S.mineOnly?"p":""}" data-mine="1">${
         S.mineOnly?"Showing "+esc(myInitials())+" only":"Mine ("+esc(myInitials())+")"}</button>`:""}
       <button class="btn" data-csvimport="accounts">${ic("file",14)}Import</button>
@@ -10836,7 +10861,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-131";
+const APP_VERSION="2026.11.25-132";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -11330,7 +11355,7 @@ function projectRec(id){
             <div class="meta"><b class="nm" title="${esc(x.name)}">${esc(x.name)}</b><span class="sub">${esc(spec)}</span></div>
             <div class="row">${web?`<a class="btn sm" href="${esc(x.url)}" target="_blank" rel="noopener" style="text-decoration:none">View</a>`:""}
               <a class="btn sm" href="${esc(x.url)}" download="${esc(fname)}" style="text-decoration:none">Save</a></div></div>`}).join("")}
-          ${missing.map(({o,ix})=>`<div class="ftile"><div class="th" style="background:#fff;flex-direction:column;gap:4px"><span class="sub">No picture yet</span></div>
+          ${missing.map(({o,ix})=>`<div class="ftile"><div class="th" style="background:#fff;flex-direction:column;gap:4px"><span class="sub" style="color:#5B636D">No picture yet</span></div>
             <div class="meta"><b class="nm" title="${esc(o.desc||o.code||"")}">${esc(o.desc||signName(o)||o.code||"Item")}</b><span class="sub">${esc([o.qty?o.qty+" pcs":"",o.size?sizeLabel(o.size):""].filter(Boolean).join(" · "))}</span></div>
             <div class="row"><button class="btn sm p" data-ordedit="${esc(id)}:${ix}" title="Pick the artwork or upload the picture for this line">Add picture</button></div></div>`).join("")}</div>
       </section>`})()}
@@ -12114,7 +12139,7 @@ function vendorRec(id){
         <div><div class="k">Lead time</div><div class="v">${esc(v.leadTime||"—")}</div></div>
         <div><div class="k">Account #</div><div class="v mono">${esc(v.acct||"—")}</div></div>
         <div><div class="k">Items</div><div class="v mono">${its.length+altItemsOf(id).length}</div></div>
-        <div><div class="k">Below reorder</div><div class="v mono" style="${low.length?"color:var(--red)":""}">${low.length||"—"}</div></div>
+        <div><div class="k">Below reorder</div><div class="v mono" style="${low.length?"color:var(--danger-ink)":""}">${low.length||"—"}</div></div>
       </div></div>
     <div class="cols">
       <section class="card flush"><header><h2>Details</h2>
@@ -12288,7 +12313,7 @@ function itemRec(id){
         ${tx.slice(0,60).map(t=>`<tr>
           <td class="sub mono">${esc(fmtTs(t.at))}</td>
           <td><span class="pill ${t.type==="receive"?"g":t.type==="use"?"b":""}">${esc(TXT[t.type]||t.type)}</span></td>
-          <td class="mono" style="${Number(t.qty)<0?"color:var(--red)":""}${t.undone?";text-decoration:line-through;opacity:.55":""}">
+          <td class="mono" style="${Number(t.qty)<0?"color:var(--danger-ink)":""}${t.undone?";text-decoration:line-through;opacity:.55":""}">
           ${Number(t.qty)>0?"+":""}${esc(String(Math.round(Number(t.qty)*10000)/10000))}
           ${itemSqft(i)&&/roll|sheet/i.test(i.unit||"")?`<div class="sub">${Math.round(Math.abs(Number(t.qty))*itemSqft(i))} sq ft</div>`:""}</td>
           <td>${t.jobId?`<a class="lnk mono" href="#/job/${esc(t.jobId)}">${esc(t.jobId)}</a>`:"—"}</td>
@@ -12344,7 +12369,7 @@ function kpi(label,value,sub,color){
   return `<div class="card" style="margin:0"><div class="body" style="padding:12px 14px">
     <div class="kpi-l">${esc(label)}</div>
     <div class="mono kpiv kpi-v" style="${
-      color==="r"?"color:var(--red)":color==="o"?"color:var(--orange-text)":color==="g"?"color:var(--green)":""}">${esc(String(value))}</div>
+      color==="r"?"color:var(--danger-ink)":color==="o"?"color:var(--orange-text)":color==="g"?"color:var(--green)":""}">${esc(String(value))}</div>
     ${sub?`<div class="kpi-s">${esc(sub)}</div>`:""}</div></div>`;
 }
 function kpiRow(cells){
@@ -13313,10 +13338,10 @@ function settingsView(){
       </div></div></section>
     <section class="card"><header><h2>Colours</h2><span class="sub">The brand red is used for the logo and warnings; buttons and links are blue. Change it only if the logo changes.</span></header><div class="body">
       <div class="fgrid">
-        <div class="fld"><div class="k">Primary — buttons and the current step</div>
+        <div class="fld"><div class="k">Brand red — logo, alerts and account marks</div>
           <div style="display:flex;gap:7px"><input type="color" id="b-brand" value="${esc(b.brand||DEF_BRAND.brand)}" style="width:52px;padding:2px">
           <input id="b-brandx" value="${esc(b.brand||DEF_BRAND.brand)}" class="mono"></div></div>
-        <div class="fld"><div class="k">Primary, pressed</div>
+        <div class="fld"><div class="k">Brand red, darker shade</div>
           <div style="display:flex;gap:7px"><input type="color" id="b-brand2" value="${esc(b.brand2||DEF_BRAND.brand2)}" style="width:52px;padding:2px">
           <input id="b-brand2x" value="${esc(b.brand2||DEF_BRAND.brand2)}" class="mono"></div></div>
         <div class="fld"><div class="k">Accent on the dark header</div>
@@ -13728,7 +13753,16 @@ async function downloadFile(fid){
 }
 function openModal(h){S.modal=h;S.modalTouched=false;S.discardArmed=false;render();decorateAddress()}
 function modalDirty(){return !!S.modalTouched}
-function closeModal(){S.modal=null;S._modalShown=null;const s=$(".scrim"),m=$(".modal");if(s)s.remove();if(m)m.remove()}
+function closeModal(){S.modal=null;S._modalShown=null;const s=$(".scrim"),m=$(".modal");if(s)s.remove();if(m)m.remove();
+  // put the keyboard back on the button that opened the window
+  const o=S._modalOpener;S._modalOpener=null;if(o&&o.isConnected&&o.focus)setTimeout(()=>{if(!S.modal&&document.activeElement===document.body)try{o.focus({preventScroll:true})}catch(e){}},0)}
+// every window: tell screen readers it's a dialog with a title, and put the cursor in it (the first box, or the first button)
+function modalA11y(){const m=$(".modal");if(!m)return;m.setAttribute("role","dialog");m.setAttribute("aria-modal","true");
+  const h=m.querySelector("h2");if(h){if(!h.id)h.id="mdl-title";m.setAttribute("aria-labelledby",h.id)}
+  setTimeout(()=>{const mm=$(".modal");if(!mm||mm.contains(document.activeElement))return;
+    const f=[...mm.querySelectorAll(".body input:not([type=hidden]):not([disabled]),.body select:not([disabled]),.body textarea:not([disabled]),.foot .btn.p,.foot button,button")].find(e=>e.offsetParent);
+    if(f)try{f.focus({preventScroll:true})}catch(e){}},80)}
+function modalTabs(){const m=$(".modal");return m?[...m.querySelectorAll('a[href],button:not([disabled]),input:not([type=hidden]):not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')].filter(e=>e.offsetParent||e===document.activeElement):[]}
 function mshell(title,icon,b,f){
   return `<div class="scrim" data-close="1"></div><div class="modal"><div class="mbox">
     <h2>${icon?`<span class="oi sm oi-${icon}">${ic(({acct:"account",cont:"contact",proj:"project",job:"job",file:"file"})[icon]||"file",14)||icon[0].toUpperCase()}</span>`:""}${esc(title)}
@@ -17739,6 +17773,9 @@ function bind(){
         if(b)viewFile(b.dataset.view);
         return}
     }
+    // Tab stays inside an open window instead of wandering to the page behind it
+    if(e.key==="Tab"&&S.modal){const f=modalTabs();if(f.length){const i=f.indexOf(document.activeElement);
+      if(e.shiftKey&&(i<=0)){e.preventDefault();f[f.length-1].focus()}else if(!e.shiftKey&&(i===-1||i===f.length-1)){e.preventDefault();f[0].focus()}}}
     if(e.key==="Escape"){
     if(S.modal){
       if(modalDirty()&&!S.discardArmed){S.discardArmed=true;toast("Press escape again to discard what you typed.");return}
