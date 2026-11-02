@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-127
+- **Moving a project can't skip the paperwork:** a project remembers the account it started on; "doesn't use POs" / "doesn't need an invoice" only count when both that account and the current one have the setting — in the CRM and the database rules.
+- **The storage check** no longer signs in as anyone or touches Google Drive: it uses its own read-only storage access.
+
 ## 2026.11.25-126
 - **Close-out waivers:** when a project is missing the quote PDF, the PO / signed quote or the invoice, each missing one has **Not required…** (owner only — asks for a short reason) or **Ask Matt to waive** (everyone else — sends Matt a notification). A waiver is saved on the project with who, when and why, noted on its Activity and history, and the project shows a **Waived** tag (lists and the project summary). Works while file storage is down.
 - **Account settings (owner only):** "This customer doesn't use POs" and "This customer doesn't need an invoice" — their projects close without them, no waiver each time.

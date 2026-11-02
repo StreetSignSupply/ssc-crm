@@ -1,5 +1,5 @@
 name: CRM storage check (read-only, by hand)
-# Can the Firebase files be read, and can the worker reach Google Drive? Counts and status codes only.
+# Can the Firebase files be listed and read? Read-only storage access only. Counts and status codes only.
 on:
   workflow_dispatch: {}
 permissions:
@@ -17,7 +17,7 @@ jobs:
           workload_identity_provider: projects/741399760463/locations/global/workloadIdentityPools/github/providers/ssc-crm
           service_account: firebase-adminsdk-fbsvc@ssc-crm-a7224.iam.gserviceaccount.com
           token_format: access_token
-          access_token_scopes: https://www.googleapis.com/auth/cloud-platform
+          access_token_scopes: https://www.googleapis.com/auth/devstorage.read_only
       - uses: actions/setup-node@v4
         with: { node-version: "22" }
       - working-directory: worker

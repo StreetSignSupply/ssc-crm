@@ -89,8 +89,14 @@ service cloud.firestore {
         && (request.resource.data.get("closeWaive", {}).get("quote", null) == null || waived("quote"))
         && (request.resource.data.get("closeWaive", {}).get("po", null) == null || waived("po"))
         && (request.resource.data.get("closeWaive", {}).get("inv", null) == null || waived("inv")); }
-    function acctFlag(f) { return exists(/databases/$(db)/documents/accounts/$(request.resource.data.get("accountId", "-")))
-        && get(/databases/$(db)/documents/accounts/$(request.resource.data.get("accountId", "-"))).data.get(f, false) == true; }
+    // the account setting counts only if the project's ORIGINAL account (origAccountId, fixed when the project is made) has it
+    // as well as its current one — moving a project onto a "no POs" account can't skip the paperwork
+    function acctHas(aid, f) { return exists(/databases/$(db)/documents/accounts/$(aid)) && get(/databases/$(db)/documents/accounts/$(aid)).data.get(f, false) == true; }
+    function acctFlag(f) { return acctHas(request.resource.data.get("accountId", "-"), f)
+        && acctHas(request.resource.data.get("origAccountId", request.resource.data.get("accountId", "-")), f); }
+    // origAccountId is set once (to the account the project had then) and never changed from the CRM
+    function origOk() { return !changed().hasAny(["origAccountId"])
+        || (resource.data.get("origAccountId", null) == null && request.resource.data.origAccountId == resource.data.get("accountId", "")); }
     function paperOk(k, pid) { return waived(k) || (k == "po" && acctFlag("noPO")) || (k == "inv" && acctFlag("noInvoice"))
         || (request.resource.data.get("closePaper", {}) is map && fileOk(request.resource.data.get("closePaper", {}).get(k, ""), pid, k)); }
     function closingOk(pid) { return request.resource.data.get("stage", "") != "closed"
@@ -98,11 +104,12 @@ service cloud.firestore {
         || (paperOk("quote", pid) && paperOk("po", pid) && paperOk("inv", pid)); }
     match /projects/{id} {
       allow read: if member();
-      allow create: if member() && (isOwner() || !request.resource.data.keys().hasAny(["quoteApproval", "quoteRejected", "closeWaive"])) && closingOk(id);
+      allow create: if member() && (isOwner() || !request.resource.data.keys().hasAny(["quoteApproval", "quoteRejected", "closeWaive"]))
+                    && request.resource.data.get("origAccountId", request.resource.data.get("accountId", "")) == request.resource.data.get("accountId", "") && closingOk(id);
       // only an owner approves (or turns down) a quote going to a customer
       allow update: if member() && !(isShop() && changed().hasAny(["orderLines", "value", "amountAuto", "billStatus", "billDate", "paidDate", "invNum", "invTax", "depositAmt", "quote", "price"]))
                     && (isOwner() || !changed().hasAny(["quoteApproval", "quoteRejected", "closeWaive"]))
-                    && (!changed().hasAny(["closeWaive"]) || waiveShape()) && closingOk(id);
+                    && (!changed().hasAny(["closeWaive"]) || waiveShape()) && origOk() && closingOk(id);
       allow delete: if isOffice();
     }
     // inventory: sales and shop count and move stock; only owners and office change what things cost
