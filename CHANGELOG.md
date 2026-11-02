@@ -6,6 +6,7 @@ Checked every page in light and dark mode for text contrast (WCAG AA), every cli
 - Tablets: quote lines keep item names readable (no one-word-per-line) and scroll sideways instead of hiding the Margin column.
 - Header facts (Type, Terms…) no longer break words in the middle ("Governme nt agency").
 - Dark mode: blue links, active tabs and "Today" were too dim to read; they use a lighter blue for text now. Blue buttons keep enough contrast on hover.
+- Dark mode: red warning text ("No sheet in inventory…") and the calendar's "+" on touch screens were too dim; fixed.
 - The stage chevrons' small text ("—", "9 days here") and "No picture yet" were below readable contrast; fixed.
 - Windows: every window is announced as a dialog, puts the cursor inside when it opens (Add a negotiated price didn't), keeps Tab inside it, and returns you to the button you came from when it closes.
 - Keyboard: column sort headers, file tiles, sign pictures and report chart pieces can be reached with Tab and opened with Enter.

@@ -715,7 +715,7 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
   .trk-ph-facts > div{background:var(--card2);padding:7px 10px;display:flex;flex-direction:column;gap:1px;min-width:0}
   .trk-ph-facts span{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2)}
   .trk-ph-facts b{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .trk-ph-facts b.t-r{color:var(--red)} .trk-ph-facts b.t-o{color:var(--orange-text)} .trk-ph-facts b.t-g{color:var(--green)}
+  .trk-ph-facts b.t-r{color:var(--danger-ink)} .trk-ph-facts b.t-o{color:var(--orange-text)} .trk-ph-facts b.t-g{color:var(--green)}
   .trk-jobs{gap:6px}
   .trk-jobs .jchip{font-size:12px;padding:4px 9px}
 
@@ -814,11 +814,11 @@ a.kc{color:inherit;text-decoration:none}
 .ev.late{border-left-color:var(--plate);background:#B8231C;color:#fff}
 .ev.ship{border-left-color:var(--green);color:var(--ink2)}.ev.ship::before{content:"✓ ";color:var(--green);font-weight:800}
 .ev.evx{border-left-color:#7A4FB5;background:var(--card);box-shadow:inset 0 0 0 1px var(--line2)}
-.dadd{margin-left:auto;background:none;border:0;color:var(--ink3);font-size:15px;line-height:1;min-width:24px;min-height:24px;
+.dadd{margin-left:auto;background:none;border:0;color:var(--ink);font-size:15px;line-height:1;min-width:24px;min-height:24px;
   padding:0 4px;border-radius:2px;opacity:0}
 .cal .day:hover .dadd,.dadd:focus{opacity:1}
 .dadd:hover{background:var(--act);color:#fff}
-@media (hover:none){.dadd{opacity:1;color:var(--ink2)}}
+@media (hover:none){.dadd{opacity:1;color:var(--ink)}}
 .calnav{display:flex;align-items:center;gap:8px}
 .calnav h2{margin:0;font-size:17px!important;font-weight:800;min-width:180px;letter-spacing:-.02em;
   text-transform:none!important}
@@ -961,7 +961,7 @@ a.kc{color:inherit;text-decoration:none}
   background:var(--card2);font-size:13px}
 .items input:focus{background:var(--card);border-color:var(--act)}
 .xb{background:none;border:1px solid var(--line);border-radius:2px;width:25px;height:25px;
-  color:var(--red);font-weight:700;line-height:1}
+  color:var(--danger-ink);font-weight:700;line-height:1}
 .xb:hover{border-color:var(--red)}
 
 /* ========= print ========= */
@@ -1170,7 +1170,7 @@ th .sortb.on{color:var(--ink2);border-bottom-color:var(--act)}
 .ev.due{background:color-mix(in srgb,var(--orange) 10%,var(--card))}
 .ev.due .evk{color:var(--orange-text)}
 .ev.late{background:color-mix(in srgb,var(--red) 12%,var(--card));color:var(--ink);border-left-color:var(--red)}
-.ev.late .evk{color:var(--red)}
+.ev.late .evk{color:var(--danger-ink)}
 .ev.ship{text-decoration:none;color:var(--ink3);background:var(--card2);opacity:.85}
 .ev.ship .evk{color:var(--green)}
 .ev.evx .evk{color:var(--brand-ink)}
@@ -6444,7 +6444,7 @@ function stencilsView(){
           <td class="mono" style="text-align:right;font-weight:700;white-space:nowrap">${pr?money2(pr):"—"}${pr&&Number(s.pc)>1?`<div class="sub" style="font-weight:400">${money2(pr/Number(s.pc))} a piece</div>`:""}</td>
           ${showCost?`<td style="text-align:right">${mg==null?`<span class="sub">—</span>`:`<span class="pill ${mg>=40?"g":mg>=25?"o":"r"}">${Math.round(mg)}%</span>`}</td>`:""}
           <td class="sub" style="white-space:nowrap">${esc(fmtDate(stcPd(s)))}</td>
-          <td style="max-width:260px;white-space:normal">${fl.length?fl.map(x=>`<div class="sub" style="color:var(--red,#C00)">${esc(x)}</div>`).join(""):`<span class="sub">—</span>`}</td></tr>`}).join("")}
+          <td style="max-width:260px;white-space:normal">${fl.length?fl.map(x=>`<div class="sub" style="color:var(--danger-ink,#C00)">${esc(x)}</div>`).join(""):`<span class="sub">—</span>`}</td></tr>`}).join("")}
         </tbody></table></div>
         ${pages>1?`<div style="display:flex;gap:6px;align-items:center;padding:10px 15px">${f.page>0?`<button class="btn sm" data-stcpage="${f.page-1}">Previous</button>`:""}
           <span class="sub">Page ${f.page+1} of ${pages}</span>${f.page<pages-1?`<button class="btn sm" data-stcpage="${f.page+1}">Next</button>`:""}</div>`:""}`
@@ -10239,7 +10239,7 @@ function home(){
     </div></div>`;
 }
 function tile(k,v,c){
-  const col=c==="r"?"color:var(--red)":c==="o"?"color:var(--orange-text)":"";
+  const col=c==="r"?"color:var(--danger-ink)":c==="o"?"color:var(--orange-text)":"";
   const note=(c&&c!=="r"&&c!=="o")?c:"";
   return `<div class="card" style="margin:0"><div class="body" style="padding:11px 13px">
   <div class="sub" style="font-weight:600">${esc(k)}</div>
@@ -10288,7 +10288,7 @@ function accountList(){
       <span class="sp"><input class="btn" id="lq" placeholder="Filter" value="${esc(S.q)}" style="font-weight:400;width:150px">
       ${(function(){const un=live(S.accounts).filter(a=>!a.repId).length;
         return un?`<button class="btn sm ${S.noRep?"p":""}" data-norep="1"
-          style="${S.noRep?"":"border-color:var(--red);color:var(--red)"}">Unassigned ${un}</button>`:""})()}
+          style="${S.noRep?"":"border-color:var(--red);color:var(--danger-ink)"}">Unassigned ${un}</button>`:""})()}
       ${myInitials()?`<button class="btn sm ${S.mineOnly?"p":""}" data-mine="1">${
         S.mineOnly?"Showing "+esc(myInitials())+" only":"Mine ("+esc(myInitials())+")"}</button>`:""}
       <button class="btn" data-csvimport="accounts">${ic("file",14)}Import</button>
@@ -12139,7 +12139,7 @@ function vendorRec(id){
         <div><div class="k">Lead time</div><div class="v">${esc(v.leadTime||"—")}</div></div>
         <div><div class="k">Account #</div><div class="v mono">${esc(v.acct||"—")}</div></div>
         <div><div class="k">Items</div><div class="v mono">${its.length+altItemsOf(id).length}</div></div>
-        <div><div class="k">Below reorder</div><div class="v mono" style="${low.length?"color:var(--red)":""}">${low.length||"—"}</div></div>
+        <div><div class="k">Below reorder</div><div class="v mono" style="${low.length?"color:var(--danger-ink)":""}">${low.length||"—"}</div></div>
       </div></div>
     <div class="cols">
       <section class="card flush"><header><h2>Details</h2>
@@ -12313,7 +12313,7 @@ function itemRec(id){
         ${tx.slice(0,60).map(t=>`<tr>
           <td class="sub mono">${esc(fmtTs(t.at))}</td>
           <td><span class="pill ${t.type==="receive"?"g":t.type==="use"?"b":""}">${esc(TXT[t.type]||t.type)}</span></td>
-          <td class="mono" style="${Number(t.qty)<0?"color:var(--red)":""}${t.undone?";text-decoration:line-through;opacity:.55":""}">
+          <td class="mono" style="${Number(t.qty)<0?"color:var(--danger-ink)":""}${t.undone?";text-decoration:line-through;opacity:.55":""}">
           ${Number(t.qty)>0?"+":""}${esc(String(Math.round(Number(t.qty)*10000)/10000))}
           ${itemSqft(i)&&/roll|sheet/i.test(i.unit||"")?`<div class="sub">${Math.round(Math.abs(Number(t.qty))*itemSqft(i))} sq ft</div>`:""}</td>
           <td>${t.jobId?`<a class="lnk mono" href="#/job/${esc(t.jobId)}">${esc(t.jobId)}</a>`:"—"}</td>
@@ -12369,7 +12369,7 @@ function kpi(label,value,sub,color){
   return `<div class="card" style="margin:0"><div class="body" style="padding:12px 14px">
     <div class="kpi-l">${esc(label)}</div>
     <div class="mono kpiv kpi-v" style="${
-      color==="r"?"color:var(--red)":color==="o"?"color:var(--orange-text)":color==="g"?"color:var(--green)":""}">${esc(String(value))}</div>
+      color==="r"?"color:var(--danger-ink)":color==="o"?"color:var(--orange-text)":color==="g"?"color:var(--green)":""}">${esc(String(value))}</div>
     ${sub?`<div class="kpi-s">${esc(sub)}</div>`:""}</div></div>`;
 }
 function kpiRow(cells){

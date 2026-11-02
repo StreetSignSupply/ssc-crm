@@ -78,7 +78,7 @@ for (const r of ROUTES) { await pg.evaluate((r) => { location.hash = "#/" + r; }
     return { dup: Object.keys(ids).filter((k) => ids[k] > 1), unnamed }; });
   if (a.dup.length) bad.push(r + ": duplicate ids " + a.dup.slice(0, 3).join(", ")); if (a.unnamed) bad.push(r + ": " + a.unnamed + " unnamed field(s)"); }
 // text must be readable in light and dark mode (WCAG AA contrast), and anything clickable must be reachable with the keyboard
-const contrastBad = () => { const parse = (c) => { const m = c.match(/rgba?\(([^)]+)\)/); if (!m) return null; const p = m[1].split(/[ ,\/]+/).filter(Boolean).map(Number); return [p[0], p[1], p[2], p[3] === undefined ? 1 : p[3]]; };
+const contrastBad = () => { const parse = (c) => { const k = c.match(/color\(srgb ([^)]+)\)/); if (k) { const p = k[1].split(/[ \/]+/).filter(Boolean).map(Number); return [p[0] * 255, p[1] * 255, p[2] * 255, p[3] === undefined ? 1 : p[3]]; } const m = c.match(/rgba?\(([^)]+)\)/); if (!m) return null; const p = m[1].split(/[ ,\/]+/).filter(Boolean).map(Number); return [p[0], p[1], p[2], p[3] === undefined ? 1 : p[3]]; };
   const lum = (c) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
   const bgOf = (e) => { const layers = []; for (let n = e; n && n.nodeType === 1; n = n.parentElement) { const c = parse(getComputedStyle(n).backgroundColor); if (c && c[3] > 0) { layers.push(c); if (c[3] >= 1) break; } }
     let base = [255, 255, 255]; if (!layers.length || layers[layers.length - 1][3] < 1) { const b = parse(getComputedStyle(document.body).backgroundColor); if (b) base = b.slice(0, 3); }
