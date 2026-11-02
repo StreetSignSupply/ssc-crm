@@ -10904,7 +10904,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-133";
+const APP_VERSION="2026.11.25-134";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -16682,8 +16682,8 @@ async function composeAIRemote(){const C=S._cmp||{};const p=C.pid?proj(C.pid):nu
   const tick=setInterval(()=>{const bb=$("#cm-ai");if(!bb){clearInterval(tick);return}const n=Math.round((Date.now()-tS)/1000);
     bb.textContent="Writing… "+n+"s"+(n>40?" — the email helper is busy, still working":"")},1000);
   const done=(msg)=>{clearInterval(tick);const bb=$("#cm-ai")||b;if(bb){bb.disabled=false;bb.innerHTML=ic("email",14)+"Write it with AI"}if(msg)toast(msg)};
-  try{await setDoc("aidraft/"+id,{id,status:"queued",at:Date.now(),byId:meId(),sig:!!mySig(),ask:String(($("#cm-ask")||{}).value||"").slice(0,600),
-    subject:String($("#cm-subj").value||"").slice(0,200),draft:String($("#cm-body").value||"").slice(0,2500),ctx:ctx.slice(0,2500)})}catch(e){return done("Couldn't ask for a draft.")}
+  try{await setDoc("aidraft/"+id,Object.assign({id,status:"queued",at:Date.now(),byId:meId(),sig:!!mySig(),ask:String(($("#cm-ask")||{}).value||"").slice(0,600),
+    subject:String($("#cm-subj").value||"").slice(0,200),draft:String($("#cm-body").value||"").slice(0,2500),ctx:ctx.slice(0,2500)},S._aiVia?{via:S._aiVia}:{}))}catch(e){return done("Couldn't ask for a draft.")}
   let off=null;const t=setTimeout(()=>{try{off&&off()}catch(e){}done("The AI didn't answer in 3 minutes — press Write it with AI again.")},180000);
   try{off=db.doc("aidraft/"+id).onSnapshot(sn=>{const d=sn&&sn.exists?(typeof sn.data==="function"?sn.data():sn.data):null;if(!d)return;
     if(d.status==="done"){clearTimeout(t);try{off()}catch(e){}if(!$("#cm-body"))return done();$("#cm-body").value=String(d.body||"");if(d.subject)$("#cm-subj").value=String(d.subject);S.modalTouched=true;done()}
