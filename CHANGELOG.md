@@ -7,6 +7,7 @@ From Matt's iPhone screenshots of a stencil, then every page, every window and o
 - **Stencil list on a phone** is a compact card per stencil: picture, name, price, SKU, then painted size, sheet, cost and margin, and any flags in red — the rest is in the stencil's window. The search box is full width. The "How stencils are costed" cards show the sheet name in one piece.
 - **Nothing on a phone page has to be scrolled sideways any more:** the project tabs (Close-out and Details were hidden off the edge), the Settings sections, and the filter buttons on Contacts and Inventory wrap onto a second line. The calendar's "+" on each day fits its box.
 - Stacked rows on a phone are striped as whole cards (the stripe used to leave patches).
+- If a page is opened in the same instant a window closes, you stay on the new page (the window's Back step can't pull you back). The release check now waits a moment after closing a window, like a person, and passes with the processor slowed 6×.
 - Release checks added: windows sized to the visible iPhone screen; on a 390×664 screen the stencil, account, quote line, purchase order, work order and item windows keep their title and buttons on screen, have no sideways-scrolling part, and close with Back; no phone page has anything only reachable by scrolling sideways.
 
 ## 2026.11.25-134 (Write it with AI: fast and with a working backup)

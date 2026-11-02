@@ -59,8 +59,9 @@ for (const r of ROUTES) {
 // a few forms
 const forms = [["purchasing", "[data-ponew]"], ["purchasing", "[data-porecv]"], ["project/p1", "[data-edit^='project:']"], ["project/p1", "[data-ordadd]"], ["account/a1", "[data-edit^='account:']"], ["accounts", "[data-newvend],[data-new='account']"], ["job/1001", "[data-edit^='job:']"]];
 for (const [r, sel] of forms) { await pg.evaluate((r) => { location.hash = "#/" + r; }, r); await pg.waitForTimeout(400); const before = errs.length;
-  const el = await pg.$(sel); if (el) { await el.click().catch(() => {}); await pg.waitForTimeout(400); if (!(await pg.$(".modal"))) bad.push(r + " " + sel + ": form didn't open"); await pg.keyboard.press("Escape"); }
+  const el = await pg.$(sel); if (el) { await el.click().catch(() => {}); await pg.waitForTimeout(400); if (!(await pg.$(".modal"))) bad.push(r + " " + sel + ": form didn't open"); await pg.keyboard.press("Escape"); await pg.waitForTimeout(300); }
   if (errs.length > before) bad.push(r + " " + sel + ": " + errs.slice(before).join(" | ")); }
+await pg.waitForTimeout(300);
 // list filters must actually filter (a release once dropped the Accounts filter handler and nothing reacted)
 const rows = () => pg.evaluate(() => document.querySelectorAll(".main section.wide tbody tr").length);
 const filt = [["accounts", "select[data-acfilt=type]", "Contractor"], ["accounts", "select[data-acfilt=rep]", "t1"], ["inventory", "select[data-invfilt=cat]", "Substrate"]];
@@ -113,7 +114,7 @@ for (const [r, sel] of [["account/a1", "[data-negadd]"], ["accounts", "[data-new
   if (!m) { bad.push(r + " " + sel + ": window didn't open"); continue; }
   let left = false; for (let i = 0; i < 30; i++) { await pg.keyboard.press("Tab"); if (!(await pg.evaluate(() => !!(document.activeElement && document.activeElement.closest(".modal"))))) left = true; }
   if (m.role !== "dialog" || !m.inside || left) bad.push(r + " " + sel + ": window " + (m.role !== "dialog" ? "isn't marked as a dialog " : "") + (!m.inside ? "doesn't put the cursor inside " : "") + (left ? "lets Tab escape" : ""));
-  await pg.evaluate(() => { const x = document.querySelector(".modal .mx"); if (x) x.click(); }); await pg.waitForTimeout(200); }
+  await pg.evaluate(() => { const x = document.querySelector(".modal .mx"); if (x) x.click(); }); await pg.waitForTimeout(350); }
 // tablets: no page wider than the screen at 820px either
 await pg.setViewportSize({ width: 820, height: 1180 });
 for (const r of ROUTES) { await pg.evaluate((r) => { location.hash = "#/" + r; }, r); await pg.waitForTimeout(r === "stencils" ? 1500 : 300);
@@ -129,7 +130,7 @@ for (const [r, sel] of [["accounts", "[data-new='account']"], ["project/p1", "[d
   if (!(await pg.evaluate((sel) => { const b = document.querySelector(sel); if (!b) return false; b.click(); return true; }, sel))) { bad.push(r + " " + sel + ": button missing on a phone"); continue; } await pg.waitForTimeout(400);
   const t = await pg.evaluate(() => { const d = document.querySelector(".modal .mbox"); if (!d) return null; return [...d.querySelectorAll("button, input:not([type=checkbox]):not([type=radio]):not([type=hidden]), select")].filter((e) => { const b = e.getBoundingClientRect(); return b.width && b.height && b.height < 32; }).map((e) => (e.getAttribute("aria-label") || e.innerText || e.placeholder || e.tagName).trim().slice(0, 20)); });
   if (!t) bad.push(r + " " + sel + ": window didn't open on a phone"); else if (t.length) bad.push(r + " window on a phone: too small to tap — " + t.slice(0, 3).join(", "));
-  await pg.evaluate(() => { const x = document.querySelector(".modal .mx"); if (x) x.click(); }); await pg.waitForTimeout(200); }
+  await pg.evaluate(() => { const x = document.querySelector(".modal .mx"); if (x) x.click(); }); await pg.waitForTimeout(350); }
 // phone with Safari's bars showing (390×664): windows keep their title (with the ×) and their buttons on screen, nothing in
 // them only reachable by scrolling sideways, and Back closes the window without leaving the page
 { const css = await pg.evaluate(() => [...document.styleSheets].map((sh) => { try { return [...sh.cssRules].map((r) => r.cssText).join("\n"); } catch (e) { return ""; } }).join("\n"));
