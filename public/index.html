@@ -10427,8 +10427,8 @@ function accountList(){
     ${fsel("rep","Rep",repList().map(t=>[t.id,t.name]).concat([["__none","No rep"]]))}${fsel("type","Type",ACCT_TYPE.map(x=>[x,x]))}${fsel("stage","Stage",ACCT_STAGES.map(x=>[x.id,x.l]))}${fsel("state","State",states.map(x=>[x,x]))}${fsel("terms","Terms",TERMS.map(x=>[x,x]))}
     <label class="sub" style="display:flex;gap:5px;align-items:center"><input type="checkbox" data-acfilt="nocon" ${AF.nocon?"checked":""}> No contacts</label>
     ${Object.keys(AF).some(k=>AF[k])?`<button class="btn sm q" data-acfilt="clear">Clear filters</button>`:""}</div>`;
-  const vl=can("settings")||myAccess()==="office"?vendorLookalikes():[];
-  return `<div class="pad">${vl.length?`<div class="alert strip" style="margin-bottom:12px"><span><b>${vl.length} account${vl.length===1?" looks":"s look"} like ${vl.length===1?"a vendor":"vendors"}</b> you buy from (${esc([...new Set(vl.map(x=>x.v.name))].slice(0,4).join(", "))}${vl.length>4?"…":""}) but ${vl.length===1?"shows":"show"} as a customer stage.</span><span class="sp"><button class="btn sm p" data-vaccopen="1">Review</button></span></div>`:""}<section class="card flush wide">
+  const vl=can("settings")||myAccess()==="office"?vendorLookalikes():[];const vm=vl.length||!(can("settings")||myAccess()==="office")?[]:vendorMaybes();
+  return `<div class="pad">${!vl.length&&vm.length?`<div class="alert strip" style="margin-bottom:12px"><span><b>${vm.length} account${vm.length===1?" might be a vendor":"s might be vendors"}</b> (no projects, and they write to us about prices or quotes, or their name is like a vendor's).</span><span class="sp"><button class="btn sm" data-vaccopen="1">Review</button></span></div>`:""}${vl.length?`<div class="alert strip" style="margin-bottom:12px"><span><b>${vl.length} account${vl.length===1?" looks":"s look"} like ${vl.length===1?"a vendor":"vendors"}</b> you buy from (${esc([...new Set(vl.map(x=>x.v.name))].slice(0,4).join(", "))}${vl.length>4?"…":""}) but ${vl.length===1?"shows":"show"} as a customer stage.</span><span class="sp"><button class="btn sm p" data-vaccopen="1">Review</button></span></div>`:""}<section class="card flush wide">
     <header><span class="oi oi-acct">${ic("account",14)}</span><h2>Accounts</h2><span class="n">${list.length}</span>
       <span class="sp"><input class="btn" id="lq" placeholder="Filter" value="${esc(S.q)}" style="font-weight:400;width:150px">
       ${(function(){const un=live(S.accounts).filter(a=>!a.repId&&!isVendorAcct(a)).length;
@@ -10520,15 +10520,25 @@ function vendorDomains(v){const out=new Set();const w=String(v.website||"").toLo
 function vendorLookalikes(){const vs=live(S.vendors).map(v=>({v,w:nameWords(v.name),d:vendorDomains(v)})).filter(x=>(x.w.length&&x.w.join("").length>=4)||x.d.size);
   return live(S.accounts).filter(a=>!isVendorAcct(a)).map(a=>{const aw=nameWords(a.name);const ad=acctDomains(a);
     const m=vs.find(x=>(aw.length&&x.w.length&&x.w.join("").length>=4&&(x.w.every(w=>aw.indexOf(w)>=0)||(aw.length>=2&&aw.every(w=>x.w.indexOf(w)>=0))))||[...ad].some(d=>x.d.has(d)));
-    return m?{a,v:m.v,how:[...ad].some(d=>m.d.has(d))?"same email domain":"same name"}:null}).filter(Boolean)}
-function vendorAcctModal(){const L=vendorLookalikes();
+    return m?{a,v:m.v,how:[...ad].some(d=>m.d.has(d))?"same email domain":"same name",sure:true}:null}).filter(Boolean)}
+// weaker hints, offered unticked: the vendor's main name word is in the account's name ("Montroy Signs" ↔ "Montroy Sign &
+// Graphic Products"), or the account never had a project and has only written to us about prices, quotes or invoices
+const sing=w=>w.length>4?w.replace(/s$/,""):w;
+function vendorMaybes(){const strong=new Set(vendorLookalikes().map(x=>x.a.id));
+  const vs=live(S.vendors).map(v=>({v,k:(nameWords(v.name).find(w=>w.length>=5&&!/^(sign|signs|graphic|graphics|metal|metals|plastic|plastics|industrie|industries|products|national|american|western|united|county|city)$/.test(w))||"")})).filter(x=>x.k);
+  const inMail=new Map();live(S.activity).forEach(x=>{if(x.direction!=="in"||x.recType!=="account")return;const t=String((x.subject||"")+" "+(x.text||"")).toLowerCase();
+    if(/\b(price ?list|pricing|quote|quotation|invoice|order confirmation|proforma|estimate|price increase|lead time)\b/.test(t))inMail.set(x.recId,(inMail.get(x.recId)||0)+1)});
+  return live(S.accounts).filter(a=>!isVendorAcct(a)&&!strong.has(a.id)&&!/gov/i.test(a.type||"")).map(a=>{const aw=nameWords(a.name).map(sing);
+    const m=vs.find(x=>aw.indexOf(sing(x.k))>=0);if(m)return {a,v:m.v,how:"name like "+m.v.name,sure:false};
+    if(inMail.get(a.id)&&!projectsOf(a.id).length)return {a,v:null,how:"no projects — writes to us about prices, quotes or invoices",sure:false};return null}).filter(Boolean)}
+function vendorAcctModal(){const L=vendorLookalikes().concat(vendorMaybes());
   openModal(mshell("Accounts that are vendors","acct",`<p class="note" style="margin:10px 15px">These accounts have the same name as a company on your Vendors list. Marking them <b>Vendor</b> shows them as Vendor (not Lead), keeps them out of sales counts and leads, and keeps their contacts and history. Untick any that really are customers.</p>
-    <div style="padding:4px 15px 10px">${L.map(({a,v,how})=>`<label style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line2)"><input type="checkbox" data-vacc="${esc(a.id)}" checked>
-      <span style="flex:1"><b>${esc(a.name)}</b> <span class="sub">— account${a.city?" · "+esc(a.city):""} · now ${esc((ACCT_STAGES.find(x=>x.id===acctStage(a))||{}).l||"")}</span><br><span class="sub">matches vendor ${esc(v.name)} (${esc(how||"same name")})</span></span></label>`).join("")||`<div class="empty">No account matches a vendor's name.</div>`}</div>`,
+    <div style="padding:4px 15px 10px">${L.map(({a,v,how,sure},i)=>`${i===0&&sure?`<div class="k" style="margin:4px 0 2px">Same name or email domain as a vendor</div>`:""}${!sure&&(i===0||L[i-1].sure)?`<div class="k" style="margin:12px 0 2px">Might be vendors — tick the ones that are</div>`:""}<label style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line2)"><input type="checkbox" data-vacc="${esc(a.id)}" ${sure?"checked":""}>
+      <span style="flex:1"><b>${esc(a.name)}</b> <span class="sub">— account${a.city?" · "+esc(a.city):""} · now ${esc((ACCT_STAGES.find(x=>x.id===acctStage(a))||{}).l||"")}</span><br><span class="sub">${v?"matches vendor "+esc(v.name)+" (":"("}${esc(how||"same name")})</span></span></label>`).join("")||`<div class="empty">No account matches a vendor's name.</div>`}</div>`,
     `<button class="btn" data-close="1">Cancel</button>${L.length?`<button class="btn p" id="vacc-go">Mark as vendors</button>`:""}`));
   const b=$("#vacc-go");if(b)b.onclick=async()=>{const ids=[...document.querySelectorAll("[data-vacc]:checked")].map(e=>e.dataset.vacc);let n=0;
     for(const id of ids){const a=acct(id);if(!a)continue;const v=L.find(x=>x.a.id===id).v;
-      try{await push("accounts/"+id,{type:"Vendor",vendorId:v.id,updatedAt:Date.now()});recordHistory("account",id,[{f:"Type",o:a.type||"",n:"Vendor"}]);n++}catch(e){}}
+      try{await push("accounts/"+id,Object.assign({type:"Vendor",updatedAt:Date.now()},v?{vendorId:v.id}:{}));recordHistory("account",id,[{f:"Type",o:a.type||"",n:"Vendor"}]);n++}catch(e){}}
     closeModal();toast(n+" account"+(n===1?"":"s")+" marked as vendor"+(n===1?"":"s"));render()}}
 document.addEventListener("click",e=>{const t=e.target&&e.target.closest&&e.target.closest("[data-vaccopen]");if(!t)return;e.preventDefault();vendorAcctModal()},true);
 function acctStagePill(a,withHow){const id=acctStage(a);const st=ACCT_STAGES.find(x=>x.id===id)||ACCT_STAGES[0];
