@@ -72,44 +72,56 @@ service cloud.firestore {
       allow delete: if isOwner();
     }
     // quotes and projects: the shop doesn't change prices, billing or the stage
-    // Closed won needs the paperwork: closePaper names three file records on this project — the quote PDF the CRM made
-    // (gen "quote"), the PO or signed quote, and the invoice
-    function fileOk(fid, pid, kind) { return fid is string && fid != "" && exists(/databases/$(db)/documents/files/$(fid))
-        && get(/databases/$(db)/documents/files/$(fid)).data.get("projectId", "") == pid
-        && get(/databases/$(db)/documents/files/$(fid)).data.get("deleted", false) != true
-        && get(/databases/$(db)/documents/files/$(fid)).data.get("verified", false) == true
-        && (kind == "quote" ? get(/databases/$(db)/documents/files/$(fid)).data.get("gen", "") == "quote"
-            : kind == "po" ? get(/databases/$(db)/documents/files/$(fid)).data.get("cat", "") in ["Purchase order", "Signed quote"]
-            : get(/databases/$(db)/documents/files/$(fid)).data.get("cat", "") == "Invoice"); }
-    // ...or the owner waived that item for this project (closeWaive, which only an owner can write, with a reason), or the
-    // account doesn't use POs / invoices (noPO / noInvoice, which only an owner can set)
-    function waived(k) { return request.resource.data.get("closeWaive", {}) is map && request.resource.data.get("closeWaive", {}).get(k, null) is map
-        && request.resource.data.get("closeWaive", {}).get(k, {}).get("why", "") is string && request.resource.data.get("closeWaive", {}).get(k, {}).get("why", "").size() >= 3; }
-    function waiveShape() { return request.resource.data.get("closeWaive", {}) is map && request.resource.data.get("closeWaive", {}).keys().hasOnly(["quote", "po", "inv"])
-        && (request.resource.data.get("closeWaive", {}).get("quote", null) == null || waived("quote"))
-        && (request.resource.data.get("closeWaive", {}).get("po", null) == null || waived("po"))
-        && (request.resource.data.get("closeWaive", {}).get("inv", null) == null || waived("inv")); }
-    // the account setting counts only if the project's ORIGINAL account (origAccountId, fixed when the project is made) has it
-    // as well as its current one — moving a project onto a "no POs" account can't skip the paperwork
-    function acctHas(aid, f) { return exists(/databases/$(db)/documents/accounts/$(aid)) && get(/databases/$(db)/documents/accounts/$(aid)).data.get(f, false) == true; }
-    function acctFlag(f) { return acctHas(request.resource.data.get("accountId", "-"), f)
-        && acctHas(request.resource.data.get("origAccountId", request.resource.data.get("accountId", "-")), f); }
-    // origAccountId is set once (to the account the project had then) and never changed from the CRM
-    function origOk() { return !changed().hasAny(["origAccountId"])
-        || (resource.data.get("origAccountId", null) == null && request.resource.data.origAccountId == resource.data.get("accountId", "")); }
-    function paperOk(k, pid) { return waived(k) || (k == "po" && acctFlag("noPO")) || (k == "inv" && acctFlag("noInvoice"))
-        || (request.resource.data.get("closePaper", {}) is map && fileOk(request.resource.data.get("closePaper", {}).get(k, ""), pid, k)); }
-    function closingOk(pid) { return request.resource.data.get("stage", "") != "closed"
-        || (resource != null && resource.data.get("stage", "") == "closed")
-        || (paperOk("quote", pid) && paperOk("po", pid) && paperOk("inv", pid)); }
+    // ---- projects ----
+    // Written to stay well inside the database's limit of 1000 steps per check: each value is worked out once (let) and
+    // reused, the access record and the project diff are read once, and the paperwork is only looked at when a project is
+    // being moved to Closed won.
+    function myRole() { let u = /databases/$(db)/documents/access/$(request.auth.uid);
+      let e = /databases/$(db)/documents/access/$(emailKey());
+      return request.auth == null ? "" : (exists(u) ? get(u).data.get("role", "") : (exists(e) ? get(e).data.get("role", "") : "")); }
+    // a waiver: an entry with a reason of 3 characters or more (only an owner can write closeWaive)
+    function okWaiver(w) { return w is map && w.get("why", "") is string && w.get("why", "").size() >= 3; }
+    function waiveShape(cw) { return cw is map && cw.keys().hasOnly(["quote", "po", "inv"])
+        && (cw.get("quote", null) == null || okWaiver(cw.get("quote", null)))
+        && (cw.get("po", null) == null || okWaiver(cw.get("po", null)))
+        && (cw.get("inv", null) == null || okWaiver(cw.get("inv", null))); }
+    // Closed won needs, for each of the quote PDF, the PO / signed quote and the invoice: a file record on this project that
+    // the mail worker checked in the CRM's storage (verified), or the owner's waiver with a reason, or — for the PO and the
+    // invoice — the "doesn't use POs / doesn't need an invoice" setting on BOTH the account it started on and its account now
+    function fileFits(fd, pid, k) { return fd.get("projectId", "") == pid && fd.get("deleted", false) != true && fd.get("verified", false) == true
+        && (k == "quote" ? fd.get("gen", "") == "quote" : (k == "po" ? fd.get("cat", "") in ["Purchase order", "Signed quote"] : fd.get("cat", "") == "Invoice")); }
+    function fileOk(fid, pid, k) { let f = (fid is string && fid != "") ? fid : "-";
+      let fp = /databases/$(db)/documents/files/$(f);
+      return f != "-" && exists(fp) && fileFits(get(fp).data, pid, k); }
+    function paperOne(k, pid, cp, cw, a, o) {
+      return okWaiver(cw.get(k, null))
+        || (k == "po" && a.get("noPO", false) == true && o.get("noPO", false) == true)
+        || (k == "inv" && a.get("noInvoice", false) == true && o.get("noInvoice", false) == true)
+        || fileOk(cp.get(k, ""), pid, k); }
+    function paperAll(pid, nd) { let cp = nd.get("closePaper", {}); let cw = nd.get("closeWaive", {});
+      let aid = nd.get("accountId", "-"); let oid = nd.get("origAccountId", aid);
+      let ap = /databases/$(db)/documents/accounts/$(aid != "" ? aid : "-"); let op = /databases/$(db)/documents/accounts/$(oid != "" ? oid : "-");
+      let a = exists(ap) ? get(ap).data : {}; let o = exists(op) ? get(op).data : {};
+      return cp is map && cw is map && paperOne("quote", pid, cp, cw, a, o) && paperOne("po", pid, cp, cw, a, o) && paperOne("inv", pid, cp, cw, a, o); }
+    function projCreateOk(pid) { let role = myRole(); let nd = request.resource.data;
+      return role != "" && (role == "owner" || !nd.keys().hasAny(["quoteApproval", "quoteRejected", "closeWaive"]))
+        && nd.get("origAccountId", nd.get("accountId", "")) == nd.get("accountId", "")
+        && (nd.get("stage", "") != "closed" || paperAll(pid, nd)); }
+    function projUpdateOk(pid) { let role = myRole(); let nd = request.resource.data;
+      let ch = nd.diff(resource.data).affectedKeys();
+      return role != ""
+        // the shop doesn't change prices, billing or the quote
+        && !(role == "shop" && ch.hasAny(["orderLines", "value", "amountAuto", "billStatus", "billDate", "paidDate", "invNum", "invTax", "depositAmt", "quote", "price"]))
+        // only an owner approves (or turns down) a quote going to a customer, or waives close-out paperwork
+        && (role == "owner" || !ch.hasAny(["quoteApproval", "quoteRejected", "closeWaive"]))
+        && (!ch.hasAny(["closeWaive"]) || waiveShape(nd.get("closeWaive", {})))
+        // the account a project started on is set once, to the account it had then, and never changed from the CRM
+        && (!ch.hasAny(["origAccountId"]) || (resource.data.get("origAccountId", null) == null && nd.get("origAccountId", "") == resource.data.get("accountId", "")))
+        && (nd.get("stage", "") != "closed" || resource.data.get("stage", "") == "closed" || paperAll(pid, nd)); }
     match /projects/{id} {
       allow read: if member();
-      allow create: if member() && (isOwner() || !request.resource.data.keys().hasAny(["quoteApproval", "quoteRejected", "closeWaive"]))
-                    && request.resource.data.get("origAccountId", request.resource.data.get("accountId", "")) == request.resource.data.get("accountId", "") && closingOk(id);
-      // only an owner approves (or turns down) a quote going to a customer
-      allow update: if member() && !(isShop() && changed().hasAny(["orderLines", "value", "amountAuto", "billStatus", "billDate", "paidDate", "invNum", "invTax", "depositAmt", "quote", "price"]))
-                    && (isOwner() || !changed().hasAny(["quoteApproval", "quoteRejected", "closeWaive"]))
-                    && (!changed().hasAny(["closeWaive"]) || waiveShape()) && origOk() && closingOk(id);
+      allow create: if projCreateOk(id);
+      allow update: if projUpdateOk(id);
       allow delete: if isOffice();
     }
     // inventory: sales and shop count and move stock; only owners and office change what things cost

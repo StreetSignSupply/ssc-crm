@@ -1,5 +1,8 @@
 # What changed
 
+## Database rules (after 2026.11.25-127, no change to the CRM page)
+- **A normal close on a real job was refused** ("maximum of 1000 expressions reached") — the project rules re-read the access record and re-worked out the project's changes several times over, which on a real project with a customer account and many lines ran past the database's limit. Rewritten so each value is worked out once and the paperwork is only looked at when a project moves to Closed won. New test: a real job on a customer account with 60 quote lines closes with its three checked files.
+
 ## 2026.11.25-127
 - **Moving a project can't skip the paperwork:** a project remembers the account it started on; "doesn't use POs" / "doesn't need an invoice" only count when both that account and the current one have the setting — in the CRM and the database rules.
 - **The storage check** no longer signs in as anyone or touches Google Drive: it uses its own read-only storage access.
