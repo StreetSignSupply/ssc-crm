@@ -127,6 +127,15 @@ if (STEP === "recent") {
       vendorTyped: [...S.accounts.values()].filter((a) => !a.deleted && /vendor|supplier/i.test(String(a.type || ""))).length,
       lock: x.lock, access: x.acc }; }, { lock: { applied: lock.applied || lock.appliedAt || "", apply: lock.apply || "", rulesAt: lock.rulesAt || lock.at || "", noAddr: lock.noAddr, orphans: (lock.orphans || []).length },
       acc: acc.map((a) => ({ role: a.role || "", team: !!a.teamId, mail: !!a.mail })) });
+  // where each sales person's work went: their emails in the send queue, their field-history edits, their sign-in records
+  { const since = Date.now() - 4 * 864e5; const team = (await fs.collection("team").get()).docs.map((d) => Object.assign({ id: d.id }, d.data()));
+    const ini = (id) => { const t = team.find((x) => x.id === id); return t ? String(t.initials || "?") : "other"; };
+    const mail = (await fs.collection("mail").where("at", ">", since).get()).docs.map((d) => d.data());
+    result.mail = {}; for (const m of mail) { const k = ini(m.byId) + ":" + (m.kind || "?") + ":" + (m.status || "?"); result.mail[k] = (result.mail[k] || 0) + 1; }
+    const hist = (await fs.collection("history").get()).docs.map((d) => d.data()); result.historyBy = {};
+    for (const h of hist) for (const e of (h.entries || h.list || h.items || [])) { if (!e || Number(e.t) < since) continue; const k = String(e.w || "?").slice(0, 3); result.historyBy[k] = (result.historyBy[k] || 0) + 1; }
+    const accDocs = (await fs.collection("access").get()).docs; result.accessKeys = accDocs.map((d) => ({ key: /@/.test(d.id) ? "email" : "uid", role: d.data().role, team: ini(d.data().teamId) }));
+    result.teamSignIn = team.filter((t) => !t.deleted).map((t) => ({ i: t.initials, claimed: !!(t.claudeId || t.uid), claimPending: !!t.claimPending, email: /@/.test(t.email || "") })); }
   // what the Accounts page lists for the owner right now
   await page.evaluate(() => { location.hash = "#/accounts"; }); await page.waitForTimeout(3000);
   result.accountsPage = await page.evaluate(() => ({ rows: document.querySelectorAll(".main section.wide tbody tr").length, head: ((document.querySelector(".main h2") || {}).textContent || "") + " " + ((document.querySelector(".main .card header .n") || {}).textContent || ""), filters: [...document.querySelectorAll(".main select")].map((s) => (s.dataset.acfilt || "") + "=" + s.value).join(" ") }));
