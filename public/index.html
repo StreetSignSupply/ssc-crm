@@ -1753,7 +1753,7 @@ function mailPreLog(key){
   }catch(e){}}
 
 function push(path,data){
-  if(!db)return Promise.resolve();
+  if(!db)return Promise.resolve();data=withOrigAcct(path,data);
   // every quote line carries its own id, so work orders can point at it whether or not it has a code
   if(/^projects\//.test(path)&&data&&Array.isArray(data.orderLines))
     data=Object.assign({},data,{orderLines:data.orderLines.map(l=>l&&!l.id?Object.assign({},l,{id:uid("ol")}):l)});
@@ -1765,7 +1765,12 @@ function push(path,data){
 // the database refuses a field that's "undefined" — drop those before any write
 function cleanDoc(x){if(Array.isArray(x))return x.map(cleanDoc);
   if(x&&typeof x==="object"&&!(x instanceof Date)&&!(typeof Blob!=="undefined"&&x instanceof Blob)){const o={};Object.keys(x).forEach(k=>{if(x[k]!==undefined)o[k]=cleanDoc(x[k])});return o}return x}
-function setDoc(path,data){if(!db)return Promise.resolve();
+// a project remembers the account it started on (origAccountId, set once): its "no POs / no invoice" settings must hold
+// on that account too, so moving a project to another account can't skip the close-out paperwork
+function withOrigAcct(path,data){if(!/^projects\//.test(path)||!data||data.origAccountId)return data;const ex=S.projects&&S.projects.get(path.split("/")[1]);
+  if(!ex)return data.accountId!==undefined?Object.assign({},data,{origAccountId:data.accountId}):data;
+  if(!ex.origAccountId&&data.accountId!==undefined&&ex.accountId)return Object.assign({},data,{origAccountId:ex.accountId});return data}
+function setDoc(path,data){if(!db)return Promise.resolve();data=withOrigAcct(path,data);
   // every new file record names who added it and waits for the mail worker to check it's really in the CRM's storage
   if(/^files\//.test(path)&&data){const x=Object.assign({},data);if(x.byId===undefined)x.byId=meId();["verified","md5","checkedAt","checkErr"].forEach(k=>delete x[k]);
     if(!S.files.get(path.split("/")[1]))x.needsCheck=true;data=x}
@@ -5077,9 +5082,10 @@ function closePaperPending(p){if(!p)return [];const fl=projFiles(p.id).filter(f=
 // account doesn't use POs / invoices (set by the owner). The database rules accept a close on exactly the same terms.
 const PAPER=[["quote","The quote PDF made by the CRM (Documents → Quote)","Quote PDF"],["po","The PO or the signed quote, filed on the project","PO / signed quote"],["inv","The invoice, filed on the project","Invoice"]];
 function paperWaiver(p,k){const w=((p&&p.closeWaive)||{})[k];if(w&&String(w.why||"").trim().length>=3)return w;
-  const a=p?acct(p.accountId)||S.accounts.get(p.accountId):null;
-  if(a&&k==="po"&&a.noPO)return {why:"This customer doesn't use POs (account setting)",acct:true};
-  if(a&&k==="inv"&&a.noInvoice)return {why:"This customer doesn't need an invoice (account setting)",acct:true};return null}
+  const a=p?acct(p.accountId)||S.accounts.get(p.accountId):null,o=p?S.accounts.get(p.origAccountId||p.accountId):null;
+  // the setting must be on the account it started on as well as the one it's on now
+  if(a&&o&&k==="po"&&a.noPO&&o.noPO)return {why:"This customer doesn't use POs (account setting)",acct:true};
+  if(a&&o&&k==="inv"&&a.noInvoice&&o.noInvoice)return {why:"This customer doesn't need an invoice (account setting)",acct:true};return null}
 function closePaperNeeds(p){if(!p)return [];const c=closePaper(p);return PAPER.filter(([k])=>!c[k]&&!paperWaiver(p,k)).map(([k,l,short])=>({k,label:l,short}))}
 function closePaperMissing(p){if(!p)return [];const need=closePaperNeeds(p);const out=[];const pend=need.length?closePaperPending(p):[];
   if(pend.length)out.push(pend.length+" file"+(pend.length===1?" is":"s are")+" still being checked against the CRM's storage"+(pend.some(f=>/402/.test(f.checkErr||""))?" (file storage needs the paid plan before it can be checked)":"")+" — try again in a few minutes");
@@ -10807,7 +10813,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-126";
+const APP_VERSION="2026.11.25-127";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
