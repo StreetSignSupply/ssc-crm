@@ -9,8 +9,8 @@ for (const b of B) {
   out[b] = { list: r.status, err: r.ok ? "" : String((j.error || {}).message || "").slice(0, 120), objects: items.length, more: !!j.nextPageToken,
     bytes: items.reduce((t, x) => t + Number(x.size || 0), 0), types: items.reduce((m, x) => { const k = String(x.contentType || "?").split("/")[0]; m[k] = (m[k] || 0) + 1; return m; }, {}) };
   if (items[0]) { const m = await fetch("https://storage.googleapis.com/storage/v1/b/" + b + "/o/" + encodeURIComponent(items[0].name) + "?alt=media", { headers: { Authorization: "Bearer " + TOK } });
-    out[b].download = m.status; await m.arrayBuffer().catch(() => {});
-    const pub = await fetch("https://firebasestorage.googleapis.com/v0/b/" + b + "/o/" + encodeURIComponent(items[0].name) + "?alt=media"); out[b].publicUrl = pub.status; }
+    out[b].download = m.status; out[b].downloadErr = m.ok ? "" : String(((await m.json().catch(() => ({}))).error || {}).message || "").slice(0, 160);
+    const pub = await fetch("https://firebasestorage.googleapis.com/v0/b/" + b + "/o/" + encodeURIComponent(items[0].name) + "?alt=media"); out[b].publicUrl = pub.status; out[b].publicErr = pub.ok ? "" : String(await pub.text()).replace(/\s+/g, " ").slice(0, 160); }
 }
 // Drive as matt@ through the same domain-wide delegation the mail worker uses
 async function userToken(email, scope) { const now = Math.floor(Date.now() / 1000);
