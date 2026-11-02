@@ -2270,7 +2270,7 @@ async function mailDecide(xid,ok){const a=S.activity.get(xid);const m=(S._mailOk
   if(ok&&m.quote.hash!==quoteHash(p))return toast("The quote changed since this was written — it can't be approved.");
   let why="";if(!ok){why=prompt("Why not? (they see this)","")||""}
   // the approval is for this quote as it stands and these people; the mail worker checks both before it sends
-  try{await push("projects/"+p.id,ok?{quoteApproval:{hash:m.quote.hash,to:m.to||[],cc:m.cc||[],byId:meId(),by:me(),at:now,mailId:a.mailId},updatedAt:now}
+  try{await push("projects/"+p.id,ok?{quoteApproval:{hash:m.quote.hash,to:m.to||[],cc:m.cc||[],atts:(m.attachments||[]).map(x=>x.url),byId:meId(),by:me(),at:now,mailId:a.mailId},updatedAt:now}
       :{quoteRejected:{mailId:a.mailId,byId:meId(),by:me(),at:now,why:why.slice(0,200)},updatedAt:now})}catch(e){return toast("That didn't save — try again.")}
   await push("activity/"+xid,ok?{sendState:"queued",approvedBy:me(),approvedAt:now}:{sendState:"rejected",sendErr:why.slice(0,200),rejectedBy:me(),rejectedAt:now});
   logEvent("project",p.id,"Quote "+(p.quote||"")+" to "+(m.to||[]).join(", ")+(ok?" approved by ":" turned down by ")+me()+(why?" — "+why:""));
@@ -2678,7 +2678,7 @@ function purchasingView(){
         ${po.total?`<span class="mono" style="margin-left:auto;font-weight:700">${money2(po.total)}</span>`:""}
         ${po.open?`<button class="btn sm" data-poemail="${esc(po.ref)}" style="${po.total?"":"margin-left:auto"}">Email it to the vendor</button>`:""}</div>
       <table style="margin-top:8px"><thead><tr><th>Item</th><th style="text-align:right">Ordered</th><th style="text-align:right">Still to come</th><th style="text-align:right">Price</th><th></th></tr></thead><tbody>
-        ${po.lines.map(l=>`<tr><td><button class="lnk" data-go="item/${esc(l.itemId)}">${esc(l.name)}</button></td>
+        ${po.lines.map(l=>`<tr><td><a class="lnk" href="#/item/${esc(l.itemId)}">${esc(l.name)}</a></td>
           <td class="mono" style="text-align:right">${esc(l.qty)} ${esc(l.unit)}</td><td class="mono" style="text-align:right">${l.left>0?esc(l.left):"—"}</td>
           <td class="mono" style="text-align:right">${l.price!=null?money2(l.price):"—"}</td>
           <td style="text-align:right">${l.left>0?`<button class="btn sm p" data-porecv="${esc(l.itemId)}|${esc(po.ref)}">Receive</button>`:`<span class="sub">in</span>`}</td></tr>`).join("")}</tbody></table></div>`).join("")
@@ -5046,9 +5046,15 @@ async function closeSave(pid,thenClose){
   if(thenClose)doClose(pid,false);
 }
 
+// the paperwork a project can never close without, override or not: the quote PDF, the PO or signed quote, and the invoice
+const CLOSE_MUST=["c_qpdf","c_po","c_invf"];
 async function doClose(pid,skipCheck){
   const p=proj(pid);if(!p)return;
   const open=closeOpen(p);
+  {const must=closeList(p).filter(r=>CLOSE_MUST.indexOf(r.key)>=0&&r.auto&&!r.ok);
+    if(must.length){openModal(mshell("Not ready to close","proj",`<div style="padding:12px 16px"><p style="margin:0 0 8px">P-${esc(p.num)} can't close until these are in its Files:</p>
+      <ul style="margin:0;padding-left:20px">${must.map(r=>`<li>${esc(r.label)} — ${esc(r.help||"")}</li>`).join("")}</ul></div>`,
+      `<button class="btn" data-close="1">Close</button><button class="btn p" data-ptabgo2="${esc(pid)}">Go to Files</button>`));return}}
   if(open.length&&!skipCheck){
     askConfirm("Still "+open.length+" not settled",
       `<p style="margin:0 0 8px">${open.map(r=>esc(r.label)).join("<br>")}</p>
@@ -6314,7 +6320,7 @@ function stencilsView(){
   const c=stcCfg();
   const matCards=STC_GRADES.map((g,i)=>{const m=stcMatFor(i);const per=m?stcSheetSqft(m.it):0;const r=m&&Number(m.it.cost)>0&&per?Number(m.it.cost)/per:0;
     return `<tr><td><b>${esc(g.label)}</b></td>
-      <td>${m?`<button class="lnk" data-go="item/${esc(m.it.id)}">${esc(m.it.name)}</button>${m.auto?` <span class="sub">(cheapest match)</span>`:""}`:`<span class="pill r">No sheet in inventory</span>`}</td>
+      <td>${m?`<a class="lnk" href="#/item/${esc(m.it.id)}">${esc(m.it.name)}</a>${m.auto?` <span class="sub">(cheapest match)</span>`:""}`:`<span class="pill r">No sheet in inventory</span>`}</td>
       <td class="mono" style="text-align:right">${m&&Number(m.it.cost)>0?money2(Number(m.it.cost)):"—"}</td>
       <td class="mono" style="text-align:right">${per?Math.round(per*10)/10:"—"}</td>
       <td class="mono" style="text-align:right;font-weight:700">${r?money2(r):"—"}</td>
@@ -8356,7 +8362,7 @@ function materialCard(j){
     ${issued.length?`<div style="padding:10px 15px 4px;border-top:1px solid var(--line);font-size:12px;
       font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--ink2)">Pulled from stock</div>
       <table><tbody>${issued.map(t=>{const it2=S.items.get(t.itemId);const live2=it2&&!it2.deleted;
-        return `<tr><td>${live2?`<button class="lnk" data-go="item/${esc(t.itemId)}">${esc(it2.name)}</button>`
+        return `<tr><td>${live2?`<a class="lnk" href="#/item/${esc(t.itemId)}">${esc(it2.name)}</a>`
           :`${esc(t.itemName||"Item no longer in inventory")}${t.itemName?` <span class="sub">(no longer in inventory)</span>`:""}`}</td>
         <td class="mono" style="text-align:right">${Math.abs(Number(t.qty)||0)} ${esc(live2?(it2.unit||""):(t.unit||""))}</td>
         <td class="sub" style="white-space:nowrap">${esc(fmtTs(t.at))} · ${esc(t.who||"")}</td></tr>`}).join("")}</tbody></table>`:""}
@@ -9098,6 +9104,9 @@ function trackUrl(t,carrier){
   if(/^(93|92|94|95|70|23|03)\d{18,20}$/.test(s))return "https://tools.usps.com/go/TrackConfirmAction?tLabels="+encodeURIComponent(s);
   return "";
 }
+// THE past-due list — the dashboard, the banner, the tracker, the calendar and the menu badge all count from this one,
+// so they always agree: open projects past their due date + open, unarchived work orders past theirs
+function pastDue(){return overdueItems()}
 function overdueItems(){
   const out=[];
   real(openProjects()).filter(stillDue).forEach(p=>{const d=daysOut(p.due);
@@ -9166,7 +9175,7 @@ async function exportICS(pid){
     toast("Import that file into Google Calendar or Outlook.")}catch(e){toast("Couldn't build the file here.")}
 }
 function reminderMail(){
-  const od=overdueItems(),soon=dueSoonItems(7).filter(x=>x.d>0);
+  const od=pastDue(),soon=dueSoonItems(7).filter(x=>x.d>0);
   const L=[];
   L.push("PAST DUE ("+od.length+")");
   od.forEach(x=>L.push("  "+Math.abs(x.d)+"d late  "+x.label+"  ["+x.who+"]"));
@@ -9860,8 +9869,8 @@ function decorateAccess(){
 }
 function rail(){
   const cur=navCur(),b=S.brand||DEF_BRAND;
-  const badge=r=>r==="calendar"&&overdueItems().length?`<span class="pill r">${overdueItems().length}</span>`
-    :r==="jobs"&&overdueItems().filter(x=>x.k==="job").length?`<span class="pill r">${overdueItems().filter(x=>x.k==="job").length}</span>`
+  const badge=r=>r==="calendar"&&pastDue().length?`<span class="pill r">${pastDue().length}</span>`
+    :r==="jobs"&&pastDue().filter(x=>x.k==="job").length?`<span class="pill r">${pastDue().filter(x=>x.k==="job").length}</span>`
     :r==="inventory"&&lowStock().length?`<span class="pill r">${lowStock().length}</span>`:"";
   const onDash=cur==="home"||cur==="mybook";
   const item=(r,i,l,title)=>`<a href="#/${r}" class="rail-i ${cur===r?"on":""}" ${cur===r?'aria-current="page"':""} title="${esc(title||l)}">${ic(i,18)}<span>${esc(l)}</span>${badge(r)}</a>`;
@@ -9943,7 +9952,7 @@ function tracker(){
           <input class="btn" id="lq" placeholder="Filter" value="${esc(S.q)}" style="font-weight:400;width:150px">
           ${myInitials()?`<button class="btn sm ${S.mineOnly?"p":""}" data-mine="1">Mine (${myInitials()})</button>`:""}
           <button class="btn p" data-new="project">New project</button></span></header>
-      ${late||overdueItems().length?`<div class="warn">${esc(odBreak(overdueItems()))} past due. Red segments and red chips below.</div>`:""}
+      ${pastDue().length?`<div class="warn">${esc(odBreak(pastDue()))} past due. Red segments and red chips below.</div>`:""}
       ${ps.length?ps.slice(0,40).map(trackerRow).join("")+(ps.length>40?`<div class="sub" style="padding:10px 14px">Showing 40 of ${ps.length} open projects — filter to narrow.</div>`:"")
         :`<div class="empty"><b>Nothing open</b>Every project is invoiced or closed. Start one from an account.</div>`}
     </section>
@@ -9978,9 +9987,9 @@ function trackerRow(p){
         <div><span>Rep</span><b>${rp?esc(rp.name):"—"}</b></div>
       </div>
     </div>`;
-  return `<div class="trk ${health}" data-go="project/${esc(p.id)}" role="button" tabindex="0">
+  return `<a class="trk ${health}" href="#/project/${esc(p.id)}" style="display:block;color:inherit;text-decoration:none">
     <div class="trk-top">
-      <a class="trk-name" href="#/project/${esc(p.id)}" style="color:inherit;text-decoration:none">${esc(p.name)}</a>
+      <span class="trk-name">${esc(p.name)}</span>
       <span class="sub trk-who">${esc(accName(p.accountId))} · P-${p.num}</span>
       <span class="trk-meta">
         ${(function(){const t=repFor(p);return t?`<span class="sub" style="font-weight:700">${esc(t.name)}</span>`:""})()}
@@ -10004,7 +10013,7 @@ function trackerRow(p){
           <span class="mono">${j.num}</span> ${esc((JS[j.status]||{}).label||"")}</span>`;
       }).join("")
       :`<span class="sub">No work orders yet</span>`}
-    </div></div>`;
+    </div></a>`;
 }
 function shopStrip(){
   const shop=openJobs().filter(j=>(JS[j.status]||{}).shop).sort(byDue);
@@ -10058,7 +10067,7 @@ function home(){
   const tasks=real(live(S.activity)).filter(a=>a.kind==="task"&&!a.done&&!a.deleted)
     .sort((a,b)=>(a.due||"9999").localeCompare(b.due||"9999")).slice(0,8);
   const attn=[];
-  {const od0=overdueItems();if(od0.length)attn.push({t:odBreak(od0)+" past due",h:"calendar",c:"r"})}
+  {const od0=pastDue();if(od0.length)attn.push({t:odBreak(od0)+" past due",h:"calendar",c:"r"})}
   if(toInv.length)attn.push({t:toInv.length+" project"+(toInv.length===1?"":"s")+" shipped and not invoiced",h:"projects",c:"o"});
   if(pastTerms.length)attn.push({t:pastTerms.length+" invoice"+(pastTerms.length===1?"":"s")+" past terms — "+money(pastTerms.reduce((t,p2)=>t+billedValue(p2),0))+" to chase",h:"projects",c:"r"});
   if(readyClose.length)attn.push({t:readyClose.length+" paid and shipped — ready to close won",h:"projects",c:"g"});
@@ -10380,8 +10389,8 @@ function contactMergeModal(fromId,toId){const A=S.contacts.get(fromId);if(!A)ret
 function dupContactsCard(){const L=dupContactPairs();if(!L.length)return "";
   return `<section class="card flush"><header><span class="oi oi-cont">${ic("contact",14)}</span><h2>Possible duplicates</h2><span class="n">${L.length}</span>
     <span class="sub">Same person entered twice? Merge keeps one and moves everything over.</span></header>
-    <table><tbody>${L.map(x=>`<tr><td><button class="lnk" data-go="contact/${esc(x.a.id)}">${esc(x.a.name)}</button><div class="sub">${esc(accName(x.a.accountId))}${x.a.email?" · "+esc(x.a.email):""}</div></td>
-      <td><button class="lnk" data-go="contact/${esc(x.b.id)}">${esc(x.b.name)}</button><div class="sub">${esc(accName(x.b.accountId))}${x.b.email?" · "+esc(x.b.email):""}</div></td>
+    <table><tbody>${L.map(x=>`<tr><td><a class="lnk" href="#/contact/${esc(x.a.id)}">${esc(x.a.name)}</a><div class="sub">${esc(accName(x.a.accountId))}${x.a.email?" · "+esc(x.a.email):""}</div></td>
+      <td><a class="lnk" href="#/contact/${esc(x.b.id)}">${esc(x.b.name)}</a><div class="sub">${esc(accName(x.b.accountId))}${x.b.email?" · "+esc(x.b.email):""}</div></td>
       <td class="sub">${esc(x.why)}</td>
       <td style="text-align:right;white-space:nowrap">${can("del")?rowMenu(`<button data-cmerge="${esc(x.b.id)}:${esc(x.a.id)}">Merge these two…</button>`):""}</td></tr>`).join("")}</tbody></table></section>`}
 function mergeModal(fromId){const A=acct(fromId);if(!A)return;
@@ -10479,7 +10488,7 @@ function relContacts(cs,aid){
   return `<section class="card flush"><header><span class="oi sm oi-cont">${ic("contact",14)}</span><h2>Contacts</h2>
     <span class="n">${cs.length}</span><span class="sp"><button class="btn sm" data-new="contact:${esc(aid)}">New</button></span></header>
     ${cs.length?`<table><tbody>${cs.map(c=>`<tr>
-      <td><button class="lnk" data-go="contact/${esc(c.id)}">${esc(c.name)}</button>
+      <td><a class="lnk" href="#/contact/${esc(c.id)}">${esc(c.name)}</a>
         <div class="sub nowrap">${esc(c.role||c.title||"")}</div></td>
       <td>${cxLines(cxMail(c.email,"account:"+aid+":"+c.id),cxTel(c.phone),cxTel(c.mobile,"mobile"))||`<span class="sub">no email or phone yet</span>`}</td>
       <td style="width:80px;text-align:right">${c.primary?`<span class="pill g">Primary</span>`:""}</td></tr>`).join("")}</tbody></table>`
@@ -10588,8 +10597,8 @@ function contactList(){
       <button class="btn p" data-new="contact">New contact</button></span></header>
     ${cqBar}${list.length?`<table><thead><tr><th>Name</th><th>Account</th><th>Role</th><th>Email</th><th>Phone</th><th>Last contacted</th></tr></thead>
       <tbody>${list.map(c=>`<tr>
-        <td><button class="lnk" data-go="contact/${esc(c.id)}">${esc(String(c.name||"").replace(/\s*\(.*\)\s*$/,"")||c.name)}</button><div class="sub">${esc([c.title,(String(c.name||"").match(/\((.*)\)\s*$/)||[])[1]].filter(Boolean).join(" · "))}${c.placeholder?` <span class="pill y">needs a real contact</span>`:""}</div></td>
-        <td><button class="lnk" data-go="account/${esc(c.accountId)}">${esc(accName(c.accountId))}</button></td>
+        <td><a class="lnk" href="#/contact/${esc(c.id)}">${esc(String(c.name||"").replace(/\s*\(.*\)\s*$/,"")||c.name)}</a><div class="sub">${esc([c.title,(String(c.name||"").match(/\((.*)\)\s*$/)||[])[1]].filter(Boolean).join(" · "))}${c.placeholder?` <span class="pill y">needs a real contact</span>`:""}</div></td>
+        <td><a class="lnk" href="#/account/${esc(c.accountId)}">${esc(accName(c.accountId))}</a></td>
         <td style="white-space:nowrap">${esc(c.role||"—")}</td>
         <td>${cxMail(c.email,"account:"+c.accountId+":"+c.id)||"—"}</td>
         <td style="white-space:nowrap">${cxTel(c.phone)||"—"}</td>
@@ -10611,6 +10620,11 @@ document.addEventListener("change",e=>{const t=e.target&&e.target.closest&&e.tar
   if(v&&!a)return toast("Pick an account from the list.");S.rpt=Object.assign({},S.rpt,{preset:"",acct:a?a.id:""});render()},true);
 document.addEventListener("click",e=>{const t=e.target&&e.target.closest&&e.target.closest("[data-bellread]");if(!t)return;
   const id=t.dataset.bellread;const n=S.notifications.get(id);if(n){n.read=true;push("notifications/"+id,{read:true}).catch(()=>{})}},true);
+// Accounts list filters (rep, type, stage, state, terms, no contacts)
+document.addEventListener("change",e=>{const t=e.target&&e.target.closest&&e.target.closest("[data-acfilt]");if(!t||t.dataset.acfilt==="clear")return;
+  const AF=S.acFilt||(S.acFilt={});AF[t.dataset.acfilt]=t.type==="checkbox"?t.checked:t.value;S.acctShow=0;render()},true);
+document.addEventListener("click",e=>{const t=e.target&&e.target.closest&&e.target.closest("[data-acfilt='clear']");if(!t)return;e.preventDefault();S.acFilt={};render()},true);
+document.addEventListener("click",e=>{const t=e.target&&e.target.closest&&e.target.closest("[data-ptabgo2]");if(!t)return;e.preventDefault();closeModal();S.ptab="files";go("project/"+t.dataset.ptabgo2)},true);
 document.addEventListener("click",e=>{const t=e.target&&e.target.closest&&e.target.closest("[data-ctfilt]");if(!t)return;e.preventDefault();S.ctFilt=t.dataset.ctfilt;render()},true);
 function contactRec(id){
   const c=S.contacts.get(id);if(!c||c.deleted)return notFound("Contact");
@@ -10636,7 +10650,7 @@ function contactRec(id){
           return `<section class="card flush"><header><span class="oi sm oi-proj">${ic("project",14)}</span><h2>On these projects</h2>
             <span class="n">${ps.length}</span></header>
             ${ps.length?`<table><tbody>${ps.map(x=>`<tr>
-              <td><button class="lnk" data-go="project/${esc(x.id)}">${esc(x.name)}</button>
+              <td><a class="lnk" href="#/project/${esc(x.id)}">${esc(x.name)}</a>
                 <div class="sub mono">P-${x.num}</div></td>
               <td style="text-align:right"><span class="pill ${stageCls(x.stage)}">${esc((SG[x.stage]||{}).label||"")}</span></td>
               </tr>`).join("")}</tbody></table>`
@@ -10721,7 +10735,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-121";
+const APP_VERSION="2026.11.25-122";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -11242,7 +11256,7 @@ function contactRow(c,pid,assigned){
   const b=billingFor(proj(pid));
   const isBill=b&&b.id===c.id;
   return `<tr>
-    <td><button class="lnk" data-go="contact/${esc(c.id)}">${esc(c.name)}</button>
+    <td><a class="lnk" href="#/contact/${esc(c.id)}">${esc(c.name)}</a>
       ${assigned?` <span class="pill g">On project</span>`:""}
       ${isBill?` <span class="pill b">Invoices</span>`:""}
       <div class="sub">${esc(c.role||c.title||"")}</div></td>
@@ -11832,7 +11846,7 @@ function auditView(){histAll();
     ${nUnk?`<div class="warn" style="margin:10px 14px">${nUnk} change${nUnk===1?" was":"s were"} made by someone the CRM can't name (shown as <b>??</b> or initials nobody on the team has). That happens when a sign-in isn't linked to a team record. Make sure everyone has signed in as themselves — Settings → Our team — and remove anyone who shouldn't be there.</div>`:""}
     ${rows.length?`<table><thead><tr><th style="width:160px">Record</th><th style="width:130px">Field</th><th>Change</th><th style="width:150px">Who / when</th></tr></thead>
       <tbody>${rows.slice(0,300).map(r=>`<tr>
-        <td><button class="lnk" data-go="${recHash(r)}">${esc(recLabel(r))}</button></td>
+        <td><a class="lnk" href="#/${recHash(r)}">${esc(recLabel(r))}</a></td>
         <td>${esc(r.f)}</td>
         <td>${r.ev?esc(r.n):`${r.o?`<span style="color:var(--ink3);text-decoration:line-through">${esc(r.o)}</span> → `:""}<b>${esc(r.n||"(blank)")}</b>`}</td>
         <td class="sub mono">${unknownW(r)?`<span class="pill r" title="No team member has these initials">${esc(r.w||"??")} · unknown</span>`:esc(r.w||"")} · ${fmtTs(r.t)}</td></tr>`).join("")}</tbody></table>
@@ -11887,7 +11901,7 @@ function calendarView(){
   while(cells.length%7){cells.push({d:nd,off:1,iso:iso(mo===11?y+1:y,mo===11?0:mo+1,nd)});nd++}
   const tISO=today();
   const label=first.toLocaleDateString(undefined,{month:"long",year:"numeric"});
-  const soon=dueSoonItems(14),od=overdueItems();
+  const soon=dueSoonItems(14),od=pastDue();
   return `<div class="pad">
     <section class="card flush">
       <header style="border-bottom:0"><div class="calnav" style="padding:0;flex:1">
@@ -11922,13 +11936,13 @@ function calendarView(){
           </section>`:""})()}
       <section class="card flush"><header><h2>Past due</h2><span class="n">${od.length}</span></header>
         ${od.length?`<table><tbody>${od.map(x=>`<tr>
-          <td><button class="lnk" data-go="${esc(x.k)}/${esc(x.id)}">${esc(x.label)}</button>
+          <td><a class="lnk" href="#/${esc(x.k)}/${esc(x.id)}">${esc(x.label)}</a>
             <div class="sub">${esc(x.who)}</div></td>
           <td style="text-align:right"><span class="pill r">${Math.abs(x.d)}d late</span></td></tr>`).join("")}</tbody></table>`
         :`<div class="empty">Nothing past due.</div>`}</section>
       <section class="card flush"><header><h2>Next 14 days</h2><span class="n">${soon.length}</span></header>
         ${soon.length?`<table><tbody>${soon.map(x=>`<tr>
-          <td><button class="lnk" data-go="${esc(x.k)}/${esc(x.id)}">${esc(x.label)}</button>
+          <td><a class="lnk" href="#/${esc(x.k)}/${esc(x.id)}">${esc(x.label)}</a>
             <div class="sub">${esc(x.who)}</div></td>
           <td style="text-align:right"><span class="pill ${x.d===0?"o":x.d<=2?"y":""}">${x.d===0?"today":x.d+"d"}</span></td></tr>`).join("")}</tbody></table>`
         :`<div class="empty">Nothing due in the next two weeks.</div>`}</section>
@@ -11945,7 +11959,7 @@ function signinBar(){
     <span class="sp"><button class="btn sm" id="claimbtn2">Sign in as…</button></span></div>`;
 }
 function alertBar(){
-  const od=overdueItems();
+  const od=pastDue();
   // dismissed by this person stays dismissed (on this computer) until something new goes past due
   const sig=od.map(x=>x.k+x.id).sort().join(",");let off="";try{off=localStorage.getItem("sscAlertOff:"+meId())||""}catch(e){}
   if(!od.length||S.alertOff||off===sig)return "";S._alertSig=sig;
@@ -11970,7 +11984,7 @@ function vendorListView(){
     ${list.length?`<div style="overflow-x:auto"><table style="table-layout:auto;width:100%"><thead><tr><th>Vendor</th><th>Supplies</th><th>Contact</th><th>Terms</th>
       <th>Lead time</th><th>Items</th></tr></thead><tbody>
       ${list.map(v=>`<tr>
-        <td><button class="lnk" data-go="vendor/${esc(v.id)}">${esc(v.name||"Unnamed vendor — add a name")}</button>
+        <td><a class="lnk" href="#/vendor/${esc(v.id)}">${esc(v.name||"Unnamed vendor — add a name")}</a>
           <div class="sub">${esc([v.city,v.state].filter(Boolean).join(", "))}</div></td>
         <td>${esc(v.type||"—")}</td>
         <td style="max-width:240px;white-space:normal;overflow-wrap:anywhere">${esc(v.contact||"—")}${v.phone?`<div class="cxl">${cxTel(v.phone)}</div>`:""}</td>
@@ -12017,7 +12031,7 @@ function vendorRec(id){
       <span class="sp">${can("cost")?`<button class="btn sm" data-ivlink="${esc(id)}">Link an existing item</button>`:""}<button class="btn sm p" data-newitem="${esc(id)}">New item</button></span></header>
       ${all.length?`<table><thead><tr><th>Item</th><th style="width:100px">On hand</th><th style="width:110px;text-align:right">Their cost</th><th>Part #</th><th>Last bought</th><th>Source</th><th style="width:150px"></th></tr></thead><tbody>
         ${all.map(i=>{const L=itemVendors(i).find(x=>x.vendorId===id)||{};return `<tr>
-          <td><button class="lnk" data-go="item/${esc(i.id)}">${esc(i.name)}</button><div class="sub mono">${esc(i.sku||"")}</div></td>
+          <td><a class="lnk" href="#/item/${esc(i.id)}">${esc(i.name)}</a><div class="sub mono">${esc(i.sku||"")}</div></td>
           <td><span class="pill ${stockCls(i)}">${esc(stockText(i))}</span></td>
           <td class="mono" style="text-align:right;white-space:nowrap">${Number(L.cost)>0?money2(Number(L.cost)):"—"}</td>
           <td class="sub mono">${esc(L.part||"—")}</td><td class="sub">${L.lastBought?esc(fmtDate(L.lastBought)):"—"}</td><td class="sub">${esc(L.source||"—")}</td>
@@ -12033,10 +12047,10 @@ function itemRows(list){
   return `<table><thead><tr><th>Item</th><th>Category</th><th style="width:110px">On hand</th>
     <th>Reorder at</th><th>Location</th><th style="width:110px;text-align:right">Cost</th></tr></thead><tbody>
     ${list.map(i=>`<tr>
-      <td><button class="lnk" data-go="item/${esc(i.id)}">${esc(i.name)}</button>
+      <td><a class="lnk" href="#/item/${esc(i.id)}">${esc(i.name)}</a>
         <div class="sub mono">${esc(i.sku||"")}</div></td>
       <td>${esc(i.cat||"—")}</td>
-      <td><span class="pill ${stockCls(i)}">${esc(stockText(i))}</span>${i.needsCount||onHand(i)<0?` <span class="pill r" title="A pull went past the count — count it and enter the real number">Recount</span>`:""}${onOrder(i)?`<div class="sub">${esc(onOrderTxt(i))}</div>`:""}</td>
+      <td><span class="pill ${stockCls(i)}">${esc(stockText(i))}</span>${placeholderReorder().indexOf(i)>=0?` <span class="pill y" title="Reorder at 1, order 1 is a placeholder — set the real numbers (Inventory → Set reorder points)">placeholder reorder</span>`:""}${i.needsCount||onHand(i)<0?` <span class="pill r" title="A pull went past the count — count it and enter the real number">Recount</span>`:""}${onOrder(i)?`<div class="sub">${esc(onOrderTxt(i))}</div>`:""}</td>
       <td class="mono">${i.reorderPoint!==""&&i.reorderPoint!=null?esc(String(i.reorderPoint)):"—"}</td>
       <td class="sub">${esc(i.bin||"—")}</td>
       <td class="mono" style="text-align:right">${isBlankItem(i)&&itemCostEff(i)>0&&!(Number(i.cost)>0)?`<span style="color:#C25E00">${money2(itemCostEff(i))}</span>`:Number(i.cost)>0?money2(Number(i.cost)):`<span class="sub">—</span>`}${isBlankItem(i)?`<div>${costSrcPill(i)}</div>`:""}${(Number(i.cost)>0&&itemSqft(i)&&/roll|sheet/i.test(i.unit||""))?`<div class="sub">${money2(Number(i.cost)/itemSqft(i))}/sq ft</div>`:""}</td>
@@ -12050,8 +12064,10 @@ function reorderSetModal(){const ph=placeholderReorder();const cut=Date.now()-90
     <div class="tw"><table><thead><tr><th>Item</th><th style="text-align:right">On hand</th><th style="text-align:right">Avg use / month</th><th>Reorder at</th><th>Order qty</th></tr></thead><tbody>
     ${ph.map(i=>`<tr><td>${esc(i.name)}<div class="sub mono">${esc(i.sku||"")}${i.unit?" · "+esc(i.unit):""}</div></td><td class="mono" style="text-align:right">${esc(String(onHand(i)))}</td>
       <td class="mono" style="text-align:right">${use(i)?Math.round(use(i)*10)/10:"—"}</td>
-      <td><input type="number" min="0" step="any" data-rpid="${esc(i.id)}" value="${esc(String(i.reorderPoint))}" style="width:90px"></td>
-      <td><input type="number" min="0" step="any" data-rqid="${esc(i.id)}" value="${esc(String(i.reorderQty||""))}" style="width:90px"></td></tr>`).join("")}</tbody></table></div>`,
+      ${(function(){const u=use(i);const sp=u?Math.max(1,Math.ceil(u/2)):"",sq=u?Math.max(1,Math.ceil(u)):"";
+        // filled in from the last 90 days' pulls: reorder at about two weeks' use, order about a month's — change any of them
+        return `<td><input type="number" min="0" step="any" data-rpid="${esc(i.id)}" value="${esc(String(u?sp:i.reorderPoint))}" style="width:90px">${u?`<div class="sub" style="font-size:11px">suggested</div>`:""}</td>
+      <td><input type="number" min="0" step="any" data-rqid="${esc(i.id)}" value="${esc(String(u?sq:(i.reorderQty||"")))}" style="width:90px"></td></tr>`})()}`).join("")}</tbody></table></div>`,
     `<button class="btn" data-close="1">Cancel</button><button class="btn p" id="rs-go">Save</button>`));
   $("#rs-go").onclick=async()=>{let n=0;
     for(const i of ph){const a=document.querySelector('[data-rpid="'+i.id+'"]'),b=document.querySelector('[data-rqid="'+i.id+'"]');if(!a||!b)continue;
@@ -12089,12 +12105,12 @@ function inventoryView(){
       <header><h2>Reorder now</h2><span class="n">${low.length}</span></header>
       <table><thead><tr><th>Item</th><th>On hand</th><th>Reorder at</th><th>Order qty</th><th>Vendor</th><th></th></tr></thead>
       <tbody>${low.map(i=>`<tr>
-        <td><button class="lnk" data-go="item/${esc(i.id)}">${esc(i.name)}</button>
+        <td><a class="lnk" href="#/item/${esc(i.id)}">${esc(i.name)}</a>
           <div class="sub mono">${esc(i.sku||"")}</div></td>
         <td><span class="pill ${stockCls(i)}">${esc(stockText(i))}</span></td>
         <td class="mono">${esc(String(i.reorderPoint||0))}</td>
         <td class="mono">${esc(String(i.reorderQty||"—"))}</td>
-        <td>${i.vendorId?`<button class="lnk" data-go="vendor/${esc(i.vendorId)}">${esc(vendName(i.vendorId))}</button>`:`<span class="sub">no vendor set</span>`}</td>
+        <td>${i.vendorId?`<a class="lnk" href="#/vendor/${esc(i.vendorId)}">${esc(vendName(i.vendorId))}</a>`:`<span class="sub">no vendor set</span>`}</td>
         <td style="text-align:right"><button class="btn sm p" data-tx="${esc(i.id)}:receive">Receive</button></td>
       </tr>`).join("")}</tbody></table></section>`:""}
     <section class="card flush wide">
@@ -12174,7 +12190,7 @@ function itemRec(id){
           <td class="mono" style="${Number(t.qty)<0?"color:var(--red)":""}${t.undone?";text-decoration:line-through;opacity:.55":""}">
           ${Number(t.qty)>0?"+":""}${esc(String(Math.round(Number(t.qty)*10000)/10000))}
           ${itemSqft(i)&&/roll|sheet/i.test(i.unit||"")?`<div class="sub">${Math.round(Math.abs(Number(t.qty))*itemSqft(i))} sq ft</div>`:""}</td>
-          <td>${t.jobId?`<button class="lnk mono" data-go="job/${esc(t.jobId)}">${esc(t.jobId)}</button>`:"—"}</td>
+          <td>${t.jobId?`<a class="lnk mono" href="#/job/${esc(t.jobId)}">${esc(t.jobId)}</a>`:"—"}</td>
           <td class="sub">${esc(t.note||"")}</td>
           <td class="sub mono">${esc(t.who||"")}${t.undone?`<div class="sub">undone</div>`:""}</td>
           <td style="text-align:right">${t.undone||t.type==="ordered"?`<span class="sub">—</span>`
@@ -12324,7 +12340,7 @@ function myBook(){
           <header><h2>Gone quiet</h2><span class="n">${stalled.length}</span>
           <span class="sub" style="flex:1 1 100%;order:9">open work, nothing logged in two weeks</span></header>
           <table><tbody>${stalled.slice(0,8).map(x=>`<tr>
-            <td><button class="lnk" data-go="account/${esc(x.a.id)}">${esc(x.a.name)}</button>
+            <td><a class="lnk" href="#/account/${esc(x.a.id)}">${esc(x.a.name)}</a>
               <div class="sub">${x.openP} open project${x.openP===1?"":"s"}</div></td>
             <td style="text-align:right"><span class="pill ${x.d===null||x.d>45?"r":"o"}">${x.d===null?"never":x.d+"d"}</span></td>
           </tr>`).join("")}</tbody></table></section>`:""}
@@ -12332,7 +12348,7 @@ function myBook(){
           <span class="n">${accs.length}</span>
           <span class="sp"><button class="btn sm" data-scope="${esc(t.id)}:accounts">See all</button></span></header>
           ${accs.length?`<table><tbody>${accs.map(a=>({a,v:projectsOf(a.id).filter(x=>!isClosed(x)).reduce((x,p2)=>x+projValue(p2),0)})).sort((x,y)=>y.v-x.v||String(x.a.name).localeCompare(String(y.a.name))).slice(0,8).map(x=>x.a).map(a=>`<tr>
-            <td><button class="lnk" data-go="account/${esc(a.id)}">${esc(a.name)}</button>
+            <td><a class="lnk" href="#/account/${esc(a.id)}">${esc(a.name)}</a>
               <div class="sub">${esc(a.type||"")}</div></td>
             <td class="mono" style="text-align:right">${money(projectsOf(a.id).filter(x=>!isClosed(x)).reduce((x,p2)=>x+projValue(p2),0))}</td>
             </tr>`).join("")}</tbody></table>${accs.length>8?`<div style="padding:9px 14px;border-top:1px solid var(--line2)"><button class="lnk" data-scope="${esc(t.id)}:accounts">See all ${accs.length}</button></div>`:""}`
@@ -12488,7 +12504,7 @@ const RDRILL={},RTAB={};
 function rDrill(key,title,recs){RDRILL[key]={title,recs};return key}
 function rDrillModal(key){const d=RDRILL[key];if(!d)return;
   openModal(mshell(d.title,"",d.recs.length?`<table><thead><tr><th>Record</th><th>Detail</th><th style="text-align:right">Amount</th></tr></thead><tbody>${d.recs.map(r=>`<tr>
-    <td>${r.go?`<button class="lnk" data-go="${esc(r.go)}">${esc(r.l)}</button>`:esc(r.l)}</td><td class="sub">${esc(r.d||"")}</td><td class="mono" style="text-align:right">${r.v==null?"":esc(r.money===false?String(r.v):money2(r.v))}</td></tr>`).join("")}</tbody></table>`
+    <td>${r.go?`<a class="lnk" href="#/${esc(r.go)}">${esc(r.l)}</a>`:esc(r.l)}</td><td class="sub">${esc(r.d||"")}</td><td class="mono" style="text-align:right">${r.v==null?"":esc(r.money===false?String(r.v):money2(r.v))}</td></tr>`).join("")}</tbody></table>`
     :`<div class="empty">Nothing here.</div>`,`<button class="btn" data-close="1">Close</button>`))}
 // a table that's also the export: head is the column names, rows are plain values (numbers stay numbers)
 // which columns are dollars, per table (everything else prints as a plain number)
@@ -12499,7 +12515,7 @@ function rTable(id,name,head,rows,opt){opt=Object.assign({},opt||{});if(!opt.mon
   const num=head.map((h,i)=>rows.every(r=>r.cells[i]==null||r.cells[i]===""||typeof r.cells[i]==="number"));
   const fmt=(v,i)=>v==null||v===""?"—":typeof v==="number"?(opt.fmt&&opt.fmt[i]?opt.fmt[i](v):opt.money?(opt.money.indexOf(i)>=0?money2(v):String(Math.round(v*100)/100)):(/(\$|value|revenue|cost|won|quoted|margin \$|tied up|amount|total|balance|invoiced|forecast|weighted|goal|crm|qb|gap)/i.test(head[i])&&!/%|count|days|#|qty|on hand|use/i.test(head[i])?money2(v):String(Math.round(v*100)/100))):esc(v);
   return `<div class="tw"><table class="rtab"><thead><tr>${head.map((h,i)=>`<th${num[i]?' style="text-align:right"':""}>${esc(h)}</th>`).join("")}</tr></thead><tbody>
-    ${rows.map(r=>`<tr${r.flag?' class="rflag"':""}>${r.cells.map((v,i)=>`<td${num[i]?' class="mono" style="text-align:right;white-space:nowrap"':""}>${i===0&&r.go?`<button class="lnk" data-go="${esc(r.go)}">${fmt(v,i)}</button>`
+    ${rows.map(r=>`<tr${r.flag?' class="rflag"':""}>${r.cells.map((v,i)=>`<td${num[i]?' class="mono" style="text-align:right;white-space:nowrap"':""}>${i===0&&r.go?`<a class="lnk" href="#/${esc(r.go)}">${fmt(v,i)}</a>`
       :i===0&&r.drill?`<button class="lnk" data-rdrill="${esc(r.drill)}">${fmt(v,i)}</button>`:fmt(v,i)}${i===0&&r.sub?`<div class="sub">${esc(r.sub)}</div>`:""}</td>`).join("")}</tr>`).join("")}
     ${opt.total?`<tr class="rtot">${opt.total.map((v,i)=>`<td${num[i]?' class="mono" style="text-align:right;white-space:nowrap"':""}><b>${v==null||v===""?"":fmt(v,i)}</b></td>`).join("")}</tr>`:""}</tbody></table></div>`}
 async function rCSV(id){const t=RTAB[id];if(!t)return;
@@ -13126,9 +13142,9 @@ function archiveView(){
         <th style="text-align:right">Value</th><th>Invoice</th><th style="text-align:right">WOs</th><th style="width:80px"></th></tr></thead>
         <tbody>${ps.map(p2=>{const at=stageAt(p2,"closed")||stageAt(p2,"lost")||stageAt(p2,"invoiced");
           return `<tr>
-          <td><button class="lnk" data-go="project/${esc(p2.id)}">${esc(p2.name)}</button>
+          <td><a class="lnk" href="#/project/${esc(p2.id)}">${esc(p2.name)}</a>
             <div class="sub mono">P-${p2.num}${p2.po?" · PO "+esc(p2.po):""}</div></td>
-          <td><button class="lnk" data-go="account/${esc(p2.accountId)}">${esc(accName(p2.accountId))}</button></td>
+          <td><a class="lnk" href="#/account/${esc(p2.accountId)}">${esc(accName(p2.accountId))}</a></td>
           <td><span class="pill ${p2.stage==="lost"?"r":"g"}">${p2.stage==="lost"?"Closed lost":"Closed won"}</span>
             <div class="sub">${at?fmtTs(at):""}</div>
             ${p2.stage==="lost"?`<div class="sub">${esc((LOSTWHY.find(x=>x.id===p2.lostWhy)||{}).label||"no reason recorded")}${
@@ -13473,7 +13489,7 @@ function settingsView(){
         return `<p style="margin:0 0 10px">${issues.length} thing${issues.length>1?"s":""} worth a look.</p>
           <table><tbody>${issues.slice(0,30).map(i=>`<tr>
             <td style="width:270px">${esc(i.t)}</td>
-            <td><button class="lnk" data-go="${esc(i.h)}">${esc(i.l)}</button></td></tr>`).join("")}</tbody></table>`;
+            <td><a class="lnk" href="#/${esc(i.h)}">${esc(i.l)}</a></td></tr>`).join("")}</tbody></table>`;
       })()}
     </div></section>`)}
 
@@ -15039,7 +15055,7 @@ function webListHTML(){
       <td>${o.fromImage?`<span class="pill o">read from a screenshot — check it</span>`:""}${items.slice(0,6).map(l=>`<div>${esc(l.qty)} × ${esc(l.desc)} <span class="sub">${esc([l.code,l.size?sizeLabel(l.size):"",l.grade,l.sub,l.price?money2(l.price)+" ea":""].filter(Boolean).join(" · "))}</span></div>`).join("")}
         ${items.length>6?`<div class="sub">and ${items.length-6} more</div>`:""}</td>
       <td class="mono" style="text-align:right">${money2(o.total)}</td>
-      <td>${have?`already in as <button class="lnk" data-go="project/${esc(have.id)}">P-${have.num}</button>`
+      <td>${have?`already in as <a class="lnk" href="#/project/${esc(have.id)}">P-${have.num}</a>`
         :skip?`<span class="pill r">${esc(o.status)}</span><div class="sub">left out unless you tick it</div>`
         :m.acct?`<b>${esc(m.acct.name)}</b><div class="sub">matched on ${esc(m.how)}</div>`:`<span class="pill b">new customer</span>`}</td></tr>`}).join("")}
     </tbody></table></div>`;
@@ -16461,12 +16477,16 @@ async function composeSaveTpl(){const name=prompt("Name for this template (e.g. 
 // the same way (worker/mail.mjs quoteHash) — keep the two in step.
 function quoteHash(p){if(!p)return "";const nv=x=>{const t=String(x==null?"":x).replace(/[$,\s]/g,"");return t!==""&&isFinite(Number(t))?String(Number(t)):String(x==null?"":x).trim()};
   const L=(p.orderLines||[]).filter(l=>l).map(l=>[l.code,l.desc,l.size,l.grade,l.build,nv(l.qty),nv(l.price),l.lam===true,l.charge||""].map(x=>String(x==null?"":x)));
-  const s=JSON.stringify([String(p.quote||""),String(p.accountId||""),L]);let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return "q"+(h>>>0).toString(36)}
+  // what prints on the quote besides the lines: the scope, the customer's terms, and the quote terms and days
+  const a=acct(p.accountId)||(S.accounts&&S.accounts.get(p.accountId))||{},b=S.brand||{};
+  const s=JSON.stringify([String(p.quote||""),String(p.accountId||""),L,String(p.custScope||"").trim(),String(a.terms||""),String(b.quoteNote||"").trim(),String(b.quoteDays||"")]);let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return "q"+(h>>>0).toString(36)}
 // is this email the quote going to the customer? (its PDF attached, the quote template, or a signing link for the quote)
+function isQuoteFile(a){return !!a&&(a.gen==="quote"||/^(Quote|Signed quote)$/.test(a.cat||"")||/quote/i.test(a.name||""))}
 function isQuoteMail(C,atts){const pq=C&&C.pid?proj(C.pid):null;if(!pq)return false;
-  return (atts||[]).some(a=>/quote/i.test(a.name||""))||C.tplUsed==="quote"||C.kind==="quote"||(!!C.signId&&((S.signreq||new Map()).get(C.signId)||{}).kind!=="proof")}
+  return (atts||[]).some(isQuoteFile)||C.tplUsed==="quote"||C.kind==="quote"||(!!C.signId&&((S.signreq||new Map()).get(C.signId)||{}).kind!=="proof")}
 // the owner approved this exact quote for these exact people
-function quoteOkFor(p,to,cc){const ap=p&&p.quoteApproval;if(!ap||ap.hash!==quoteHash(p))return false;
+function quoteOkFor(p,to,cc,atts){const ap=p&&p.quoteApproval;if(!ap||ap.hash!==quoteHash(p))return false;
+  if(atts&&atts.length){const au=new Set(ap.atts||[]);if(!atts.every(x=>au.has(x.url)))return false}
   const ok=new Set((ap.to||[]).concat(ap.cc||[]).map(x=>String(x).toLowerCase()));return to.concat(cc||[]).every(x=>ok.has(String(x).toLowerCase()))}
 const MAX_RECIP=6;
 async function composeGo(send){const C=S._cmp||{};const to=$("#cm-to").value.split(/[,;]/).map(x=>x.trim()).filter(x=>/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(x));
@@ -16478,9 +16498,10 @@ async function composeGo(send){const C=S._cmp||{};const to=$("#cm-to").value.spl
   const pq=C.pid?proj(C.pid):null;
   if(noMail(pq))return toast("This project is marked dry run / test — nothing goes to anyone outside from it.");
   if(send&&!myMailFrom())return toast("This one can't be sent from the CRM — use Open in my email.");
-  const atts=[...document.querySelectorAll("[data-cmatt]:checked")].map(e=>S.files.get(e.dataset.cmatt)).filter(Boolean).map(f=>({name:f.name,url:f.url,type:f.type||""}));
+  // each attachment carries where it came from (the CRM-made quote PDF says gen "quote"), not just its name
+  const atts=[...document.querySelectorAll("[data-cmatt]:checked")].map(e=>S.files.get(e.dataset.cmatt)).filter(Boolean).map(f=>({name:f.name,url:f.url,type:f.type||"",fileId:f.id,gen:f.gen||"",cat:f.cat||""}));
   // a quote going to the customer needs the owner's OK on that exact quote and those exact people (owners send their own)
-  const quoteOut=isQuoteMail(C,atts);const needOk=quoteOut&&myAccess()!=="owner"&&!quoteOkFor(pq,to,cc);
+  const quoteOut=isQuoteMail(C,atts);const needOk=quoteOut&&myAccess()!=="owner"&&!quoteOkFor(pq,to,cc,atts);
   if(needOk&&!send)return toast("This quote needs Matt's OK first — press Send and it goes out the moment he approves it.");
   const tl=to.map(x=>x.toLowerCase()),hit=x=>x&&x.email&&tl.indexOf(String(x.email).toLowerCase())>=0;
   const pA=C.pid?(proj(C.pid)||{}).accountId:C.aid;
