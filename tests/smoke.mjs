@@ -13,7 +13,9 @@ const D = {
   // t1 (the person signed in) is an older owner record with no level set, and another record is set to owner explicitly —
   // the owner must still get Settings (release -119..-128 turned such a record into Shop)
   team: { t1: { name: "Test Owner", initials: "TO", claudeId: "u1", email: "owner@example.com" }, t9: { name: "Second Owner", initials: "SO", access: "owner", email: "owner2@example.com" }, t2: { name: "Test Sales", initials: "TS", access: "sales", email: "sales@example.com" } },
-  accounts: { a1: { name: "Test County", city: "Town", state: "UT", type: "Government agency", terms: "Net 30", repId: "t1" }, a2: { name: "Test Contractor", type: "Contractor", terms: "Prepay" } },
+  accounts: { a1: { name: "Test County", city: "Town", state: "UT", type: "Government agency", terms: "Net 30", repId: "t1" }, a2: { name: "Test Contractor", type: "Contractor", terms: "Prepay" },
+    // a vendor that was also entered as an account: it has to be offered as a vendor, not left as a Lead
+    a3: { name: "Test Plastics Inc", type: "Contractor", createdAt: now } },
   contacts: { c1: { name: "Pat Example", accountId: "a1", email: "pat@example.com", phone: "4355550100", role: "Buyer" }, c2: { name: "Lee Sample", accountId: "a2", phone: "4355550101", role: "Buyer" } },
   vendors: { v1: { name: "Test Plastics" }, v2: { name: "Test Metals" } },
   items: {
@@ -35,7 +37,7 @@ const D = {
   activity: { x1: { id: "x1", recType: "account", recId: "a1", kind: "note", type: "call", text: "Called about the bid", contactId: "c1", at: now - day, when: new Date(now - day).toISOString().slice(0, 10) } },
   events: {}, history: {}, invtx: {}, notifications: {}, reminders: {}, access: { "u1": { role: "owner", teamId: "t1" }, "owner@example.com": { role: "owner", teamId: "t1" } } };
 const ROUTES = ["home", "mybook", "accounts", "account/a1", "contacts", "contact/c1", "projects", "project/p1", "project/p2", "jobs", "job/1001", "tracker", "calendar",
-  "files", "purchasing", "inventory", "item/i1", "stencils", "vendors", "vendor/v1", "reports", "audit", "archive", "bin", "settings"];
+  "files", "purchasing", "inventory", "item/i1", "stencils", "vendors", "vendor/v1", "reports", "audit", "archive", "bin", "settings", "new"];
 const browser = await chromium.launch(); const pg = await browser.newPage({ viewport: { width: 1400, height: 900 } });
 const errs = [];
 pg.on("pageerror", (e) => errs.push(String(e.message || e).slice(0, 160)));
@@ -171,6 +173,16 @@ for (const r of ROUTES) { await pg.evaluate((r) => { location.hash = "#/" + r; }
     const st = await pg.evaluate(() => ({ open: !!document.getElementById("viewer"), hash: location.hash }));
     if (st.open || st.hash !== h0) bad.push("phone: Back didn't just close the file viewer (" + (st.open ? "still open" : "left the page") + ")"); } }
 await pg.setViewportSize({ width: 1400, height: 900 });
+// an account that is really a vendor is offered as one; marked Vendor it shows the Vendor stage, not Lead
+{ await pg.evaluate(() => { location.hash = "#/accounts"; }); await pg.waitForTimeout(500);
+  const vb = await pg.evaluate(() => { const b = document.querySelector("[data-vaccopen]"); return b ? b.closest(".alert").innerText : ""; });
+  if (!/1 account looks like a vendor/.test(vb)) bad.push("an account named like a vendor isn't offered as a vendor (" + vb.slice(0, 60) + ")");
+  const st = await pg.evaluate(() => { const T = window.__T; if (!T || !T.acctStage) return "no hook"; return T.acctStage({ name: "X", type: "Vendor" }); });
+  if (st !== "no hook" && st !== "vendor") bad.push("a Vendor account doesn't show the Vendor stage (" + st + ")");
+  // What's new lists the account added today
+  await pg.evaluate(() => { location.hash = "#/new"; }); await pg.waitForTimeout(500);
+  const wn = await pg.evaluate(() => (document.querySelector(".main") || {}).innerText || "");
+  if (!/New accounts/.test(wn) || !/Test Plastics Inc/.test(wn)) bad.push("What's new doesn't list an account added today"); }
 // the owner sees quotes the team made, to review before anything is sent
 { await pg.evaluate(() => { location.hash = "#/home"; }); await pg.waitForTimeout(500);
   const rb = await pg.evaluate(() => { const b = document.querySelector("[data-rvopen]"); return b ? b.closest(".alert").innerText : ""; });
