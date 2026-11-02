@@ -4,3 +4,4 @@ mergeContacts dupContactPairs remAll remEmailOf ordFindRows codeList projMargin 
  ordFindRows codeList projMargin costedMargin go imgAsData linePic picFb linePriceSrc lineKind placeholderReorder proofLines proofSig proofArt proofLineArts real winRate quoteLineCostLive lockLineCosts uid
 orderedLines isCharge defaultPrice setDoc ordFindRows codeList projMargin costedMargin go imgAsData linePic picFb linePriceSrc lineKind placeholderReorder proofLines proofSig proofArt proofLineArts real winRate quoteLineCostLive lockLineCosts uid
 noMail
+histAll
