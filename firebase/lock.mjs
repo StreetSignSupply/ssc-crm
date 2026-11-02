@@ -21,12 +21,16 @@ let team = [], noAddr = 0;
 if (mins < 10 || sure) {
   team = (await db.collection("team").get()).docs.map((x) => Object.assign({ id: x.id }, x.data())).filter((t) => !t.deleted && String(t.name || "").trim());
   const hasOwner = team.some((t) => t.access === "owner");
-  const roleOf = (t) => ["owner", "office", "sales", "shop"].includes(t.access) ? t.access : (hasOwner ? "shop" : "owner");
+  // a team record with no level set keeps the level its access record already has (older records were made before levels
+  // existed and meant owner) — this job never lowers anyone's level; only a level set on the team record changes it
+  const accNow = new Map((await db.collection("access").get()).docs.map((x) => [x.id, x.data()]));
+  const prior = (t) => { const r = [...accNow.values()].find((a) => a.teamId === String(t.id) && a.role); return r ? r.role : ""; };
+  const roleOf = (t) => ["owner", "office", "sales", "shop"].includes(t.access) ? t.access : (prior(t) || (hasOwner ? "shop" : "owner"));
   const want2 = {};
   team.forEach((t) => { const em = String(t.email || "").trim().toLowerCase(), mail = OURS.test(em) ? em : "";
     [em].concat([t.claudeId].concat(t.claudeIds || []).filter(Boolean).map(String)).filter((k) => k && !/[\/]/.test(k) && k.length < 200).forEach((k) => { want2[k] = { role: roleOf(t), teamId: String(t.id), mail }; }); });
   let synced = 0; const orphans = [];
-  if (team.length && hasOwner) { const have = new Map((await db.collection("access").get()).docs.map((x) => [x.id, x.data()]));
+  if (team.length && hasOwner) { const have = accNow;
     for (const k of Object.keys(want2)) { const c = have.get(k) || {}; if (c.role === want2[k].role && c.teamId === want2[k].teamId && (c.mail || "") === want2[k].mail) continue;
       await db.doc("access/" + k).set(Object.assign({}, want2[k], { updatedAt: now, by: "lock job" })); synced++; }
     for (const [k, v] of have) if (!want2[k]) orphans.push({ key: k, teamId: String(v.teamId || ""), role: String(v.role || "") }); }
