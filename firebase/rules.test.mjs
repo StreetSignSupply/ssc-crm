@@ -38,7 +38,7 @@ await env.withSecurityRulesDisabled(async (c) => { const d = c.firestore();
 const as = (uid, email) => env.authenticatedContext(uid, email ? { email, email_verified: true } : {}).firestore();
 const owner = as("u1", "MATT@streetsignsupply.com"), sales = as("u2", "bob@streetsignsupply.com"), shop = as("uid-shop"), outsider = as("u9", "someone@gmail.com"), anon = env.unauthenticatedContext().firestore();
 const unverified = env.authenticatedContext("u8", { email: "bob@streetsignsupply.com", email_verified: false }).firestore();
-const t = []; const ok = async (n, p) => { try { await assertSucceeds(p); t.push("PASS " + n); } catch (e) { t.push("FAIL " + n + " " + e.message.slice(0, 80)); } };
+const t = []; const ok = async (n, p) => { try { await assertSucceeds(p); t.push("PASS " + n); } catch (e) { t.push("FAIL " + n + " " + e.message.replace(/\s+/g, " ").slice(0, 400)); } };
 const no = async (n, p) => { try { await assertFails(p); t.push("PASS " + n); } catch (e) { t.push("FAIL " + n); } };
 await no("anonymous can't read", getDoc(doc(anon, "projects/p1")));
 await no("outsider can't read", getDoc(doc(outsider, "projects/p1")));
