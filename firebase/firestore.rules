@@ -90,19 +90,18 @@ service cloud.firestore {
     // invoice — the "doesn't use POs / doesn't need an invoice" setting on BOTH the account it started on and its account now
     function fileFits(fd, pid, k) { return fd.get("projectId", "") == pid && fd.get("deleted", false) != true && fd.get("verified", false) == true
         && (k == "quote" ? fd.get("gen", "") == "quote" : (k == "po" ? fd.get("cat", "") in ["Purchase order", "Signed quote"] : fd.get("cat", "") == "Invoice")); }
+    // the database allows only a few document reads per check, so: no exists() before reading a file (a file id that isn't
+    // there just fails the check), and the accounts are only read when there's no file and no waiver for that item
     function fileOk(fid, pid, k) { let f = (fid is string && fid != "") ? fid : "-";
-      let fp = /databases/$(db)/documents/files/$(f);
-      return f != "-" && exists(fp) && fileFits(get(fp).data, pid, k); }
-    function paperOne(k, pid, cp, cw, a, o) {
-      return okWaiver(cw.get(k, null))
-        || (k == "po" && a.get("noPO", false) == true && o.get("noPO", false) == true)
-        || (k == "inv" && a.get("noInvoice", false) == true && o.get("noInvoice", false) == true)
-        || fileOk(cp.get(k, ""), pid, k); }
+      return f != "-" && fileFits(get(/databases/$(db)/documents/files/$(f)).data, pid, k); }
+    function acctFlag(nd, f) { let aid = nd.get("accountId", ""); let oid = nd.get("origAccountId", aid);
+      return aid != "" && oid != "" && exists(/databases/$(db)/documents/accounts/$(aid)) && get(/databases/$(db)/documents/accounts/$(aid)).data.get(f, false) == true
+        && (oid == aid || (exists(/databases/$(db)/documents/accounts/$(oid)) && get(/databases/$(db)/documents/accounts/$(oid)).data.get(f, false) == true)); }
+    function paperOne(k, pid, nd, cp, cw) {
+      return okWaiver(cw.get(k, null)) || fileOk(cp.get(k, ""), pid, k)
+        || (k == "po" && acctFlag(nd, "noPO")) || (k == "inv" && acctFlag(nd, "noInvoice")); }
     function paperAll(pid, nd) { let cp = nd.get("closePaper", {}); let cw = nd.get("closeWaive", {});
-      let aid = nd.get("accountId", "-"); let oid = nd.get("origAccountId", aid);
-      let ap = /databases/$(db)/documents/accounts/$(aid != "" ? aid : "-"); let op = /databases/$(db)/documents/accounts/$(oid != "" ? oid : "-");
-      let a = exists(ap) ? get(ap).data : {}; let o = exists(op) ? get(op).data : {};
-      return cp is map && cw is map && paperOne("quote", pid, cp, cw, a, o) && paperOne("po", pid, cp, cw, a, o) && paperOne("inv", pid, cp, cw, a, o); }
+      return cp is map && cw is map && paperOne("quote", pid, nd, cp, cw) && paperOne("po", pid, nd, cp, cw) && paperOne("inv", pid, nd, cp, cw); }
     function projCreateOk(pid) { let role = myRole(); let nd = request.resource.data;
       return role != "" && (role == "owner" || !nd.keys().hasAny(["quoteApproval", "quoteRejected", "closeWaive"]))
         && nd.get("origAccountId", nd.get("accountId", "")) == nd.get("accountId", "")
