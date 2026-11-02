@@ -13783,7 +13783,10 @@ function viewFile(fid){
 }
 function closeViewer(fromBack){const was=!!S.viewerFile;S.viewerFile=null;render();
   if(was&&!fromBack&&history.state&&history.state.sscViewer){S._viewerBackSkip=true;try{history.back()}catch(e){S._viewerBackSkip=false}}}
-window.addEventListener("popstate",()=>{if(S._viewerBackSkip){S._viewerBackSkip=false;return}if(S._modalBackSkip){S._modalBackSkip=false;return}
+window.addEventListener("popstate",()=>{
+  // our own step back after closing a window or file: if a new page opened in the same instant, that step lands on the old
+  // window's entry instead — step forward again so you stay where you went
+  if(S._viewerBackSkip||S._modalBackSkip){const st=history.state||{};S._viewerBackSkip=false;S._modalBackSkip=false;if((st.sscModal&&!S.modal)||(st.sscViewer&&!S.viewerFile))try{history.forward()}catch(e){}return}
   if(S.viewerFile){closeViewer(true);return}
   if(S.modal){
     // something typed: the first Back warns (like Escape), the second closes
