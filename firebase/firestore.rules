@@ -104,7 +104,8 @@ service cloud.firestore {
       return cp is map && cw is map && paperOne("quote", pid, nd, cp, cw) && paperOne("po", pid, nd, cp, cw) && paperOne("inv", pid, nd, cp, cw); }
     function projCreateOk(pid) { let role = myRole(); let nd = request.resource.data;
       return role != "" && (role == "owner" || !nd.keys().hasAny(["quoteApproval", "quoteRejected", "closeWaive"]))
-        && nd.get("origAccountId", nd.get("accountId", "")) == nd.get("accountId", "")
+        // a new project must record the account it starts on — the same as its account
+        && nd.get("origAccountId", null) is string && nd.get("origAccountId", null) == nd.get("accountId", "")
         && (nd.get("stage", "") != "closed" || paperAll(pid, nd)); }
     function projUpdateOk(pid) { let role = myRole(); let nd = request.resource.data;
       let ch = nd.diff(resource.data).affectedKeys();
@@ -255,7 +256,10 @@ service cloud.firestore {
       allow read: if member();
       allow create: if member() && request.resource.data.get("byId", "") == myTeamId()
                     && !request.resource.data.keys().hasAny(checkFields()) && request.resource.data.get("needsCheck", true) == true;
+      // once the mail worker has checked a file, its category and project are fixed (only an owner can re-file it), so a
+      // checked file can't be re-filed as some other project's PO or invoice
       allow update: if member() && !changed().hasAny(checkFields().concat(["byId", "url", "gen", "qhash"]))
+                    && (resource.data.get("verified", false) != true || isOwner() || !changed().hasAny(["cat", "projectId"]))
                     && (!changed().hasAny(["needsCheck"]) || request.resource.data.needsCheck == true)
                     && (!changed().hasAny(["deleted", "cat", "projectId", "accountId"])
                        || isOwner() || superseded()

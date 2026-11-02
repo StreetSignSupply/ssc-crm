@@ -144,6 +144,11 @@ await no("a new project can't start with a different original account", setDoc(d
 await ok("moved between two no-PO / no-invoice accounts: closes on the quote PDF alone (the most reads a close needs)", updateDoc(doc(sales, "projects/pm2"), { stage: "closed", closePaper: { quote: "qm2", po: "", inv: "" } }));
 await ok("a real job on a customer account (60 lines) closes with its three checked files", updateDoc(doc(sales, "projects/preal2"), { stage: "closed", closePaper: { quote: "qr2", po: "por2", inv: "inr2" }, updatedAt: 5 }));
 await ok("the owner closes a real job too", updateDoc(doc(owner, "projects/preal2"), { notes: "done" }));
+await no("a new project must record its starting account", setDoc(doc(sales, "projects/pno1"), { name: "x", accountId: "a1" }));
+await ok("a new project with its starting account", setDoc(doc(sales, "projects/pno2"), { name: "x", accountId: "a1", origAccountId: "a1" }));
+await no("a rep can't re-file a checked file as another kind", updateDoc(doc(sales, "files/qr2"), { cat: "Invoice" }));
+await no("a rep can't move a checked file to another project", updateDoc(doc(sales, "files/qr2"), { projectId: "pc" }));
+await ok("a rep renames a checked file", updateDoc(doc(sales, "files/qr2"), { name: "Quote Q-1.pdf" }));
 await ok("closing with the checked quote PDF, PO and invoice", updateDoc(doc(sales, "projects/pc"), { stage: "closed", closePaper: { quote: "q1", po: "po1", inv: "in1" } }));
 await no("nobody can ask for an AI draft under the AI check's name", setDoc(doc(sales, "aidraft/afix"), { status: "queued", byId: "fix-run" }));
 await no("a made-up file record can't claim to be checked", setDoc(doc(sales, "files/fk1"), { projectId: "pc", gen: "quote", cat: "Quote", byId: "t2", verified: true }));

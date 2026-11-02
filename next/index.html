@@ -10813,7 +10813,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-127";
+const APP_VERSION="2026.11.25-128";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -14100,8 +14100,10 @@ function jobModal(j,pid){
         .then(()=>{recordHistory("job",String(j.num),diffs);toast("Work order saved")})})){closeModal();return}
       closeModal();await push("jobs/"+j.num,patch);recordHistory("job",String(j.num),diffs);
       if(moved){
-        const fs=filesOf("job",String(j.num));
+        // a file the mail worker has checked stays on its project unless the owner moves it (the database refuses it too)
+        const fs=filesOf("job",String(j.num)).filter(f=>f.verified!==true||myAccess()==="owner");const kept=filesOf("job",String(j.num)).length-fs.length;
         for(const f of fs)await push("files/"+f.id,{projectId:pid2,accountId:pr?pr.accountId:""});
+        if(kept)toast(kept+" checked file"+(kept===1?" stays":"s stay")+" on the original project — only Matt can move checked files.");
         recordHistory("job",String(j.num),[{f:"Moved",o:projName(j.projectId)||"(none)",
           n:(pr?pr.name:"(none)")+(fs.length?" — "+fs.length+" file"+(fs.length>1?"s":"")+" moved with it":"")}]);
         if(j.projectId)recordHistory("project",j.projectId,[{f:"Work orders",o:"",n:"Work order "+j.num+" moved to "+(pr?pr.name:"another project"),ev:1}]);

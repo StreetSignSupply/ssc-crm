@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-128
+- **Database rules:** a new project must record the account it starts on; once the mail worker has checked a file, its category and project are fixed — only the owner can re-file or move it. Moving a work order to another project leaves its checked files where they are (unless the owner does it) and says so.
+- **Write it with AI:** a Gemini model that's over Google's free allowance is skipped for 10 minutes so the next one answers.
+
 ## Database rules (after 2026.11.25-127, no change to the CRM page)
 - **A normal close on a real job was refused** ("maximum of 1000 expressions reached") — the project rules re-read the access record and re-worked out the project's changes several times over, which on a real project with a customer account and many lines ran past the database's limit. Rewritten so each value is worked out once and the paperwork is only looked at when a project moves to Closed won. New test: a real job on a customer account with 60 quote lines closes with its three checked files.
 
