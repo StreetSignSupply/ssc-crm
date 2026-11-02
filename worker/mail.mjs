@@ -483,6 +483,9 @@ async function aiDrafts() {
       if (!o && !gk && !GH) err = "no Gemini key — add the free key in Settings → Write it with AI";
       if (!o) throw new Error(err || "no answer");
       say("AI draft: done in " + Math.round((Date.now() - tA) / 1000) + "s via " + (via || "gemini") + (errs.length ? " after: " + errs.join(" | ").slice(0, 300) : ""));
+      // the email always opens with the person's first name (any service can forget it)
+      { const fn = (String(r.ctx || "").match(/start with "Hi ([^",]+),"/) || [])[1]; const first = String(o.body).trim().split(/\n/)[0] || "";
+        if (fn && !new RegExp("\\b" + fn.replace(/[^A-Za-z'-]/g, "") + "\\b", "i").test(first)) o.body = "Hi " + fn + ",\n\n" + String(o.body).trim().replace(/^(hi|hello|hey|dear)\b[^\n]*\n+/i, ""); }
       await d.ref.set({ status: "done", subject: String(o.subject || r.subject || "").slice(0, 200), body: String(o.body).slice(0, 5000), doneAt: Date.now() }, { merge: true }); n.ai = (n.ai || 0) + 1;
     } catch (e) { await d.ref.set({ status: "failed", err: "no AI service answered — " + String(e.message || e).slice(0, 140), doneAt: Date.now() }, { merge: true }); n.aiErr = (n.aiErr || 0) + 1; say("AI draft failed after " + Math.round((Date.now() - tA) / 1000) + "s: " + String(e.message || e).slice(0, 400)); }
   }));
