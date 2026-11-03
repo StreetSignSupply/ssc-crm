@@ -1067,6 +1067,9 @@ details.dd[open] > summary{border-color:var(--ink3)}
 .rrow textarea{min-height:110px;resize:vertical}
 .rrow.off{opacity:.6}
 .belldd .dd-m{min-width:340px;max-width:440px;padding:0;max-height:70vh;overflow:auto}
+/* phone: the bell's list is a sheet across the screen under the top bar, never off the edge */
+@media (max-width:640px){.belldd .dd-m{position:fixed!important;left:8px!important;right:8px!important;top:calc(env(safe-area-inset-top,0px) + 110px)!important;min-width:0!important;max-width:none!important;width:auto!important;max-height:calc(100dvh - 200px)}
+  .belldd .dd-m .sub{white-space:normal}}
 .bell-g{padding:9px 12px 3px;font-size:12px;color:var(--ink3);font-weight:800;text-transform:uppercase;letter-spacing:.06em}
 .bell-r{display:flex;gap:8px;align-items:center;padding:7px 12px;border-bottom:1px solid var(--line2)}
 .bell-r .lnk{flex:1;text-align:left;white-space:normal;font-size:13px;font-weight:600;line-height:1.35}
@@ -11040,7 +11043,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-138";
+const APP_VERSION="2026.11.25-139";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
