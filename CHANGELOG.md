@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-139
+- Phone: the bell's list of notifications (like "Quote … was opened by …") ran off the right edge of the screen, hiding the time and the Open button; it's now a full-width sheet under the top bar.
+- The "opened" alerts were tested live end to end (a TEST link on P-2030: opened like a customer's phone does → bell notification and email to its creator only).
+
 ## 2026.11.25-138 (know when a customer opens your quote or proof)
 - When a customer opens a quote or proof signing link, the person who sent it and the owner get a **bell notification** and an **email** ("Quote Q-1031 P-2041 was opened by Joe Smith — Nov 2, 3:14 PM MT"), and the project's Activity shows it — you decide when to follow up. (It used to be an Activity line only.)
 - A green **"✓ Viewed"** label is added to that email thread in the sender's Gmail, once the gmail.modify scope is added to the CRM's domain-wide delegation in Google Admin (Settings → Sending email shows the one step). Until then the bell and email still work.
