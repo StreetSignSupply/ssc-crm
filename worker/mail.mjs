@@ -326,6 +326,16 @@ async function signFollow() {
     const xid = "sv_" + d.id.slice(0, 20);
     await fs.doc("activity/" + xid).set({ id: xid, recType: "project", recId: String(r.projectId), kind: "note", type: "note", subject: (r.kind === "proof" ? "Proof" : "Quote " + (r.quoteNo || "")) + " opened by the customer",
       text: "The signature link was opened" + (r.contactName ? " (sent to " + r.contactName + ")" : "") + ".", whoId: "", who: "Sign", when: mtDay(r.viewedAt), at: r.viewedAt, done: true, deleted: false, noBack: true }, { merge: true });
+    // …and the person who sent it, and the owner, are told right away (bell + email) — they decide when to follow up
+    { const what = (r.kind === "proof" ? "Proof rev " + (r.proofRev || 1) : r.kind === "both" ? "Quote " + (r.quoteNo || "") + " + proof" : "Quote " + (r.quoteNo || "")) + " " + (r.pnum || "") + " was opened by " + (r.contactName || r.customer || "the customer");
+      const tm = (await docsOf("all_team", fs.collection("team"))).map((x) => Object.assign({ id: x.id }, x.data())).filter((t) => !t.deleted && (t.id === r.createdById || (t.access || "owner") === "owner"));
+      for (const t of tm) { const nid = "nt_view_" + d.id.slice(0, 12) + "_" + t.id.slice(0, 8);
+        await fs.doc("notifications/" + nid).set({ id: nid, toId: t.id, fromId: "", fromName: "Viewed", kind: "viewed", text: what + " — " + new Date(r.viewedAt).toLocaleString("en-US", { timeZone: "America/Denver", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) + " MT",
+          link: "project/" + r.projectId, at: Number(r.viewedAt) || Date.now(), read: false, deleted: false }); }
+      const tos = [...new Set(tm.map((t) => String(t.email || "").toLowerCase()).filter(isOurs))];
+      if (tos.length && Date.now() - Number(r.viewedAt) < 3 * 864e5) await fs.collection("mail").add({ to: tos, status: "queued", kind: "notice", at: Date.now(),
+        message: { subject: what, text: what + " (" + new Date(r.viewedAt).toLocaleString("en-US", { timeZone: "America/Denver", weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) + " MT).\n\nOpen the project: https://crm.streetsignsupply.com/#/project/" + r.projectId } });
+      n.viewed = (n.viewed || 0) + 1; }
     await d.ref.set({ viewLogged: true }, { merge: true }); }
   // ---- 3. signature links that were signed or turned down: tell the person who sent them ----
   const sigs = srAll.filter((d) => ["signed", "declined"].indexOf(d.data().status) >= 0 && !d.data().notified);
