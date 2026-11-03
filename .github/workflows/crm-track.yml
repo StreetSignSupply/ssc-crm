@@ -1,10 +1,13 @@
-name: Email open tracking (setup check)
-# Run by hand. Step "probe": checks, read-only, whether the CRM's service account may set up the small web address that
-# records when a customer opens an email sent from the CRM. Prints permission names and yes/no only.
+name: Email open tracking (setup)
+# Run by hand (Matt approved 2 Nov 2026). Sets up what records when a customer opens an email sent from the CRM, in its
+# own two storage buckets — the CRM's file storage is never touched or made public:
+#   ssc-crm-a7224-open      public, holds only one 1x1 picture (p.gif) that each CRM email loads as /p.gif?m=<email id>
+#   ssc-crm-a7224-openlog   private, where Google writes the hourly fetch log the mail worker reads to mark emails opened
+# Prints status codes only.
 on:
   workflow_dispatch:
     inputs:
-      step: { description: "probe", default: "probe" }
+      step: { description: "setup", default: "setup" }
 permissions: { contents: read, id-token: write }
 jobs:
   track:
@@ -17,20 +20,25 @@ jobs:
           workload_identity_provider: projects/741399760463/locations/global/workloadIdentityPools/github/providers/ssc-crm
           service_account: firebase-adminsdk-fbsvc@ssc-crm-a7224.iam.gserviceaccount.com
           token_format: access_token
-          access_token_scopes: https://www.googleapis.com/auth/cloud-platform
+          access_token_scopes: https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/devstorage.full_control
       - env: { TOK: "${{ steps.gauth.outputs.access_token }}" }
         run: |
-          P=ssc-crm-a7224
-          perms='["run.services.create","run.services.get","run.services.update","run.services.setIamPolicy","run.operations.get","iam.serviceAccounts.actAs","serviceusage.services.enable","serviceusage.services.list","cloudfunctions.functions.create","cloudbuild.builds.create","firebasehosting.sites.update","resourcemanager.projects.getIamPolicy"]'
-          curl -s -X POST -H "Authorization: Bearer $TOK" -H "Content-Type: application/json" "https://cloudresourcemanager.googleapis.com/v1/projects/$P:testIamPermissions" -d "{\"permissions\":$perms}" > p.json
-          echo "::notice::allowed: $(tr -d '\n ' < p.json | head -c 900)"
-          for s in run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com cloudfunctions.googleapis.com firestore.googleapis.com; do
-            st=$(curl -s -H "Authorization: Bearer $TOK" "https://serviceusage.googleapis.com/v1/projects/$P/services/$s" | grep -o '"state": *"[A-Z_]*"' | head -1)
-            echo "::notice::$s $st"; done
-          code=$(curl -s -o r.json -w "%{http_code}" -H "Authorization: Bearer $TOK" "https://run.googleapis.com/v2/projects/$P/locations/us-central1/services")
-          echo "::notice::list Cloud Run services answered $code $(head -c 200 r.json | tr '\n' ' ')"
-          B=ssc-crm-a7224.firebasestorage.app
-          sp='permissions=storage.buckets.get&permissions=storage.buckets.update&permissions=storage.buckets.setIamPolicy&permissions=storage.buckets.getIamPolicy&permissions=storage.objects.create&permissions=storage.objects.list&permissions=storage.objects.get&permissions=storage.objects.setIamPolicy&permissions=storage.buckets.create'
-          curl -s -H "Authorization: Bearer $TOK" "https://storage.googleapis.com/storage/v1/b/$B/iam/testPermissions?$sp" > s.json; echo "::notice::storage allowed: $(tr -d '\n ' < s.json | head -c 700)"
-          curl -s -H "Authorization: Bearer $TOK" "https://storage.googleapis.com/storage/v1/b/$B?fields=iamConfiguration,logging,location" > b.json; echo "::notice::bucket: $(tr -d '\n ' < b.json | head -c 500)"
-          curl -s -X POST -H "Authorization: Bearer $TOK" -H "Content-Type: application/json" "https://cloudresourcemanager.googleapis.com/v1/projects/$P:testIamPermissions" -d '{"permissions":["storage.buckets.create","storage.buckets.list","logging.sinks.create","logging.logEntries.list","pubsub.topics.create"]}' > q.json; echo "::notice::project storage/logging: $(tr -d '\n ' < q.json | head -c 400)"
+          P=ssc-crm-a7224; PB=ssc-crm-a7224-open; LB=ssc-crm-a7224-openlog; H="Authorization: Bearer $TOK"; J="Content-Type: application/json"
+          say(){ echo "::notice::$1"; }
+          mk(){ c=$(curl -s -o m.json -w "%{http_code}" -X POST -H "$H" -H "$J" "https://storage.googleapis.com/storage/v1/b?project=$P" -d "{\"name\":\"$1\",\"location\":\"US-WEST1\",\"storageClass\":\"STANDARD\",\"iamConfiguration\":{\"uniformBucketLevelAccess\":{\"enabled\":true}}$2}"); say "create $1: $c $(grep -o '"message": *"[^"]*"' m.json | head -1)"; }
+          mk $LB ',"lifecycle":{"rule":[{"action":{"type":"Delete"},"condition":{"age":30}}]}'
+          mk $PB ''
+          # the log bucket: only Google's storage logger may write into it
+          curl -s -H "$H" "https://storage.googleapis.com/storage/v1/b/$LB/iam" > li.json
+          python3 -c 'import json; p=json.load(open("li.json")); b=p.setdefault("bindings",[]); b.append({"role":"roles/storage.objectCreator","members":["group:cloud-storage-analytics@google.com"]}); json.dump({"bindings":b,"etag":p.get("etag")},open("li2.json","w"))'
+          say "log bucket writer: $(curl -s -o x.json -w '%{http_code}' -X PUT -H "$H" -H "$J" "https://storage.googleapis.com/storage/v1/b/$LB/iam" -d @li2.json) $(grep -o '"message": *"[^"]*"' x.json | head -1)"
+          # the picture: one transparent pixel, never cached, so every open is fetched (and logged)
+          printf 'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' | base64 -d > p.gif
+          say "picture: $(curl -s -o x.json -w '%{http_code}' -X POST -H "$H" -H 'Content-Type: image/gif' --data-binary @p.gif "https://storage.googleapis.com/upload/storage/v1/b/$PB/o?uploadType=media&name=p.gif")"
+          say "no cache: $(curl -s -o x.json -w '%{http_code}' -X PATCH -H "$H" -H "$J" "https://storage.googleapis.com/storage/v1/b/$PB/o/p.gif" -d '{"cacheControl":"no-store, max-age=0"}')"
+          # anyone may read what's in the picture bucket (only the picture is ever in it)
+          curl -s -H "$H" "https://storage.googleapis.com/storage/v1/b/$PB/iam" > pi.json
+          python3 -c 'import json; p=json.load(open("pi.json")); b=p.setdefault("bindings",[]); b.append({"role":"roles/storage.objectViewer","members":["allUsers"]}); json.dump({"bindings":b,"etag":p.get("etag")},open("pi2.json","w"))'
+          say "picture public: $(curl -s -o x.json -w '%{http_code}' -X PUT -H "$H" -H "$J" "https://storage.googleapis.com/storage/v1/b/$PB/iam" -d @pi2.json) $(grep -o '"message": *"[^"]*"' x.json | head -1)"
+          say "fetch log on: $(curl -s -o x.json -w '%{http_code}' -X PATCH -H "$H" -H "$J" "https://storage.googleapis.com/storage/v1/b/$PB?fields=logging" -d "{\"logging\":{\"logBucket\":\"$LB\",\"logObjectPrefix\":\"open\"}}") $(grep -o '"message": *"[^"]*"' x.json | head -1)"
+          say "public fetch test: $(curl -s -o /dev/null -w '%{http_code}' "https://storage.googleapis.com/$PB/p.gif?m=setup-test")"
