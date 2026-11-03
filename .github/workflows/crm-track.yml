@@ -1,0 +1,32 @@
+name: Email open tracking (setup check)
+# Run by hand. Step "probe": checks, read-only, whether the CRM's service account may set up the small web address that
+# records when a customer opens an email sent from the CRM. Prints permission names and yes/no only.
+on:
+  workflow_dispatch:
+    inputs:
+      step: { description: "probe", default: "probe" }
+permissions: { contents: read, id-token: write }
+jobs:
+  track:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - id: gauth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/741399760463/locations/global/workloadIdentityPools/github/providers/ssc-crm
+          service_account: firebase-adminsdk-fbsvc@ssc-crm-a7224.iam.gserviceaccount.com
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/cloud-platform
+      - env: { TOK: "${{ steps.gauth.outputs.access_token }}" }
+        run: |
+          P=ssc-crm-a7224
+          perms='["run.services.create","run.services.get","run.services.update","run.services.setIamPolicy","run.operations.get","iam.serviceAccounts.actAs","serviceusage.services.enable","serviceusage.services.list","cloudfunctions.functions.create","cloudbuild.builds.create","firebasehosting.sites.update","resourcemanager.projects.getIamPolicy"]'
+          curl -s -X POST -H "Authorization: Bearer $TOK" -H "Content-Type: application/json" "https://cloudresourcemanager.googleapis.com/v1/projects/$P:testIamPermissions" -d "{\"permissions\":$perms}" > p.json
+          echo "::notice::allowed: $(tr -d '\n ' < p.json | head -c 900)"
+          for s in run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com cloudfunctions.googleapis.com firestore.googleapis.com; do
+            st=$(curl -s -H "Authorization: Bearer $TOK" "https://serviceusage.googleapis.com/v1/projects/$P/services/$s" | grep -o '"state": *"[A-Z_]*"' | head -1)
+            echo "::notice::$s $st"; done
+          code=$(curl -s -o r.json -w "%{http_code}" -H "Authorization: Bearer $TOK" "https://run.googleapis.com/v2/projects/$P/locations/us-central1/services")
+          echo "::notice::list Cloud Run services answered $code $(head -c 200 r.json | tr '\n' ' ')"
+          n=$(curl -s -H "Authorization: Bearer $TOK" "https://cloudresourcemanager.googleapis.com/v1/projects/$P" | grep -o '"projectNumber": *"[0-9]*"'); echo "::notice::$n"
