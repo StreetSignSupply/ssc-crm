@@ -201,6 +201,20 @@ await pg.setViewportSize({ width: 1400, height: 900 });
   await pg.evaluate(() => { location.hash = "#/tasks"; }); await pg.waitForTimeout(500);
   const tk = await pg.evaluate(() => (document.querySelector(".main") || {}).innerText || "");
   if (!/at 2:30 PM/.test(tk)) bad.push("a task's time doesn't show on the Tasks page"); }
+// a task made by mistake can be deleted from its ⋯ menu (to the recycle bin)
+{ const ok = await pg.evaluate(() => { const b = document.querySelector('[data-actdel="x2"]'); if (!b) return "no delete"; b.click(); return "ok"; });
+  if (ok !== "ok") bad.push("a task has no Delete in its menu"); else { await pg.waitForTimeout(300);
+    // (the test database doesn't keep writes, so this checks the confirm step, then cancels)
+    const m = await pg.evaluate(() => { const x = document.querySelector(".mbox"); const t = x ? x.innerText : ""; const c = x && x.querySelector("[data-close]"); if (c) c.click(); return t; });
+    await pg.waitForTimeout(350);
+    if (!/Delete this task\?/.test(m) || !/recycle bin/.test(m)) bad.push("deleting a task doesn't ask first (" + m.slice(0, 40) + ")"); } }
+// a project made by mistake (nothing in it yet) offers to delete itself
+{ await pg.evaluate(() => { location.hash = "#/project/p2"; }); await pg.waitForTimeout(600);
+  const t = await pg.evaluate(() => (document.querySelector(".main") || {}).innerText || "");
+  if (!/Made this project by mistake/.test(t)) bad.push("an empty new project doesn't offer to delete it");
+  await pg.evaluate(() => { location.hash = "#/project/p1"; }); await pg.waitForTimeout(500);
+  const t1 = await pg.evaluate(() => (document.querySelector(".main") || {}).innerText || "");
+  if (/Made this project by mistake/.test(t1)) bad.push("a project with quote lines and a work order offers the made-by-mistake delete"); }
 // the owner sees quotes the team made, to review before anything is sent
 { await pg.evaluate(() => { location.hash = "#/home"; }); await pg.waitForTimeout(500);
   const rb = await pg.evaluate(() => { const b = document.querySelector("[data-rvopen]"); return b ? b.closest(".alert").innerText : ""; });

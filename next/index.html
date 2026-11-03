@@ -4994,7 +4994,7 @@ async function wizFinish(){
       logEvent("contact",cid,"Contact created in New quote");
     }
     const pid=uid("p"),pnum=await nextNum("nextProject",2001);
-    await setDoc("projects/"+pid,{id:pid,num:pnum,name:w.proj.name,scope:w.proj.scope||"",accountId:aid,stage:w.proj.stage,amount:"",
+    await setDoc("projects/"+pid,{id:pid,num:pnum,createdById:meId()||"",name:w.proj.name,scope:w.proj.scope||"",accountId:aid,stage:w.proj.stage,amount:"",
       start:"",due:w.proj.due,po:w.proj.po,quote:"",source:"Phone",invNum:"",shipTo:"",drive:"",notes:"",
       stageLog:[{stage:w.proj.stage,at:now,who:me()}],reorderOf:"",contacts:cid?[cid]:[],repId:"",
       amountAuto:true,billWhen:w.proj.billWhen,billStatus:"none",billDate:"",paidDate:"",depositAmt:"",
@@ -5339,6 +5339,16 @@ const BILLSTATE=[
   {id:"invoiced", label:"Invoiced", c:"b"},
   {id:"paid",     label:"Paid in full", c:"g"}];
 function billWhen(p){return (p&&p.billWhen)||"after"}
+// a project made by mistake: owners and office can always delete one; the person who made it can too while it's
+// still empty of real business — no work orders, PO, invoice, payment or signed paperwork, and no one else's files
+function projMine(p){if(!p)return false;const mid=String(meId()||"-");return String(p.createdById||"")===mid
+  ||(!p.createdById&&String(((p.stageLog||[])[0]||{}).who||"").toUpperCase()===String(me()).toUpperCase()&&!!me())}
+function projSafeDel(p){if(!p)return false;if(jobsOf(p.id).length||String(p.po||"").trim()||String(p.invNum||"").trim())return false;
+  if(["invoiced","paid","deposit"].indexOf(billState(p))>=0)return false;
+  return !filesOf("project",p.id).some(f=>/^Signed|Purchase order|Invoice/.test(f.cat||"")||(f.byId&&String(f.byId)!==String(meId()||"-")))}
+function canDelProj(p){return can("del")||(projMine(p)&&projSafeDel(p))}
+function projLooksEmpty(p){return p&&!(p.orderLines||[]).length&&!jobsOf(p.id).length&&!filesOf("project",p.id).length&&!String(p.po||"").trim()
+  &&Date.now()-(Number(p.createdAt)||0)<14*864e5}
 function billState(p){return (p&&p.billStatus)||"none"}
 function billLabel(p){const b=BILLSTATE.find(x=>x.id===billState(p));return b?b.label:"Not invoiced"}
 function billPill(p){
@@ -11056,7 +11066,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-140";
+const APP_VERSION="2026.11.25-141";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -11204,6 +11214,12 @@ async function taskToggle(taskId,done){
 // who may change a logged note, call or email: owners and office, and the person who wrote it
 function actCanEdit(x){if(!x||x.pre)return false;const lvl=myAccess();if(lvl==="owner"||lvl==="office")return true;
   const mine=String(x.whoId||"")===String(meId()||"-")||(String(x.who||"").toUpperCase()===String(me()).toUpperCase()&&x.who!=="AI");return !!mine}
+// who may delete an activity entry made by mistake (a task, note, call, logged email): owners and office, the person who
+// wrote it, and for a task the person who gave it; deleting sends it to the recycle bin
+function actCanDelete(x){if(!x)return false;const lvl=myAccess();if(lvl==="owner"||lvl==="office")return true;
+  const mid=String(meId()||"-");if(String(x.whoId||"")===mid||String(x.assignedById||"")===mid)return true;
+  return String(x.who||"").toUpperCase()===String(me()).toUpperCase()&&x.who!=="AI"}
+function actWord(x){const k=actKind(x);return k==="task"?"task":k==="note"?"note":"entry"}
 function actEditModal(id){const x=S.activity.get(id);if(!x||!actCanEdit(x))return;
   openModal(mshell("Edit "+(actKind(x)==="note"?"note":"entry"),"",`<div class="fgrid">${inp("ae-subj","Subject",x.subject||"","text",1)}
     <div class="fld full"><div class="k">Text</div><textarea id="ae-text" rows="6" style="width:100%">${esc(x.text||"")}</textarea></div></div>`,
@@ -11245,8 +11261,8 @@ function activityRow(x){
           ${!x.done&&as&&as.email&&!window.sscHosted?`<a class="btn sm" style="padding:2px 8px;font-size:12px;text-decoration:none"
             href="${esc(mailLink(as.email,"Task: "+(x.text||"").slice(0,60),(x.text||"")+"\n\n"+recTitle(x),{cc:false}))}"${mailTarget()}>Email them</a>`:""}
         </div>
-        <time>assigned ${esc(stampFull(x.assignedAt||x.at))}${x.assignedByName?" by "+esc(x.assignedByName):x.who?" by "+esc(x.who):""}</time>`})()
-      :`<time>${x.when?fmtDate(x.when)+" · ":""}${fmtTs(x.at)} · ${esc(x.who||"")}</time>${actCanEdit(x)?`<span class="actedit">${rowMenu(`<button data-actedit="${esc(x.id)}">Edit this ${k==="note"?"note":"entry"}…</button><button class="danger" data-actdel="${esc(x.id)}">Delete this ${k==="note"?"note":"entry"}…</button>`)}</span>`:""}`}
+        <time>assigned ${esc(stampFull(x.assignedAt||x.at))}${x.assignedByName?" by "+esc(x.assignedByName):x.who?" by "+esc(x.who):""}</time>${actCanDelete(x)?`<span class="actedit">${rowMenu(`${!x.done?`<button data-tkre="${esc(x.id)}">Change time / reassign…</button>`:""}<button class="danger" data-actdel="${esc(x.id)}">Delete this task…</button>`)}</span>`:""}`})()
+      :`<time>${x.when?fmtDate(x.when)+" · ":""}${fmtTs(x.at)} · ${esc(x.who||"")}</time>${actCanEdit(x)||actCanDelete(x)?`<span class="actedit">${rowMenu(`${actCanEdit(x)?`<button data-actedit="${esc(x.id)}">Edit this ${k==="note"?"note":"entry"}…</button>`:""}<button class="danger" data-actdel="${esc(x.id)}">Delete this ${k==="note"?"note":"entry"}…</button>`)}</span>`:""}`}
     </div></li>`;
 }
 // A labelled row of actions, grouped by what they're for.
@@ -11294,6 +11310,7 @@ function projectRec(id){
   return `<div class="pad">
     ${crumbBar(crumbsForProject(p))}
     ${nextStep("project",p)}
+    ${projLooksEmpty(p)&&canDelProj(p)?`<div class="alert" style="margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:200px">Made this project by mistake? It has nothing in it yet, so you can delete it.</span><button class="btn sm" data-del="project:${esc(id)}">Delete this project</button></div>`:""}
     ${(p.stage==="shipped"&&!billingFor(p))?`<div class="alert amber" style="margin-bottom:14px">
       <span>This is shipped and ready to invoice, but no billing contact is set.</span>
       <span class="sp"><button class="btn sm" data-billing="project:${esc(id)}">Set it now</button></span></div>`:""}
@@ -14308,7 +14325,7 @@ function projectModal(p,aid,then){
       billWhen:$("#f-billwhen")?$("#f-billwhen").value:(p.billWhen||"after"),
       billStatus:p.billStatus||"none",billDate:p.billDate||"",paidDate:p.paidDate||"",
       depositAmt:p.depositAmt||"",deleted:false,internal:$("#f-internal")?$("#f-internal").checked:!!p.internal,
-      createdAt:p.createdAt||Date.now(),updatedAt:Date.now()};
+      createdById:p.createdById||(p.id?"":meId()||""),createdAt:p.createdAt||Date.now(),updatedAt:Date.now()};
     // Edit project can't close it without the paperwork either (the database rules refuse it too)
     if(stage==="closed"&&p.stage!=="closed"){const miss=closePaperMissing(p.id?p:rec);
       if(miss.length)return toast("It can't be Closed won yet — missing: "+miss.join("; ")+".");rec.closePaper=closePaper(p)}
@@ -17215,7 +17232,8 @@ function bind(){
         const to0=em?decodeURIComponent(em[1]):"";
         composeModal(sc==="project"?{pid:rid,contactId:cid,to:to0,tpl:"blank"}:{aid:sc==="account"?rid:"",contactId:cid,to:to0,tpl:"blank"});return}
       if(ml)mailPreLog(ml.dataset.maillog)}   // noted, and the link opens as usual
-    if(t.closest("[data-del]")&&!can("del")){toast("Your access level can't delete — ask the owner.");return}
+    {const dl0=t.closest("[data-del]");if(dl0&&!can("del")){const[k0,i0]=String(dl0.dataset.del).split(":");
+      if(!(k0==="project"&&canDelProj(proj(i0)))){toast(k0==="project"?"Only a project you made, with no work order, PO or invoice yet, can be deleted at your access level — ask the owner.":"Your access level can't delete — ask the owner.");return}}}
     if(t.closest("[data-go=settings]")&&!can("settings")){toast("Settings are for the owner.");return}
     const ptb=t.closest("[data-ptab]");if(ptb){S.ptab=ptb.dataset.ptab;render();return}
     const hi=t.closest(".helpi");
@@ -17440,10 +17458,11 @@ function bind(){
       closeModal();toast("All caught up");return}
     const tkr=t.closest("[data-tkre]");if(tkr){const a=S.activity.get(tkr.dataset.tkre);if(a)taskModal(a.recType,a.recId,a);return}
     {const ae=t.closest("[data-actedit]");if(ae){const dd0=ae.closest("details");if(dd0)dd0.open=false;actEditModal(ae.dataset.actedit);return}}
-    {const ad=t.closest("[data-actdel]");if(ad){const dd0=ad.closest("details");if(dd0)dd0.open=false;const x=S.activity.get(ad.dataset.actdel);if(!x||!actCanEdit(x))return;
-      askConfirm("Delete this "+(actKind(x)==="note"?"note":"entry")+"?","<p style=\"margin:0\">It goes to the recycle bin with everything else that's deleted, and the change is kept in the record's history.</p>","Delete",true,async()=>{
+    {const ad=t.closest("[data-actdel]");if(ad){const dd0=ad.closest("details");if(dd0)dd0.open=false;const x=S.activity.get(ad.dataset.actdel);if(!x||!actCanDelete(x))return;
+      askConfirm("Delete this "+actWord(x)+"?","<p style=\"margin:0\">It goes to the recycle bin with everything else that's deleted, and the change is kept in the record's history.</p>","Delete",true,async()=>{
         await push("activity/"+x.id,{deleted:true,deletedAt:Date.now(),deletedBy:me(),updatedAt:Date.now()});
-        if(x.recType&&x.recId)recordHistory(x.recType,x.recId,[{f:"Activity",o:String(x.text||"").slice(0,120),n:"Deleted",ev:1}]);toast("Deleted")});return}}
+        if(actKind(x)==="task")live(S.notifications).filter(n=>n.taskId===x.id&&!n.read).forEach(n=>{push("notifications/"+n.id,{read:true}).catch(()=>{})});
+        if(x.recType&&x.recId)recordHistory(x.recType,x.recId,[{f:actKind(x)==="task"?"Task":"Activity",o:String(x.text||"").slice(0,120),n:"Deleted",ev:1}]);toast("Deleted — it's in the recycle bin if you need it back")});return}}
     const tks=t.closest("[data-tksave]");if(tks){const[k,i2,ex]=tks.dataset.tksave.split("|");taskSave(k,i2,ex);return}
     if(t.closest("[data-signout]")&&typeof window.sscSignOut==="function"){window.sscSignOut();return}
     const pt=t.closest("[data-prodtype]");if(pt){prodTypeModal(pt.dataset.prodtype||"");return}
@@ -17799,6 +17818,7 @@ function bind(){
 
     const dl=t.closest("[data-del]");if(dl){const[k,id]=dl.dataset.del.split(":");const dd0=dl.closest("details");if(dd0)dd0.open=false;delModal(k,id,!!dl.dataset.typed);return}
     const dd=t.closest("[data-dodel]");if(dd){const[k,id]=dd.dataset.dodel.split(":");
+      if(!can("del")&&!(k==="project"&&canDelProj(proj(id)))){closeModal();toast("Your access level can't delete — ask the owner.");return}
       const ty=$("#deltype");if(ty&&String(ty.value||"").trim().toLowerCase()!=="delete"){toast("Type delete to confirm.");ty.focus();return}
       softDelete(k,id);return}
     const rs=t.closest("[data-restore]");

@@ -1,5 +1,11 @@
 # What changed
 
+## 2026.11.25-141 (delete tasks and projects made by mistake)
+- Tasks: every task has a **⋯** menu with **Delete this task…** (and Change time / reassign). It asks first, goes to the recycle bin, and clears its unread bell notice. Allowed for owners and office, whoever gave the task, and whoever made it.
+- Activity: anything logged wrong — a note, call, email entry, including the "Email opened to …" placeholders — can be deleted from its ⋯ menu by owners, office or the person who logged it.
+- Projects: a new project with nothing in it yet shows **"Made this project by mistake? … Delete this project"** at the top. Owners and office can still delete any project (More → Delete this project). Sales can now delete a project **they made** as long as it has no work order, PO, invoice, payment or signed paperwork.
+- Everything deleted lands in Settings → Recycle bin and can be restored.
+
 ## 2026.11.25-140 (billing address, task times)
 - Accounts: a **"Billing address is different"** tick box on the account form. Tick it and the billing street/PO box, city, state and ZIP boxes appear. The account's Billing card shows it, quotes and invoices use it as **Bill to** (Ship to stays the physical address), and it goes to the accounting/QuickBooks hand-off. Untick it and everything uses the physical address as before.
 - Tasks: a **time** (optional) beside the due date. It shows as "due Nov 5 at 2:30 PM", tasks sort by date then time, a task is late once its time has passed, and the person it's for gets a bell notice when the time comes. The task button is now "Change time / reassign".
