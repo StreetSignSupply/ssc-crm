@@ -29,4 +29,8 @@ jobs:
             echo "::notice::$s $st"; done
           code=$(curl -s -o r.json -w "%{http_code}" -H "Authorization: Bearer $TOK" "https://run.googleapis.com/v2/projects/$P/locations/us-central1/services")
           echo "::notice::list Cloud Run services answered $code $(head -c 200 r.json | tr '\n' ' ')"
-          n=$(curl -s -H "Authorization: Bearer $TOK" "https://cloudresourcemanager.googleapis.com/v1/projects/$P" | grep -o '"projectNumber": *"[0-9]*"'); echo "::notice::$n"
+          B=ssc-crm-a7224.firebasestorage.app
+          sp='permissions=storage.buckets.get&permissions=storage.buckets.update&permissions=storage.buckets.setIamPolicy&permissions=storage.buckets.getIamPolicy&permissions=storage.objects.create&permissions=storage.objects.list&permissions=storage.objects.get&permissions=storage.objects.setIamPolicy&permissions=storage.buckets.create'
+          curl -s -H "Authorization: Bearer $TOK" "https://storage.googleapis.com/storage/v1/b/$B/iam/testPermissions?$sp" > s.json; echo "::notice::storage allowed: $(tr -d '\n ' < s.json | head -c 700)"
+          curl -s -H "Authorization: Bearer $TOK" "https://storage.googleapis.com/storage/v1/b/$B?fields=iamConfiguration,logging,location" > b.json; echo "::notice::bucket: $(tr -d '\n ' < b.json | head -c 500)"
+          curl -s -X POST -H "Authorization: Bearer $TOK" -H "Content-Type: application/json" "https://cloudresourcemanager.googleapis.com/v1/projects/$P:testIamPermissions" -d '{"permissions":["storage.buckets.create","storage.buckets.list","logging.sinks.create","logging.logEntries.list","pubsub.topics.create"]}' > q.json; echo "::notice::project storage/logging: $(tr -d '\n ' < q.json | head -c 400)"
