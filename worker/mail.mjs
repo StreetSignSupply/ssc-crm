@@ -389,13 +389,17 @@ async function signFollow() {
 // (to the person it's for and whoever assigned it)
 const mtDay = (ms) => new Date(ms).toLocaleDateString("en-CA", { timeZone: "America/Denver" });
 const mtHour = () => Number(new Date().toLocaleString("en-US", { timeZone: "America/Denver", hour: "numeric", hour12: false }));
+// a task's time of day ("14:30") as "2:30 PM", and the Mountain clock as "HH:MM"
+const hm12 = (t) => { const m = /^(\d{1,2}):(\d{2})/.exec(String(t || "")); if (!m) return ""; let h = +m[1]; const ap = h >= 12 ? "PM" : "AM"; h = h % 12 || 12; return h + ":" + m[2] + " " + ap; };
+const mtHM = () => new Date().toLocaleTimeString("en-GB", { timeZone: "America/Denver", hour: "2-digit", minute: "2-digit", hour12: false });
+const dueTxt = (a) => a.due + (a.dueTime ? " at " + hm12(a.dueTime) : "");
 async function taskMail() {
   const today = mtDay(Date.now()); const syncRef = fs.doc("settings/mailsync"); const sy = (await syncRef.get()).data() || {};
   const tasks = (await docsOf("tasks", fs.collection("activity").where("kind", "==", "task"))).map((d) => Object.assign({ _ref: d.ref, id: d.id }, d.data())).filter((t) => !t.done && !t.deleted);
   const team = (await docsOf("all_team", fs.collection("team"))).map((d) => Object.assign({ id: d.id }, d.data())).filter((t) => !t.deleted && isOurs(t.email));
   const mine = (t, a) => a.assigneeId ? a.assigneeId === t.id : a.whoId ? a.whoId === t.id : String(a.who || "").toUpperCase() === String(t.initials || "").toUpperCase();
   const link = (a) => "https://crm.streetsignsupply.com/#/" + (a.recType === "project" ? "project/" : a.recType === "job" ? "job/" : a.recType === "contact" ? "contact/" : "account/") + a.recId;
-  const line = (a) => "• " + String(a.text || "").slice(0, 140) + (a.due ? " (due " + a.due + ")" : "") + "\n  " + link(a);
+  const line = (a) => "• " + String(a.text || "").slice(0, 140) + (a.due ? " (due " + dueTxt(a) + ")" : "") + "\n  " + link(a);
   // assignment notices: the bell for every task given to someone, once per assignment (reassigning sends a new one). Tasks older than two days are marked quietly.
   const allTeam = (await docsOf("all_team", fs.collection("team"))).map((d) => Object.assign({ id: d.id }, d.data())).filter((t) => !t.deleted);
   const bells = (await docsOf("bells", fs.collection("notifications").where("kind", "==", "task-assigned"))).map((d) => d.data());
@@ -404,7 +408,7 @@ async function taskMail() {
     const when = Number(a.assignedAt) || Number(a.at) || 0;
     if (when < Date.now() - 2 * 864e5) { await a._ref.set({ assignNoticed: Date.now() }, { merge: true }); continue; }
     const who = allTeam.find((t) => t.id === a.assigneeId); if (!who) { await a._ref.set({ assignNoticed: Date.now() }, { merge: true }); continue; }
-    const txt = String(a.text || "").slice(0, 300) + (a.due ? " — due " + a.due : "");
+    const txt = String(a.text || "").slice(0, 300) + (a.due ? " — due " + dueTxt(a) : "");
     if (!bells.some((n) => n.taskId === a.id && n.toId === who.id && (Number(n.at) || 0) >= when - 120000)) {
       const nid = "nt" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
       await fs.doc("notifications/" + nid).set({ id: nid, toId: who.id, fromId: a.assignedById || "", fromName: a.assignedByName || "the CRM", kind: "task-assigned", text: txt, link: recPath(a), taskId: a.id, at: Date.now(), read: false, deleted: false });
@@ -419,6 +423,15 @@ async function taskMail() {
         text: txt + "\n\nFrom " + (a.assignedByName || "the CRM") + "\n\nOpen it: " + link(a) + "\nAll your tasks: https://crm.streetsignsupply.com/#/tasks" } });
       n.assignMail = (n.assignMail || 0) + 1; }
     await a._ref.set({ assignNoticed: Date.now() }, { merge: true }); }
+  // a task with a time: the bell rings for the person it's for when that time comes (once)
+  const nowHM = mtHM();
+  for (const a of tasks.filter((x) => x.dueTime && x.due === today && !x.timeNoticed && nowHM >= x.dueTime)) {
+    const who = a.assigneeId ? allTeam.find((t) => t.id === a.assigneeId) : allTeam.find((t) => mine(t, a));
+    if (who) { const nid = "nt" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      await fs.doc("notifications/" + nid).set({ id: nid, toId: who.id, fromId: a.assignedById || "", fromName: a.assignedByName || "the CRM", kind: "task-due",
+        text: "Due now (" + hm12(a.dueTime) + "): " + String(a.text || "").slice(0, 280), link: recPath(a), taskId: a.id, at: Date.now(), read: false, deleted: false });
+      n.dueNow = (n.dueNow || 0) + 1; }
+    await a._ref.set({ timeNoticed: Date.now() }, { merge: true }); }
   if (mtHour() >= 7 && sy.digestDay !== today) {
     for (const t of team.filter((x) => x.taskMail !== false)) { const due = tasks.filter((a) => mine(t, a) && a.due && a.due <= today); if (!due.length) continue;
       const over = due.filter((a) => a.due < today), now0 = due.filter((a) => a.due === today);
@@ -430,7 +443,7 @@ async function taskMail() {
     if (a.due < mtDay(Date.now() - 3 * 864e5)) { await a._ref.set({ overdueNotified: Date.now() }, { merge: true }); continue; }
     const to = [...new Set(team.filter((t) => mine(t, a) || t.id === a.assignedById).map((t) => t.email))];
     if (to.length) await fs.collection("mail").add({ to, status: "queued", kind: "notice", at: Date.now(), message: { subject: "Overdue task: " + String(a.text || "").slice(0, 70),
-      text: "This task was due " + a.due + " and isn't done yet" + (a.assigneeName ? " (assigned to " + a.assigneeName + ")" : "") + ":\n\n" + line(a) } });
+      text: "This task was due " + dueTxt(a) + " and isn't done yet" + (a.assigneeName ? " (assigned to " + a.assigneeName + ")" : "") + ":\n\n" + line(a) } });
     await a._ref.set({ overdueNotified: Date.now() }, { merge: true }); n.overdue = (n.overdue || 0) + 1; }
 }
 // AI drafts for the website's compose screen, written with GitHub's free AI models (the workflow's own token — no key,

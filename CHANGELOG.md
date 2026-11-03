@@ -1,5 +1,10 @@
 # What changed
 
+## 2026.11.25-140 (billing address, task times)
+- Accounts: a **"Billing address is different"** tick box on the account form. Tick it and the billing street/PO box, city, state and ZIP boxes appear. The account's Billing card shows it, quotes and invoices use it as **Bill to** (Ship to stays the physical address), and it goes to the accounting/QuickBooks hand-off. Untick it and everything uses the physical address as before.
+- Tasks: a **time** (optional) beside the due date. It shows as "due Nov 5 at 2:30 PM", tasks sort by date then time, a task is late once its time has passed, and the person it's for gets a bell notice when the time comes. The task button is now "Change time / reassign".
+- Dark mode: the little counts on the Activity filter buttons were hard to read; fixed.
+
 ## 2026.11.25-139
 - Phone: the bell's list of notifications (like "Quote … was opened by …") ran off the right edge of the screen, hiding the time and the Open button; it's now a full-width sheet under the top bar.
 - The "opened" alerts were tested live end to end (a TEST link on P-2030: opened like a customer's phone does → bell notification and email to its creator only).

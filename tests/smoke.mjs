@@ -13,7 +13,8 @@ const D = {
   // t1 (the person signed in) is an older owner record with no level set, and another record is set to owner explicitly —
   // the owner must still get Settings (release -119..-128 turned such a record into Shop)
   team: { t1: { name: "Test Owner", initials: "TO", claudeId: "u1", email: "owner@example.com" }, t9: { name: "Second Owner", initials: "SO", access: "owner", email: "owner2@example.com" }, t2: { name: "Test Sales", initials: "TS", access: "sales", email: "sales@example.com" } },
-  accounts: { a1: { name: "Test County", city: "Town", state: "UT", type: "Government agency", terms: "Net 30", repId: "t1" }, a2: { name: "Test Contractor", type: "Contractor", terms: "Prepay" },
+  accounts: { a1: { name: "Test County", street: "1 Main St", city: "Town", state: "UT", type: "Government agency", terms: "Net 30", repId: "t1",
+    billDiff: true, billStreet: "PO Box 77", billCity: "Town", billState: "UT", billZip: "84000" }, a2: { name: "Test Contractor", type: "Contractor", terms: "Prepay" },
     // a vendor that was also entered as an account: it has to be offered as a vendor, not left as a Lead
     a3: { name: "Test Plastics Inc", type: "Contractor", createdAt: now } },
   contacts: { c1: { name: "Pat Example", accountId: "a1", email: "pat@example.com", phone: "4355550100", role: "Buyer" }, c2: { name: "Lee Sample", accountId: "a2", phone: "4355550101", role: "Buyer" } },
@@ -34,7 +35,9 @@ const D = {
   files: { f1: { name: "Proof.png", type: "image/png", url: "", cat: "Artwork proof", projectId: "p1", accountId: "a1", at: now },
     // a quote PDF a sales rep made (like the sales agent's starter quotes): it has to show on the owner's review list
     f2: { name: "Quote-Q-1001.pdf", type: "application/pdf", url: "", cat: "Quote", gen: "quote", qhash: "old", projectId: "p1", accountId: "a1", byId: "t2", who: "Test Sales", at: now } },
-  activity: { x1: { id: "x1", recType: "account", recId: "a1", kind: "note", type: "call", text: "Called about the bid", contactId: "c1", at: now - day, when: new Date(now - day).toISOString().slice(0, 10) } },
+  activity: { x1: { id: "x1", recType: "account", recId: "a1", kind: "note", type: "call", text: "Called about the bid", contactId: "c1", at: now - day, when: new Date(now - day).toISOString().slice(0, 10) },
+    x2: { id: "x2", recType: "account", recId: "a1", kind: "task", type: "task", text: "Call back about the bid", assigneeId: "t1", whoId: "t1", who: "TO", at: now,
+      due: new Date(now + 2 * day).toISOString().slice(0, 10), dueTime: "14:30", done: false } },
   events: {}, history: {}, invtx: {}, notifications: {}, reminders: {}, access: { "u1": { role: "owner", teamId: "t1" }, "owner@example.com": { role: "owner", teamId: "t1" } } };
 const ROUTES = ["home", "mybook", "accounts", "account/a1", "contacts", "contact/c1", "projects", "project/p1", "project/p2", "jobs", "job/1001", "tracker", "calendar",
   "files", "purchasing", "inventory", "item/i1", "stencils", "vendors", "vendor/v1", "reports", "audit", "archive", "bin", "settings", "new"];
@@ -183,6 +186,21 @@ await pg.setViewportSize({ width: 1400, height: 900 });
   await pg.evaluate(() => { location.hash = "#/new"; }); await pg.waitForTimeout(500);
   const wn = await pg.evaluate(() => (document.querySelector(".main") || {}).innerText || "");
   if (!/New accounts/.test(wn) || !/Test Plastics Inc/.test(wn)) bad.push("What's new doesn't list an account added today"); }
+// a separate billing address: on the account's Billing card, and the form shows its boxes only when ticked
+{ await pg.evaluate(() => { location.hash = "#/account/a1"; }); await pg.waitForTimeout(600);
+  const tx = await pg.evaluate(() => (document.querySelector(".main") || {}).innerText || "");
+  if (!/PO Box 77/.test(tx)) bad.push("the account's billing address doesn't show on its page");
+  if (!/Physical address/.test(tx) || !/1 Main St/.test(tx)) bad.push("the account page doesn't show the physical address beside a different billing address");
+  await pg.evaluate(() => { const b = document.querySelector('[data-edit="account:a1"]'); if (b) b.click(); }); await pg.waitForTimeout(400);
+  const f = await pg.evaluate(() => { const box = document.getElementById("f-billbox"), c = document.getElementById("f-billdiff"); if (!box || !c) return null;
+    const on = box.offsetParent !== null && document.getElementById("f-bstreet").value === "PO Box 77"; c.click(); const off = box.offsetParent === null; return { on, off }; });
+  if (!f) bad.push("the account form has no billing address option"); else if (!f.on || !f.off) bad.push("the account form's billing address boxes don't show and hide with the tick box");
+  await pg.keyboard.press("Escape"); await pg.waitForTimeout(350);
+  await pg.evaluate(() => { const b = document.querySelector(".mbox [data-close]"); if (b) b.click(); }); await pg.waitForTimeout(350);
+  // a task with a time shows it
+  await pg.evaluate(() => { location.hash = "#/tasks"; }); await pg.waitForTimeout(500);
+  const tk = await pg.evaluate(() => (document.querySelector(".main") || {}).innerText || "");
+  if (!/at 2:30 PM/.test(tk)) bad.push("a task's time doesn't show on the Tasks page"); }
 // the owner sees quotes the team made, to review before anything is sent
 { await pg.evaluate(() => { location.hash = "#/home"; }); await pg.waitForTimeout(500);
   const rb = await pg.evaluate(() => { const b = document.querySelector("[data-rvopen]"); return b ? b.closest(".alert").innerText : ""; });
