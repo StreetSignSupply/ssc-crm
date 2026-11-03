@@ -546,8 +546,8 @@ td.mono[style*="text-align:right"],th[style*="text-align:right"]{white-space:now
 .btn.tyb:hover{filter:brightness(.97);border-color:var(--tf)!important}
 .btn.tyb.on{background:var(--tf)!important;color:var(--card)!important;border-color:var(--tf)!important}
 .btn.tyb.on .ic{color:var(--card)!important}
-.btn.tyb .n{display:inline-block;min-width:16px;padding:0 5px;margin-left:2px;border-radius:999px;background:rgba(255,255,255,.55);font-size:11px;line-height:16px;text-align:center}
-.btn.tyb.on .n{background:rgba(255,255,255,.25)}
+.btn.tyb .n{display:inline-block;min-width:16px;padding:0 5px;margin-left:2px;border-radius:999px;background:color-mix(in srgb,currentColor 14%,transparent);font-size:11px;line-height:16px;text-align:center}
+.btn.tyb.on .n{background:color-mix(in srgb,currentColor 22%,transparent)}
 
 .c-file{--cb:#526E7C}.c-cal{--cb:#7A3E9D}.c-quote{--cb:#35635B}.c-money{--cb:#1F7A42}.c-signed{--cb:#1F7A42}
 .pickone{display:block}
@@ -1715,6 +1715,7 @@ const LBL={
   account:{name:"Name",type:"Type",terms:"Terms",phone:"Phone",website:"Website",street:"Street",
     city:"City",state:"State",zip:"ZIP",qb:"QuickBooks name",exempt:"Tax exempt",exemptExp:"Cert expires",
     billingContactId:"Billing contact",repId:"Sales rep",
+    billDiff:"Billing address is different",billStreet:"Billing street",billCity:"Billing city",billState:"Billing state",billZip:"Billing ZIP",
     drive:"Drive folder",notes:"Notes"},
   contact:{name:"Name",accountId:"Account",role:"Role",title:"Title",email:"Email",phone:"Phone",
     mobile:"Mobile",primary:"Primary",notes:"Notes"},
@@ -2958,6 +2959,10 @@ function teamModal(t){
   focusFirst("t-name");
 }
 function contactName(cid){const c=cid?S.contacts.get(cid):null;return c&&!c.deleted?c.name:""}
+// where invoices are mailed: the billing address when it's set as different, else the physical address
+function acctHasBill(a){return !!(a&&a.billDiff&&[a.billStreet,a.billCity,a.billState,a.billZip].some(x=>String(x||"").trim()))}
+function acctPhysAddr(a){a=a||{};return [a.street,a.city,a.state,a.zip].filter(Boolean).join(", ")}
+function acctBillAddr(a){a=a||{};return acctHasBill(a)?[a.billStreet,a.billCity,a.billState,a.billZip].filter(Boolean).join(", "):acctPhysAddr(a)}
 function billingFor(p){
   if(p&&p.billingContactId){const c=S.contacts.get(p.billingContactId);if(c&&!c.deleted)return c}
   const a=p?acct(p.accountId):null;
@@ -3792,7 +3797,7 @@ function docHTML(p,kind){
   const qNote=b.quoteNote||("This quote is good for "+qDays+" days from the date above. Prices are per piece and include materials to the stated specification. Freight quoted separately where it applies. Lead time confirmed on order.");
   const lamLine=kind==="quote"&&!/overlaminate/i.test(qNote)&&lines.some(l=>{try{return l.src&&!isCharge(l.src)&&linePrinted(l.src)&&l.src.lam===true}catch(e){return false}});
   const word=kind==="quote"?(b.quoteWord||"Quote"):"Invoice";
-  const addr=[a.street,a.city,a.state,a.zip].filter(Boolean).join(", ");
+  const addr=acctBillAddr(a),physAddr=acctPhysAddr(a);
   const first=String((bc&&bc.name)||"").trim().split(/\s+/)[0]||"";
   const isHw=l=>{try{return !!(l.src&&lineProd(l.src)==="posts")}catch(e){return false}};
   // a supplemental plaque (R7-8P, W16-7P, "… plaque") is counted as a plaque, not a sign
@@ -3845,7 +3850,7 @@ function docHTML(p,kind){
   <div class="pad">
   <div class="meta">
     <div><b>${kind==="quote"?"Prepared for":"Bill to"}</b><span class="big">${esc(a.name||"")}</span>${bc?"Attn: "+esc(bc.name)+"<br>":""}${esc(addr)}</div>
-    <div><b>Ship to</b>${esc(p.shipTo||addr||"Same as billing")}${((p.ship||{}).method)==="Will call"?"<br>Will call — pick up in Washington, UT":""}</div>
+    <div><b>Ship to</b>${esc(p.shipTo||physAddr||addr||"Same as billing")}${((p.ship||{}).method)==="Will call"?"<br>Will call — pick up in Washington, UT":""}</div>
     <div><b>Project</b><span class="big">${esc(p.name||"")}</span>P-${p.num}${p.po?"<br>PO "+esc(p.po):""}</div>
     <div><b>${kind==="quote"?"Details":"Details"}</b>
       <div class="kv"><i>Date</i><span>${f(when)}</span></div>
@@ -4092,6 +4097,7 @@ async function docSave(p,kind){
 // Everywhere, pasting a whole address into a Street box splits it into street, city, state and ZIP.
 const ADDR_FIELDS={
   "f-street":{street:"f-street",city:"f-city",state:"f-state",zip:"f-zip"},
+  "f-bstreet":{street:"f-bstreet",city:"f-bcity",state:"f-bstate",zip:"f-bzip"},
   "v-street":{street:"v-street",city:"v-city",state:"v-state",zip:"v-zip"},
   "wz-aaddr":{single:true,keepParts:true},
   "f-ship":{single:true},
@@ -10322,7 +10328,7 @@ function home(){
   const unsignedWO=liveJobs().filter(realJob).filter(j=>j.status==="shipped"
     &&!filesOf("job",String(j.num)).some(f=>f.cat==="Signed work order"));
   const tasks=real(live(S.activity)).filter(a=>a.kind==="task"&&!a.done&&!a.deleted)
-    .sort((a,b)=>(a.due||"9999").localeCompare(b.due||"9999")).slice(0,8);
+    .sort((a,b)=>taskDueKey(a).localeCompare(taskDueKey(b))).slice(0,8);
   const attn=[];
   {const od0=pastDue();if(od0.length)attn.push({t:odBreak(od0)+" past due",h:"calendar",c:"r"})}
   if(toInv.length)attn.push({t:toInv.length+" project"+(toInv.length===1?"":"s")+" shipped and not invoiced",h:"projects",c:"o"});
@@ -10579,14 +10585,15 @@ function accountRec(id){
         <div><div class="k">Open work orders</div><div class="v mono">${js.length}</div></div></div></div>
     <div class="cols">
       <div>
-      <section class="card flush"${!billingForAccount(a)&&!a.qb?" data-defshut":""}><header><h2>Billing</h2>
+      <section class="card flush"${!billingForAccount(a)&&!a.qb&&!acctHasBill(a)?" data-defshut":""}><header><h2>Billing</h2>
         <span class="sp"><button class="btn sm" data-billing="account:${esc(id)}">
           ${billingForAccount(a)?"Change":"Set billing contact"}</button></span></header>
         <div class="fgrid">
           <div class="fld"><div class="k">Invoices go to</div>${billingBlock(billingForAccount(a),false,"account:"+id)}</div>
           ${fld("QuickBooks customer name",a.qb)}
           ${a.exempt?fld("Exemption certificate",a.exemptExp?"Expires "+fmtDate(a.exemptExp):"On file, no expiry recorded"):""}
-          ${fldHFull("Billing address",cxAddr([a.street,a.city,a.state,a.zip].filter(Boolean).join(", ")))}
+          ${fldHFull("Billing address",acctBillAddr(a)?cxAddr(acctBillAddr(a))+`<div class="sub">${acctHasBill(a)?"Different from the physical address — invoices are mailed here":"Same as the physical address"}</div>`
+            :`<span class="sub">Not on file — <button class="lnk" data-edit="account:${esc(id)}">add it</button></span>`)}
         </div></section>
       ${(function(){const d=acctDiscount(a);const cps=Object.entries(a.contractPrices||{});
         return `<section class="card flush"><header><h2>Special pricing</h2>
@@ -10607,7 +10614,7 @@ function accountRec(id){
         <div class="fgrid">${fldFull("Account name",a.name)}
           ${fldH("Phone",cxTel(a.phone))}${fldH("Website",cxWeb(a.website))}
           ${(function(){const ad=[a.street,[a.city,[a.state,a.zip].filter(Boolean).join(" ")].filter(Boolean).join(", ")].filter(Boolean).join(", ");
-            return fldHFull("Address",ad?cxAddr(ad):`<span class="sub">Not on file — <button class="lnk" data-edit="account:${esc(id)}">add it</button></span>`)})()}
+            return fldHFull(acctHasBill(a)?"Physical address":"Address",ad?cxAddr(ad):`<span class="sub">Not on file — <button class="lnk" data-edit="account:${esc(id)}">add it</button></span>`)})()}
           ${fld("Created",fmtTs(a.createdAt))}
           ${fldFull("Notes",a.notes)}</div></section>
       ${relContacts(cs,id)}
@@ -11030,6 +11037,12 @@ const ATYPE={
   task:{l:"Task",c:"o",i:"task",bg:"#A94E07"},
   log:{l:"Log",c:"s",i:"clock",bg:"var(--ink3)"}
 };
+// a task's due date and (optional) time: sort key, label and lateness
+function taskDueKey(a){return String(a.due||"9999")+" "+String(a.dueTime||"99:99")}
+function fmtHM(t){const m=/^(\d{1,2}):(\d{2})/.exec(String(t||""));if(!m)return "";let h=+m[1];const ap=h>=12?"PM":"AM";h=h%12||12;return h+":"+m[2]+" "+ap}
+function taskDueLabel(a){return a.due?fmtDate(a.due)+(a.dueTime?" at "+fmtHM(a.dueTime):""):(a.dueTime?"today at "+fmtHM(a.dueTime):"")}
+function taskLate(a){if(a.done||!a.due)return false;const td=today();if(a.due<td)return true;
+  if(a.due===td&&a.dueTime){const d=new Date(),n=String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");return n>a.dueTime}return false}
 function actKind(x){return x.kind==="task"?"task":(x.type||x.kind||"note")}
 function projActivity(pid){
   const out=actOf("project",pid).map(x=>Object.assign({},x,{_src:""}));
@@ -11043,7 +11056,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-139";
+const APP_VERSION="2026.11.25-140";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -11057,19 +11070,19 @@ function taskAssignee(a){
 // Tasks: everyone's open tasks in one list — mine first by default, overdue on top
 // My tasks on every dashboard: overdue, today, this week, later — the signed-in person's own
 function myTasksCard(){const me=S.viewerTeam;if(!me)return "";const td=today(),wk=addDays(td,7);
-  const mine=live(S.activity).filter(a=>actKind(a)==="task"&&!a.done&&taskIsMine(a,me)).sort((a,b)=>String(a.due||"9999").localeCompare(String(b.due||"9999")));
-  const g=[["Overdue",mine.filter(a=>a.due&&a.due<td),"r"],["Today",mine.filter(a=>a.due===td),"o"],["This week",mine.filter(a=>a.due&&a.due>td&&a.due<=wk),""],["Later / no date",mine.filter(a=>!a.due||a.due>wk),""]].filter(x=>x[1].length);
+  const mine=live(S.activity).filter(a=>actKind(a)==="task"&&!a.done&&taskIsMine(a,me)).sort((a,b)=>taskDueKey(a).localeCompare(taskDueKey(b)));
+  const g=[["Overdue",mine.filter(a=>taskLate(a)),"r"],["Today",mine.filter(a=>a.due===td&&!taskLate(a)),"o"],["This week",mine.filter(a=>a.due&&a.due>td&&a.due<=wk),""],["Later / no date",mine.filter(a=>!a.due||a.due>wk),""]].filter(x=>x[1].length);
   return `<section class="card flush"><header><h2>My tasks</h2><span class="n">${mine.length}</span><span class="sp"><a class="btn sm" href="#/tasks">All tasks</a></span></header>
     ${g.length?g.map(([l,list,c])=>`<div style="padding:8px 15px 0;font-size:12px;font-weight:800;color:${c==="r"?"var(--red)":c==="o"?"var(--orange-text)":"var(--ink2)"}">${esc(l)} · ${list.length}</div><ul class="act">${list.slice(0,8).map(activityRow).join("")}</ul>`).join("")
       :`<div class="empty">Nothing assigned to you is open.</div>`}</section>`}
 function tasksView(){const f=S.taskF||"mine",me=S.viewerTeam,td=today();
   const all=live(S.activity).filter(a=>actKind(a)==="task");
   const open=all.filter(a=>!a.done),mine=open.filter(a=>taskIsMine(a,me));
-  const list=(f==="mine"?mine:f==="overdue"?open.filter(a=>a.due&&a.due<td):f==="done"?all.filter(a=>a.done).sort((a,b)=>(b.doneAt||b.at||0)-(a.doneAt||a.at||0)).slice(0,60):open)
-    .slice().sort((a,b)=>f==="done"?0:String(a.due||"9999").localeCompare(String(b.due||"9999"))||(a.at||0)-(b.at||0));
+  const list=(f==="mine"?mine:f==="overdue"?open.filter(a=>taskLate(a)):f==="done"?all.filter(a=>a.done).sort((a,b)=>(b.doneAt||b.at||0)-(a.doneAt||a.at||0)).slice(0,60):open)
+    .slice().sort((a,b)=>f==="done"?0:taskDueKey(a).localeCompare(taskDueKey(b))||(a.at||0)-(b.at||0));
   const chip=(k,l,n)=>`<button class="btn sm segtab ${f===k?"on":""}" data-taskf="${k}">${esc(l)}${n!=null?` <span class="n">${n}</span>`:""}</button>`;
   return `<div class="pad"><section class="card flush"><header><h2>Tasks</h2>
-    <span class="sp" style="display:flex;flex-wrap:wrap;gap:2px">${chip("mine","Mine",mine.length)}${chip("all","Everyone's open",open.length)}${chip("overdue","Overdue",open.filter(a=>a.due&&a.due<td).length)}${chip("done","Done lately")}</span></header>
+    <span class="sp" style="display:flex;flex-wrap:wrap;gap:2px">${chip("mine","Mine",mine.length)}${chip("all","Everyone's open",open.length)}${chip("overdue","Overdue",open.filter(a=>taskLate(a)).length)}${chip("done","Done lately")}</span></header>
     ${me?"":`<div class="sub" style="padding:8px 15px">Sign in as yourself (your team record) to see which tasks are yours.</div>`}
     ${list.length?`<ul class="act">${list.map(activityRow).join("")}</ul>`:`<div class="empty">${f==="mine"?"Nothing assigned to you is open.":"Nothing here."}</div>`}
     <div class="sub" style="padding:10px 15px">Add a task from any project, account or contact (Activity → Task). The person it's for gets a bell notice${""} and an email if their team record has an address; your own tasks don't ring the bell — they're here and on the dashboard.</div></section></div>`}
@@ -11133,7 +11146,7 @@ function taskModal(kind,id,existing){
   const a=existing||null;
   const team=live(S.team).sort((x,y)=>(x.name||"").localeCompare(y.name||""));
   const cur=a?(a.assigneeId||(taskAssignee(a)||{}).id||""):(meId()||"");
-  openModal(mshell(a?"Reassign task":"New task","",
+  openModal(mshell(a?"Change task":"New task","",
     `<div class="fgrid">
       ${a?`<div class="fld full"><div class="k">Task</div><div class="v">${esc(a.text)}</div></div>`
         :`<div class="fld full"><div class="k">What needs doing</div><textarea id="tk-text"></textarea></div>`}
@@ -11141,17 +11154,20 @@ function taskModal(kind,id,existing){
         ${team.map(t=>`<option value="${esc(t.id)}" ${t.id===cur?"selected":""}>${esc(t.name)}${t.id===meId()?" (you)":""}${
           t.email?"":" — no email on file"}</option>`).join("")}</select></div>
       ${inp("tk-due","Due date",a?a.due:"","date")}
+      ${inp("tk-time","Time (optional)",a?(a.dueTime||""):"","time")}
       <div class="fld full sub">${window.sscHosted
         ?"They'll see it in their notifications, and get an email if their team record has an address."
         :"They'll see it in their notifications. Emails start once the CRM is on your own site."}</div>
     </div>`,
     `<button class="btn" data-close="1">Cancel</button>
-     <button class="btn p" data-tksave="${esc(kind)}|${esc(String(id))}|${a?esc(a.id):""}">${a?"Reassign":"Assign task"}</button>`));
+     <button class="btn p" data-tksave="${esc(kind)}|${esc(String(id))}|${a?esc(a.id):""}">${a?"Save":"Assign task"}</button>`));
   focusFirst(a?"tk-who":"tk-text");
 }
 async function taskSave(kind,id,existingId){
   const toId=$("#tk-who")?$("#tk-who").value:"";
-  const due=$("#tk-due")?$("#tk-due").value:"";
+  let due=$("#tk-due")?$("#tk-due").value:"";
+  const dueTime=$("#tk-time")?$("#tk-time").value:"";
+  if(dueTime&&!due)due=today();
   const to=teamById(toId);
   const now=Date.now();
   if(existingId){
@@ -11159,22 +11175,22 @@ async function taskSave(kind,id,existingId){
     const was=(taskAssignee(a)||{}).name||"nobody";
     closeModal();
     await push("activity/"+existingId,{assigneeId:toId,assigneeName:to?to.name:"",assignedById:meId(),
-      assignedByName:meName(),assignedAt:now,due});
+      assignedByName:meName(),assignedAt:now,due,dueTime,timeNoticed:0});
     recordHistory(a.recType,a.recId,[{f:"Task",o:was,n:"Reassigned to "+(to?to.name:"")+" — "+a.text.slice(0,60),ev:1}]);
-    if(toId)notify(toId,"task-assigned",a.text+(a.due?" — due "+fmtDate(a.due):""),recLink(a),existingId);
-    toast("Reassigned to "+(to?to.name:""));return;
+    if(toId)notify(toId,"task-assigned",a.text+(due?" — due "+taskDueLabel({due,dueTime}):""),recLink(a),existingId);
+    toast(to&&to.id!==(taskAssignee(a)||{}).id?"Reassigned to "+to.name:"Task saved");return;
   }
   const text=($("#tk-text")?$("#tk-text").value:"").trim();
   if(!text)return toast("Say what needs doing.");
   const aid=uid("ac");
-  const rec={id:aid,recType:kind,recId:String(id),kind:"task",type:"task",text,due,
+  const rec={id:aid,recType:kind,recId:String(id),kind:"task",type:"task",text,due,dueTime,
     assigneeId:toId,assigneeName:to?to.name:"",assignedById:meId(),assignedByName:meName(),assignedAt:now,
     whoId:meId(),who:me(),at:now,done:false,doneAt:0,doneById:"",doneByName:"",deleted:false};
   closeModal();
   try{await setDoc("activity/"+aid,rec)}catch(e){return toast("That didn't save.")}
   recordHistory(kind,String(id),[{f:"Task",o:"",n:"Assigned to "+(to?to.name:"")+" — "+text.slice(0,60),ev:1}]);
   // everyone gets the bell and the email — your own tasks too, so a reminder is never silent
-  if(toId)notify(toId,"task-assigned",text+(due?" — due "+fmtDate(due):"")+(recTitle(rec)?" ("+recTitle(rec)+")":""),recLink(rec),aid);
+  if(toId)notify(toId,"task-assigned",text+(due?" — due "+taskDueLabel(rec):"")+(recTitle(rec)?" ("+recTitle(rec)+")":""),recLink(rec),aid);
   toast((to&&toId!==meId()?"Assigned to "+to.name:"Task added")+(to&&!String(to.email||"").includes("@")?" — "+to.name+" has no email on file, so it's the bell only":" — they'll get a bell notice and an email"));
 }
 async function taskToggle(taskId,done){
@@ -11220,12 +11236,12 @@ function activityRow(x){
       ${x.pre?`<div class="sub" style="font-style:italic">sent from the CRM, details come from the mail log</div>`:""}
       ${k==="task"?(function(){
         const as=taskAssignee(x);
-        const late=!x.done&&x.due&&daysOut(x.due)!==null&&daysOut(x.due)<0;
+        const late=taskLate(x);
         return `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:4px">
           <span class="pill ${as&&as.id===meId()?"b":""}">${ic("contact",11)} ${esc(as?as.name:"Unassigned")}</span>
-          ${x.due?`<span class="pill ${late?"r":""}">due ${esc(fmtDate(x.due))}${late?" — late":""}</span>`:""}
+          ${x.due?`<span class="pill ${late?"r":""}">due ${esc(taskDueLabel(x))}${late?" — late":""}</span>`:""}
           ${x.done?`<span class="pill g">done ${esc(stampFull(x.doneAt))}${x.doneByName?" by "+esc(x.doneByName):""}</span>`:""}
-          ${!x.done?`<button class="btn sm" data-tkre="${esc(x.id)}" style="padding:2px 8px;font-size:12px">Reassign</button>`:""}
+          ${!x.done?`<button class="btn sm" data-tkre="${esc(x.id)}" style="padding:2px 8px;font-size:12px">Change time / reassign</button>`:""}
           ${!x.done&&as&&as.email&&!window.sscHosted?`<a class="btn sm" style="padding:2px 8px;font-size:12px;text-decoration:none"
             href="${esc(mailLink(as.email,"Task: "+(x.text||"").slice(0,60),(x.text||"")+"\n\n"+recTitle(x),{cc:false}))}"${mailTarget()}>Email them</a>`:""}
         </div>
@@ -12090,7 +12106,7 @@ function followUpBar(kind,id){
 function activityCard(kind,id){
   let a=kind==="project"?projActivity(id):actOf(kind,id);
   // open tasks first (soonest due on top), then everything else newest first
-  const openT=a.filter(x=>x.kind==="task"&&!x.done).sort((x,y)=>String(x.due||"9999").localeCompare(String(y.due||"9999")));
+  const openT=a.filter(x=>x.kind==="task"&&!x.done).sort((x,y)=>taskDueKey(x).localeCompare(taskDueKey(y)));
   a=openT.concat(a.filter(x=>!(x.kind==="task"&&!x.done)));
   const all=a;
   if(S.actFilter)a=a.filter(x=>actKind(x)===S.actFilter);
@@ -12649,7 +12665,7 @@ function myBook(){
   const wos=liveJobs().filter(realJob).filter(j=>{const p2=S.projects.get(j.projectId);const r=p2?repFor(p2):null;
     return r&&r.id===t.id&&j.status!=="shipped"}).sort(byDue);
   const tasks=real(live(S.activity)).filter(a=>a.kind==="task"&&!a.done&&taskIsMine(a,t))
-    .sort((a,b)=>(a.due||"9999").localeCompare(b.due||"9999"));
+    .sort((a,b)=>taskDueKey(a).localeCompare(taskDueKey(b)));
   const pipe=open.reduce((x,p2)=>x+projValue(p2),0);
   const late=open.filter(p2=>stillDue(p2)&&daysOut(p2.due)!==null&&daysOut(p2.due)<0);
   const wr=winRate(mine,180);
@@ -12936,7 +12952,7 @@ function rSnapshot(R){
   return kpiRow([kpi("Revenue this month",money2(revMonth),"invoiced (deposits count), before tax"),kpi("Weighted forecast",money2(fcv),"next 90 days"),
     kpi("Open quotes",money2(openQv),openQ.length+" inquiry or quoted · whole open pipeline (won and in production too) "+money(ps.filter(p=>!isClosed(p)).reduce((t,p)=>t+projValue(p),0))+" on "+ps.filter(p=>!isClosed(p)).length),kpi("Receivables",money2(ar),qb?"open in QuickBooks":"invoiced, not paid (CRM)",ar>0?"o":""),
     kpi("Inventory at cost",money2(inv),"on hand × unit cost"),kpi("Low stock",low,"at or below reorder",low?"r":""),kpi("Overdue follow-ups",od,"tasks past due",od?"r":"")])}
-function rOverdueFollowups(R){const td=today();return live(S.activity).filter(x=>actKind(x)==="task"&&!x.done&&x.due&&x.due<td).filter(x=>{if(!R.rep)return true;const as=taskAssignee(x);return as&&as.id===R.rep})}
+function rOverdueFollowups(R){const td=today();return live(S.activity).filter(x=>actKind(x)==="task"&&taskLate(x)).filter(x=>{if(!R.rep)return true;const as=taskAssignee(x);return as&&as.id===R.rep})}
 // ===== 1. forecasting =====
 function rCycleDays(){const d=real(live(S.projects)).map(p=>{const q=stageAt(p,"quoted"),w=stageAt(p,"won");return q&&w&&w>=q?(w-q)/864e5:null}).filter(x=>x!=null);return d.length?d.reduce((a,b)=>a+b,0)/d.length:21}
 function rForecastRows(R){const pr=stageProbs(),cyc=rCycleDays(),now=Date.now(),end=now+90*864e5;
@@ -13377,7 +13393,7 @@ async function aiBrief(){
       .map(p=>"P-"+p.num+" "+p.name+" "+money(projValue(p))).join(" | ")||"none"),
     "Below reorder: "+(lowStock().map(i=>i.name+" ("+onHand(i)+" "+(i.unit||"")+")").join(" | ")||"none"),
     "Open tasks: "+(live(S.activity).filter(a=>a.kind==="task"&&!a.done)
-      .map(a=>a.text+(a.due?" due "+fmtDate(a.due):"")).join(" | ")||"none")
+      .map(a=>a.text+(a.due?" due "+taskDueLabel(a):"")).join(" | ")||"none")
   ].join("\n");
   await aiRun(AI_VOICE+"\n\nGive me today's brief in under 150 words. Lead with anything that costs money "
     +"if it's ignored today. Then what to chase. Use short lines starting with a dash. "
@@ -14094,6 +14110,11 @@ function accountModal(a,then){
       ${inp("f-street","Street",a.street,"text",1)}
       ${inp("f-city","City",a.city)}${inp("f-state","State",a.state)}
       ${inp("f-zip","ZIP",a.zip)}${inp("f-qb","QuickBooks customer name",a.qb)}
+      ${chk("f-billdiff","Billing address is different (where invoices are mailed)",!!a.billDiff)}
+      <div class="fld full" id="f-billbox" style="${a.billDiff?"":"display:none"};padding:0"><div class="fgrid" style="padding:0">
+        ${inp("f-bstreet","Billing street or PO box",a.billStreet||"","text",1)}
+        ${inp("f-bcity","Billing city",a.billCity||"")}${inp("f-bstate","Billing state",a.billState||"")}
+        ${inp("f-bzip","Billing ZIP",a.billZip||"")}</div></div>
       ${chk("f-ex","Tax exemption certificate on file",a.exempt)}${inp("f-exp","Certificate expires",a.exemptExp,"date")}
       ${chk("f-nolamdef","Wants the clear overlaminate — their new printed quote lines start with it",!!a.lamDefault)}
       ${sel("f-rep","Sales rep",a.repId||"",repList().map(t=>({v:t.id,l:t.name+(t.role?" — "+t.role:"")})),1)}
@@ -14110,12 +14131,15 @@ function accountModal(a,then){
           ${a.id?"Add a contact first, then set this from the account page.":"Set this after you save and add contacts."}</div></div>`}
       <input type="hidden" id="f-drive" value="${esc(a.drive||"")}">${ta("f-notes","Notes",a.notes)}</div>`,
     `<button class="btn" data-close="1">Cancel</button><button class="btn p" id="save">Save account</button>`));
+  $("#f-billdiff").onchange=()=>{const on=$("#f-billdiff").checked;$("#f-billbox").style.display=on?"":"none";if(on)$("#f-bstreet").focus()};
   $("#save").onclick=async()=>{
     const name=$("#f-name").value.trim();if(!name){$("#f-name").focus();return toast("Name is required.")}
     const id=a.id||uid("a");
     const rec={id,name,stageSet:$("#f-astage")?$("#f-astage").value:(a.stageSet||""),type:$("#f-type").value,terms:$("#f-terms").value,phone:$("#f-phone").value.trim(),
       website:$("#f-web").value.trim(),street:$("#f-street").value.trim(),city:$("#f-city").value.trim(),
       state:$("#f-state").value.trim(),zip:$("#f-zip").value.trim(),qb:$("#f-qb").value.trim(),
+      billDiff:$("#f-billdiff").checked,billStreet:$("#f-bstreet").value.trim(),billCity:$("#f-bcity").value.trim(),
+      billState:$("#f-bstate").value.trim(),billZip:$("#f-bzip").value.trim(),
       exempt:$("#f-ex").checked,exemptExp:$("#f-exp").value,drive:$("#f-drive").value.trim(),
       lamDefault:$("#f-nolamdef")?$("#f-nolamdef").checked:!!a.lamDefault,
       billingContactId:$("#f-bc")?$("#f-bc").value:(a.billingContactId||""),
@@ -14129,6 +14153,7 @@ function accountModal(a,then){
       notes:$("#f-notes").value.trim(),deleted:false,
       createdAt:a.createdAt||Date.now(),updatedAt:Date.now()};
     if(rec.exempt&&!a.exempt&&!rec.exemptExp){$("#f-exp").focus();return toast("Put in the certificate's expiry date — exempt needs a certificate on file.")}
+    if(rec.billDiff&&!rec.billStreet){$("#f-bstreet").focus();return toast("Put in the billing street or PO box — or untick \"Billing address is different\".")}
     if(rec.exempt)rec.certNeeded=false;
     // a new account that looks like one we already have
     if(!a.id&&!window.__dupOk){const d=dupAccounts(rec),arch=dupAccounts(rec,true);
@@ -16280,7 +16305,7 @@ function syncBuild0(key,rec){
     return {type:"account",id:String(a.id),number:a.name||"",status:a.deleted?"deleted":"active",
       created:syncISO(a.createdAt),updated:syncISO(a.updatedAt),customer:a.name||"",name:a.name||"",customer_type:a.type||"",
       terms:a.terms||"",tax_exempt:isExempt(a),phone:a.phone||"",email:(bc&&bc.email)||"",contact:(bc&&bc.name)||"",
-      street:a.street||"",city:a.city||"",state:a.state||"",zip:a.zip||"",billing_address:[a.street,a.city,a.state,a.zip].filter(Boolean).join(", "),
+      street:a.street||"",city:a.city||"",state:a.state||"",zip:a.zip||"",billing_address:acctBillAddr(a),
       rep:rep2?(rep2.initials||rep2.name||""):"",project:"",po_number:"",ship_to:"",lines:[],subtotal:"",shipping:"",tax:"",total:"",
       due_date:"",ship_date:"",notes:"",deleted:!!a.deleted}}
   if(coll==="contacts"){const c=rec;const a=acct(c.accountId)||S.accounts.get(c.accountId)||{};
@@ -16311,7 +16336,7 @@ function syncBuild0(key,rec){
       invoice_date:p.billDate||"",paid_date:p.paidDate||"",
       customer:a.name||"",account_id:p.accountId||"",contact:cc.name,email:cc.email,phone:cc.phone||a.phone||"",
       customer_type:a.type||"",tax_exempt:isExempt(a),billing_email:(bc&&bc.email)||(pc&&pc.email)||cc.email||"",
-      billing_address:[a.street,a.city,a.state,a.zip].filter(Boolean).join(", "),ship_to:p.shipTo||"",
+      billing_address:acctBillAddr(a),ship_to:p.shipTo||"",
       po_number:p.po||"",project:p.name||"",rep:rep2?(rep2.name||rep2.initials||""):"",source:p.source||"",
       lines,subtotal,shipping,tax,tax_note:taxNote,total:syncN(subtotal+shipping+tax),deposit:syncN(p.depositAmt),project_value:syncN(projValue(p)),
       on_work_orders:syncN(orderedLines(p).length?reconMoney(p).onWO:0),not_on_work_orders:syncN(orderedLines(p).length?reconMoney(p).unsched:0),
@@ -16330,7 +16355,7 @@ function syncBuild0(key,rec){
     created:syncISO(j.createdAt),updated:syncISO(j.updatedAt),
     project_id:j.projectId||"",project_number:p&&p.num?"P-"+p.num:"",quote_number:p?(p.quote||""):"",
     customer:a.name||"",account_id:j.accountId||"",contact:cc.name,email:cc.email,phone:cc.phone||a.phone||"",
-    billing_address:[a.street,a.city,a.state,a.zip].filter(Boolean).join(", "),ship_to:p?(p.shipTo||""):"",
+    billing_address:acctBillAddr(a),ship_to:p?(p.shipTo||""):"",
     po_number:p?(p.po||""):"",project:j.desc||(p?p.name:"")||"",product:j.prod||"",rush:!!j.rush,
     proof_approved:!!(j.gates&&j.gates.proof),
     ship_method:sh.method||"",carrier:sh.carrier||"",tracking:sh.tracking||"",
