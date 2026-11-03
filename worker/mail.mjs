@@ -41,7 +41,21 @@ async function userToken(email, scope) {
   if (!t.ok) throw new Error("token " + t.status + " " + String(tj.error || "") + " " + String(tj.error_description || "").slice(0, 120));
   tokCache[k] = { t: tj.access_token, at: Date.now() }; return tj.access_token;
 }
-const SEND = "https://www.googleapis.com/auth/gmail.send", READ = "https://www.googleapis.com/auth/gmail.readonly";
+const SEND = "https://www.googleapis.com/auth/gmail.send", READ = "https://www.googleapis.com/auth/gmail.readonly", MODIFY = "https://www.googleapis.com/auth/gmail.modify";
+// the email a customer opened gets a green "✓ Viewed" label in the sender's Gmail — needs the gmail.modify scope added to
+// the domain-wide delegation in Google Admin; until then this quietly does nothing (and says so once in the log)
+async function labelViewed(signId) {
+  if (labelViewed.off) return false;
+  const sent = (await fs.collection("mail").where("signId", "==", String(signId)).get()).docs.map((x) => x.data()).filter((m) => m.status === "sent" && m.threadId && m.from);
+  let done = false;
+  for (const m of sent) { const who = String(m.from).toLowerCase();
+    try { labelViewed.ids = labelViewed.ids || {};
+      if (!labelViewed.ids[who]) { const L = await gmail(who, MODIFY, "labels"); let l = (L.labels || []).find((x) => x.name === "✓ Viewed");
+        if (!l) l = await gmail(who, MODIFY, "labels", { method: "POST", body: JSON.stringify({ name: "✓ Viewed", labelListVisibility: "labelShow", messageListVisibility: "show", color: { backgroundColor: "#16a766", textColor: "#ffffff" } }) });
+        labelViewed.ids[who] = l.id; }
+      await gmail(who, MODIFY, "threads/" + m.threadId + "/modify", { method: "POST", body: JSON.stringify({ addLabelIds: [labelViewed.ids[who]] }) }); done = true;
+    } catch (e) { const w = String(e.message || e); if (/unauthorized_client|access_denied|invalid_scope|401|403/.test(w)) { labelViewed.off = true; say("viewed label: Gmail labels aren't allowed yet — add the gmail.modify scope to the domain-wide delegation"); return false; } say("viewed label: " + w.slice(0, 80)); } }
+  return done; }
 async function gmail(email, scope, path, opt = {}) {
   const t = await userToken(email, scope);
   const r = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/" + path, Object.assign({}, opt, { headers: Object.assign({ Authorization: "Bearer " + t, "Content-Type": "application/json" }, opt.headers || {}) }));
@@ -335,7 +349,8 @@ async function signFollow() {
       const tos = [...new Set(tm.map((t) => String(t.email || "").toLowerCase()).filter(isOurs))];
       if (tos.length && Date.now() - Number(r.viewedAt) < 3 * 864e5) await fs.collection("mail").add({ to: tos, status: "queued", kind: "notice", at: Date.now(),
         message: { subject: what, text: what + " (" + new Date(r.viewedAt).toLocaleString("en-US", { timeZone: "America/Denver", weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) + " MT).\n\nOpen the project: https://crm.streetsignsupply.com/#/project/" + r.projectId } });
-      n.viewed = (n.viewed || 0) + 1; }
+      n.viewed = (n.viewed || 0) + 1;
+      await labelViewed(d.id).catch(() => false); }
     await d.ref.set({ viewLogged: true }, { merge: true }); }
   // ---- 3. signature links that were signed or turned down: tell the person who sent them ----
   const sigs = srAll.filter((d) => ["signed", "declined"].indexOf(d.data().status) >= 0 && !d.data().notified);
