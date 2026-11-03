@@ -11040,7 +11040,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-137";
+const APP_VERSION="2026.11.25-138";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -13700,7 +13700,9 @@ function settingsView(){
     </div></section>
     <section class="card"><header><h2>Sending email and signatures</h2><span class="sub">${b.mailSendOk?`Sending is working — last checked ${esc(fmtTs(b.mailSendAt))}. Emails go out from each person's own @streetsignsupply.com Gmail; Gmail is also read to log customer emails automatically.`:`Not connected yet — Send falls back to opening your own email.`}</span></header><div class="body">
       ${b.mailSendOk?"":`<div class="warn" style="margin-bottom:10px"><b>One step in Google Admin turns it on</b> (an admin of streetsignsupply.com): admin.google.com → Security → Access and data control → API controls → <b>Manage Domain Wide Delegation</b> → <b>Add new</b>.<br>
-        Client ID: <span class="mono">${esc(b.mailClientId||"103643158992452177708")}</span><br>OAuth scopes: <span class="mono">https://www.googleapis.com/auth/gmail.send,https://www.googleapis.com/auth/gmail.readonly</span><br>Then <b>Authorize</b>. Within 10 minutes this box turns green.</div>`}
+        Client ID: <span class="mono">${esc(b.mailClientId||"103643158992452177708")}</span><br>OAuth scopes: <span class="mono">https://www.googleapis.com/auth/gmail.send,https://www.googleapis.com/auth/gmail.readonly,https://www.googleapis.com/auth/gmail.modify</span><br>Then <b>Authorize</b>. Within 10 minutes this box turns green.</div>`}
+      ${b.mailSendOk?`<details class="note" style="margin-bottom:10px"><summary><b>Green "✓ Viewed" label in Gmail</b> — when a customer opens a quote or proof link, the email gets this label in the sender's inbox</summary>
+        <div style="margin-top:6px">One-time, by an admin of streetsignsupply.com: admin.google.com → Security → Access and data control → API controls → <b>Manage Domain Wide Delegation</b> → the CRM's client ID <span class="mono">${esc(b.mailClientId||"103643158992452177708")}</span> → <b>Edit</b> → add this scope to the ones already there: <span class="mono">https://www.googleapis.com/auth/gmail.modify</span> → <b>Authorize</b>. The bell notification and the email "was opened by…" work without it.</div></details>`:""}
       <div class="fgrid">${inp("b-mailfrom","Send from (when the person has no @streetsignsupply.com address)",b.mailFrom||"matt@streetsignsupply.com")}
         ${inp("b-signbase","Signature page address",b.signBase||"https://ssc-crm-a7224.web.app/sign.html")}</div>
       <div style="margin-top:8px">${ck("b-mailsend",b.mailSend!==false,"Send emails from the CRM when sending is connected","Off, Send always opens your own email")}</div>

@@ -1,5 +1,10 @@
 # What changed
 
+## 2026.11.25-138 (know when a customer opens your quote or proof)
+- When a customer opens a quote or proof signing link, the person who sent it and the owner get a **bell notification** and an **email** ("Quote Q-1031 P-2041 was opened by Joe Smith — Nov 2, 3:14 PM MT"), and the project's Activity shows it — you decide when to follow up. (It used to be an Activity line only.)
+- A green **"✓ Viewed"** label is added to that email thread in the sender's Gmail, once the gmail.modify scope is added to the CRM's domain-wide delegation in Google Admin (Settings → Sending email shows the one step). Until then the bell and email still work.
+- Tracking plain email opens (an invisible picture) isn't possible on this Google Workspace: its security policy doesn't allow anything public outside streetsignsupply.com, which is how that kind of tracking works. Opening the quote/proof link is the dependable signal anyway.
+
 ## 2026.11.25-137 (What's new by date, vendors aren't leads)
 - **What's new** (Admin → What's new): everything added or changed on the days you pick — Today, Yesterday, Last 7 days, Last 30 days or a from/to date — in one section each: new accounts, new contacts, new projects, new work orders, emails, accounts changed, contacts changed, projects changed, and calls/notes/tasks logged. Newest first, 25 a section with "Show all", every name opens the record. (Work done under someone else's sign-in shows here too — it just carries that person's name.)
 - **Vendors aren't leads.** "Vendor" is now an account type with its own stage (Vendor, not Lead), and vendor accounts are left out of the Unassigned count and the stalled-accounts lists. The Accounts page offers any account named like a company on your Vendors list (whole words, so "Test County" never matches "Test Plastics") — review the list, untick any real customers, and mark the rest Vendor in one go. Each is linked to its vendor record and keeps its contacts and history.
