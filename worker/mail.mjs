@@ -540,3 +540,6 @@ do {
 } while (LOOP_MIN && Date.now() - t0 < LOOP_MIN * 60000);
 if (aiTimer) clearInterval(aiTimer);
 note("mail: " + pass + " passes — " + n.sent + " sent, " + n.failed + " didn't send, " + n.logged + " customer emails logged" + (n.userErr ? " (" + n.userErr + " inbox reads failed: " + JSON.stringify(errKinds) + ")" : "") + ", " + n.signs + " signature updates, " + (n.digest || 0) + " task digests, " + (n.overdue || 0) + " overdue notices, " + (n.ai || 0) + " AI drafts" + (n.aiErr ? " (" + n.aiErr + " failed)" : "") + ", " + (n.sigs || 0) + " Gmail signatures found");
+// open connections (the database client, a PDF browser) would keep a single pass from ending — end it here
+if (_browser) await _browser.close().catch(() => {});
+process.exit(0);
