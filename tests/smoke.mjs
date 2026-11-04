@@ -37,6 +37,8 @@ const D = {
     // a stencil's cut file and PDF: they show on that stencil (#/stencils)
     f3: { name: "SSS-FAA-108-01.dxf", type: "application/dxf", url: "", cat: "Cut file", stencilSku: "SSS-FAA-108-01", byId: "t1", who: "TO", at: now, size: 20480 },
     f4: { name: "SSS-FAA-108-01.pdf", type: "application/pdf", url: "", cat: "Artwork proof", stencilSku: "SSS-FAA-108-01", byId: "t1", who: "TO", at: now, size: 40960 },
+    // a corrected preview replaces the catalog PNG on the list, in the stencil window, and on the quote
+    f5: { name: "SSS-FAA-108-01.png", type: "image/png", url: "https://raw.githubusercontent.com/StreetSignSupply/ssc-crm/main/public/pics/stencils/SSS-ALP-024-05.png", cat: "Photo", stencilSku: "SSS-FAA-108-01", byId: "t1", who: "TO", at: now + 1, size: 12000 },
     f2: { name: "Quote-Q-1001.pdf", type: "application/pdf", url: "", cat: "Quote", gen: "quote", qhash: "old", projectId: "p1", accountId: "a1", byId: "t2", who: "Test Sales", at: now } },
   activity: { x1: { id: "x1", recType: "account", recId: "a1", kind: "note", type: "call", text: "Called about the bid", contactId: "c1", at: now - day, when: new Date(now - day).toISOString().slice(0, 10) },
     x2: { id: "x2", recType: "account", recId: "a1", kind: "task", type: "task", text: "Call back about the bid", assigneeId: "t1", whoId: "t1", who: "TO", at: now,
@@ -210,6 +212,44 @@ await pg.setViewportSize({ width: 1400, height: 900 });
   await pg.evaluate(() => document.getElementById("stc-bgo").click()); await pg.waitForTimeout(800);
   const done = await pg.evaluate(() => ({ t: (document.getElementById("stc-bres") || {}).innerText || "", ups: window.__ups.slice() }));
   if (!/1 file uploaded/.test(done.t) || done.ups.length !== 1 || done.ups[0] !== "SSS-FAA-120-01.dxf") bad.push("bulk stencil upload didn't upload just the matched file (" + done.t.slice(0, 60) + " / " + done.ups.join(",") + ")");
+  await pg.evaluate(() => { const b = document.querySelector(".mbox [data-close]"); if (b) b.click(); }); await pg.waitForTimeout(350);
+  // an uploaded picture replaces the catalog PNG on the list and on the quote (print uses the same picture)
+  const shown = await pg.evaluate(() => {
+    const row = (sel) => { const b = document.querySelector(sel); const tr = b && b.closest("tr"); const img = tr && tr.querySelector("img"); return img ? img.getAttribute("src") : ""; };
+    return { up: row('[data-stcview="SSS-FAA-108-01"]'), cat: row('[data-stcview="SSS-FAA-120-01"]') };
+  });
+  if (!/SSS-ALP-024-05\.png$/.test(shown.up)) bad.push("the stencil list still shows the catalog picture (" + shown.up.slice(0, 80) + ")");
+  if (!/pics\/stencils\/SSS-FAA-120-01\.png/.test(shown.cat)) bad.push("a stencil with no upload lost its catalog picture (" + shown.cat.slice(0, 80) + ")");
+  await pg.evaluate(() => { location.hash = "#/project/p1"; }); await pg.waitForTimeout(700);
+  const qpic = await pg.evaluate(() => { const row = [...document.querySelectorAll("tr")].find((tr) => /SSS-FAA-108-01/.test(tr.innerText) && tr.querySelector("img")); const img = row && row.querySelector("img"); return img ? img.getAttribute("src") : ""; });
+  if (!/SSS-ALP-024-05\.png$/.test(qpic)) bad.push("the quote doesn't show the uploaded stencil picture (" + qpic.slice(0, 80) + ")");
+  await pg.evaluate(() => { location.hash = "#/stencils"; }); await pg.waitForTimeout(800);
+  await pg.evaluate(() => document.querySelector('[data-stcview="SSS-FAA-108-01"]').click()); await pg.waitForTimeout(400);
+  const one = await pg.evaluate(() => { const pic = document.getElementById("stc-pic"), inp = document.getElementById("stc-picf");
+    return { src: pic && pic.querySelector("img") ? pic.querySelector("img").getAttribute("src") : "", up: !!(inp && /png/i.test(inp.accept || "")) }; });
+  if (!/SSS-ALP-024-05\.png$/.test(one.src) || !one.up) bad.push("a stencil's window can't replace its picture (" + JSON.stringify(one) + ")");
+  const before = await pg.evaluate(() => window.__ups.length);
+  await pg.setInputFiles("#stc-picf", { name: "SSS-FAA-108-01.jpg", mimeType: "image/jpeg", buffer: Buffer.from([0xff, 0xd8, 0xff, 0xd9]) });
+  await pg.waitForTimeout(1500);
+  const single = await pg.evaluate(() => { const pic = document.getElementById("stc-pic"); const img = pic && pic.querySelector("img");
+    return { ups: window.__ups.slice(), src: img ? img.getAttribute("src") : "" }; });
+  if (single.ups.length !== before + 1 || single.ups[single.ups.length - 1] !== "SSS-FAA-108-01.jpg" || !/SSS-FAA-108-01\.jpg/.test(single.src)) bad.push("replacing one stencil picture didn't upload it (" + single.ups.join(",") + " / " + single.src + ")");
+  await pg.evaluate(() => { const b = document.querySelector(".mbox [data-close]"); if (b) b.click(); }); await pg.waitForTimeout(350);
+  // bulk pictures: SSS- optional, unmatched names reported, and more than one batch (40) all upload
+  const pix = Buffer.from([137, 80, 78, 71]);
+  const bulkPics = JSON.parse(fs.readFileSync(path.resolve(root, "public/stencil-catalog.json"), "utf8")).items.slice(0, 41)
+    .map((s) => ({ name: String(s.sku).replace(/^SSS-/i, "") + ".png", mimeType: "image/png", buffer: pix }));
+  bulkPics.push({ name: "NOT-A-SKU.png", mimeType: "image/png", buffer: pix }, { name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("x") });
+  await pg.evaluate(() => document.querySelector("[data-stcpicbulk]").click()); await pg.waitForTimeout(400);
+  await pg.setInputFiles("#stc-pf", bulkPics);
+  await pg.waitForTimeout(400);
+  const pm = await pg.evaluate(() => ({ t: (document.getElementById("stc-pres") || {}).innerText || "", b: (document.getElementById("stc-pgo") || {}).textContent || "" }));
+  if (!/41 matched/.test(pm.t) || !/1 replaced/.test(pm.t) || !/1 unmatched/.test(pm.t) || !/NOT-A-SKU\.png/.test(pm.t) || !/not a PNG, JPG or WebP/.test(pm.t)) bad.push("bulk picture upload doesn't report matched, replaced and unmatched (" + pm.t.slice(0, 180) + ")");
+  if (!/Upload 41 pictures/.test(pm.b)) bad.push("bulk picture upload offers the wrong count (" + pm.b + ")");
+  const ups0 = await pg.evaluate(() => window.__ups.length);
+  await pg.evaluate(() => document.getElementById("stc-pgo").click()); await pg.waitForTimeout(4000);
+  const pd = await pg.evaluate(() => ({ t: (document.getElementById("stc-pres") || {}).innerText || "", ups: window.__ups.length }));
+  if (!/41 matched and uploaded/.test(pd.t) || !/replaced/.test(pd.t) || !/1 unmatched/.test(pd.t) || pd.ups - ups0 !== 41) bad.push("bulk picture upload didn't upload the matched pictures in batches (" + pd.t.slice(0, 100) + " / " + (pd.ups - ups0) + ")");
   await pg.evaluate(() => { const b = document.querySelector(".mbox [data-close]"); if (b) b.click(); }); await pg.waitForTimeout(350); }
 // a separate billing address: on the account's Billing card, and the form shows its boxes only when ticked
 { await pg.evaluate(() => { location.hash = "#/account/a1"; }); await pg.waitForTimeout(600);

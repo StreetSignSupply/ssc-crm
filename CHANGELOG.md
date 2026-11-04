@@ -1,5 +1,10 @@
 # What changed
 
+## 2026.11.25-143 (replace a stencil's picture)
+- Stencils: each stencil's window has **Upload picture** / **Replace picture** (PNG, JPG or WebP, up to 25 MB). The new picture is the one shown on the stencil list, in that window, and on quotes, proofs and printouts. The catalog picture shows again if you remove the upload.
+- **Upload pictures in bulk** (Stencils page): name each file with the stencil's SKU (`SSS-ALP-024-05.png` or `ALP-024-05.png` — the SSS- prefix is optional, and the STN- price list number works too). Before anything uploads it reports how many matched, how many replace a picture already there, and which names matched no SKU. About 1,600 files is fine; they upload 40 at a time, and you can add them in more than one batch. An older uploaded picture goes to the recycle bin.
+- Cut-file bulk upload accepts the same SKU names (with or without SSS-).
+
 ## 2026.11.25-142 (cut files and PDFs on every stencil)
 - Stencils: each stencil's window (#/stencils → click a stencil) has a **Files** area for its **DXF cut file** and **PDF**. PDFs **Open** in the viewer; both **Download** for cutting. **Upload DXF or PDF**, or drop the files on it. Same rules as vendor and project files: anyone with edit access uploads; the owner, office or the uploader deletes (to the recycle bin). A new file with the same name replaces the old one.
 - **Upload files in bulk** (Stencils page): drop many files at once; each one named with a stencil's SKU (SKU.dxf, SKU.pdf — the STN- price list number works too) goes to that stencil. Before anything uploads, it shows where each file goes and lists every file that matched no SKU (those aren't uploaded — nothing is guessed). Files that aren't .dxf or .pdf are skipped and listed.

@@ -6367,7 +6367,9 @@ const WEBCAT_GIDS={prices:1288427450,pics:777001,wb04:777004,wb11:777011};
 const STENCIL_SRC="https://raw.githubusercontent.com/StreetSignSupply/ssc-crm/main/public/stencils.json";
 /* ================= STENCILS =================
    Every stencil in the catalog (Stencil_Catalog_CUSTOMER, 1 Sep 2026) with the price list Matt approved on 25 Oct 2026.
-   The catalog lives next to the CRM (public/stencil-catalog.json, pictures in public/pics/stencils/). What a stencil
+   The catalog lives next to the CRM (public/stencil-catalog.json, pictures in public/pics/stencils/). An uploaded
+   picture (a files record on the stencil) replaces that PNG on the list, in the stencil's window, and on quotes and printouts.
+   What a stencil
    costs is worked out here, every time, from the sheet it's cut from: that inventory item's cost (its preferred vendor's
    price plus freight) per sq ft × the stencil's material sq ft × waste, plus CNC labor. Change the preferred vendor or
    its price and every stencil follows. A stencil with no sheet for its grade, or no material sq ft, is flagged — never $0. */
@@ -6395,7 +6397,9 @@ function stcLoad(){if(S.stc)return Promise.resolve(S.stc);if(STC_LOADING)return 
       const j=await r.json();S.stc=j;S.stcIdx=null;S.stcErr="";try{render()}catch(e){}return j}
     catch(e){S.stcErr="The stencil catalog couldn't be read ("+(e&&e.message||"no answer")+")";STC_LOADING=null;try{render()}catch(e2){}return null}})();
   return STC_LOADING}
-function stcPicUrl(s){return s&&s.img?STC_PIC+encodeURIComponent(s.sku)+".png":""}
+// the picture shown for a stencil: an uploaded one (a files record) replaces the catalog PNG everywhere
+function stcPicUrl(s){if(!s)return "";const f=stcPicFile(s);if(f&&f.url)return f.url;
+  return s.img?STC_PIC+encodeURIComponent(s.sku)+".png":""}
 // a full sheet's square feet — names say 48x96 (inches) or 5x10 (feet)
 function stcSheetSqft(it){if(!it)return 0;if(Number(it.sqftPer))return Number(it.sqftPer);
   const m=String(it.name||"").match(/(\d+(?:\.\d+)?)\s*(?:in|"|ft|')?\s*[x×]\s*(\d+(?:\.\d+)?)\s*(in|"|ft|')?/i);if(!m)return 0;
@@ -6581,14 +6585,14 @@ function stencilsView(){
         <select id="stc-gi" class="btn" aria-label="Material grade" style="font-weight:400">${STC_GRADES.map((g,i)=>`<option value="${i}"${i===gi?" selected":""}>${esc(g.label)}</option>`).join("")}</select>
         <button class="btn${f.flag?" p":""}" data-stcflag="1">${flagged.length} flagged</button>
         <button class="btn${f.nocut?" p":""}" data-stcnocut="1" title="${withCut} of ${all.length} have a cut file">${all.length-withCut} with no cut file</button>
-        ${S.canUpload?`<button class="btn" data-stcbulk="1">${ic("file",14)}Upload files in bulk</button>`:""}
+        ${S.canUpload?`<button class="btn" data-stcbulk="1">${ic("file",14)}Upload files in bulk</button><button class="btn" data-stcpicbulk="1">${ic("file",14)}Upload pictures in bulk</button>`:""}
         ${showCost?`<button class="btn" data-stccsv="1">${ic("file",14)}Download CSV</button>`:""}</span></header>
       <div class="sub" style="padding:8px 15px">${esc((S.stc.source||""))}. Prices are per stencil in the grade picked above; the price date says which list it came from.</div>
       ${shown.length?`<div style="overflow-x:auto"><table class="stclist" style="table-layout:auto;width:100%"><thead><tr><th style="width:70px"></th><th>SKU</th><th>Stencil</th><th>Painted size</th><th>Sheet</th><th style="text-align:right">Pcs</th><th style="text-align:right">Sq ft</th>
         ${showCost?`<th>Material item</th><th style="text-align:right">Material</th><th style="text-align:right">CNC</th><th style="text-align:right">Cost</th>`:""}<th style="text-align:right">Price</th>${showCost?`<th style="text-align:right">Margin</th>`:""}<th>Price set</th><th>Flags</th></tr></thead><tbody>
-        ${shown.map(s=>{const pr=stcPrice(s,gi);const r=showCost?stcCost(s,gi):null;const mg=(pr&&r&&r.cost!=null)?(pr-r.cost)/pr*100:null;const fl=stcFlags(s);
+        ${shown.map(s=>{const pr=stcPrice(s,gi);const r=showCost?stcCost(s,gi):null;const mg=(pr&&r&&r.cost!=null)?(pr-r.cost)/pr*100:null;const fl=stcFlags(s);const pic=stcPicUrl(s);
           return `<tr>
-          <td class="pic">${s.img?`<img src="${esc(stcPicUrl(s))}" alt="" loading="lazy" style="width:62px;height:34px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:3px">`:`<span class="sub">no picture</span>`}</td>
+          <td class="pic">${pic?`<img src="${esc(pic)}" alt="" loading="lazy" style="width:62px;height:34px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:3px">`:`<span class="sub">no picture</span>`}</td>
           <td class="mono sku" style="white-space:nowrap"><button class="lnk mono" data-stcview="${esc(s.sku)}">${esc(s.sku)}</button></td>
           <td class="nm" style="max-width:320px;white-space:normal"><button class="lnk" style="text-align:left" data-stcview="${esc(s.sku)}">${esc(s.n)}</button><div class="sub">${esc(s.cat||"")} · ${(function(){const d=stcDims(s);const w=stcWhat(s);return d.onePiece?`<b style="color:var(--danger-ink)">${esc(w)}</b>`:esc(w)})()}${(function(){const o=FI[s.sku];return o&&(o.dxf||o.pdf)?` · <button class="lnk" data-stcview="${esc(s.sku)}" title="Open it for the files">${[o.dxf?"DXF":"",o.pdf?"PDF":""].filter(Boolean).join(" + ")} on file</button>`:""})()}</div></td>
           <td class="mono ps" style="white-space:nowrap">${(function(){const d=stcDims(s);return d.H?esc(d.W?d.H+"″ × "+d.W+"″":d.H+"″"+(d.chars?" letters":" tall")):"—"})()}</td>
@@ -6612,7 +6616,7 @@ function stcViewModal(sku){const s=stcBySku(sku);if(!s)return;const showCost=can
   openModal(mshell(s.n,"proj",
     `<div style="display:flex;gap:16px;flex-wrap:wrap;padding:14px 15px">
       <div style="width:300px;max-width:100%"><div class="k" style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink3);margin-bottom:4px">How it's measured</div>${stcDiagram(s,{color:(S.brand&&/^#[0-9a-f]{6}$/i.test(S.brand.brand||""))?S.brand.brand:"#D50101"})}
-        ${s.img&&!s.ph&&!stcDims(s).onePiece?`<img src="${esc(stcPicUrl(s))}" alt="" style="width:100%;margin-top:8px;height:auto;max-height:150px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:4px">`:""}</div>
+        ${stcPicBlock(s)}</div>
       <div style="flex:1;min-width:220px"><div class="mono" style="font-weight:800">${esc(s.sku)}${s.stn?` <span class="sub">· price list ${esc(s.stn)}</span>`:""}</div>
         <div class="sub">${esc(s.cat||"")}</div>
         <div style="margin-top:8px;font-weight:700${stcDims(s).onePiece?";color:var(--danger-ink)":""}">${esc(stcWhat(s))}</div>
@@ -6623,7 +6627,7 @@ function stcViewModal(sku){const s=stcBySku(sku);if(!s)return;const showCost=can
           <tr><td class="sub" style="padding:2px 12px 2px 0">Sheet used</td><td>${Math.round(stcSq(s)*100)/100} sq ft${stcCfg().sq[s.sku]?" (your figure)":""}</td></tr></tbody></table>`})()}
         ${stcDims(s).onePiece?`<div class="warn" style="margin-top:8px">This is <b>one shape</b> from a playground alphabet, priced as one piece. For the whole alphabet, look up the <b>151″ x 180″ Shape Alphabet</b> or an alphabet kit.</div>`:""}
         <div class="sub" style="margin-top:4px">Price set ${esc(fmtDate(stcPd(s)))} — ${s.src==="sep"?"the 1 Sep catalog":"the 25 Oct price list Matt approved"}${s.fix?" · "+esc(s.fix):""}</div>
-        ${s.ph?`<div class="sub" style="margin-top:4px">The catalog picture is only an outline of the blank.</div>`:""}
+        ${s.ph&&!stcPicFile(s)?`<div class="sub" style="margin-top:4px">The catalog picture is only an outline of the blank — upload a picture to replace it.</div>`:""}
         ${fl.length?`<div class="warn" style="margin-top:8px">${fl.map(esc).join("<br>")}</div>`:""}
         ${showCost?`<div style="margin-top:10px;display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span class="sub">Material sq ft</span>
           <input id="stc-sq" value="${esc(String(stcSq(s)||""))}" style="width:90px" inputmode="decimal"><button class="btn sm" data-stcsq="${esc(s.sku)}">Save</button></div>
@@ -6636,23 +6640,46 @@ function stcViewModal(sku){const s=stcBySku(sku);if(!s)return;const showCost=can
           <td class="mono c" data-label="Cost" style="text-align:right;font-weight:700;white-space:nowrap" title="${esc(r.why||r.flags.join("; "))}">${r.cost!=null?money2(r.cost):`<span class="pill r">${/sheet/.test(r.flags[0]||"")?"no sheet":/sq ft/.test(r.flags[0]||"")?"no sq ft":"not costed"}</span>`}</td>`:""}
           <td class="mono p" style="text-align:right;font-weight:700;white-space:nowrap">${pr?money2(pr):"—"}${pr&&Number(s.pc)>1?`<div class="sub" style="font-weight:400">${money2(pr/Number(s.pc))} a piece</div>`:""}</td>${showCost?`<td class="mg" data-label="Margin" style="text-align:right">${mg==null?"—":`<span class="pill ${mg>=40?"g":mg>=25?"o":"r"}">${Math.round(mg)}%</span>`}</td>`:""}</tr>`}).join("")}
     </tbody></table></div>`,`<button class="btn" data-close="1">Close</button>`));
-  stcDropWire(document.getElementById("stc-files"))}
+  stcDropWire(document.getElementById("stc-files"));stcPicWire()}
 /* ---------- stencil files: the DXF cut file and the PDF proof for each stencil ---------- */
 // stored like every other CRM file (a files record + the CRM's file storage), tied to the stencil by its SKU
 const STC_FILE_OK=/\.(dxf|pdf)$/i;
-function stcFileKind(name){return /\.dxf$/i.test(name||"")?"dxf":/\.pdf$/i.test(name||"")?"pdf":""}
-// which stencils have a cut file / PDF: built once per change of the files list
+const STC_PIC_OK=/\.(png|jpe?g|webp)$/i;
+const STC_PIC_CHUNK=40; // a full corrected set is about 1,600 pictures — upload them in batches, not one giant request
+function stcFileKind(name){const n=name||"";
+  return /\.dxf$/i.test(n)?"dxf":/\.pdf$/i.test(n)?"pdf":STC_PIC_OK.test(n)?"pic":""}
+function stcIsPic(f){return !!f&&(STC_PIC_OK.test(f.name||"")||/^image\/(png|jpeg|webp)$/i.test(f.type||""))}
+// which stencils have a cut file / PDF: built once per change of the files list (pictures are separate)
 function stcFileIdx(){const sig=S.files.size+":"+[...S.files.values()].reduce((t,f)=>t+(f.stencilSku?(Number(f.at)||1)+(f.deleted?7:0):0),0);
   if(S._stcFI&&S._stcFI.sig===sig)return S._stcFI.m;const m={};
-  live(S.files).forEach(f=>{if(!f.stencilSku)return;const k=String(f.stencilSku).toUpperCase();const o=m[k]||(m[k]={dxf:0,pdf:0});const kd=stcFileKind(f.name);if(kd)o[kd]++});
+  live(S.files).forEach(f=>{if(!f.stencilSku)return;const k=String(f.stencilSku).toUpperCase();const o=m[k]||(m[k]={dxf:0,pdf:0});const kd=stcFileKind(f.name);if(kd==="dxf"||kd==="pdf")o[kd]++});
   S._stcFI={sig,m};return m}
+// the newest uploaded picture for each stencil (PNG, JPG or WebP). The catalog PNG is the fallback.
+function stcPicIdx(){const sig=S.files.size+":"+[...S.files.values()].reduce((t,f)=>t+(f.stencilSku&&stcIsPic(f)?(Number(f.at)||1)+(f.deleted?7:0):0),0);
+  if(S._stcPI&&S._stcPI.sig===sig)return S._stcPI.m;const m={};
+  live(S.files).forEach(f=>{if(!f.stencilSku||!stcIsPic(f))return;const k=String(f.stencilSku).toUpperCase();
+    const cur=m[k];if(!cur||(Number(f.at)||0)>=(Number(cur.at)||0))m[k]=f});
+  S._stcPI={sig,m};return m}
+function stcPicFile(s){if(!s||!s.sku)return null;const k=String(s.sku).toUpperCase();
+  const liveF=stcPicIdx()[k]||null;const mem=S._stcPicMem&&S._stcPicMem[k];
+  if(mem&&!mem.deleted){if(liveF&&liveF.id===mem.id)return liveF;if(liveF&&(Number(liveF.at)||0)>(Number(mem.at)||0))return liveF;return mem}
+  return liveF}
+function stcPicBlock(s){const up=stcPicFile(s),url=stcPicUrl(s);
+  const catalogOnly=!up&&!!(s.img&&(s.ph||stcDims(s).onePiece));
+  const show=!!url&&!catalogOnly;
+  return `<div id="stc-pic">${show?`<img src="${esc(url)}" alt="" style="width:100%;margin-top:8px;height:auto;max-height:150px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:4px">`
+    :`<div class="sub" style="margin-top:8px">${s.ph&&!up?"The catalog picture is only an outline of the blank.":"No picture yet."}</div>`}
+    ${S.canUpload?`<div class="fld" style="margin-top:8px"><div class="k">${up?"Replace picture":"Upload picture"} — PNG, JPG or WebP</div>
+      <input type="file" id="stc-picf" data-sku="${esc(s.sku)}" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" aria-label="Picture for this stencil — PNG, JPG or WebP">
+      <div class="sub">Up to 25 MB. ${up?"The picture on it now goes to the recycle bin. Remove the upload and the catalog picture shows again.":"This picture is the one on the list, on quotes and on printouts."}</div>
+      ${up&&canDelFile(up)?`<button type="button" class="btn sm d" data-stcdelfile="${esc(up.id)}:${esc(s.sku)}" style="margin-top:6px" title="Remove this picture — it goes to the recycle bin">Remove picture</button>`:""}</div>`:""}</div>`}
 function stcFilesHtml(sku){const fs=filesOf("stencil",sku);
-  return `<div class="k" style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink3);margin:0 0 6px;display:flex;align-items:center;gap:8px">Files — cut file and PDF <span class="n">${fs.length}</span>
+  return `<div class="k" style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink3);margin:0 0 6px;display:flex;align-items:center;gap:8px">Files — picture, cut file and PDF <span class="n">${fs.length}</span>
       <span style="flex:1"></span>${S.canUpload?`<button class="btn sm p" data-stcup="${esc(sku)}">Upload DXF or PDF</button>`:""}</div>
     ${fs.length?`<ul class="stcfl" style="list-style:none;margin:0;padding:0;border:1px solid var(--line);border-radius:6px">${fs.map(f=>{const kd=stcFileKind(f.name);
       return `<li style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 10px;border-bottom:1px solid var(--line2)">
         <span class="pill ${kd==="dxf"?"b":""}" style="min-width:42px;justify-content:center">${esc(kd?kd.toUpperCase():"FILE")}</span>
-        <span style="flex:1;min-width:160px"><b style="word-break:break-all">${esc(f.name)}</b><span class="sub" style="display:block">${esc([kd==="dxf"?"Cut file":kd==="pdf"?"PDF":f.cat,bytes(f.size),fileWho(f),f.at?fmtTs(f.at):""].filter(Boolean).join(" · "))}</span></span>
+        <span style="flex:1;min-width:160px"><b style="word-break:break-all">${esc(f.name)}</b><span class="sub" style="display:block">${esc([kd==="dxf"?"Cut file":kd==="pdf"?"PDF":kd==="pic"?"Picture":f.cat,bytes(f.size),fileWho(f),f.at?fmtTs(f.at):""].filter(Boolean).join(" · "))}</span></span>
         ${kd!=="dxf"?`<button class="btn sm" data-view="${esc(f.id)}">Open</button>`:""}
         <button class="btn sm${kd==="dxf"?" p":""}" data-dl="${esc(f.id)}">Download</button>
         ${canDelFile(f)?`<button class="btn sm d" data-stcdelfile="${esc(f.id)}:${esc(sku)}" title="Delete this file — it goes to the recycle bin">Delete</button>`:""}</li>`}).join("")}</ul>`
@@ -6691,14 +6718,18 @@ function stcUpModal(sku){
     `<button class="btn" data-close="1">Cancel</button><button class="btn p" id="stc-upgo">Upload</button>`));
   $("#stc-upgo").onclick=async()=>{const el=$("#stc-upf");const fs=[...((el&&el.files)||[])];if(!fs.length)return toast("Pick at least one file.");
     closeModal();stcViewModal(sku);await stcUploadTo(sku,fs)}}
+// the stencil a file name points at: the SKU, or the same SKU without the SSS- prefix, or the STN- price list number.
+// Case doesn't matter. Anything else is unmatched — never guessed.
+function stcSkuOfName(name){const base=String(name||"").replace(/\.[^.]+$/,"").trim();if(!base)return null;
+  const s=stcBySku(base);if(s)return s;if(!/^SSS-/i.test(base))return stcBySku("SSS-"+base);return null}
 // bulk: many files at once, each one goes to the stencil whose SKU is its name (SKU.dxf, SKU.pdf). A name that isn't a
 // SKU is listed, never guessed at.
 function stcBulkMatch(files){const m=[],nomatch=[],wrong=[];
-  files.forEach(f=>{if(!STC_FILE_OK.test(f.name)){wrong.push(f);return}const base=String(f.name).replace(/\.[^.]+$/,"").trim();const s=stcBySku(base);
+  files.forEach(f=>{if(!STC_FILE_OK.test(f.name)){wrong.push(f);return}const s=stcSkuOfName(f.name);
     if(s)m.push({f,sku:s.sku,n:s.n});else nomatch.push(f)});return {m,nomatch,wrong}}
 function stcBulkModal(){S._stcBulk=null;
   openModal(mshell("Upload stencil files in bulk","file",`<div style="padding:12px 15px">
-    <p style="margin:0 0 8px">Name each file with the stencil's SKU — <b class="mono">SSS-FAA-108-01.dxf</b> and <b class="mono">SSS-FAA-108-01.pdf</b> — and each one goes to that stencil. The price list number (STN-0001) works too.</p>
+    <p style="margin:0 0 8px">Name each file with the stencil's SKU — <b class="mono">SSS-FAA-108-01.dxf</b> and <b class="mono">SSS-FAA-108-01.pdf</b> — and each one goes to that stencil. <b class="mono">FAA-108-01.dxf</b> (without SSS-) matches the same stencil. The price list number (STN-0001) works too.</p>
     <div class="drop" id="stc-bdrop" style="padding:22px;text-align:center">Drop all the .dxf and .pdf files here<div style="margin-top:8px"><input type="file" id="stc-bf" multiple accept=".dxf,.pdf,application/pdf,application/dxf,image/vnd.dxf" aria-label="Choose files"></div></div>
     <div id="stc-bres" style="margin-top:10px"></div></div>`,
     `<button class="btn" data-close="1">Close</button><button class="btn p" id="stc-bgo" disabled>Upload</button>`));
@@ -6719,6 +6750,85 @@ function stcBulkModal(){S._stcBulk=null;
       ${bad.length?`<div style="margin-top:6px">Not uploaded:<ul style="margin:4px 0 0;padding-left:18px">${bad.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>`:""}
       ${r.nomatch.length?`<div style="margin-top:6px">${r.nomatch.length} file${r.nomatch.length===1?"":"s"} matched no SKU and ${r.nomatch.length===1?"wasn't":"weren't"} uploaded: ${r.nomatch.map(f=>`<span class="mono">${esc(f.name)}</span>`).join(", ")}</div>`:""}</div>`;
     b.textContent="Done";S._stcBulk=null;try{render()}catch(e){}}}
+function stcPicWire(){const el=document.getElementById("stc-picf");if(!el||el._wired)return;el._wired=1;
+  el.onchange=async()=>{const f=el.files&&el.files[0];el.value="";if(!f)return;const sku=el.dataset.sku;
+    if(!STC_PIC_OK.test(f.name||""))return toast("Use a PNG, JPG or WebP.");
+    if(!assets)return toast("Uploading isn't available on this view.");
+    toast("Uploading "+f.name+"…");
+    try{const r=await stcPutPic(f,sku);
+      toast(r.replaced?"Picture replaced — the old one is in the recycle bin":"Picture saved");
+      closeModal();stcViewModal(sku)}
+    catch(e){toast(e&&e.code==="big"?f.name+" — over 25 MB":stcUpErr(e,f.name))}}}
+// one picture for a stencil. Any picture already on it (whatever it was named) goes to the recycle bin.
+async function stcPutPic(file,sku){
+  if(file.size>25*1048576)throw {code:"big"};
+  const up=await assets.upload(file);
+  const s=stcBySku(sku)||{sku};const key=String(s.sku).toUpperCase();
+  const old=filesOf("stencil",s.sku).filter(f=>stcIsPic(f)&&canDelFile(f));
+  const pend=(S._stcPicPend&&S._stcPicPend[key])||[];
+  pend.forEach(id=>{if(id&&!old.some(f=>f.id===id)){const f=S.files.get(id);if(!f||(!f.deleted&&canDelFile(f)))old.push(f||{id})}});
+  const fid=uid("f");
+  const type=up.contentType||file.type||(/\.webp$/i.test(file.name)?"image/webp":/\.jpe?g$/i.test(file.name)?"image/jpeg":"image/png");
+  const rec={id:fid,assetId:up.id,url:up.url,name:file.name,size:up.sizeBytes||file.size,type,cat:"Photo",
+    who:me(),when:stamp(),at:Date.now(),deleted:false,accountId:"",projectId:"",jobId:"",stencilSku:s.sku,byId:meId()};
+  await setDoc("files/"+fid,rec);
+  for(const f of old){if(!f||!f.id||f.id===fid)continue;
+    try{await push("files/"+f.id,{deleted:true,deletedAt:Date.now(),deletedBy:me(),supersededBy:fid})}catch(e){}
+    const cur=S.files.get(f.id);if(cur)S.files.set(f.id,Object.assign({},cur,{deleted:true,deletedAt:Date.now(),deletedBy:me(),supersededBy:fid}))}
+  S.files.set(fid,rec);
+  S._stcPicPend=S._stcPicPend||{};S._stcPicPend[key]=[fid];
+  S._stcPicMem=S._stcPicMem||{};S._stcPicMem[key]=rec;
+  S._stcPI=null;S._stcFI=null;
+  return {replaced:old.filter(f=>f&&f.id&&f.id!==fid).length,url:up.url,id:fid}}
+// pictures in bulk: same SKU match as the cut files (case doesn't matter, SSS- is optional). replaced = a picture
+// already on that stencil, or an earlier file in this same batch for the same stencil.
+function stcPicBulkMatch(files){const m=[],nomatch=[],wrong=[];
+  files.forEach(f=>{if(!STC_PIC_OK.test(f.name||"")){wrong.push(f);return}const s=stcSkuOfName(f.name);
+    if(s)m.push({f,sku:s.sku,n:s.n});else nomatch.push(f)});
+  const seen={};let repl=0;
+  m.forEach(x=>{if(stcPicFile(stcBySku(x.sku))||seen[x.sku])repl++;seen[x.sku]=1});
+  return {m,nomatch,wrong,repl}}
+function stcPicListHtml(list,cap){const shown=list.slice(0,cap||40),more=list.length-shown.length;
+  return `<ul style="margin:6px 0 0;padding-left:18px">${shown.map(f=>`<li class="mono" style="word-break:break-all">${esc(f.name||f)}</li>`).join("")}</ul>`
+    +(more?`<div class="sub" style="margin-top:4px">and ${more} more</div>`:"")}
+function stcPicBulkModal(){S._stcPicBulk=null;S._stcPicBag=[];
+  openModal(mshell("Upload stencil pictures in bulk","file",`<div style="padding:12px 15px">
+    <p style="margin:0 0 8px">Name each picture with the stencil's SKU — <b class="mono">SSS-ALP-024-05.png</b> or <b class="mono">ALP-024-05.png</b> — and it replaces that stencil's picture everywhere it's shown. JPG and WebP work too. The price list number (STN-0001.png) works too. A picture already on the stencil goes to the recycle bin.</p>
+    <p class="sub" style="margin:0 0 8px">Up to 25 MB each. A full set (about 1,600) is fine — add them in one go or in batches, and they upload ${STC_PIC_CHUNK} at a time.</p>
+    <div class="drop" id="stc-pdrop" style="padding:22px;text-align:center">Drop the pictures here
+      <div class="fld" style="margin-top:8px"><div class="k">Pictures</div><input type="file" id="stc-pf" multiple accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" aria-label="Choose pictures"></div>
+      <div class="fld" style="margin-top:8px"><div class="k">Or a folder of pictures</div><input type="file" id="stc-pdir" webkitdirectory directory multiple accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" aria-label="Choose a folder of pictures"></div>
+    </div>
+    <div id="stc-pres" style="margin-top:10px"></div></div>`,
+    `<button class="btn" data-close="1">Close</button><button class="btn" id="stc-pclear" disabled>Clear</button><button class="btn p" id="stc-pgo" disabled>Upload</button>`));
+  const show=fs=>{const r=stcPicBulkMatch(fs);S._stcPicBulk=r;const box=$("#stc-pres");if(!box)return;
+    const where=r.m.slice(0,12);
+    box.innerHTML=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"><span class="pill g">${r.m.length} matched</span><span class="pill ${r.repl?"o":""}">${r.repl} replaced</span>${r.nomatch.length?`<span class="pill r">${r.nomatch.length} unmatched</span>`:""}${r.wrong.length?`<span class="pill o">${r.wrong.length} not a PNG, JPG or WebP</span>`:""}</div>
+      ${r.nomatch.length?`<div class="warn" style="margin-bottom:8px"><b>Unmatched — these names aren't a stencil SKU, so they won't upload.</b>${stcPicListHtml(r.nomatch,40)}</div>`:""}
+      ${r.wrong.length?`<div class="sub" style="margin-bottom:8px">Skipped (only PNG, JPG and WebP): ${r.wrong.slice(0,12).map(f=>esc(f.name)).join(", ")}${r.wrong.length>12?" and "+(r.wrong.length-12)+" more":""}</div>`:""}
+      ${where.length?`<details${r.m.length<=12?" open":""}><summary style="cursor:pointer">Where each picture goes${r.m.length>12?" — first 12 of "+r.m.length:""}</summary><div style="max-height:220px;overflow:auto;margin-top:6px"><table style="table-layout:auto;width:100%"><tbody>${where.map(x=>`<tr><td class="mono" style="word-break:break-all">${esc(x.f.name)}</td><td class="sub">→ ${esc(x.sku)}</td></tr>`).join("")}</tbody></table></div></details>`:""}`;
+    const b=$("#stc-pgo"),c=$("#stc-pclear");
+    if(b){b.disabled=!r.m.length;b.textContent=r.m.length?"Upload "+r.m.length+" picture"+(r.m.length>1?"s":""):"Upload"}
+    if(c)c.disabled=!fs.length};
+  const add=list=>{const key=f=>[f.name,f.size,f.lastModified].join("|");const have=new Set(S._stcPicBag.map(key));
+    [...list].forEach(f=>{const k=key(f);if(!have.has(k)){S._stcPicBag.push(f);have.add(k)}});show(S._stcPicBag)};
+  const inp=$("#stc-pf");if(inp)inp.onchange=()=>{add(inp.files||[]);inp.value=""};
+  const dir=$("#stc-pdir");if(dir)dir.onchange=()=>{add(dir.files||[]);dir.value=""};
+  const dz=$("#stc-pdrop");if(dz){dz.ondragover=ev=>{ev.preventDefault();dz.classList.add("hot")};dz.ondragleave=()=>dz.classList.remove("hot");
+    dz.ondrop=ev=>{ev.preventDefault();dz.classList.remove("hot");add((ev.dataTransfer&&ev.dataTransfer.files)||[])}}
+  const clr=$("#stc-pclear");if(clr)clr.onclick=()=>{S._stcPicBag=[];S._stcPicBulk=null;show([]);const box=$("#stc-pres");if(box)box.innerHTML=""};
+  $("#stc-pgo").onclick=async()=>{const r=S._stcPicBulk;if(!r||!r.m.length)return;if(!assets)return toast("Uploading isn't available on this view.");
+    const b=$("#stc-pgo");b.disabled=true;const box=$("#stc-pres");let n=0,rep=0;const bad=[];
+    const chunks=Math.ceil(r.m.length/STC_PIC_CHUNK);
+    for(let c=0;c<chunks;c++){const slice=r.m.slice(c*STC_PIC_CHUNK,(c+1)*STC_PIC_CHUNK);
+      for(let j=0;j<slice.length;j++){const i=c*STC_PIC_CHUNK+j,x=slice[j];
+        if(box)box.innerHTML=`<div class="note"><b>Uploading ${i+1} of ${r.m.length}</b> — batch ${c+1} of ${chunks}<div class="mono" style="margin-top:4px;word-break:break-all">${esc(x.f.name)}</div></div>`;
+        try{const o=await stcPutPic(x.f,x.sku);n++;rep+=o.replaced}catch(e){bad.push(e&&e.code==="big"?x.f.name+" — over 25 MB":stcUpErr(e,x.f.name))}}
+      if(c<chunks-1)await new Promise(res=>setTimeout(res,20))}
+    if(box)box.innerHTML=`<div class="${bad.length?"warn":"note"}"><b>${n} matched and uploaded</b> · <b>${rep} replaced</b> (older pictures moved to the recycle bin) · <b>${r.nomatch.length} unmatched</b>.
+      ${bad.length?`<div style="margin-top:6px">Not uploaded:${stcPicListHtml(bad.map(x=>({name:x})),40)}</div>`:""}
+      ${r.nomatch.length?`<div style="margin-top:6px">Unmatched — not uploaded:${stcPicListHtml(r.nomatch,40)}</div>`:""}</div>`;
+    b.textContent="Done";S._stcPicBulk=null;S._stcPicBag=[];try{render()}catch(e){}}}
 function stcMatModal(gi){const g=STC_GRADES[gi];if(!g)return;const c=stcCfg();
   const opts=itemList().filter(it=>/stencil|ldpe|hdpe|polyeth|alum|5052/i.test([it.cat,it.name,it.sku].join(" "))).sort((a,b)=>a.name.localeCompare(b.name));
   openModal(mshell("Sheet for "+g.label,"proj",
@@ -9215,7 +9325,12 @@ function artMatches(p){
 function lineArt(p,line){if(!p||!line)return null;if(line.artId==="none")return null;
   const m=artMatches(p);const ol=line.lineId?orderedLines(p).find(o=>o.id===line.lineId):null;
   return m[(ol&&ol.id)||line.id||olKey(line)]||null}
+// a picture uploaded for this stencil replaces the catalog PNG on quotes, proofs and printouts.
+// Artwork filed on the project still wins — that's the proof for this job, not the catalog picture.
+function stcUploadedPic(line){if(!line||typeof line!=="object")return "";const st=stcBySku(line.code);if(!st)return "";
+  const f=stcPicFile(st);return f&&f.url?f.url:""}
 function linePic(p,line){const a=lineArt(p,line);if(a&&a.url)return a.url;
+  const up=stcUploadedPic(line);if(up)return up;
   let web=line&&line.webImg||"";
   if(!web&&p&&line&&line.lineId){const ol=orderedLines(p).find(o=>o.id===line.lineId);if(ol&&ol.webImg)web=ol.webImg}
   if(web){web=picFixUrl(web);if(!PICBAD[web]){picProbe(web,p&&p.id);return web}}
@@ -9236,6 +9351,7 @@ function picProbe(u,pid){if(!u||!/^https?:/i.test(u)||PICOK[u]||PICBAD[u]||_picT
   im.onload=()=>fin(im.naturalWidth>1);im.onerror=()=>fin(false);setTimeout(()=>fin(false),12000);im.src=u}
 // what the agents see on the order sync: "photo" (a real picture), "drawing" (only the plain shape) or "none"
 function picStatus(p,line){try{const a=p?lineArt(p,line):null;if(a&&a.url)return "photo";
+  if(stcUploadedPic(line))return "photo";
   let web=line&&line.webImg||"";
   if(!web&&p&&line&&line.lineId){const ol=orderedLines(p).find(o=>o.id===line.lineId);if(ol&&ol.webImg)web=ol.webImg}
   if(web){web=picFixUrl(web);picProbe(web,p&&p.id);if(!PICBAD[web])return "photo";
@@ -9243,6 +9359,7 @@ function picStatus(p,line){try{const a=p?lineArt(p,line):null;if(a&&a.url)return
   const e=picEntry(line);return !e?"none":e.generic?"drawing":"photo"}catch(e){return ""}}
 // the name of the picture a line shows: the file, the link on the line, the website sign or "drawing: …"
 function picName(p,line){const a=p?lineArt(p,line):null;if(a&&a.url)return "file: "+(a.name||"uploaded picture");
+  if(stcUploadedPic(line)){const st=stcBySku(line.code);const f=st?stcPicFile(st):null;return "stencil picture: "+((f&&f.name)||(st&&st.sku)||"")}
   let web=line&&line.webImg||"";if(!web&&p&&line&&line.lineId){const ol=orderedLines(p).find(o=>o.id===line.lineId);if(ol&&ol.webImg)web=ol.webImg}
   if(web&&!PICBAD[picFixUrl(web)])return "link on the line";
   const e=picEntry(Object.assign({},line,{webImg:""}));if(!e)return "";
@@ -11155,7 +11272,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-142";
+const APP_VERSION="2026.11.25-143";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -12192,6 +12309,7 @@ function fileOwner(f){
   if(f.accountId)return `<button class="lnk" data-go="account/${esc(f.accountId)}">${esc(accName(f.accountId))}</button>`;
   if(f.vendorId)return `<button class="lnk" data-go="vendor/${esc(f.vendorId)}">Vendor · ${esc(vendName(f.vendorId))}</button>`;
   if(f.itemId){const it=S.items.get(f.itemId);return `<button class="lnk" data-go="item/${esc(f.itemId)}">Item · ${esc(it?it.name:"item")}</button>`}
+  if(f.stencilSku)return `<button class="lnk mono" data-stcview="${esc(f.stencilSku)}">Stencil ${esc(f.stencilSku)}</button>`;
   return "—";
 }
 
@@ -15148,6 +15266,12 @@ function fileWho(f){if(!f)return "";if(f.who==="AI")return "added by the agents"
 async function delFile(fid){const f0=S.files.get(fid);if(f0&&!canDelFile(f0))return toast(fileLocked(f0)?"Signed copies, purchase orders and invoices can only be removed by the owner.":"Only the person who uploaded it, office or the owner can remove this file.");
   try{if(document.getElementById("viewer"))closeViewer()}catch(e){}
   await push("files/"+fid,{deleted:true,deletedAt:Date.now(),deletedBy:me()});
+  // a stencil picture leaves the list, the stencil window and quotes as soon as it's binned; the catalog PNG shows again
+  if(f0&&f0.stencilSku&&stcIsPic(f0)){S.files.set(fid,Object.assign({},f0,{deleted:true,deletedAt:Date.now(),deletedBy:me()}));
+    const k=String(f0.stencilSku).toUpperCase();
+    if(S._stcPicMem&&S._stcPicMem[k]&&S._stcPicMem[k].id===fid)delete S._stcPicMem[k];
+    if(S._stcPicPend&&S._stcPicPend[k])S._stcPicPend[k]=S._stcPicPend[k].filter(id=>id!==fid);
+    S._stcPI=null}
   toast("File moved to the recycle bin");
 }
 async function backup(kind){
@@ -17977,6 +18101,7 @@ function bind(){
     {const x=t.closest("[data-stccsv]");if(x){stcCsv();return}}
     {const x=t.closest("[data-stcnocut]");if(x){S.stcF=Object.assign({},S.stcF||{},{nocut:!(S.stcF&&S.stcF.nocut),page:0});render();return}}
     {const x=t.closest("[data-stcbulk]");if(x){stcBulkModal();return}}
+    {const x=t.closest("[data-stcpicbulk]");if(x){stcPicBulkModal();return}}
     {const x=t.closest("[data-stcup]");if(x){stcUpModal(x.dataset.stcup);return}}
     {const x=t.closest("[data-stcdelfile]");if(x){const[fid,sku]=x.dataset.stcdelfile.split(":");const f=S.files.get(fid);if(!f)return;
       askConfirm("Delete "+(f.name||"this file")+"?",`<p style="margin:0">It goes to the recycle bin — restore it from Settings → Recycle bin if you need it back.</p>`,"Delete",true,async()=>{await delFile(fid);stcViewModal(sku)});return}}
