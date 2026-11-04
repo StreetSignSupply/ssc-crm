@@ -34,6 +34,9 @@ const D = {
     items: [{ qty: "4", code: "R1-1", desc: "Stop", size: "30x30", grade: "HIP", lineId: "l1" }], gates: {}, route: {}, ship: {}, statusLog: [{ status: "new", at: now - day }] } },
   files: { f1: { name: "Proof.png", type: "image/png", url: "", cat: "Artwork proof", projectId: "p1", accountId: "a1", at: now },
     // a quote PDF a sales rep made (like the sales agent's starter quotes): it has to show on the owner's review list
+    // a stencil's cut file and PDF: they show on that stencil (#/stencils)
+    f3: { name: "SSS-FAA-108-01.dxf", type: "application/dxf", url: "", cat: "Cut file", stencilSku: "SSS-FAA-108-01", byId: "t1", who: "TO", at: now, size: 20480 },
+    f4: { name: "SSS-FAA-108-01.pdf", type: "application/pdf", url: "", cat: "Artwork proof", stencilSku: "SSS-FAA-108-01", byId: "t1", who: "TO", at: now, size: 40960 },
     f2: { name: "Quote-Q-1001.pdf", type: "application/pdf", url: "", cat: "Quote", gen: "quote", qhash: "old", projectId: "p1", accountId: "a1", byId: "t2", who: "Test Sales", at: now } },
   activity: { x1: { id: "x1", recType: "account", recId: "a1", kind: "note", type: "call", text: "Called about the bid", contactId: "c1", at: now - day, when: new Date(now - day).toISOString().slice(0, 10) },
     x2: { id: "x2", recType: "account", recId: "a1", kind: "task", type: "task", text: "Call back about the bid", assigneeId: "t1", whoId: "t1", who: "TO", at: now,
@@ -47,7 +50,9 @@ pg.on("pageerror", (e) => errs.push(String(e.message || e).slice(0, 160)));
 await pg.addInitScript((D) => { const db = { collection(c) { return { onSnapshot(cb) { const docs = Object.entries(D[c] || {}).map(([id, d]) => ({ id, data: () => d })); setTimeout(() => cb({ docs, size: docs.length, forEach: (f) => docs.forEach(f) }), 10); return () => {}; } }; },
     doc(p) { return { path: p, async get() { return { exists: false, data: () => null }; }, set() { return Promise.resolve(); }, update() { return Promise.resolve(); }, delete() { return Promise.resolve(); }, onSnapshot(cb) { setTimeout(() => cb({ exists: false, data: () => null }), 10); return () => {}; }, async acquire() { return { acquired: true }; } }; },
     nextCounter: async () => 1 };
-  const caps = { db, user: { async me() { return { id: "u1", name: "Test Owner", email: "owner@example.com" }; } } };
+  window.__ups = [];
+  const assets = { async upload(f) { window.__ups.push(f.name); return { id: "as" + window.__ups.length, url: "https://example.com/" + encodeURIComponent(f.name), sizeBytes: f.size, contentType: f.type }; } };
+  const caps = { db, assets, user: { async me() { return { id: "u1", name: "Test Owner", email: "owner@example.com" }; } } };
   window.__mock = { use: async (n) => { if (!(n in caps)) throw Object.assign(new Error("x"), { code: "not_declared" }); return caps[n]; } }; }, D);
 await pg.route(/firebase-adapter\.js$/, (r) => r.fulfill({ status: 200, contentType: "text/javascript", body: "" }));
 await pg.route(/raw\.githubusercontent\.com\/StreetSignSupply\/ssc-crm\/main\/public\/([^?]*)/, (r) => { const f = path.resolve(root, "public", decodeURIComponent(r.request().url().match(/main\/public\/([^?]*)/)[1]));
@@ -186,6 +191,26 @@ await pg.setViewportSize({ width: 1400, height: 900 });
   await pg.evaluate(() => { location.hash = "#/new"; }); await pg.waitForTimeout(500);
   const wn = await pg.evaluate(() => (document.querySelector(".main") || {}).innerText || "");
   if (!/New accounts/.test(wn) || !/Test Plastics Inc/.test(wn)) bad.push("What's new doesn't list an account added today"); }
+// stencil files: the stencil shows its DXF and PDF to open or download; bulk upload sends each file to its SKU and lists the rest
+{ await pg.evaluate(() => { location.hash = "#/stencils"; }); await pg.waitForTimeout(1500);
+  const row = await pg.evaluate(() => { const b = document.querySelector('[data-stcview="SSS-FAA-108-01"]'); const tr = b && b.closest("tr"); return tr ? tr.innerText : ""; });
+  if (!/DXF \+ PDF on file/.test(row)) bad.push("the stencil list doesn't show which stencils have a cut file (" + row.slice(0, 60) + ")");
+  await pg.evaluate(() => document.querySelector('[data-stcview="SSS-FAA-108-01"]').click()); await pg.waitForTimeout(500);
+  const fx = await pg.evaluate(() => { const b = document.getElementById("stc-files"); if (!b) return null; return { t: b.innerText, dl: b.querySelectorAll("[data-dl]").length, up: !!b.querySelector("[data-stcup]"), open: b.querySelectorAll("[data-view]").length }; });
+  if (!fx) bad.push("a stencil's window has no Files area");
+  else { if (!/SSS-FAA-108-01\.dxf/.test(fx.t) || !/SSS-FAA-108-01\.pdf/.test(fx.t)) bad.push("a stencil's window doesn't list its DXF and PDF");
+    if (fx.dl < 2 || fx.open < 1 || !fx.up) bad.push("a stencil's files can't be opened, downloaded or uploaded (" + JSON.stringify(fx) + ")"); }
+  await pg.evaluate(() => { const b = document.querySelector(".mbox [data-close]"); if (b) b.click(); }); await pg.waitForTimeout(350);
+  await pg.evaluate(() => document.querySelector("[data-stcbulk]").click()); await pg.waitForTimeout(400);
+  await pg.setInputFiles("#stc-bf", [{ name: "SSS-FAA-120-01.dxf", mimeType: "application/dxf", buffer: Buffer.from("0\nSECTION\n") }, { name: "NOT-A-SKU.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4") }, { name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("x") }]);
+  await pg.waitForTimeout(300);
+  const bm = await pg.evaluate(() => ({ t: (document.getElementById("stc-bres") || {}).innerText || "", b: (document.getElementById("stc-bgo") || {}).textContent || "" }));
+  if (!/1 matched a stencil/.test(bm.t) || !/1 matched no SKU/.test(bm.t) || !/NOT-A-SKU\.pdf/.test(bm.t) || !/not a DXF or PDF/.test(bm.t)) bad.push("bulk stencil upload doesn't sort files by SKU and list the ones that matched none (" + bm.t.slice(0, 80) + ")");
+  if (!/Upload 1 file/.test(bm.b)) bad.push("bulk stencil upload offers the wrong count (" + bm.b + ")");
+  await pg.evaluate(() => document.getElementById("stc-bgo").click()); await pg.waitForTimeout(800);
+  const done = await pg.evaluate(() => ({ t: (document.getElementById("stc-bres") || {}).innerText || "", ups: window.__ups.slice() }));
+  if (!/1 file uploaded/.test(done.t) || done.ups.length !== 1 || done.ups[0] !== "SSS-FAA-120-01.dxf") bad.push("bulk stencil upload didn't upload just the matched file (" + done.t.slice(0, 60) + " / " + done.ups.join(",") + ")");
+  await pg.evaluate(() => { const b = document.querySelector(".mbox [data-close]"); if (b) b.click(); }); await pg.waitForTimeout(350); }
 // a separate billing address: on the account's Billing card, and the form shows its boxes only when ticked
 { await pg.evaluate(() => { location.hash = "#/account/a1"; }); await pg.waitForTimeout(600);
   const tx = await pg.evaluate(() => (document.querySelector(".main") || {}).innerText || "");

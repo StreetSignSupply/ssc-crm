@@ -1,5 +1,11 @@
 # What changed
 
+## 2026.11.25-142 (cut files and PDFs on every stencil)
+- Stencils: each stencil's window (#/stencils → click a stencil) has a **Files** area for its **DXF cut file** and **PDF**. PDFs **Open** in the viewer; both **Download** for cutting. **Upload DXF or PDF**, or drop the files on it. Same rules as vendor and project files: anyone with edit access uploads; the owner, office or the uploader deletes (to the recycle bin). A new file with the same name replaces the old one.
+- **Upload files in bulk** (Stencils page): drop many files at once; each one named with a stencil's SKU (SKU.dxf, SKU.pdf — the STN- price list number works too) goes to that stencil. Before anything uploads, it shows where each file goes and lists every file that matched no SKU (those aren't uploaded — nothing is guessed). Files that aren't .dxf or .pdf are skipped and listed.
+- The stencil list marks "DXF + PDF on file", and a "… with no cut file" button shows the ones still missing one.
+- Files are stored the same way as every other CRM file (the CRM's file storage, up to 25 MB each).
+
 ## 2026.11.25-141 (delete tasks and projects made by mistake)
 - Tasks: every task has a **⋯** menu with **Delete this task…** (and Change time / reassign). It asks first, goes to the recycle bin, and clears its unread bell notice. Allowed for owners and office, whoever gave the task, and whoever made it.
 - Activity: anything logged wrong — a note, call, email entry, including the "Email opened to …" placeholders — can be deleted from its ⋯ menu by owners, office or the person who logged it.
