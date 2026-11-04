@@ -166,7 +166,12 @@ if (STEP === "dupcheck") {
     const domCount = {}; del.forEach((x) => T.acctDomains(x).forEach((d) => { domCount[d] = (domCount[d] || 0) + 1; }));
     const phCount = {}; all.forEach((x) => { const p = String(x.phone || "").replace(/\D/g, "").slice(-10); if (p.length === 10) phCount[p] = (phCount[p] || 0) + 1; });
     const ourDom = Object.keys(domCount).filter((d) => /streetsignsupply|mesaridge/i.test(d)).map((d) => domCount[d]);
-    return { deleted: del.length, recent: recent.length, per, deletedWithOurDomain: ourDom, biggestSharedDomainInBin: Math.max(0, ...Object.values(domCount)), phonesOnManyAccounts: Object.values(phCount).filter((n) => n >= 3).sort((a, b) => b - a) }; });
+    const agg = {}; per.forEach((x) => { const k = "bin:" + (x.bin ? x.binWhy.join("|") : "none") + " live:" + (x.live ? x.liveWhy.join("|") : "none"); agg[k] = (agg[k] || 0) + 1; });
+    // a random sample of plain names: would a typical new name hit the bin? (uses the deleted accounts' own names, so it's the worst case)
+    const binMerged = del.filter((x) => x.mergedInto).length, binMergedLive = del.filter((x) => x.mergedInto && S.accounts.get(x.mergedInto) && !S.accounts.get(x.mergedInto).deleted).length;
+    const binSameNameAsLive = del.filter((x) => { const k = T.acctKey(x.name); return k && all.some((y) => !y.deleted && T.acctKey(y.name) === k); }).length;
+    const byWho = {}; del.forEach((x) => { const k = String(x.deletedBy || "?").slice(0, 3); byWho[k] = (byWho[k] || 0) + 1; });
+    return { deleted: del.length, recent: recent.length, agg, binMerged, binMergedLive, binSameNameAsLive, byWho, deletedWithOurDomain: ourDom, biggestSharedDomainInBin: Math.max(0, ...Object.values(domCount)), phonesOnManyAccounts: Object.values(phCount).filter((n) => n >= 3).sort((a, b) => b - a) }; });
   step("dup check read");
 }
 // FIX_STEP=stencils -> the stencil export (one row per stencil per grade, with today's cost) goes to the
