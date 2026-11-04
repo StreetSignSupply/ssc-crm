@@ -14380,13 +14380,15 @@ function accountModal(a,then){
     if(rec.billDiff&&!rec.billStreet){$("#f-bstreet").focus();return toast("Put in the billing street or PO box — or untick \"Billing address is different\".")}
     if(rec.exempt)rec.certNeeded=false;
     // a new account that looks like one we already have
-    if(!a.id&&!window.__dupOk){const d=dupAccounts(rec),arch=dupAccounts(rec,true);
-      if(d.length||arch.length){window.__dupPending=rec;
-        askConfirm("This account may already exist",
-          `${d.length?`<p style="margin:0 0 8px">${d.slice(0,5).map(x=>`<b>${esc(x.name)}</b>${x.phone?" · "+esc(fmtPhone(x.phone)):""}${x.city?" · "+esc(x.city):""} <button class="btn sm" data-go="account/${esc(x.id)}" data-close="1">Open</button>`).join("<br>")}</p>`:""}
-           ${arch.length?`<p style="margin:0 0 8px"><b>In the recycle bin:</b><br>${arch.slice(0,5).map(x=>`${esc(x.name)}${x.city?" · "+esc(x.city):""} <button class="btn sm p" data-restoreacct="${esc(x.id)}">Restore it</button>`).join("<br>")}</p>`:""}
-           <p class="note">Open or restore that one instead, or create a new account anyway.</p>`,
-          "Create it anyway",false,()=>{window.__dupOk=1;accountModal(Object.assign({},window.__dupPending,{id:""}))});
+    // only a live account that looks the same stops the save. Old deleted copies in the recycle bin don't — there are
+    // hundreds from past imports and clean-ups, and asking about them made a brand-new account look "archived".
+    if(!a.id&&!window.__dupOk){const d=dupAccounts(rec);
+      if(d.length){window.__dupPending=rec;
+        askConfirm("This account may already be in the CRM",
+          `<p style="margin:0 0 8px">${d.slice(0,5).map(x=>`<b>${esc(x.name)}</b>${x.phone?" · "+esc(fmtPhone(x.phone)):""}${x.city?" · "+esc(x.city):""} <button class="btn sm" data-go="account/${esc(x.id)}" data-close="1">Open</button>`).join("<br>")}</p>
+           <p class="note">Open that one instead, or create this new account anyway.</p>`,
+          "Create it anyway",false,()=>{window.__dupOk=1;accountModal(Object.assign({},window.__dupPending,{id:""}),then);
+            setTimeout(()=>{const b=$("#save");if(b&&window.__dupOk)b.click()},0)});
         return}}
     window.__dupOk=0;
     const diffs=diffFields("account",a.id?a:null,rec);
