@@ -23,3 +23,22 @@ jobs:
       - working-directory: worker
         env: { SA_TOKEN: "${{ steps.gauth.outputs.access_token }}" }
         run: node storage-check.mjs
+      # what the file-storage rules allow to be uploaded (file types and size) — read only
+      - id: gauth2
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/741399760463/locations/global/workloadIdentityPools/github/providers/ssc-crm
+          service_account: firebase-adminsdk-fbsvc@ssc-crm-a7224.iam.gserviceaccount.com
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/cloud-platform
+      - env: { TOK: "${{ steps.gauth2.outputs.access_token }}" }
+        run: |
+          P=ssc-crm-a7224
+          curl -s -H "Authorization: Bearer $TOK" "https://firebaserules.googleapis.com/v1/projects/$P/releases?pageSize=50" > rel.json
+          echo "::notice::releases: $(node -e 'const r=require("./rel.json");console.log((r.releases||[]).map(x=>x.name.split("/releases/")[1]).join(" | ")||JSON.stringify(r).slice(0,200))')"
+          RS=$(node -e 'const r=require("./rel.json");const x=(r.releases||[]).find(x=>/firebase\.storage/.test(x.name));console.log(x?x.rulesetName:"")')
+          [ -n "$RS" ] || { echo "::warning::no storage rules release found"; exit 0; }
+          curl -s -H "Authorization: Bearer $TOK" "https://firebaserules.googleapis.com/v1/$RS" > rs.json
+          node -e 'const r=require("./rs.json");const src=((r.source||{}).files||[]).map(f=>f.content).join("\n");
+            const lines=src.split("\n").filter(l=>/contentType|size|allow (write|create)|match /.test(l)).map(l=>l.trim().slice(0,200));
+            console.log("::notice::storage rules ("+src.length+" chars):");lines.forEach(l=>console.log("::notice::  "+l))'
