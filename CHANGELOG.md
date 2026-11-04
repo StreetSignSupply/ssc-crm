@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-143 (new accounts no longer stopped by old deleted copies)
+- Saving a new account no longer pops up "In the recycle bin … Restore it". The bin holds about 1,600 old copies from past imports and clean-ups, and roughly 1 in 5 new accounts matched one by name, phone or website — so a brand-new account looked archived. Only a **live** account that looks the same now asks first ("This account may already be in the CRM").
+- "Create it anyway" now saves the account straight away instead of sending you back to the form to press Save again (and a new account started from the contact form still links back to that contact).
+
 ## 2026.11.25-143 (replace a stencil's picture)
 - Stencils: each stencil's window has **Upload picture** / **Replace picture** (PNG, JPG or WebP, up to 25 MB). The new picture is the one shown on the stencil list, in that window, and on quotes, proofs and printouts. The catalog picture shows again if you remove the upload.
 - **Upload pictures in bulk** (Stencils page): name each file with the stencil's SKU (`SSS-ALP-024-05.png` or `ALP-024-05.png` — the SSS- prefix is optional, and the STN- price list number works too). Before anything uploads it reports how many matched, how many replace a picture already there, and which names matched no SKU. About 1,600 files is fine; they upload 40 at a time, and you can add them in more than one batch. An older uploaded picture goes to the recycle bin.

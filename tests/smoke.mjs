@@ -16,6 +16,7 @@ const D = {
   accounts: { a1: { name: "Test County", street: "1 Main St", city: "Town", state: "UT", type: "Government agency", terms: "Net 30", repId: "t1",
     billDiff: true, billStreet: "PO Box 77", billCity: "Town", billState: "UT", billZip: "84000" }, a2: { name: "Test Contractor", type: "Contractor", terms: "Prepay" },
     // a vendor that was also entered as an account: it has to be offered as a vendor, not left as a Lead
+    a9: { name: "Gone Sign Co", city: "Town", state: "UT", type: "Contractor", deleted: true, deletedAt: now - day },
     a3: { name: "Test Plastics Inc", type: "Contractor", createdAt: now } },
   contacts: { c1: { name: "Pat Example", accountId: "a1", email: "pat@example.com", phone: "4355550100", role: "Buyer" }, c2: { name: "Lee Sample", accountId: "a2", phone: "4355550101", role: "Buyer" } },
   vendors: { v1: { name: "Test Plastics" }, v2: { name: "Test Metals" } },
@@ -250,6 +251,22 @@ await pg.setViewportSize({ width: 1400, height: 900 });
   await pg.evaluate(() => document.getElementById("stc-pgo").click()); await pg.waitForTimeout(4000);
   const pd = await pg.evaluate(() => ({ t: (document.getElementById("stc-pres") || {}).innerText || "", ups: window.__ups.length }));
   if (!/41 matched and uploaded/.test(pd.t) || !/replaced/.test(pd.t) || !/1 unmatched/.test(pd.t) || pd.ups - ups0 !== 41) bad.push("bulk picture upload didn't upload the matched pictures in batches (" + pd.t.slice(0, 100) + " / " + (pd.ups - ups0) + ")");
+  await pg.evaluate(() => { const b = document.querySelector(".mbox [data-close]"); if (b) b.click(); }); await pg.waitForTimeout(350); }
+// a new account: an old deleted copy in the recycle bin doesn't stop the save; a live look-alike asks once, and
+// "Create it anyway" saves it without sending you back to the form
+{ await pg.evaluate(() => { location.hash = "#/accounts"; }); await pg.waitForTimeout(400);
+  const tryNew = async (name) => { await pg.evaluate(() => document.querySelector("[data-new='account']").click()); await pg.waitForTimeout(300);
+    await pg.fill("#f-name", name); await pg.evaluate(() => document.getElementById("save").click()); await pg.waitForTimeout(400);
+    return pg.evaluate(() => { const m = document.querySelector(".mbox"); return m ? m.innerText : ""; }); };
+  const m1 = await tryNew("Gone Sign Co");
+  if (/recycle bin|archiv/i.test(m1) || /may already/i.test(m1)) bad.push("a new account is stopped by an old deleted copy in the recycle bin");
+  if (/f-name/.test(await pg.evaluate(() => document.getElementById("f-name") ? "f-name" : ""))) bad.push("a new account didn't save (form still open)");
+  await pg.evaluate(() => { location.hash = "#/accounts"; }); await pg.waitForTimeout(400);
+  const m2 = await tryNew("Test County");
+  if (!/may already be in the CRM/.test(m2)) bad.push("a new account with the same name as a live one doesn't ask first");
+  else { await pg.evaluate(() => document.getElementById("confirmok").click()); await pg.waitForTimeout(500);
+    const still = await pg.evaluate(() => !!document.getElementById("f-name"));
+    if (still) bad.push("'Create it anyway' sends you back to the form instead of saving"); }
   await pg.evaluate(() => { const b = document.querySelector(".mbox [data-close]"); if (b) b.click(); }); await pg.waitForTimeout(350); }
 // a separate billing address: on the account's Billing card, and the form shows its boxes only when ticked
 { await pg.evaluate(() => { location.hash = "#/account/a1"; }); await pg.waitForTimeout(600);
