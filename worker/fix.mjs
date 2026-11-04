@@ -151,6 +151,24 @@ if (STEP === "review") {
       recentQuotes: all.map((p) => { const f = T.projFiles(p.id).filter((x) => !x.deleted && x.gen === "quote"); return { p: "P-" + p.num, stage: p.stage, pdfs: f.length, pdfCurrent: f.some((x) => x.qhash === T.quoteHash(p)), byOwner: f.some((x) => { const t = x.byId && T.S.team.get(x.byId); return !!t && T.teamRole(t) === "owner"; }), approved: !!(p.quoteApproval && p.quoteApproval.v === 2 && p.quoteApproval.hash === T.quoteHash(p)) }; }) }; });
   step("review list read");
 }
+// FIX_STEP=dupcheck -> read-only: for accounts made in the last 10 days, whether the new-account check would have matched
+// a deleted (recycle bin) or live account, and by which rule. Counts and rule names only — no names, phones or domains.
+if (STEP === "dupcheck") {
+  result = await page.evaluate(() => { const T = window.__T; const S = T.S; const all = [...S.accounts.values()];
+    const del = all.filter((x) => x.deleted), recent = all.filter((x) => !x.deleted && (Number(x.createdAt) || 0) > Date.now() - 10 * 864e5);
+    const why = (a, x) => { const r = []; const doms = T.acctDomains(Object.assign({}, a, { id: "" })); const dx = T.acctDomains(x);
+      if ([...dx].some((d) => doms.has(d))) r.push("domain" + ([...dx].filter((d) => doms.has(d)).some((d) => !/\./.test(d) || d.length < 5) ? "(odd)" : ""));
+      const k = T.acctKey(a.name); if (k && k.length > 2 && T.acctKey(x.name) === k) r.push("name");
+      const ph = String(a.phone || "").replace(/\D/g, "").slice(-10); if (ph.length === 10 && String(x.phone || "").replace(/\D/g, "").slice(-10) === ph) r.push("phone"); return r.join("+"); };
+    const per = recent.map((a) => { const rec = Object.assign({}, a, { id: "" }); const d = T.dupAccounts(rec, true); const l = T.dupAccounts(rec).filter((x) => x.id !== a.id);
+      return { bin: d.length, binWhy: [...new Set(d.map((x) => why(a, x)))], live: l.length, liveWhy: [...new Set(l.map((x) => why(a, x)))], hasEmail: !!a.email, hasWeb: !!a.website, hasPhone: !!a.phone }; });
+    // how many deleted accounts share one email/web domain or phone with many others (a catch-all)
+    const domCount = {}; del.forEach((x) => T.acctDomains(x).forEach((d) => { domCount[d] = (domCount[d] || 0) + 1; }));
+    const phCount = {}; all.forEach((x) => { const p = String(x.phone || "").replace(/\D/g, "").slice(-10); if (p.length === 10) phCount[p] = (phCount[p] || 0) + 1; });
+    const ourDom = Object.keys(domCount).filter((d) => /streetsignsupply|mesaridge/i.test(d)).map((d) => domCount[d]);
+    return { deleted: del.length, recent: recent.length, per, deletedWithOurDomain: ourDom, biggestSharedDomainInBin: Math.max(0, ...Object.values(domCount)), phonesOnManyAccounts: Object.values(phCount).filter((n) => n >= 3).sort((a, b) => b - a) }; });
+  step("dup check read");
+}
 // FIX_STEP=stencils -> the stencil export (one row per stencil per grade, with today's cost) goes to the
 // "CRM Stencils" tab of the SSS Pipeline sheet for the weekly cost audit. Counts only in the log.
 if (STEP === "stencils") {
@@ -259,7 +277,7 @@ if (STEP === "qb") {
 const fixSrc = fsys.existsSync(path.resolve(here, "fixes.js")) ? fsys.readFileSync(path.resolve(here, "fixes.js"), "utf8") : "";
 const wantAll = STEP === "sync" || (STEP === "apply" && /\/\/ send all/.test(fixSrc));
 if (STEP === "recent") { console.log("::notice::fix step recent: " + JSON.stringify(result).slice(0, 6000) + " | " + errors + " page errors"); await browser.close(); process.exit(0); }
-if (STEP === "review") { console.log("::notice::fix step review: " + JSON.stringify(result).slice(0, 3000) + " | " + errors + " page errors"); await browser.close(); process.exit(0); }
+if (STEP === "review" || STEP === "dupcheck") { console.log("::notice::fix step " + STEP + ": " + JSON.stringify(result).slice(0, 3000) + " | " + errors + " page errors"); await browser.close(); process.exit(0); }
 if (STEP === "aitest") { console.log("::notice::fix step aitest: " + JSON.stringify(result).slice(0, 1800) + " | " + errors + " page errors " + JSON.stringify(errs.slice(0, 3)));
   await browser.close(); process.exit((result && result.error) || errors > 0 ? 1 : 0); }
 const sent = wantAll ? await page.evaluate(async () => { try { await window.__T.syncAll(); return "ok"; } catch (e) { return "sync error " + String(e).slice(0, 100); } }) : "changes only";
