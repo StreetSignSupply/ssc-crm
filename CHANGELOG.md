@@ -1,8 +1,11 @@
 # What changed
 
-## 2026.11.25-152 (more stencil cut files)
+## 2026.11.25-153 (more stencil cut files)
 - 51 more stencils got a DXF and a PDF. Another 267 in this batch were already on file with the same bytes, so those were left as they were. No FAA kit bundle is included.
 - Eight cut files that came from the full-sheet batch were removed, because the bridges are too thin to cut. Those stencils show no cut file until a fixed one arrives: SSS-EVC-000-04, SSS-EVC-036-05, SSS-PRK-006-06, SSS-PRK-008-06, SSS-WRD-012-07, SSS-WRD-012-58, SSS-WRD-036-43, SSS-WRD-072-09.
+
+## 2026.11.25-152 (take a reviewed quote off the review bar without sending it)
+- Quotes to review: each quote now has **Reviewed — not sending** next to Approve and Send back. It takes the quote off the list (and the red bar goes away when nothing's left) without approving it, emailing anyone or telling the rep it was rejected. It's noted in the project's history. If the quote is changed later, it comes back for review.
 
 ## 2026.11.25-151 (agent prospect leads kept apart in the recycle bin)
 - The ~1,550 prospect-list leads the sales agents added (Oct 24–26) and later removed — none with a project or activity — no longer show in the Recycle bin's normal view. They sit in their own **Agent prospect leads (kept apart)** view, so the team isn't confused while working the list. Nothing was deleted; they can still be opened, checked (History) and restored from there.
