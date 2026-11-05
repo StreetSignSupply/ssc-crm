@@ -313,6 +313,10 @@ await pg.setViewportSize({ width: 1400, height: 900 });
   const b = await pg.evaluate(() => ({ t: (document.querySelector(".main") || {}).innerText || "", chips: document.querySelectorAll("[data-bint]").length }));
   if (!/Gone Sign Co/.test(b.t) || /Recycle bin\s*\n?\s*0/.test(b.t)) bad.push("the recycle bin search doesn't find a deleted account");
   if (b.chips < 2) bad.push("the recycle bin has no type filter");
+  { const h = await pg.evaluate(() => { const x = document.querySelector('[data-binhist="account:a9"]'); if (!x) return ""; x.click(); return "ok"; }); await pg.waitForTimeout(400);
+    const m = await pg.evaluate(() => (document.querySelector(".mbox") || {}).innerText || "");
+    if (!h || !/History — Gone Sign Co/.test(m) || !/in the bin since/.test(m)) bad.push("a deleted record's History can't be seen from the recycle bin");
+    await pg.evaluate(() => { const c = document.querySelector(".mbox [data-close]"); if (c) c.click(); }); await pg.waitForTimeout(350); }
   // the owner can delete for good: one asks plainly, many need DELETE typed
   const k = await pg.evaluate(() => { const x = document.querySelector('[data-binkill="account:a9"]'); if (!x) return ""; x.click(); return "ok"; }); await pg.waitForTimeout(300);
   if (!k) bad.push("the recycle bin has no Delete forever for the owner");

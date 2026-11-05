@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-150 (recycle bin: where each record came from, and its history)
+- Each row in the Recycle bin says where it came from when known — "prospect-list lead the sales agents added, then removed" — and flags any that **had projects or activity** in bold, so real work stands out from bulk prospect leads.
+- **History** on each row opens that record's field history (who added it, what changed, who put it in the bin) without restoring it, with a **Restore it** button.
+
 ## 2026.11.25-149 (possible-duplicate warning on new accounts and contacts)
 - Saving a new account or contact that looks like one already in the CRM shows a **⚠ Possible duplicate** box at the top of the form — the form stays open. Each match says why (same name, same email, same phone, same website or email domain) and has **View** (shows its address, phone, rep, contacts and projects — or for a contact, its account, email and phones — right there) and **Open it**. Then **Continue — save it anyway** or **Don't create it**.
 - Old copies in the recycle bin don't trigger it — only records in use.
