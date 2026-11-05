@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-155 (small kit cut files)
+- Seven small kits now have each character's DXF and PDF in Files, plus one ZIP of the whole set. The characters are not separate stencils. SSS-ALP-002-01 (36), SSS-NEW-019 (26), SSS-NEW-020 (26), and SSS-NUM-003-01 through SSS-NUM-003-04 (10 each).
+
 ## 2026.11.25-155 (look at anything in the recycle bin before keeping or deleting it)
 - Recycle bin: click a record's name (or **View**) to see what it is — an account's address, phone, contacts and projects; a contact's account, email and phones; a project's stage, quote, value and lines; a work order's items; a file shown right there (PDF or picture) with "Open it in a new tab"; an activity entry's text. It lists what comes back with it, shows its history, and has **Restore it** and **Delete forever** right there.
 
