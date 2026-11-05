@@ -202,19 +202,25 @@ await pg.setViewportSize({ width: 1400, height: 900 });
 // stencil files: the stencil shows its DXF and PDF to open or download; bulk upload sends each file to its SKU and lists the rest
 { await pg.evaluate(() => { location.hash = "#/stencils"; }); await pg.waitForTimeout(1500);
   const row = await pg.evaluate(() => { const b = document.querySelector('[data-stcview="SSS-FAA-108-01"]'); const tr = b && b.closest("tr"); return tr ? tr.innerText : ""; });
-  if (!/DXF \+ PDF \+ ZIP on file/.test(row)) bad.push("the stencil list doesn't show which stencils have a cut file (" + row.slice(0, 80) + ")");
+  if (!/DXF \+ PDF on file/.test(row)) bad.push("the stencil list doesn't show which stencils have a cut file (" + row.slice(0, 80) + ")");
   await pg.evaluate(() => document.querySelector('[data-stcview="SSS-FAA-108-01"]').click()); await pg.waitForTimeout(500);
-  const fx = await pg.evaluate(async () => {
-    const b = document.getElementById("stc-files"); if (!b) return null;
-    const zip = [...b.querySelectorAll("li")].find((li) => /SSS-FAA-108-01\.zip/.test(li.innerText));
-    let zipOk = false;
-    if (zip) { const r = await fetch("https://raw.githubusercontent.com/StreetSignSupply/ssc-crm/main/public/cut/SSS-FAA-108-01.zip"); const buf = new Uint8Array(await r.arrayBuffer()); zipOk = r.ok && buf[0] === 0x50 && buf[1] === 0x4b; }
-    return { t: b.innerText, dl: b.querySelectorAll("[data-dl]").length, up: !!b.querySelector("[data-stcup]"), open: b.querySelectorAll("[data-view]").length, zipDl: !!(zip && zip.querySelector("[data-dl='cut:SSS-FAA-108-01:zip']")), zipOpen: !!(zip && zip.querySelector("[data-view]")), zipOk };
-  });
+  const fx = await pg.evaluate(() => { const b = document.getElementById("stc-files"); if (!b) return null; return { t: b.innerText, dl: b.querySelectorAll("[data-dl]").length, up: !!b.querySelector("[data-stcup]"), open: b.querySelectorAll("[data-view]").length }; });
   if (!fx) bad.push("a stencil's window has no Files area");
-  else { if (!/SSS-FAA-108-01\.dxf/.test(fx.t) || !/SSS-FAA-108-01\.pdf/.test(fx.t) || !/SSS-FAA-108-01\.zip/.test(fx.t)) bad.push("a stencil's window doesn't list its DXF, PDF and ZIP");
-    if (fx.dl < 3 || fx.open < 1 || !fx.up || !fx.zipDl || fx.zipOpen || !fx.zipOk) bad.push("a stencil's files can't be opened, downloaded or uploaded (" + JSON.stringify(fx) + ")"); }
+  else { if (!/SSS-FAA-108-01\.dxf/.test(fx.t) || !/SSS-FAA-108-01\.pdf/.test(fx.t)) bad.push("a stencil's window doesn't list its DXF and PDF");
+    if (fx.dl < 2 || fx.open < 1 || !fx.up) bad.push("a stencil's files can't be opened, downloaded or uploaded (" + JSON.stringify(fx) + ")"); }
   await pg.evaluate(() => { const b = document.querySelector(".mbox [data-close]"); if (b) b.click(); }); await pg.waitForTimeout(350);
+  await pg.fill("#lq", "SSS-FAA-036-01"); await pg.waitForTimeout(500);
+  await pg.evaluate(() => document.querySelector('[data-stcview="SSS-FAA-036-01"]').click()); await pg.waitForTimeout(500);
+  const kit = await pg.evaluate(async () => {
+    const b = document.getElementById("stc-files"); if (!b) return null;
+    const zip = [...b.querySelectorAll("li")].find((li) => /SSS-FAA-036-01\.zip/.test(li.innerText));
+    let zipOk = false;
+    if (zip) { const r = await fetch("https://raw.githubusercontent.com/StreetSignSupply/ssc-crm/main/public/cut/SSS-FAA-036-01.zip"); const buf = new Uint8Array(await r.arrayBuffer()); zipOk = r.ok && buf[0] === 0x50 && buf[1] === 0x4b; }
+    return { t: b.innerText, zipDl: !!(zip && zip.querySelector("[data-dl='cut:SSS-FAA-036-01:zip']")), zipOpen: !!(zip && zip.querySelector("[data-view]")), zipOk };
+  });
+  if (!kit || !/SSS-FAA-036-01\.zip/.test(kit.t) || !/SSS-FAA-036-01\.pdf/.test(kit.t) || !kit.zipDl || kit.zipOpen || !kit.zipOk) bad.push("an FAA kit zip isn't offered for download (" + JSON.stringify(kit) + ")");
+  await pg.evaluate(() => { const b = document.querySelector(".mbox [data-close]"); if (b) b.click(); }); await pg.waitForTimeout(350);
+  await pg.fill("#lq", ""); await pg.waitForTimeout(400);
   await pg.evaluate(() => document.querySelector("[data-stcbulk]").click()); await pg.waitForTimeout(400);
   await pg.setInputFiles("#stc-bf", [{ name: "SSS-FAA-120-01.dxf", mimeType: "application/dxf", buffer: Buffer.from("0\nSECTION\n") }, { name: "NOT-A-SKU.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4") }, { name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("x") }]);
   await pg.waitForTimeout(300);
