@@ -1,5 +1,10 @@
 # What changed
 
+## 2026.11.25-147 (stencil diagrams drawn to scale)
+- **How it's measured** draws the sheet and the painted area to the same scale, with a border on every side. The labels are the same inches as the drawing: sheet width across the top, sheet height down the side, painted size on the painted area.
+- Sheet sizes now follow 1-800-Stencil. Where they publish a material size, that size is used (an 18″×9″ letter is cut from material 22″ tall, with 1″ on each side of the letter). Where they don't, letters get 2″ top and bottom and 1″ on each side, and symbols get 4″ on every side. 288 sheets were corrected. Prices and pictures are unchanged.
+- SSS-ALP-018-04 (18″ letters) now shows a sheet 11″ wide × 22″ tall, with the 18″ side longer than the 9″ side and a 2″ border.
+
 ## 2026.11.25-146 (delete forever from the recycle bin)
 - The Recycle bin is in the left menu under Admin (also Settings → Backup → Open the recycle bin).
 - Owner only: **Delete forever** on each row, and **Delete forever: empty the bin / these N** for everything the search and type buttons are showing. One record asks plainly; many need DELETE typed, with a "Download a full backup" button right there. Records that went into the bin with it (a project's work orders and files) and its field history go too; a file's stored copy is removed. It can't be undone.
