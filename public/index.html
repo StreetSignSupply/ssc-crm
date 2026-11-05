@@ -6392,7 +6392,7 @@ const STENCIL_SRC="https://raw.githubusercontent.com/StreetSignSupply/ssc-crm/ma
    its price and every stencil follows. A stencil with no sheet for its grade, or no material sq ft, is flagged — never $0. */
 const STC_SRC="https://raw.githubusercontent.com/StreetSignSupply/ssc-crm/main/public/stencil-catalog.json";
 const STC_PIC="https://raw.githubusercontent.com/StreetSignSupply/ssc-crm/main/public/pics/stencils/";
-// edge-cleaned cut files shipped with the CRM (public/cut/SKU.dxf and SKU.pdf). A file uploaded
+// cut files shipped with the CRM (public/cut/SKU.dxf, SKU.pdf, and for a kit SKU.zip). A file uploaded
 // after stencil-cuts.json's "at" replaces that kind; anything older stays hidden behind these.
 const STC_CUT="https://raw.githubusercontent.com/StreetSignSupply/ssc-crm/main/public/cut/";
 const STC_CUT_SRC="https://raw.githubusercontent.com/StreetSignSupply/ssc-crm/main/public/stencil-cuts.json";
@@ -6612,8 +6612,9 @@ function stencilsView(){
   let list=all.filter(s=>(!f.cat||s.cat===f.cat)&&(!words.length||words.every(w=>(s.sku+" "+s.n+" "+(s.cat||"")+" "+(s.stn||"")).toLowerCase().indexOf(w)>=0)));
   const flagged=all.filter(s=>stcFlags(s).length);
   if(f.flag)list=list.filter(s=>stcFlags(s).length);
-  const FI=stcFileIdx();const withCut=all.filter(s=>(FI[s.sku]||{}).dxf).length;
-  if(f.nocut)list=list.filter(s=>!(FI[s.sku]||{}).dxf);
+  const FI=stcFileIdx();const hasCut=s=>{const o=FI[s.sku]||{};return !!(o.dxf||o.zip)};
+  const withCut=all.filter(hasCut).length;
+  if(f.nocut)list=list.filter(s=>!hasCut(s));
   const cats=[...new Set(all.map(s=>s.cat).filter(Boolean))].sort();
   const PG=150,pages=Math.max(1,Math.ceil(list.length/PG));if(f.page>=pages)f.page=0;
   const shown=list.slice(f.page*PG,f.page*PG+PG);const gi=f.gi;const showCost=can("cost");
@@ -6647,7 +6648,7 @@ function stencilsView(){
           return `<tr>
           <td class="pic">${pic?`<img src="${esc(pic)}" alt="" loading="lazy" style="width:62px;height:34px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:3px">`:`<span class="sub">no picture</span>`}</td>
           <td class="mono sku" style="white-space:nowrap"><button class="lnk mono" data-stcview="${esc(s.sku)}">${esc(s.sku)}</button></td>
-          <td class="nm" style="max-width:320px;white-space:normal"><button class="lnk" style="text-align:left" data-stcview="${esc(s.sku)}">${esc(s.n)}</button><div class="sub">${esc(s.cat||"")} · ${(function(){const d=stcDims(s);const w=stcWhat(s);return d.onePiece?`<b style="color:var(--danger-ink)">${esc(w)}</b>`:esc(w)})()}${(function(){const o=FI[s.sku];return o&&(o.dxf||o.pdf)?` · <button class="lnk" data-stcview="${esc(s.sku)}" title="Open it for the files">${[o.dxf?"DXF":"",o.pdf?"PDF":""].filter(Boolean).join(" + ")} on file</button>`:""})()}</div></td>
+          <td class="nm" style="max-width:320px;white-space:normal"><button class="lnk" style="text-align:left" data-stcview="${esc(s.sku)}">${esc(s.n)}</button><div class="sub">${esc(s.cat||"")} · ${(function(){const d=stcDims(s);const w=stcWhat(s);return d.onePiece?`<b style="color:var(--danger-ink)">${esc(w)}</b>`:esc(w)})()}${(function(){const o=FI[s.sku];return o&&(o.dxf||o.pdf||o.zip)?` · <button class="lnk" data-stcview="${esc(s.sku)}" title="Open it for the files">${[o.dxf?"DXF":"",o.pdf?"PDF":"",o.zip?"ZIP":""].filter(Boolean).join(" + ")} on file</button>`:""})()}</div></td>
           <td class="mono ps" style="white-space:nowrap">${(function(){const d=stcDims(s);return d.H?esc(d.W?d.H+"″ × "+d.W+"″":d.H+"″"+(d.chars?" letters":" tall")):"—"})()}</td>
           <td class="mono sh" style="white-space:nowrap">${s.w&&s.h?esc(s.w+"″ × "+s.h+"″")+(stcDims(s).fits?"":` <span class="pill o" title="Smaller than the painted size — check the artwork">check</span>`):"—"}</td>
           <td class="mono pcs" style="text-align:right">${esc(s.pc||1)}</td>
@@ -6700,7 +6701,7 @@ const STC_FILE_OK=/\.(dxf|pdf)$/i;
 const STC_PIC_OK=/\.(png|jpe?g|webp)$/i;
 const STC_PIC_CHUNK=40; // a full corrected set is about 1,600 pictures — upload them in batches, not one giant request
 function stcFileKind(name){const n=name||"";
-  return /\.dxf$/i.test(n)?"dxf":/\.pdf$/i.test(n)?"pdf":STC_PIC_OK.test(n)?"pic":""}
+  return /\.dxf$/i.test(n)?"dxf":/\.zip$/i.test(n)?"zip":/\.pdf$/i.test(n)?"pdf":STC_PIC_OK.test(n)?"pic":""}
 function stcIsPic(f){return !!f&&(STC_PIC_OK.test(f.name||"")||/^image\/(png|jpeg|webp)$/i.test(f.type||""))}
 // which stencils have a cut file / PDF: the shipped cut file, unless a newer upload of that kind replaced it
 let STC_CUTS_LOADING=null;
@@ -6717,8 +6718,9 @@ function stcCutRec(sku){const items=S.stcCuts&&S.stcCuts.items;if(!items||!sku)r
   const s=stcBySku(sku);if(s&&items[s.sku])return {sku:s.sku,rec:items[s.sku]};return null}
 function stcRepoCut(sku,kind){const hit=stcCutRec(sku);if(!hit||!hit.rec[kind])return null;
   const name=hit.sku+"."+kind;
+  const meta=kind==="dxf"?["application/dxf","Cut file"]:kind==="zip"?["application/zip","Cut files"]:["application/pdf","Artwork proof"];
   return {id:"cut:"+hit.sku+":"+kind,repo:1,name,size:Number(hit.rec[kind])||0,
-    type:kind==="dxf"?"application/dxf":"application/pdf",cat:kind==="dxf"?"Cut file":"Artwork proof",
+    type:meta[0],cat:meta[1],
     url:STC_CUT+encodeURIComponent(name),at:stcCutAt(),stencilSku:hit.sku,deleted:false,who:""}}
 // newest upload of this kind wins only when it is newer than the shipped cut files; otherwise the shipped file replaces it
 function stcShownCut(sku,kind){const hit=stcCutRec(sku);const canon=hit?hit.sku:(stcBySku(sku)?stcBySku(sku).sku:String(sku||""));
@@ -6726,22 +6728,22 @@ function stcShownCut(sku,kind){const hit=stcCutRec(sku);const canon=hit?hit.sku:
   if(newest&&(Number(newest.at)||0)>stcCutAt())return newest;
   return stcRepoCut(canon,kind)||newest}
 function stcFilesFor(sku){const s=stcBySku(sku);const canon=s?s.sku:String(sku||"");
-  const cuts=["dxf","pdf"].map(k=>stcShownCut(canon,k)).filter(Boolean);
-  const rest=filesOf("stencil",canon).filter(f=>{const k=stcFileKind(f.name);return k!=="dxf"&&k!=="pdf"});
+  const cuts=["dxf","pdf","zip"].map(k=>stcShownCut(canon,k)).filter(Boolean);
+  const rest=filesOf("stencil",canon).filter(f=>{const k=stcFileKind(f.name);return k!=="dxf"&&k!=="pdf"&&k!=="zip"});
   return cuts.concat(rest)}
-function stcCutById(fid){const m=/^cut:([^:]+):(dxf|pdf)$/.exec(String(fid||""));if(!m)return null;return stcShownCut(m[1],m[2])}
+function stcCutById(fid){const m=/^cut:([^:]+):(dxf|pdf|zip)$/.exec(String(fid||""));if(!m)return null;return stcShownCut(m[1],m[2])}
 function crmFile(fid){return S.files.get(fid)||stcCutById(fid)||null}
 function stcFileIdx(){const cutSig=S.stcCuts?String(S.stcCuts.at)+":"+Object.keys(S.stcCuts.items||{}).length:"0";
   const sig=S.files.size+":"+[...S.files.values()].reduce((t,f)=>t+(f.stencilSku?(Number(f.at)||1)+(f.deleted?7:0):0),0)+":"+cutSig;
   if(S._stcFI&&S._stcFI.sig===sig)return S._stcFI.m;const ups={};
-  live(S.files).forEach(f=>{if(!f.stencilSku)return;const kd=stcFileKind(f.name);if(kd!=="dxf"&&kd!=="pdf")return;
+  live(S.files).forEach(f=>{if(!f.stencilSku)return;const kd=stcFileKind(f.name);if(kd!=="dxf"&&kd!=="pdf"&&kd!=="zip")return;
     const k=String(f.stencilSku).toUpperCase();const o=ups[k]||(ups[k]={});if(!o[kd]||(Number(f.at)||0)>(Number(o[kd].at)||0))o[kd]=f});
   const m={};const cutAt=stcCutAt();const items=(S.stcCuts&&S.stcCuts.items)||{};
   const skus=new Set(Object.keys(items).concat(Object.keys(ups)));
   skus.forEach(raw=>{const s=stcBySku(raw);const canon=s?s.sku:raw;const ku=String(canon).toUpperCase();
-    const repo=items[canon]||items[ku]||null;const up=ups[ku]||{};const o={dxf:0,pdf:0};
-    ["dxf","pdf"].forEach(kd=>{const u=up[kd];if(u&&(Number(u.at)||0)>cutAt)o[kd]=1;else if(repo&&repo[kd])o[kd]=1;else if(u)o[kd]=1});
-    if(o.dxf||o.pdf)m[canon]=o});
+    const repo=items[canon]||items[ku]||null;const up=ups[ku]||{};const o={dxf:0,pdf:0,zip:0};
+    ["dxf","pdf","zip"].forEach(kd=>{const u=up[kd];if(u&&(Number(u.at)||0)>cutAt)o[kd]=1;else if(repo&&repo[kd])o[kd]=1;else if(u)o[kd]=1});
+    if(o.dxf||o.pdf||o.zip)m[canon]=o});
   S._stcFI={sig,m};return m}
 // the newest uploaded picture for each stencil (PNG, JPG or WebP). The catalog PNG is the fallback.
 function stcPicIdx(){const sig=S.files.size+":"+[...S.files.values()].reduce((t,f)=>t+(f.stencilSku&&stcIsPic(f)?(Number(f.at)||1)+(f.deleted?7:0):0),0);
@@ -6767,10 +6769,10 @@ function stcFilesHtml(sku){const fs=stcFilesFor(sku);
       <span style="flex:1"></span>${S.canUpload?`<button class="btn sm p" data-stcup="${esc(sku)}">Upload DXF or PDF</button>`:""}</div>
     ${fs.length?`<ul class="stcfl" style="list-style:none;margin:0;padding:0;border:1px solid var(--line);border-radius:6px">${fs.map(f=>{const kd=stcFileKind(f.name);
       return `<li style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 10px;border-bottom:1px solid var(--line2)">
-        <span class="pill ${kd==="dxf"?"b":""}" style="min-width:42px;justify-content:center">${esc(kd?kd.toUpperCase():"FILE")}</span>
-        <span style="flex:1;min-width:160px"><b style="word-break:break-all">${esc(f.name)}</b><span class="sub" style="display:block">${esc([kd==="dxf"?"Cut file":kd==="pdf"?"PDF":kd==="pic"?"Picture":f.cat,bytes(f.size),fileWho(f),f.at?fmtTs(f.at):""].filter(Boolean).join(" · "))}</span></span>
-        ${kd!=="dxf"?`<button class="btn sm" data-view="${esc(f.id)}">Open</button>`:""}
-        <button class="btn sm${kd==="dxf"?" p":""}" data-dl="${esc(f.id)}">Download</button>
+        <span class="pill ${kd==="dxf"||kd==="zip"?"b":""}" style="min-width:42px;justify-content:center">${esc(kd?kd.toUpperCase():"FILE")}</span>
+        <span style="flex:1;min-width:160px"><b style="word-break:break-all">${esc(f.name)}</b><span class="sub" style="display:block">${esc([kd==="dxf"?"Cut file":kd==="zip"?"Cut files":kd==="pdf"?"PDF":kd==="pic"?"Picture":f.cat,bytes(f.size),fileWho(f),f.at?fmtTs(f.at):""].filter(Boolean).join(" · "))}</span></span>
+        ${kd!=="dxf"&&kd!=="zip"?`<button class="btn sm" data-view="${esc(f.id)}">Open</button>`:""}
+        <button class="btn sm${kd==="dxf"||kd==="zip"?" p":""}" data-dl="${esc(f.id)}">Download</button>
         ${canDelFile(f)?`<button class="btn sm d" data-stcdelfile="${esc(f.id)}:${esc(sku)}" title="Delete this file — it goes to the recycle bin">Delete</button>`:""}</li>`}).join("")}</ul>`
     :`<div class="${S.canUpload?"drop":"empty"}" data-stcdrop="${esc(sku)}" style="padding:14px">${S.canUpload?"No cut file or PDF yet — drop the <b>.dxf</b> and <b>.pdf</b> here, or use Upload.":"No cut file or PDF yet."}</div>`}`}
 function stcFilesRefresh(sku){const el=document.getElementById("stc-files");if(el&&el.dataset.sku===sku){el.innerHTML=stcFilesHtml(sku);stcDropWire(el)}}
@@ -10832,7 +10834,7 @@ function nameWords(n){return String(n||"").toLowerCase().replace(/&/g," ").split
 function vendorDomains(v){const out=new Set();const w=String(v.website||"").toLowerCase().replace(/^https?:\/\//,"").replace(/^www\./,"").split("/")[0];if(w)out.add(w);
   [v.email].concat(vendPeople(v).map(c=>c.email)).forEach(e=>{const d=String(e||"").toLowerCase().split("@")[1];if(d&&!FREEMAIL.test(d))out.add(d)});return out}
 function vendorLookalikes(){const vs=live(S.vendors).map(v=>({v,w:nameWords(v.name),d:vendorDomains(v)})).filter(x=>(x.w.length&&x.w.join("").length>=4)||x.d.size);
-  return live(S.accounts).filter(a=>!isVendorAcct(a)).map(a=>{const aw=nameWords(a.name);const ad=acctDomains(a);
+  return live(S.accounts).filter(a=>!isVendorAcct(a)&&!a.notVendor).map(a=>{const aw=nameWords(a.name);const ad=acctDomains(a);
     const m=vs.find(x=>(aw.length&&x.w.length&&x.w.join("").length>=4&&(x.w.every(w=>aw.indexOf(w)>=0)||(aw.length>=2&&aw.every(w=>x.w.indexOf(w)>=0))))||[...ad].some(d=>x.d.has(d)));
     return m?{a,v:m.v,how:[...ad].some(d=>m.d.has(d))?"same email domain":"same name",sure:true}:null}).filter(Boolean)}
 // weaker hints, offered unticked: the vendor's main name word is in the account's name ("Montroy Signs" ↔ "Montroy Sign &
@@ -10842,18 +10844,26 @@ function vendorMaybes(){const strong=new Set(vendorLookalikes().map(x=>x.a.id));
   const vs=live(S.vendors).map(v=>({v,k:(nameWords(v.name).find(w=>w.length>=5&&!/^(sign|signs|graphic|graphics|metal|metals|plastic|plastics|industrie|industries|products|national|american|western|united|county|city)$/.test(w))||"")})).filter(x=>x.k);
   const inMail=new Map();live(S.activity).forEach(x=>{if(x.direction!=="in"||x.recType!=="account")return;const t=String((x.subject||"")+" "+(x.text||"")).toLowerCase();
     if(/\b(price ?list|pricing|quote|quotation|invoice|order confirmation|proforma|estimate|price increase|lead time)\b/.test(t))inMail.set(x.recId,(inMail.get(x.recId)||0)+1)});
-  return live(S.accounts).filter(a=>!isVendorAcct(a)&&!strong.has(a.id)&&!/gov/i.test(a.type||"")).map(a=>{const aw=nameWords(a.name).map(sing);
+  return live(S.accounts).filter(a=>!isVendorAcct(a)&&!a.notVendor&&!strong.has(a.id)&&!/gov/i.test(a.type||"")).map(a=>{const aw=nameWords(a.name).map(sing);
     const m=vs.find(x=>aw.indexOf(sing(x.k))>=0);if(m)return {a,v:m.v,how:"name like "+m.v.name,sure:false};
     if(inMail.get(a.id)&&!projectsOf(a.id).length)return {a,v:null,how:"no projects — writes to us about prices, quotes or invoices",sure:false};return null}).filter(Boolean)}
 function vendorAcctModal(){const L=vendorLookalikes().concat(vendorMaybes());
-  openModal(mshell("Accounts that are vendors","acct",`<p class="note" style="margin:10px 15px">These accounts have the same name as a company on your Vendors list. Marking them <b>Vendor</b> shows them as Vendor (not Lead), keeps them out of sales counts and leads, and keeps their contacts and history. Untick any that really are customers.</p>
-    <div style="padding:4px 15px 10px">${L.map(({a,v,how,sure},i)=>`${i===0&&sure?`<div class="k" style="margin:4px 0 2px">Same name or email domain as a vendor</div>`:""}${!sure&&(i===0||L[i-1].sure)?`<div class="k" style="margin:12px 0 2px">Might be vendors — tick the ones that are</div>`:""}<label style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line2)"><input type="checkbox" data-vacc="${esc(a.id)}" ${sure?"checked":""}>
-      <span style="flex:1"><b>${esc(a.name)}</b> <span class="sub">— account${a.city?" · "+esc(a.city):""} · now ${esc((ACCT_STAGES.find(x=>x.id===acctStage(a))||{}).l||"")}</span><br><span class="sub">${v?"matches vendor "+esc(v.name)+" (":"("}${esc(how||"same name")})</span></span></label>`).join("")||`<div class="empty">No account matches a vendor's name.</div>`}</div>`,
-    `<button class="btn" data-close="1">Cancel</button>${L.length?`<button class="btn p" id="vacc-go">Mark as vendors</button>`:""}`));
-  const b=$("#vacc-go");if(b)b.onclick=async()=>{const ids=[...document.querySelectorAll("[data-vacc]:checked")].map(e=>e.dataset.vacc);let n=0;
-    for(const id of ids){const a=acct(id);if(!a)continue;const v=L.find(x=>x.a.id===id).v;
-      try{await push("accounts/"+id,Object.assign({type:"Vendor",updatedAt:Date.now()},v?{vendorId:v.id}:{}));recordHistory("account",id,[{f:"Type",o:a.type||"",n:"Vendor"}]);n++}catch(e){}}
-    closeModal();toast(n+" account"+(n===1?"":"s")+" marked as vendor"+(n===1?"":"s"));render()}}
+  // each one: Vendor, or Not a vendor (it stops being asked about); left blank = ask again later
+  openModal(mshell("Accounts that might be vendors","acct",`<p class="note" style="margin:10px 15px">These accounts look like companies we buy from. Pick <b>Vendor</b> to show one as Vendor (not Lead) and keep it out of sales counts, or <b>Not a vendor</b> so it's never asked about again. Contacts and history stay either way. Anything left blank is asked about later.</p>
+    <div style="padding:4px 15px 10px" data-guest="1">${L.map(({a,v,how,sure},i)=>`${i===0&&sure?`<div class="k" style="margin:4px 0 2px">Same name or email domain as a vendor</div>`:""}${!sure&&(i===0||L[i-1].sure)?`<div class="k" style="margin:12px 0 2px">Might be vendors</div>`:""}<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line2)">
+      <span style="flex:1;min-width:220px"><b>${esc(a.name)}</b> <span class="sub">— account${a.city?" · "+esc(a.city):""} · now ${esc((ACCT_STAGES.find(x=>x.id===acctStage(a))||{}).l||"")}</span><br><span class="sub">${v?"matches vendor "+esc(v.name)+" (":"("}${esc(how||"same name")})</span>
+        <a class="lnk sub" href="#/account/${esc(a.id)}" data-close="1">open it</a></span>
+      <span role="radiogroup" aria-label="${esc(a.name)}" style="display:inline-flex;gap:6px">
+        <label class="btn sm" style="gap:6px"><input type="radio" name="vacc-${esc(a.id)}" value="vendor" data-vacc="${esc(a.id)}"${sure?" checked":""}>Vendor</label>
+        <label class="btn sm" style="gap:6px"><input type="radio" name="vacc-${esc(a.id)}" value="no" data-vacc="${esc(a.id)}">Not a vendor</label></span></div>`).join("")||`<div class="empty">Nothing to sort out — no account looks like a vendor.</div>`}</div>`,
+    `<button class="btn" data-close="1">Cancel</button>${L.length?`<button class="btn" id="vacc-none">None of these are vendors</button><button class="btn p" id="vacc-go">Save</button>`:""}`));
+  const save=async(all)=>{let nv=0,nn=0;
+    for(const x of L){const a=acct(x.a.id);if(!a)continue;const r=document.querySelector(`[data-vacc="${CSS.escape(a.id)}"]:checked`);const pick=all||(r&&r.value);
+      try{if(pick==="vendor"){await push("accounts/"+a.id,Object.assign({type:"Vendor",notVendor:false,updatedAt:Date.now()},x.v?{vendorId:x.v.id}:{}));recordHistory("account",a.id,[{f:"Type",o:a.type||"",n:"Vendor"}]);nv++}
+        else if(pick==="no"){await push("accounts/"+a.id,{notVendor:true,updatedAt:Date.now()});recordHistory("account",a.id,[{f:"Vendor check",o:"",n:"Not a vendor"}]);nn++}}catch(e){}}
+    closeModal();toast([nv?nv+" marked as vendor"+(nv===1?"":"s"):"",nn?nn+" marked not a vendor — won't be asked again":""].filter(Boolean).join(" · ")||"Nothing changed");render()};
+  const b=$("#vacc-go");if(b)b.onclick=()=>save("");
+  const nb=$("#vacc-none");if(nb)nb.onclick=()=>save("no")}
 document.addEventListener("click",e=>{const t=e.target&&e.target.closest&&e.target.closest("[data-vaccopen]");if(!t)return;e.preventDefault();vendorAcctModal()},true);
 function acctStagePill(a,withHow){const id=acctStage(a);const st=ACCT_STAGES.find(x=>x.id===id)||ACCT_STAGES[0];
   return `<span class="pill ${st.c}" title="${esc(st.help)}${a&&a.stageSet?" — set by hand":" — worked out from its projects"}">${esc(st.l)}</span>${withHow?`<span class="sub" style="font-size:12px">${a&&a.stageSet?"set by hand":"automatic"}</span>`:""}`}
@@ -11394,7 +11404,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-152";
+const APP_VERSION="2026.11.25-154";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
