@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-154 (more stencil cut files)
+- 51 more stencils got a DXF and a PDF. Another 267 in this batch were already on file with the same bytes, so those were left as they were. No FAA kit bundle is included.
+- Eight cut files that came from the full-sheet batch were removed, because the bridges are too thin to cut. Those stencils show no cut file until a fixed one arrives: SSS-EVC-000-04, SSS-EVC-036-05, SSS-PRK-006-06, SSS-PRK-008-06, SSS-WRD-012-07, SSS-WRD-012-58, SSS-WRD-036-43, SSS-WRD-072-09.
+
 ## 2026.11.25-153 (accounts that aren't vendors can be marked so)
 - "Accounts that might be vendors": each account now has **Vendor** or **Not a vendor**. Not a vendor stops it being asked about again (noted in its field history), so the notice goes away once each one is decided. **None of these are vendors** marks them all at once. Each has an "open it" link to check first, and choosing doesn't trigger the "throw away what you typed?" question.
 

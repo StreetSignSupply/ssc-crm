@@ -64,7 +64,7 @@ await pg.addInitScript((D) => { const db = { collection(c) { return { onSnapshot
   window.__mock = { use: async (n) => { if (!(n in caps)) throw Object.assign(new Error("x"), { code: "not_declared" }); return caps[n]; } }; }, D);
 await pg.route(/firebase-adapter\.js$/, (r) => r.fulfill({ status: 200, contentType: "text/javascript", body: "" }));
 await pg.route(/raw\.githubusercontent\.com\/StreetSignSupply\/ssc-crm\/main\/public\/([^?]*)/, (r) => { const f = path.resolve(root, "public", decodeURIComponent(r.request().url().match(/main\/public\/([^?]*)/)[1]));
-  if (fs.existsSync(f)) r.fulfill({ status: 200, contentType: f.endsWith(".png") ? "image/png" : f.endsWith(".pdf") ? "application/pdf" : f.endsWith(".dxf") ? "application/dxf" : f.endsWith(".json") ? "application/json" : "text/plain", body: fs.readFileSync(f) }); else r.fulfill({ status: 404, body: "" }); });
+  if (fs.existsSync(f)) r.fulfill({ status: 200, contentType: f.endsWith(".png") ? "image/png" : f.endsWith(".pdf") ? "application/pdf" : f.endsWith(".dxf") ? "application/dxf" : f.endsWith(".zip") ? "application/zip" : f.endsWith(".json") ? "application/json" : "text/plain", body: fs.readFileSync(f) }); else r.fulfill({ status: 404, body: "" }); });
 await pg.route(/^https?:\/\/(?!raw\.githubusercontent)/, (r) => r.abort());
 await pg.goto("file://" + PAGE);
 await pg.evaluate(() => window.__sscResolve && window.__sscResolve(window.__mock));
@@ -210,7 +210,7 @@ await pg.setViewportSize({ width: 1400, height: 900 });
 // stencil files: the stencil shows its DXF and PDF to open or download; bulk upload sends each file to its SKU and lists the rest
 { await pg.evaluate(() => { location.hash = "#/stencils"; }); await pg.waitForTimeout(1500);
   const row = await pg.evaluate(() => { const b = document.querySelector('[data-stcview="SSS-FAA-108-01"]'); const tr = b && b.closest("tr"); return tr ? tr.innerText : ""; });
-  if (!/DXF \+ PDF on file/.test(row)) bad.push("the stencil list doesn't show which stencils have a cut file (" + row.slice(0, 60) + ")");
+  if (!/DXF \+ PDF on file/.test(row)) bad.push("the stencil list doesn't show which stencils have a cut file (" + row.slice(0, 80) + ")");
   await pg.evaluate(() => document.querySelector('[data-stcview="SSS-FAA-108-01"]').click()); await pg.waitForTimeout(500);
   const fx = await pg.evaluate(() => { const b = document.getElementById("stc-files"); if (!b) return null; return { t: b.innerText, dl: b.querySelectorAll("[data-dl]").length, up: !!b.querySelector("[data-stcup]"), open: b.querySelectorAll("[data-view]").length }; });
   if (!fx) bad.push("a stencil's window has no Files area");
