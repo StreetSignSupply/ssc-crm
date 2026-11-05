@@ -6469,18 +6469,48 @@ function stcLineCost(line){const x=stcLine(line);if(!x)return null;
    ("12" Alphabet Kit" = letters 12" tall); two numbers are height × width of the painted area
    ("24" x 16"" = 24" tall, 16" wide — the way 1-800-Stencil names them). The sheet you get (w × h in the catalog)
    is bigger, so there's a border to catch overspray. A kit is one character per piece. */
-function stcDims(s){if(!s)return {};const n=String(s.n||"");
-  let H=0,W=0;const m2=n.match(/^\s*(\d+(?:\.\d+)?)\s*(?:"|''|”|in(?:ch(?:es)?)?)?\s*x\s*"?\s*(\d+(?:\.\d+)?)\s*(?:"|''|”|in)/i);
+function stcParseName(n){n=String(n||"");
+  if(/\(\s*\d+(?:\.\d+)?\s*["″']?\s*-\s*\d+/.test(n))return {H:0,W:0,namedW:false};
+  const m2=n.match(/^\s*(\d+(?:\.\d+)?)\s*(?:"|''|”|in(?:ch(?:es)?)?)?\s*x\s*"?\s*(\d+(?:\.\d+)?)/i);
   const m1=n.match(/^\s*(\d+(?:\.\d+)?)\s*(?:"|''|”|\s?in(?:ch(?:es)?)?\b)/i);
-  if(m2){H=+m2[1];W=+m2[2]}else if(m1){H=+m1[1]}
-  const pc=Math.max(1,Number(s.pc)||1),sw=Number(s.w)||0,sh=Number(s.h)||0;
+  if(m2)return {H:+m2[1],W:+m2[2],namedW:true};
+  if(m1)return {H:+m1[1],W:0,namedW:false};
+  const m3=n.match(/(\d+(?:\.\d+)?)\s*"\s*x\s*"?\s*(\d+(?:\.\d+)?)\s*"/);
+  if(m3)return {H:+m3[1],W:+m3[2],namedW:true};
+  const m4=n.match(/(?<![\d.])(\d+(?:\.\d+)?)\s*"/);
+  if(m4)return {H:+m4[1],W:0,namedW:false};
+  return {H:0,W:0,namedW:false}}
+function stcDims(s){if(!s)return {};const n=String(s.n||"");
+  const parsed=stcParseName(n);
+  const stored=Number(s.paintH)>0;
+  let H=stored?Number(s.paintH):parsed.H, W=stored&&Number(s.paintW)>0?Number(s.paintW):(stored?0:parsed.W);
+  let namedW=stored?!!s.namedW:parsed.namedW;
+  if(stored&&!namedW&&!(Number(s.paintW)>0))W=0;
+  const pc=Math.max(1,Number(s.pc)||1);
+  let sw=Number(s.w)||0, sh=Number(s.h)||0;
   const chars=/alphabet|letter|number|\babc\b/i.test(n)&&!/hopscotch|shape alphabet|parking letter|railroad/i.test(n);
   const kit=pc>1;
-  // a lone shape from a playground alphabet ("16"x17" Hexagon Alphabet") is one piece, not the alphabet
   const onePiece=!kit&&/alphabet/i.test(n)&&!/hopscotch|shape alphabet/i.test(n)&&H&&H<60;
-  // a sheet no bigger than the painted area means the catalog's sheet size is a guess
-  const fits=!(sw&&sh&&H)||(W?((sw>=W&&sh>=H)||(sw>=H&&sh>=W)):(sh>=H||sw>=H));
-  return {H,W,pc,sw,sh,chars,kit,onePiece,fits}}
+  const catW=sw, catH=sh;
+  let sheetRotated=false, approx=false;
+  if(H&&sw&&sh){
+    const upright=namedW?(sw>=W&&sh>=H):(sh>=H);
+    const rotated=namedW?(sw>=H&&sh>=W&&!(sw>=W&&sh>=H)):(sw>=H&&sh<H);
+    if(rotated&&!upright){const t=sw;sw=sh;sh=t;sheetRotated=true}}
+  const bNow=()=>!(sw&&sh)||((sh-H)/2<2)||(namedW&&((chars?(sw-W)/2<1:(sw-W)/2<2)));
+  // a sheet already saved with the painted area inside it is drawn as saved — the 2" rule is how missing borders get filled in
+  const fitsStored=stored&&W>0&&sw>W&&sh>H;
+  if(H&&!fitsStored&&bNow()){approx=!!(catW||catH);
+    if(chars&&namedW&&H===24&&W===16){sw=22;sh=28}
+    else if(chars){sh=H+4;sw=namedW?W+2:(sw>=Math.max(2,H*0.12)&&sw<H*2.2?sw:Math.round((H*0.72+2)*100)/100)}
+    else{const keep=!namedW&&sw>=Math.max(6,H*0.12)&&sw<H*1.6;sh=H+8;sw=namedW?W+8:(keep?sw:H+8)}}
+  let ph=H, pw=W;
+  if(ph&&!pw){const side=chars?1:4;pw=sw>side*2+0.5?sw-side*2:Math.max(0.5,sw*0.7)}
+  if(ph&&pw&&sw&&pw>=sw)pw=Math.max(0.5,sw*0.7);
+  if(ph&&sh&&ph>=sh){sh=ph+(chars?4:8);approx=true}
+  const fits=!!(ph&&pw&&sw>pw&&sh>ph);
+  const bV=ph&&sh?(sh-ph)/2:0, bH=pw&&sw?(sw-pw)/2:0;
+  return {H,W:namedW?W:0,ph,pw,namedW,sw,sh,bV,bH,pc,chars,kit,onePiece,fits,sheetRotated,approx,catW,catH}}
 document.addEventListener("click",e=>{const x=e.target&&e.target.closest&&e.target.closest("[data-actexp]");if(!x)return;
   if(window.getSelection&&String(window.getSelection())&&!x.matches("button"))return;   // selecting text to copy doesn't fold it
   e.preventDefault();e.stopPropagation();S._actOpen=S._actOpen||{};const id=x.dataset.actexp;S._actOpen[id]=!S._actOpen[id];render()},true);
@@ -6503,44 +6533,45 @@ function stcWhat(s){const d=stcDims(s);
   if(/individual letter|letter [a-z] stencil|letter stencil/i.test(s.n))return "One letter";
   return "One stencil"}
 function stcSizeText(s){const d=stcDims(s);const q=x=>(Math.round(x*100)/100)+"″";
-  const paint=d.H?(d.W?q(d.H)+" tall × "+q(d.W)+" wide painted":(d.chars?q(d.H)+" tall letters":q(d.H)+" tall painted")):"";
-  return [paint,d.sw&&d.sh?"sheet "+q(d.sw)+" × "+q(d.sh):""].filter(Boolean).join(" · ")}
+  const paint=d.ph?(d.namedW?q(d.ph)+" tall × "+q(d.pw)+" wide painted":(d.chars?q(d.ph)+" tall letters":q(d.ph)+" tall painted")):"";
+  return [paint,d.sw&&d.sh?"sheet "+q(d.sw)+" wide × "+q(d.sh)+" tall":""].filter(Boolean).join(" · ")}
 function stcShort(s){const d=stcDims(s);const q=x=>(Math.round(x*100)/100)+"″";
   return [d.kit?(d.chars?"kit of "+d.pc:d.pc+" pieces"):d.onePiece?"single shape":"",d.H?(d.W?q(d.H)+"×"+q(d.W)+" painted":q(d.H)+(d.chars?" letters":" tall")):""].filter(Boolean).join(" · ")}
 // the measurement drawing: the sheet you get, the painted area inside it, and the sizes on both
 function stcDiagram(s,o){o=o||{};const d=stcDims(s);const VW=o.w||320,VH=o.h||250;
-  const q=x=>(Math.round(x*100)/100)+"″";
-  let sw=d.sw,sh=d.sh,H=d.H,W=d.W,guess=false;
-  if(!H&&!(sw&&sh))return `<div class="sub">No size in the catalog for this stencil.</div>`;
-  if(!(sw&&sh)||!d.fits){guess=!!(sw&&sh);const b=Math.max(2,H*0.15);const pw=W||H*(d.chars?0.7:1);sh=H+2*b;sw=pw+2*b}
-  if(!H){H=sh;W=sw}
-  // painted area: given width, else a letter-ish width for characters, else the sheet less the same border
-  let pw=W||(d.chars?Math.min(sw-1,H*0.72):Math.max(1,sw-(sh-H)));
-  let ph=H;if(W&&!(sw>=pw&&sh>=ph)&&sw>=ph&&sh>=pw){const t=pw;pw=ph;ph=t}
-  pw=Math.min(pw,sw),ph=Math.min(ph,sh);
-  const L=58,T=34,R=74,B=W?34:22;const sc=Math.min((VW-L-R)/sw,(VH-T-B)/sh);
-  const x0=L,y0=T,X=sw*sc,Y=sh*sc,px=x0+(X-pw*sc)/2,py=y0+(Y-ph*sc)/2,PX=pw*sc,PY=ph*sc;
+  const q=x=>(Math.round(Number(x)*100)/100)+"″";
+  const sw=d.sw, sh=d.sh, ph=d.ph, pw=d.pw;
+  if(!(ph&&sw&&sh))return `<div class="sub">No size in the catalog for this stencil.</div>`;
+  const L=64,T=36,R=78,B=d.namedW?36:22;
+  const sc=Math.min((VW-L-R)/sw,(VH-T-B)/sh);
+  const x0=L,y0=T,X=sw*sc,Y=sh*sc;
+  // a 3px floor so a real border never disappears on screen; the sheet stays to scale
+  let PX=pw*sc, PY=ph*sc;
+  if((X-PX)/2<3)PX=Math.max(4,X-6);
+  if((Y-PY)/2<3)PY=Math.max(4,Y-6);
+  const px=x0+(X-PX)/2, py=y0+(Y-PY)/2;
   const red=o.color||"#D50101";
-  // each drawing's arrowhead has its own id (two drawings on one page used to share one)
   const mk="stca"+Math.random().toString(36).slice(2,8);
   const ar=(x1,y1,x2,y2)=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="currentColor" stroke-width="1" marker-start="url(#${mk})" marker-end="url(#${mk})"/>`;
   const tick=(x1,y1,x2,y2)=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="currentColor" stroke-width=".6" opacity=".5"/>`;
   const gfs=Math.min(PY/0.72,PX/0.8);
-  const glyph=d.chars&&!W?`<text transform="translate(${px+PX/2} ${py+PY}) scale(1 ${PY/(0.72*gfs)})" x="0" y="0" text-anchor="middle" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-size="${gfs}" fill="${red}" opacity=".85">${/number/i.test(s.n)&&!/alphabet/i.test(s.n)?"8":"A"}</text>`
+  const glyph=d.chars&&!d.namedW?`<text transform="translate(${px+PX/2} ${py+PY}) scale(1 ${PY/(0.72*gfs)})" x="0" y="0" text-anchor="middle" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-size="${gfs}" fill="${red}" opacity=".85">${/number/i.test(s.n)&&!/alphabet/i.test(s.n)?"8":"A"}</text>`
     :`<rect x="${px}" y="${py}" width="${PX}" height="${PY}" fill="${red}" fill-opacity=".14" stroke="${red}" stroke-width="1.4" stroke-dasharray="5 3"/>`;
-  return `<svg viewBox="0 0 ${VW} ${VH}" width="100%" style="max-width:${VW}px;color:var(--ink2);display:block" role="img" aria-label="How ${esc(s.n||"this stencil")} is measured">
+  const bY=y0+Math.min(Math.max((py-y0)*0.62,10), Math.max(10,(py-y0)-2));
+  return `<svg viewBox="0 0 ${VW} ${VH}" width="100%" style="max-width:${VW}px;color:var(--ink2);display:block" role="img" aria-label="How ${esc(s.n||"this stencil")} is measured" data-sw="${sw}" data-sh="${sh}" data-ph="${ph}" data-pw="${pw}">
     <defs><marker id="${mk}" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 z" fill="currentColor"/></marker></defs>
     <rect x="${x0}" y="${y0}" width="${X}" height="${Y}" rx="2" fill="var(--card2)" stroke="currentColor" stroke-width="1.4"/>
     ${glyph}
-    ${tick(x0,y0-3,x0,y0-18)}${tick(x0+X,y0-3,x0+X,y0-18)}${ar(x0,y0-12,x0+X,y0-12)}
-    <text x="${x0+X/2}" y="${y0-17}" text-anchor="middle" font-size="11" fill="currentColor">Sheet ${q(sw)}${guess||!(d.sw&&d.sh)?" (approx.)":""}</text>
-    ${tick(x0+X+3,y0,x0+X+18,y0)}${tick(x0+X+3,y0+Y,x0+X+18,y0+Y)}${ar(x0+X+12,y0,x0+X+12,y0+Y)}
-    <text x="${x0+X+17}" y="${y0+Y/2+4}" font-size="11" fill="currentColor">${q(sh)}</text>
-    ${tick(px-3,py,x0-18,py)}${tick(px-3,py+PY,x0-18,py+PY)}${ar(x0-12,py,x0-12,py+PY)}
-    <text x="${x0-16}" y="${py+PY/2-2}" text-anchor="end" font-size="12" font-weight="700" fill="${red}">${q(d.H||ph)}</text>
-    <text x="${x0-16}" y="${py+PY/2+11}" text-anchor="end" font-size="9.5" fill="currentColor">${d.chars&&!W?"letter":"painted"}</text>
-    ${W?`${tick(px,py+PY+3,px,y0+Y+18)}${tick(px+PX,py+PY+3,px+PX,y0+Y+18)}${ar(px,y0+Y+12,px+PX,y0+Y+12)}<text x="${px+PX/2}" y="${Math.min(VH-2,y0+Y+26)}" text-anchor="middle" font-size="12" font-weight="700" fill="${red}">${q(d.W)} painted</text>`:""}
-  </svg>${guess?`<div class="sub" style="color:var(--danger-ink)">The catalog's sheet size (${q(d.sw)} × ${q(d.sh)}) is smaller than the painted size — check the artwork. The drawing uses an approximate sheet.</div>`:""}`}
+    <text x="${x0+X/2}" y="${bY}" text-anchor="middle" font-size="10" fill="currentColor">${q(d.bV)} border</text>
+    ${tick(x0,y0-3,x0,y0-16)}${tick(x0+X,y0-3,x0+X,y0-16)}${ar(x0,y0-11,x0+X,y0-11)}
+    <text x="${x0+X/2}" y="${y0-16}" text-anchor="middle" font-size="11" fill="currentColor">Sheet ${q(sw)} wide${d.approx?" (approx.)":""}</text>
+    ${tick(x0+X+3,y0,x0+X+16,y0)}${tick(x0+X+3,y0+Y,x0+X+16,y0+Y)}${ar(x0+X+11,y0,x0+X+11,y0+Y)}
+    <text x="${x0+X+16}" y="${y0+Y/2+4}" font-size="11" fill="currentColor">${q(sh)} tall</text>
+    ${tick(px-3,py,x0-16,py)}${tick(px-3,py+PY,x0-16,py+PY)}${ar(x0-11,py,x0-11,py+PY)}
+    <text x="${x0-15}" y="${py+PY/2-2}" text-anchor="end" font-size="12" font-weight="700" fill="${red}">${q(ph)}</text>
+    <text x="${x0-15}" y="${py+PY/2+11}" text-anchor="end" font-size="9.5" fill="currentColor">${d.chars&&!d.namedW?"letter":"painted"}</text>
+    ${d.namedW?`${tick(px,py+PY+3,px,y0+Y+16)}${tick(px+PX,py+PY+3,px+PX,y0+Y+16)}${ar(px,y0+Y+11,px+PX,y0+Y+11)}<text x="${px+PX/2}" y="${Math.min(VH-2,y0+Y+25)}" text-anchor="middle" font-size="12" font-weight="700" fill="${red}">${q(pw)} painted</text>`:""}
+  </svg>${d.approx?`<div class="sub" style="color:var(--danger-ink)">The catalog's sheet size (${q(d.catW)} × ${q(d.catH)}) doesn't leave a border around the painted area. The drawing uses a standard border instead.</div>`:""}`}
 function stcHowCard(){const ex1={n:'12" Alphabet Kit Stencil',w:10,h:16,pc:38},ex2={n:'24" x 16" Arrow Stencil',w:22,h:30,pc:1};
   return `<section class="card flush wide"><details${S.stcHowShut?"":" open"} id="stc-how"><summary style="cursor:pointer;padding:12px 15px;font-weight:800;list-style:none;display:flex;gap:8px;align-items:center">${ic("inventory",14)} How stencils are measured <span class="sub" style="font-weight:400">— so you pick the right one</span></summary>
     <div style="display:flex;flex-wrap:wrap;gap:18px;padding:0 15px 14px;align-items:flex-start">
@@ -11313,7 +11344,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-146";
+const APP_VERSION="2026.11.25-147";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
