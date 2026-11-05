@@ -193,6 +193,14 @@ await pg.setViewportSize({ width: 1400, height: 900 });
 { await pg.evaluate(() => { location.hash = "#/accounts"; }); await pg.waitForTimeout(500);
   const vb = await pg.evaluate(() => { const b = document.querySelector("[data-vaccopen]"); return b ? b.closest(".alert").innerText : ""; });
   if (!/1 account looks like a vendor/.test(vb)) bad.push("an account named like a vendor isn't offered as a vendor (" + vb.slice(0, 60) + ")");
+  // each look-alike can be marked Vendor or Not a vendor (then it's never asked about again)
+  { const ok = await pg.evaluate(() => { const b = document.querySelector("[data-vaccopen]"); if (!b) return false; b.click(); return true; }); await pg.waitForTimeout(400);
+    if (!ok) bad.push("the vendor look-alike notice has no button to sort them out");
+    else { const m = await pg.evaluate(() => ({ no: document.querySelectorAll('[data-vacc][value="no"]').length, none: !!document.getElementById("vacc-none") }));
+      if (!m.no || !m.none) bad.push("an account that looks like a vendor can't be marked Not a vendor");
+      await pg.evaluate(() => { document.querySelector('[data-vacc][value="no"]').click(); document.getElementById("vacc-go").click(); }); await pg.waitForTimeout(500);
+      const tst = await pg.evaluate(() => [...document.querySelectorAll(".toast,[class*=toast]")].map((x) => x.innerText).join(" "));
+      if (!/not a vendor/.test(tst)) bad.push("Not a vendor didn't save (" + tst.slice(0, 60) + ")"); } }
   const st = await pg.evaluate(() => { const T = window.__T; if (!T || !T.acctStage) return "no hook"; return T.acctStage({ name: "X", type: "Vendor" }); });
   if (st !== "no hook" && st !== "vendor") bad.push("a Vendor account doesn't show the Vendor stage (" + st + ")");
   // What's new lists the account added today
