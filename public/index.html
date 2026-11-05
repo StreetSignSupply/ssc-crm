@@ -902,6 +902,17 @@ a.kc{color:inherit;text-decoration:none}
 .actrow4 .btn{justify-content:center;width:100%;min-height:34px;white-space:nowrap;padding-left:4px;padding-right:4px;gap:5px}
 .actg-b .actrow4{flex:1 1 100%}
 .actfil{display:flex;gap:10px;flex-wrap:wrap;padding:10px 18px;border-bottom:1px solid var(--line2)}
+/* one tidy bar: what to show (plain tabs) on the left, one "+ Add" menu on the right — so adding and filtering don't look alike */
+.segbar{display:flex;align-items:flex-end;gap:8px;padding:4px 12px 0;border-bottom:1px solid var(--line2);flex-wrap:wrap}
+.segf{display:flex;gap:2px;flex-wrap:wrap;flex:1 1 auto;min-width:0}
+.segf button{background:none;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;padding:9px 8px 8px;font:inherit;font-size:13px;font-weight:600;color:var(--ink2);cursor:pointer;display:inline-flex;gap:5px;align-items:center;min-height:38px;white-space:nowrap}
+.segf button:hover{color:var(--ink)}
+.segf button.on{color:var(--ink);border-bottom-color:var(--act);font-weight:800}
+.segf button .n{font-size:11.5px;font-weight:600;color:var(--ink3)}
+.segf button.on .n{color:var(--ink2)}
+.segbar .addm{margin:0 0 6px auto;position:relative}
+.segbar .addm > summary{list-style:none}
+.segbar .addm > summary::-webkit-details-marker{display:none}
 .actfil .btn{flex:1 1 0;justify-content:center;min-width:max-content}
 @media (max-width:520px){.actrow4{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .act .ahd{display:flex;gap:8px 10px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
@@ -11344,7 +11355,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-147";
+const APP_VERSION="2026.11.25-148";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -11556,6 +11567,27 @@ function actButtons(kind,id){
     <button class="btn sm cbtn c-note tyb ty-note" data-log="${k}:${i}:note">${ic("note",14)}Note</button>
     <button class="btn sm cbtn c-task tyb ty-task" data-log="${k}:${i}:task">${ic("task",14)}Task</button></div>`;
 }
+// the "+ Add" menu: log a call or an email, write a note, give someone a task
+function actAddMenu(kind,id){const k=esc(kind),i=esc(String(id));
+  return `<details class="dd addm"><summary class="btn sm p" aria-label="Add to the activity">+ Add</summary><div class="dd-m">
+    <button data-log="${k}:${i}:call">${ic("call",14)}Log a call</button><button data-log="${k}:${i}:email">${ic("email",14)}Log an email</button>
+    <button data-log="${k}:${i}:note">${ic("note",14)}Write a note</button><button data-log="${k}:${i}:task">${ic("task",14)}Give someone a task</button></div></details>`}
+const ATAB={call:"Calls",email:"Emails",meeting:"Meetings",note:"Notes",task:"Tasks",log:"Other"};
+function actTabs(items){const counts={};items.forEach(x=>{const k=actKind(x);counts[k]=(counts[k]||0)+1});
+  const keys=["task","email","call","meeting","note","log"].filter(k=>counts[k]);
+  if(S.actFilter&&!counts[S.actFilter])S.actFilter="";
+  return `<div class="segf" role="tablist" aria-label="Show">
+    <button role="tab" aria-selected="${!S.actFilter}" class="${!S.actFilter?"on":""}" data-actf="">All <span class="n">${items.length}</span></button>
+    ${keys.length>1?keys.map(k=>`<button role="tab" aria-selected="${S.actFilter===k}" class="${S.actFilter===k?"on":""}" data-actf="${k}">${esc(ATAB[k]||ATYPE[k].l)} <span class="n">${counts[k]}</span></button>`).join(""):""}</div>`}
+// the same message logged twice (sent from the CRM and picked up from Gmail, or a double save) shows once
+function actDedupe(list){const seen=new Map();const out=[];
+  list.forEach(x=>{const k=actKind(x);if(k==="task"){out.push(x);return}
+    const body=String(x.subject||"")+"|"+String(x.text||"").replace(/\s+/g," ").trim().slice(0,160).toLowerCase();
+    const key=k+"|"+String(x.to||x.contactId||"").toLowerCase()+"|"+body.replace(/^(re|fw|fwd):\s*/i,"");
+    const prev=seen.get(key);
+    if(prev&&Math.abs((prev.at||0)-(x.at||0))<20*60000){if(!prev.gmailId&&x.gmailId){const c=Object.assign({},x,{_dups:(prev._dups||0)+1});out[out.indexOf(prev)]=c;seen.set(key,c)}else prev._dups=(prev._dups||0)+1;return}
+    const c=Object.assign({},x);seen.set(key,c);out.push(c)});
+  return out}
 function actFilterBar(items){
   const counts={};items.forEach(x=>{const k=actKind(x);counts[k]=(counts[k]||0)+1});
   const keys=["call","email","meeting","note","task","log"].filter(k=>counts[k]);
@@ -11889,9 +11921,9 @@ function fileFilterBar(items){
   const srcs={};items.forEach(f=>{srcs[f._src||"Project"]=(srcs[f._src||"Project"]||0)+1});
   const keys=Object.keys(srcs);
   if(keys.length<2)return "";
-  return `<div style="padding:8px 14px;border-bottom:1px solid var(--line2);display:flex;gap:6px;flex-wrap:wrap">
-    <button class="btn sm ${!S.fileFilter?"p":""}" data-filef="">All ${items.length}</button>
-    ${keys.map(k=>`<button class="btn sm ${S.fileFilter===k?"p":""}" data-filef="${esc(k)}">${esc(k)} ${srcs[k]}</button>`).join("")}</div>`;
+  return `<div class="segbar"><div class="segf" role="tablist" aria-label="Show files from">
+    <button role="tab" aria-selected="${!S.fileFilter}" class="${!S.fileFilter?"on":""}" data-filef="">All <span class="n">${items.length}</span></button>
+    ${keys.map(k=>`<button role="tab" aria-selected="${S.fileFilter===k}" class="${S.fileFilter===k?"on":""}" data-filef="${esc(k)}">${esc(k)} <span class="n">${srcs[k]}</span></button>`).join("")}</div></div>`;
 }
 function stageTimeline(p){
   const sl=(p.stageLog||[]).slice().reverse();
@@ -12404,14 +12436,13 @@ function activityCard(kind,id){
   // open tasks first (soonest due on top), then everything else newest first
   const openT=a.filter(x=>x.kind==="task"&&!x.done).sort((x,y)=>taskDueKey(x).localeCompare(taskDueKey(y)));
   a=openT.concat(a.filter(x=>!(x.kind==="task"&&!x.done)));
+  a=actDedupe(a);
   const all=a;
   if(S.actFilter)a=a.filter(x=>actKind(x)===S.actFilter);
-  const tools=kind==="project"?actionBar([{l:"Log",html:actButtons("project",id)}]):"";
   return `<section class="card flush actcard"><header><h2>Activity</h2><span class="n">${all.length}</span>
     <span class="sub">Calls, emails, meetings, dated notes and tasks${kind==="project"?" — including its work orders":""}. Open tasks stay on top.</span></header>
-    ${tools||`<div class="actrowwrap">${actButtons(kind,id)}</div>`}
-    ${followUpBar(kind,id)?`<div style="padding:0 15px 2px">${followUpBar(kind,id)}</div>`:""}
-    ${actFilterBar(all)}
+    <div class="segbar">${actTabs(all)}${actAddMenu(kind,id)}</div>
+    ${followUpBar(kind,id)?`<div style="padding:8px 15px 2px">${followUpBar(kind,id)}</div>`:""}
     ${a.length?`<ul class="act">${a.slice(0,50).map(activityRow).join("")}</ul>`
     :`<div class="empty">Nothing logged yet.</div>`}</section>`;
 }
