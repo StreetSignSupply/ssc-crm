@@ -11388,7 +11388,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-149";
+const APP_VERSION="2026.11.25-150";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -14265,7 +14265,11 @@ function binView(){
   const N=S.binN||200,shown=d.slice(0,N);
   const why=(t,x)=>{if(x.mergedInto){const m=(t==="account"?S.accounts:t==="contact"?S.contacts:null);const to=m&&m.get(x.mergedInto);
       return to&&!to.deleted?`merged into <button class="lnk" data-go="${t}/${esc(to.id)}">${esc(to.name)}</button>`:"merged"}
-    return x.deletedBy==="AI"?"removed by an import clean-up":""};
+    const src=String(x.source||"");const lead=/^Prospects|research/i.test(src);
+    const extra=t==="account"?(function(){const nc=[...S.contacts.values()].filter(c=>c.accountId===x.id).length,np=[...S.projects.values()].filter(p=>p.accountId===x.id&&!p.deleted).length,
+      na=[...S.activity.values()].filter(a=>a.recType==="account"&&a.recId===x.id&&!a.deleted).length;
+      return [np?`<b>${np} project${np===1?"":"s"}</b>`:"",na?`<b>${na} activity entr${na===1?"y":"ies"}</b>`:""].filter(Boolean).join(" · ")})():"";
+    return [lead?(x.deletedBy==="AI"?"prospect-list lead the sales agents added, then removed":"prospect-list lead the sales agents added"):x.deletedBy==="AI"?"removed by the agents":"",extra?"had "+extra:""].filter(Boolean).join(" — ")};
   return `<div class="pad">
     ${crumbBar([{l:"Company dashboard",h:"home"},{l:"Settings",h:"settings"},{l:"Recycle bin"}])}
     <section class="card flush">
@@ -14284,7 +14288,7 @@ function binView(){
             return (w?`<div class="sub">${w}</div>`:"")+(k?`<div class="sub">+ ${k} related record${k>1?"s":""} — they come back together</div>`:"")})()}</td>
         <td><span class="pill">${esc(t)}</span></td>
         <td class="sub mono">${esc(x.deletedBy||"")} · ${fmtTs(x.deletedAt)}</td>
-        <td style="text-align:right;white-space:nowrap"><button class="btn sm p" data-restore="${esc(t)}:${esc(String(x.id||x.num))}">Restore</button>${myAccess()==="owner"?` <button class="btn sm d" data-binkill="${esc(t)}:${esc(String(x.id||x.num))}" title="Delete forever — can't be undone">Delete forever</button>`:""}</td></tr>`).join("")}</tbody></table>
+        <td style="text-align:right;white-space:nowrap">${["account","contact","project","job","vendor","item"].indexOf(t)>=0?`<button class="btn sm" data-binhist="${esc(t)}:${esc(String(x.id||x.num))}">History</button> `:""}<button class="btn sm p" data-restore="${esc(t)}:${esc(String(x.id||x.num))}">Restore</button>${myAccess()==="owner"?` <button class="btn sm d" data-binkill="${esc(t)}:${esc(String(x.id||x.num))}" title="Delete forever — can't be undone">Delete forever</button>`:""}</td></tr>`).join("")}</tbody></table>
       ${d.length>N?`<div style="padding:10px 15px"><button class="btn sm" data-binmore="1">Show ${Math.min(200,d.length-N)} more</button> <span class="sub">${N} of ${d.length} shown — or search above</span></div>`:""}`
     :`<div class="empty">${top.length?`<b>Nothing in the bin matches</b>Try fewer words or another type.`:`<b>The bin is empty</b>Deleted records land here instead of disappearing.`}</div>`}
   </section></div>`;
@@ -14316,6 +14320,15 @@ function binPurgeAsk(items){if(myAccess()!=="owner")return toast("Only the owner
     const b=$("#bingo");b.disabled=true;
     const r=await binKill(items,(i,t)=>{const p=$("#binprog");if(p)p.textContent="Deleting "+i+" of "+t+"…"});
     closeModal();toast(r.gone+" deleted for good"+(r.bad?" — "+r.bad+" couldn't be removed (they're still in the bin)":""));render()}}
+// a deleted record's field history: who made it, what changed, who put it in the bin — without restoring it
+function binHistModal(t,k){const m=S[BIN_COLL[t]];const x=m&&m.get(k);if(!x)return;
+  const fill=()=>{const h=histOf(t,k).slice().reverse();const el=document.getElementById("binhist");if(!el)return;
+    el.innerHTML=`<p class="sub" style="margin:0 0 8px">${x.createdAt?"Added "+esc(fmtTs(x.createdAt)):""}${x.source?" · from "+esc(x.source):""} · in the bin since ${esc(fmtTs(x.deletedAt))} (${esc(x.deletedBy||"?")})</p>`+
+      (h.length?h.slice(0,80).map(e=>`<div class="hrow"><span class="f">${esc(e.f)}</span><span class="v">${e.ev?esc(e.n):`${e.o?`<span class="o">${esc(e.o)}</span> → `:""}<span class="n">${esc(e.n||"(blank)")}</span>`}</span><time>${esc(e.w==="??"?"unsigned":(e.w||""))} ${fmtTs(e.t)}</time></div>`).join("")
+      :`<div class="empty" style="min-height:0">No field history was recorded for this one.</div>`)};
+  openModal(mshell("History — "+binLabel(t,x),"file",`<div id="binhist" style="padding:12px 15px"><div class="sub">Loading…</div></div>`,
+    `<button class="btn" data-close="1">Close</button><button class="btn p" data-binres="${esc(t)}:${esc(k)}">Restore it</button>`));
+  fill();setTimeout(fill,900);setTimeout(fill,2500)}
 function binLabel(t,x){
   if(t==="account")return x.name;
   if(t==="contact")return x.name;
@@ -18274,6 +18287,9 @@ function bind(){
     {const x=t.closest("[data-stcmat]");if(x){stcMatModal(Number(x.dataset.stcmat));return}}
     {const x=t.closest("[data-stcrates]");if(x){stcRatesModal();return}}
     {const x=t.closest("[data-stccsv]");if(x){stcCsv();return}}
+    {const x=t.closest("[data-binres]");if(x){const i=x.dataset.binres.indexOf(":"),k0=x.dataset.binres.slice(0,i),i0=x.dataset.binres.slice(i+1);closeModal();
+      const w=restoreGuard(k0,i0);if(w){askConfirm("Restore anyway?",`<p style="margin:0">${esc(w)}</p>`,"Restore it",false,()=>restore(k0,i0));return}restore(k0,i0);return}}
+    {const x=t.closest("[data-binhist]");if(x){const i=x.dataset.binhist.indexOf(":"),ty=x.dataset.binhist.slice(0,i),k=x.dataset.binhist.slice(i+1);binHistModal(ty,k);return}}
     {const x=t.closest("[data-binpurge]");if(x){binPurgeAsk(binList());return}}
     {const x=t.closest("[data-binkill]");if(x){const i=x.dataset.binkill.indexOf(":"),ty=x.dataset.binkill.slice(0,i),k=x.dataset.binkill.slice(i+1);
       const m=S[BIN_COLL[ty]];const rec=m&&m.get(k);if(rec&&rec.deleted)binPurgeAsk([{t:ty,x:rec}]);return}}
