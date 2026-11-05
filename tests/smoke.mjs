@@ -16,6 +16,7 @@ const D = {
   accounts: { a1: { name: "Test County", street: "1 Main St", city: "Town", state: "UT", type: "Government agency", terms: "Net 30", repId: "t1",
     billDiff: true, billStreet: "PO Box 77", billCity: "Town", billState: "UT", billZip: "84000" }, a2: { name: "Test Contractor", type: "Contractor", terms: "Prepay" },
     // a vendor that was also entered as an account: it has to be offered as a vendor, not left as a Lead
+    a8: { name: "Prospect Lead Town", source: "Prospects P0075 (NV list, stage 1)", deleted: true, deletedAt: now - 2 * day, deletedBy: "AI" },
     a9: { name: "Gone Sign Co", city: "Town", state: "UT", type: "Contractor", deleted: true, deletedAt: now - day },
     a3: { name: "Test Plastics Inc", type: "Contractor", createdAt: now } },
   contacts: { c1: { name: "Pat Example", accountId: "a1", email: "pat@example.com", phone: "4355550100", role: "Buyer" }, c2: { name: "Lee Sample", accountId: "a2", phone: "4355550101", role: "Buyer" } },
@@ -313,6 +314,15 @@ await pg.setViewportSize({ width: 1400, height: 900 });
   const b = await pg.evaluate(() => ({ t: (document.querySelector(".main") || {}).innerText || "", chips: document.querySelectorAll("[data-bint]").length }));
   if (!/Gone Sign Co/.test(b.t) || /Recycle bin\s*\n?\s*0/.test(b.t)) bad.push("the recycle bin search doesn't find a deleted account");
   if (b.chips < 2) bad.push("the recycle bin has no type filter");
+  // agent prospect leads are kept apart from the normal bin view (nothing deleted)
+  { await pg.fill("#lq", ""); await pg.waitForTimeout(400);
+    const v = await pg.evaluate(() => ({ t: (document.querySelector(".main") || {}).innerText || "", b: !!document.querySelector('[data-binleads="1"]') }));
+    if (/Prospect Lead Town/.test(v.t) || !v.b) bad.push("agent prospect leads aren't kept apart in the recycle bin");
+    await pg.evaluate(() => document.querySelector('[data-binleads="1"]').click()); await pg.waitForTimeout(400);
+    const v2 = await pg.evaluate(() => (document.querySelector(".main") || {}).innerText || "");
+    if (!/Prospect Lead Town/.test(v2) || /Gone Sign Co/.test(v2)) bad.push("the Agent prospect leads view doesn't show just those leads");
+    await pg.evaluate(() => document.querySelector('[data-binleads="0"]').click()); await pg.waitForTimeout(400);
+    await pg.fill("#lq", "gone sign"); await pg.waitForTimeout(400); }
   { const h = await pg.evaluate(() => { const x = document.querySelector('[data-binhist="account:a9"]'); if (!x) return ""; x.click(); return "ok"; }); await pg.waitForTimeout(400);
     const m = await pg.evaluate(() => (document.querySelector(".mbox") || {}).innerText || "");
     if (!h || !/History — Gone Sign Co/.test(m) || !/in the bin since/.test(m)) bad.push("a deleted record's History can't be seen from the recycle bin");

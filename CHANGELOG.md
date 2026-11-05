@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-151 (agent prospect leads kept apart in the recycle bin)
+- The ~1,550 prospect-list leads the sales agents added (Oct 24–26) and later removed — none with a project or activity — no longer show in the Recycle bin's normal view. They sit in their own **Agent prospect leads (kept apart)** view, so the team isn't confused while working the list. Nothing was deleted; they can still be opened, checked (History) and restored from there.
+- Real records — anything with a project or activity, merged copies, and things people deleted — stay in the normal view.
+
 ## 2026.11.25-150 (recycle bin: where each record came from, and its history)
 - Each row in the Recycle bin says where it came from when known — "prospect-list lead the sales agents added, then removed" — and flags any that **had projects or activity** in bold, so real work stands out from bulk prospect leads.
 - **History** on each row opens that record's field history (who added it, what changed, who put it in the bin) without restoring it, with a **Restore it** button.
