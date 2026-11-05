@@ -1,8 +1,8 @@
 # What changed
 
 ## 2026.11.25-151 (FAA kit cut files)
-- Nine FAA kits now have their character cut files as a ZIP, plus one PDF of all the proofs, in Files. The ZIP downloads like the other cut files. The loose per-character files are inside the ZIP, not attached on their own.
-- 51 more stencils got a DXF and a PDF. Another 273 in this batch were already on file with the same bytes, so those were left as they were.
+- Seven FAA kits now have their character cut files as a ZIP, plus one PDF of all the proofs, in Files. The ZIP downloads like the other cut files. The loose per-character files are inside the ZIP, not attached on their own. SSS-FAA-006-01 and SSS-FAA-024-01 are not included.
+- 51 more stencils got a DXF and a PDF. Another 267 in this batch were already on file with the same bytes, so those were left as they were. Six more (SSS-WRD-072-09, SSS-EVC-000-04, SSS-WRD-036-43, SSS-PRK-006-06, SSS-PRK-008-06, SSS-EVC-036-05) were left out of the batch; the cut file already in the repo stays.
 
 ## 2026.11.25-150 (recycle bin: where each record came from, and its history)
 - Each row in the Recycle bin says where it came from when known — "prospect-list lead the sales agents added, then removed" — and flags any that **had projects or activity** in bold, so real work stands out from bulk prospect leads.
