@@ -188,7 +188,7 @@ if (STEP === "bincheck") {
       if ([...S.contacts.values()].some((c) => c.accountId === x.id)) g.withContacts++;
       if ([...S.activity.values()].some((a) => a.recType === "account" && a.recId === x.id)) g.withActivity++;
       if (x.createdAt) g.created.push(Number(x.createdAt));
-      Object.keys(x).forEach((f) => { if (/src|source|import|batch|from|lead|origin/i.test(f)) g.keys[f + "=" + String(x[f]).slice(0, 24)] = (g.keys[f + "=" + String(x[f]).slice(0, 24)] || 0) + 1; }); });
+      Object.keys(x).forEach((f) => { if (/src|source|import|batch|from|lead|origin/i.test(f)) { const kk = f + "=" + String(x[f]).replace(/\bP\d+\s*/g, "").replace(/\d+/g, "#").slice(0, 26); g.keys[kk] = (g.keys[kk] || 0) + 1; } }); });
     // field history for a sample of each group
     const db = T.getDb();
     for (const k of Object.keys(groups)) { const g = groups[k]; const sample = del.filter((x) => { const at = Number(x.deletedAt) || 0; return (String(x.deletedBy || "?") + " " + (at ? tz(Math.floor(at / 600000) * 600000) : "no date") + (x.mergedInto ? " merged" : "")) === k; }).slice(0, 6);
