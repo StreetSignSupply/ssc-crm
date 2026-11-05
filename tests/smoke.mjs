@@ -209,18 +209,6 @@ await pg.setViewportSize({ width: 1400, height: 900 });
   else { if (!/SSS-FAA-108-01\.dxf/.test(fx.t) || !/SSS-FAA-108-01\.pdf/.test(fx.t)) bad.push("a stencil's window doesn't list its DXF and PDF");
     if (fx.dl < 2 || fx.open < 1 || !fx.up) bad.push("a stencil's files can't be opened, downloaded or uploaded (" + JSON.stringify(fx) + ")"); }
   await pg.evaluate(() => { const b = document.querySelector(".mbox [data-close]"); if (b) b.click(); }); await pg.waitForTimeout(350);
-  await pg.fill("#lq", "SSS-FAA-036-01"); await pg.waitForTimeout(500);
-  await pg.evaluate(() => document.querySelector('[data-stcview="SSS-FAA-036-01"]').click()); await pg.waitForTimeout(500);
-  const kit = await pg.evaluate(async () => {
-    const b = document.getElementById("stc-files"); if (!b) return null;
-    const zip = [...b.querySelectorAll("li")].find((li) => /SSS-FAA-036-01\.zip/.test(li.innerText));
-    let zipOk = false;
-    if (zip) { const r = await fetch("https://raw.githubusercontent.com/StreetSignSupply/ssc-crm/main/public/cut/SSS-FAA-036-01.zip"); const buf = new Uint8Array(await r.arrayBuffer()); zipOk = r.ok && buf[0] === 0x50 && buf[1] === 0x4b; }
-    return { t: b.innerText, zipDl: !!(zip && zip.querySelector("[data-dl='cut:SSS-FAA-036-01:zip']")), zipOpen: !!(zip && zip.querySelector("[data-view]")), zipOk };
-  });
-  if (!kit || !/SSS-FAA-036-01\.zip/.test(kit.t) || !/SSS-FAA-036-01\.pdf/.test(kit.t) || !kit.zipDl || kit.zipOpen || !kit.zipOk) bad.push("an FAA kit zip isn't offered for download (" + JSON.stringify(kit) + ")");
-  await pg.evaluate(() => { const b = document.querySelector(".mbox [data-close]"); if (b) b.click(); }); await pg.waitForTimeout(350);
-  await pg.fill("#lq", ""); await pg.waitForTimeout(400);
   await pg.evaluate(() => document.querySelector("[data-stcbulk]").click()); await pg.waitForTimeout(400);
   await pg.setInputFiles("#stc-bf", [{ name: "SSS-FAA-120-01.dxf", mimeType: "application/dxf", buffer: Buffer.from("0\nSECTION\n") }, { name: "NOT-A-SKU.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4") }, { name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("x") }]);
   await pg.waitForTimeout(300);

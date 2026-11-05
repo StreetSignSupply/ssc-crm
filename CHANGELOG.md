@@ -1,8 +1,7 @@
 # What changed
 
-## 2026.11.25-152 (FAA kit cut files and more cut files)
-- Four FAA kits now have their character cut files as a ZIP, plus one PDF of all the proofs, in Files: SSS-FAA-036-01, SSS-FAA-036-03, SSS-FAA-048-01 and SSS-FAA-072-02. The ZIP downloads like the other cut files. The other FAA kit bundles are not included.
-- 51 more stencils got a DXF and a PDF. Another 267 in this batch were already on file with the same bytes, so those were left as they were.
+## 2026.11.25-152 (more stencil cut files)
+- 51 more stencils got a DXF and a PDF. Another 267 in this batch were already on file with the same bytes, so those were left as they were. No FAA kit bundle is included.
 - Eight cut files that came from the full-sheet batch were removed, because the bridges are too thin to cut. Those stencils show no cut file until a fixed one arrives: SSS-EVC-000-04, SSS-EVC-036-05, SSS-PRK-006-06, SSS-PRK-008-06, SSS-WRD-012-07, SSS-WRD-012-58, SSS-WRD-036-43, SSS-WRD-072-09.
 
 ## 2026.11.25-151 (agent prospect leads kept apart in the recycle bin)
