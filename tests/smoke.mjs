@@ -390,6 +390,11 @@ await pg.setViewportSize({ width: 1400, height: 900 });
   else { await pg.evaluate(() => document.querySelector("[data-rvopen]").click()); await pg.waitForTimeout(400);
     const t = await pg.evaluate(() => (document.querySelector(".modal") || {}).innerText || "");
     if (!/Quotes to review/.test(t) || !/Test County/.test(t) || !/made by Test Sales/.test(t)) bad.push("the Quotes to review window doesn't list the rep's quote");
+    // "Reviewed — not sending" takes it off the list without approving or emailing anyone
+    if (!/Reviewed — not sending/.test(t)) bad.push("a reviewed quote can't be taken off the review list without sending it");
+    else { await pg.evaluate(() => document.querySelector("[data-rvseen]").click()); await pg.waitForTimeout(400);
+      const tst = await pg.evaluate(() => [...document.querySelectorAll(".toast,[class*=toast]")].map((x) => x.innerText).join(" "));
+      if (!/Nothing was sent/.test(tst)) bad.push("'Reviewed — not sending' didn't take the quote off the list (" + tst.slice(0, 60) + ")"); }
     await pg.evaluate(() => { const x = document.querySelector(".modal .mx"); if (x) x.click(); }); await pg.waitForTimeout(350); } }
 // the owner always has Settings
 { await pg.evaluate(() => { location.hash = "#/home"; }); await pg.waitForTimeout(400);
