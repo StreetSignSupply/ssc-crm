@@ -11404,7 +11404,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-154";
+const APP_VERSION="2026.11.25-155";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -14307,12 +14307,12 @@ function binView(){
       ${BT.leads?`<button class="btn sm" data-binleads="1" style="margin-left:auto" title="Kept apart so they don't mix with real records">Agent prospect leads · ${BT.leads} (kept apart)</button>`:""}`}</div>
     ${d.length?`<table><thead><tr><th>Record</th><th>Type</th><th>Deleted</th><th></th></tr></thead>
       <tbody>${shown.map(({t,x})=>`<tr>
-        <td>${esc(binLabel(t,x))}${x.city?` <span class="sub">· ${esc(x.city)}</span>`:""}
+        <td><button class="lnk" style="text-align:left;font-weight:700" data-binhist="${esc(t)}:${esc(String(x.id||x.num))}" title="See what it is before you keep or delete it">${esc(binLabel(t,x))}</button>${x.city?` <span class="sub">· ${esc(x.city)}</span>`:""}
           ${(function(){const k=kidsOf(t+":"+String(x.id||x.num));const w=why(t,x);
             return (w?`<div class="sub">${w}</div>`:"")+(k?`<div class="sub">+ ${k} related record${k>1?"s":""} — they come back together</div>`:"")})()}</td>
         <td><span class="pill">${esc(t)}</span></td>
         <td class="sub mono">${esc(x.deletedBy||"")} · ${fmtTs(x.deletedAt)}</td>
-        <td style="text-align:right;white-space:nowrap">${["account","contact","project","job","vendor","item"].indexOf(t)>=0?`<button class="btn sm" data-binhist="${esc(t)}:${esc(String(x.id||x.num))}">History</button> `:""}<button class="btn sm p" data-restore="${esc(t)}:${esc(String(x.id||x.num))}">Restore</button>${myAccess()==="owner"?` <button class="btn sm d" data-binkill="${esc(t)}:${esc(String(x.id||x.num))}" title="Delete forever — can't be undone">Delete forever</button>`:""}</td></tr>`).join("")}</tbody></table>
+        <td style="text-align:right;white-space:nowrap"><button class="btn sm" data-binhist="${esc(t)}:${esc(String(x.id||x.num))}">View</button> <button class="btn sm p" data-restore="${esc(t)}:${esc(String(x.id||x.num))}">Restore</button>${myAccess()==="owner"?` <button class="btn sm d" data-binkill="${esc(t)}:${esc(String(x.id||x.num))}" title="Delete forever — can't be undone">Delete forever</button>`:""}</td></tr>`).join("")}</tbody></table>
       ${d.length>N?`<div style="padding:10px 15px"><button class="btn sm" data-binmore="1">Show ${Math.min(200,d.length-N)} more</button> <span class="sub">${N} of ${d.length} shown — or search above</span></div>`:""}`
     :`<div class="empty">${top.length?`<b>Nothing in the bin matches</b>Try fewer words or another type.`:`<b>The bin is empty</b>Deleted records land here instead of disappearing.`}</div>`}
   </section></div>`;
@@ -14345,14 +14345,34 @@ function binPurgeAsk(items){if(myAccess()!=="owner")return toast("Only the owner
     const r=await binKill(items,(i,t)=>{const p=$("#binprog");if(p)p.textContent="Deleting "+i+" of "+t+"…"});
     closeModal();toast(r.gone+" deleted for good"+(r.bad?" — "+r.bad+" couldn't be removed (they're still in the bin)":""));render()}}
 // a deleted record's field history: who made it, what changed, who put it in the bin — without restoring it
-function binHistModal(t,k){const m=S[BIN_COLL[t]];const x=m&&m.get(k);if(!x)return;
-  const fill=()=>{const h=histOf(t,k).slice().reverse();const el=document.getElementById("binhist");if(!el)return;
-    el.innerHTML=`<p class="sub" style="margin:0 0 8px">${x.createdAt?"Added "+esc(fmtTs(x.createdAt)):""}${x.source?" · from "+esc(x.source):""} · in the bin since ${esc(fmtTs(x.deletedAt))} (${esc(x.deletedBy||"?")})</p>`+
-      (h.length?h.slice(0,80).map(e=>`<div class="hrow"><span class="f">${esc(e.f)}</span><span class="v">${e.ev?esc(e.n):`${e.o?`<span class="o">${esc(e.o)}</span> → `:""}<span class="n">${esc(e.n||"(blank)")}</span>`}</span><time>${esc(e.w==="??"?"unsigned":(e.w||""))} ${fmtTs(e.t)}</time></div>`).join("")
-      :`<div class="empty" style="min-height:0">No field history was recorded for this one.</div>`)};
-  openModal(mshell("History — "+binLabel(t,x),"file",`<div id="binhist" style="padding:12px 15px"><div class="sub">Loading…</div></div>`,
-    `<button class="btn" data-close="1">Close</button><button class="btn p" data-binres="${esc(t)}:${esc(k)}">Restore it</button>`));
-  fill();setTimeout(fill,900);setTimeout(fill,2500)}
+// look at a record in the bin before deciding: what it is, what's tied to it, a preview of a file, and its history
+function binFacts(t,x){const d=v=>v?fmtTs(v):"";const nm=id=>{const a=S.accounts.get(id);return a?a.name+(a.deleted?" (in the bin)":""):""};
+  const pj=id=>{const p=S.projects.get(id);return p?"P-"+p.num+" "+(p.name||"")+(p.deleted?" (in the bin)":""):""};
+  if(t==="account"){const cs=[...S.contacts.values()].filter(c=>c.accountId===x.id),ps=[...S.projects.values()].filter(p=>p.accountId===x.id);
+    return [["Type",x.type],["Address",[x.street,x.city,x.state,x.zip].filter(Boolean).join(", ")],["Phone",x.phone?fmtPhone(x.phone):""],["Email",x.email],["Website",x.website],["From",x.source],
+      ["Contacts",cs.length?cs.slice(0,6).map(c=>c.name+(c.deleted?" (in the bin)":"")).join(", ")+(cs.length>6?" +"+(cs.length-6):""):"none"],["Projects",ps.length?ps.slice(0,6).map(p=>"P-"+p.num+" "+(p.name||"")).join(", "):"none"],["Notes",x.notes]]}
+  if(t==="contact")return [["Account",nm(x.accountId)],["Title",x.title],["Role",x.role],["Email",x.email],["Phone",x.phone?fmtPhone(x.phone):""],["Mobile",x.mobile?fmtPhone(x.mobile):""],["Notes",x.notes]];
+  if(t==="project"){const L=(x.orderLines||[]).filter(l=>l&&!l.deleted);return [["Account",nm(x.accountId)],["Stage",((SG[x.stage]||{}).label)||x.stage],["Quote",x.quote],["PO",x.po],["Value",L.length?money2(L.reduce((s2,l)=>s2+(Number(l.price)||0)*(Number(l.qty)||0),0)):""],
+    ["Lines",L.slice(0,8).map(l=>(l.qty||"")+" × "+(l.desc||l.code||"line")).join("; ")],["Due",x.due?fmtDate(x.due):""]]}
+  if(t==="job")return [["Project",pj(x.projectId)],["Account",nm(x.accountId)],["What",x.desc],["Status",x.status],["Due",x.due?fmtDate(x.due):""],["Items",(x.items||[]).slice(0,8).map(it=>(it.qty||"")+" × "+(it.desc||it.name||"item")).join("; ")]];
+  if(t==="file")return [["Kind",x.cat],["Size",x.size?bytes(x.size):""],["On",x.projectId?pj(x.projectId):x.jobId?"Work order "+x.jobId:x.accountId?nm(x.accountId):x.vendorId?"a vendor":x.stencilSku?"stencil "+x.stencilSku:""],["Added",(x.who||"")+" "+(x.when||d(x.at))]];
+  if(t==="activity")return [["What",actKind(x)],["On",x.recType==="project"?pj(x.recId):x.recType==="account"?nm(x.recId):(x.recType||"")+" "+(x.recId||"")],["Subject",x.subject],["Text",String(x.text||"").slice(0,600)],["When",d(x.at)]];
+  if(t==="event")return [["Title",x.title],["When",[x.date,x.time].filter(Boolean).join(" ")],["Notes",x.notes]];
+  return [["Name",x.name],["SKU",x.sku],["Email",x.email],["Phone",x.phone],["Notes",x.notes]]}
+function binHistModal(t,k){const m=S[BIN_COLL[t]];const x=m&&m.get(k);if(!x)return;const hasHist=["account","contact","project","job","vendor","item"].indexOf(t)>=0;
+  const kids=deletedAll().filter(o=>o.x.deletedWith===t+":"+k);
+  const prev=t==="file"&&x.url?(/^image\//.test(x.type||"")||/\.(png|jpe?g|gif|webp)$/i.test(x.name||"")?`<img src="${esc(x.url)}" alt="" style="max-width:100%;max-height:320px;border:1px solid var(--line2);border-radius:6px;background:#fff">`
+    :/pdf/i.test(x.type||"")||/\.pdf$/i.test(x.name||"")?`<iframe src="${esc(x.url)}" title="${esc(x.name||"File")}" style="width:100%;height:340px;border:1px solid var(--line2);border-radius:6px;background:#fff"></iframe>`:"")
+    +`<div style="margin:6px 0 10px"><a class="lnk" href="${esc(x.url)}" target="_blank" rel="noopener">Open it in a new tab</a></div>`:"";
+  const fill=()=>{const el=document.getElementById("binhist");if(!el)return;const h=hasHist?histOf(t,k).slice().reverse():[];
+    el.innerHTML=`<p class="sub" style="margin:0 0 8px">${x.createdAt?"Added "+esc(fmtTs(x.createdAt))+" · ":""}in the bin since ${esc(fmtTs(x.deletedAt))} (${esc(x.deletedBy||"?")})</p>
+      ${prev}<table style="table-layout:auto;width:100%;margin-bottom:10px"><tbody>${binFacts(t,x).filter(r=>r[1]).map(r=>`<tr><td class="sub" style="width:100px;vertical-align:top">${esc(r[0])}</td><td style="white-space:pre-wrap">${esc(r[1])}</td></tr>`).join("")}</tbody></table>
+      ${kids.length?`<p style="margin:0 0 10px"><b>Comes back with it:</b> ${kids.slice(0,8).map(o=>esc(binLabel(o.t,o.x))+` <span class="sub">(${esc(o.t)})</span>`).join(", ")}${kids.length>8?" +"+(kids.length-8):""}</p>`:""}
+      ${hasHist?`<div class="k" style="margin:6px 0 4px">History</div>`+(h.length?h.slice(0,60).map(e=>`<div class="hrow"><span class="f">${esc(e.f)}</span><span class="v">${e.ev?esc(e.n):`${e.o?`<span class="o">${esc(e.o)}</span> → `:""}<span class="n">${esc(e.n||"(blank)")}</span>`}</span><time>${esc(e.w==="??"?"unsigned":(e.w||""))} ${fmtTs(e.t)}</time></div>`).join("")
+        :`<div class="sub">No field history was recorded for this one.</div>`):""}`};
+  openModal(mshell(binLabel(t,x)+" — in the recycle bin","file",`<div id="binhist" style="padding:12px 15px"><div class="sub">Loading…</div></div>`,
+    `<button class="btn" data-close="1">Close</button>${myAccess()==="owner"?`<button class="btn d" data-binkill="${esc(t)}:${esc(k)}">Delete forever</button>`:""}<button class="btn p" data-binres="${esc(t)}:${esc(k)}">Restore it</button>`));
+  fill();if(hasHist){setTimeout(fill,900);setTimeout(fill,2500)}}
 function binLabel(t,x){
   if(t==="account")return x.name;
   if(t==="contact")return x.name;

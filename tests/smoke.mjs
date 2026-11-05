@@ -333,7 +333,9 @@ await pg.setViewportSize({ width: 1400, height: 900 });
     await pg.fill("#lq", "gone sign"); await pg.waitForTimeout(400); }
   { const h = await pg.evaluate(() => { const x = document.querySelector('[data-binhist="account:a9"]'); if (!x) return ""; x.click(); return "ok"; }); await pg.waitForTimeout(400);
     const m = await pg.evaluate(() => (document.querySelector(".mbox") || {}).innerText || "");
-    if (!h || !/History — Gone Sign Co/.test(m) || !/in the bin since/.test(m)) bad.push("a deleted record's History can't be seen from the recycle bin");
+    if (!h || !/Gone Sign Co — in the recycle bin/.test(m) || !/in the bin since/.test(m) || !/Restore it/.test(m) || !/Delete forever/.test(m)) bad.push("a deleted record can't be looked at from the recycle bin before keeping or deleting it");
+    const nameLink = await pg.evaluate(() => !!document.querySelector('td button.lnk[data-binhist="account:a9"]'));
+    if (!nameLink) bad.push("a record's name in the recycle bin isn't clickable");
     await pg.evaluate(() => { const c = document.querySelector(".mbox [data-close]"); if (c) c.click(); }); await pg.waitForTimeout(350); }
   // the owner can delete for good: one asks plainly, many need DELETE typed
   const k = await pg.evaluate(() => { const x = document.querySelector('[data-binkill="account:a9"]'); if (!x) return ""; x.click(); return "ok"; }); await pg.waitForTimeout(300);

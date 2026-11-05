@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-155 (look at anything in the recycle bin before keeping or deleting it)
+- Recycle bin: click a record's name (or **View**) to see what it is — an account's address, phone, contacts and projects; a contact's account, email and phones; a project's stage, quote, value and lines; a work order's items; a file shown right there (PDF or picture) with "Open it in a new tab"; an activity entry's text. It lists what comes back with it, shows its history, and has **Restore it** and **Delete forever** right there.
+
 ## 2026.11.25-154 (more stencil cut files)
 - 51 more stencils got a DXF and a PDF. Another 267 in this batch were already on file with the same bytes, so those were left as they were. No FAA kit bundle is included.
 - Eight cut files that came from the full-sheet batch were removed, because the bridges are too thin to cut. Those stencils show no cut file until a fixed one arrives: SSS-EVC-000-04, SSS-EVC-036-05, SSS-PRK-006-06, SSS-PRK-008-06, SSS-WRD-012-07, SSS-WRD-012-58, SSS-WRD-036-43, SSS-WRD-072-09.
