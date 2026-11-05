@@ -10320,7 +10320,7 @@ const NAVG=[
   {id:"shop",label:"Production",icon:"job",pages:[["jobs","job","Work orders"],["tracker","chart","Tracker"],["calendar","calendar","Calendar"],["files","file","Files"]]},
   {id:"stock",label:"Inventory",icon:"inventory",pages:[["inventory","inventory","Inventory"],["stencils","inventory","Stencils","sub"],["purchasing","inventory","Purchase orders","sub"],["vendors","vendor","Vendors"]]},
   {id:"money",label:"Reports",icon:"chart",pages:[["reports","chart","Reports"]]},
-  {id:"admin",label:"Admin",icon:"history",pages:[["new","history","What's new"],["archive","archive","Archive"],["audit","history","Change history"],["settings","history","Settings"]]}];
+  {id:"admin",label:"Admin",icon:"history",pages:[["new","history","What's new"],["archive","archive","Archive"],["bin","archive","Recycle bin"],["audit","history","Change history"],["settings","history","Settings"]]}];
 /* ===== who can do what =====
    Each person on the team has an access level. Owner: everything. Office: everything but Settings.
    Sales: no costs or margins, can't delete. Shop: no prices, costs or margins, can't delete, no Settings.
@@ -11313,7 +11313,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-145";
+const APP_VERSION="2026.11.25-146";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -14177,6 +14177,7 @@ function binView(){
     <header><h2>Recycle bin</h2><span class="n">${d.length}${d.length!==top.length?" of "+top.length:""}</span>
       <span class="sub">nothing here is gone — restore any time</span>
       <span class="sp"><input class="btn" id="lq" placeholder="Search the bin" aria-label="Search the bin" value="${esc(S.q)}" style="font-weight:400;width:190px">
+        ${myAccess()==="owner"&&d.length?`<button class="btn d" data-binpurge="1" title="Remove what's listed for good — this can't be undone">Delete forever: ${d.length===top.length?"empty the bin":"these "+d.length}</button>`:""}
         <button class="btn" data-go="settings">Back to settings</button></span></header>
     <div class="chipbar" style="display:flex;flex-wrap:wrap;gap:6px;padding:10px 15px;border-bottom:1px solid var(--line2)">
       <button class="btn sm${!T?" p":""}" data-bint="">Everything · ${top.length}</button>
@@ -14188,11 +14189,38 @@ function binView(){
             return (w?`<div class="sub">${w}</div>`:"")+(k?`<div class="sub">+ ${k} related record${k>1?"s":""} — they come back together</div>`:"")})()}</td>
         <td><span class="pill">${esc(t)}</span></td>
         <td class="sub mono">${esc(x.deletedBy||"")} · ${fmtTs(x.deletedAt)}</td>
-        <td style="text-align:right"><button class="btn sm p" data-restore="${esc(t)}:${esc(String(x.id||x.num))}">Restore</button></td></tr>`).join("")}</tbody></table>
+        <td style="text-align:right;white-space:nowrap"><button class="btn sm p" data-restore="${esc(t)}:${esc(String(x.id||x.num))}">Restore</button>${myAccess()==="owner"?` <button class="btn sm d" data-binkill="${esc(t)}:${esc(String(x.id||x.num))}" title="Delete forever — can't be undone">Delete forever</button>`:""}</td></tr>`).join("")}</tbody></table>
       ${d.length>N?`<div style="padding:10px 15px"><button class="btn sm" data-binmore="1">Show ${Math.min(200,d.length-N)} more</button> <span class="sub">${N} of ${d.length} shown — or search above</span></div>`:""}`
     :`<div class="empty">${top.length?`<b>Nothing in the bin matches</b>Try fewer words or another type.`:`<b>The bin is empty</b>Deleted records land here instead of disappearing.`}</div>`}
   </section></div>`;
 }
+// permanently removing what's in the bin — the owner only, always asked first; a record's related records
+// (the ones that went into the bin with it) and its field history go too, and a file's stored copy is removed
+const BIN_COLL={account:"accounts",contact:"contacts",project:"projects",job:"jobs",file:"files",activity:"activity",event:"events",vendor:"vendors",item:"items",team:"team"};
+function binList(){const all=deletedAll();const top=all.filter(({x})=>!x.deletedWith);const T=S.binT||"";const words=String(S.q||"").trim().toLowerCase().split(/\s+/).filter(Boolean);
+  return top.filter(({t,x})=>(!T||t===T)&&(!words.length||words.every(w=>(binLabel(t,x)+" "+(x.city||"")+" "+(x.email||"")+" "+(x.phone||"")).toLowerCase().indexOf(w)>=0)))}
+async function binKill(items,onProg){const all=deletedAll();let gone=0,bad=0;const todo=[];
+  items.forEach(({t,x})=>{todo.push({t,x});const tag=t+":"+String(x.id||x.num);all.filter(k=>k.x.deletedWith===tag).forEach(k=>todo.push(k))});
+  const one=async({t,x})=>{const c=BIN_COLL[t];if(!c){bad++;return}const key=String(x.id||x.num);
+    try{const cur=(S[c==="activity"?"activity":c]||new Map()).get(key);if(cur&&!cur.deleted){return}   // restored meanwhile: leave it
+      if(t==="file"&&assets&&x.assetId){try{await assets.delete(x.assetId)}catch(e){}}
+      await db.doc(c+"/"+key).delete();gone++;
+      if(["account","contact","project","job","vendor","item"].indexOf(t)>=0){try{await db.doc(histKey(t,key)).delete()}catch(e){}}}
+    catch(e){bad++}};
+  for(let i=0;i<todo.length;i+=8){await Promise.all(todo.slice(i,i+8).map(one));if(onProg)onProg(Math.min(i+8,todo.length),todo.length)}
+  return {gone,bad,total:todo.length}}
+function binPurgeAsk(items){if(myAccess()!=="owner")return toast("Only the owner can delete things for good.");if(!items.length)return;
+  const n=items.length,one=n===1?items[0]:null;
+  openModal(mshell(one?"Delete "+binLabel(one.t,one.x)+" forever?":"Delete "+n+" records forever?","file",`<div style="padding:12px 15px">
+    <p style="margin:0 0 8px"><b>This can't be undone.</b> ${one?"It":"They"} won't be in the recycle bin any more and can't be restored${one?"":" — records that went into the bin with them (a project's work orders and files, say) go too"}.</p>
+    ${n>1?`<p style="margin:0 0 8px">Want a copy first? <button class="btn sm" data-backup="1">Download a full backup</button></p>
+      <div class="fld full"><label class="k" for="binsure">Type <b>DELETE</b> to confirm</label><input id="binsure" autocomplete="off" style="max-width:200px"></div>`:""}
+    <div id="binprog" class="sub" style="margin-top:8px"></div></div>`,
+    `<button class="btn" data-close="1">Cancel</button><button class="btn d" id="bingo">Delete forever</button>`));
+  $("#bingo").onclick=async()=>{if(n>1&&String(($("#binsure")||{}).value||"").trim().toUpperCase()!=="DELETE"){toast("Type DELETE to confirm.");const f=$("#binsure");if(f)f.focus();return}
+    const b=$("#bingo");b.disabled=true;
+    const r=await binKill(items,(i,t)=>{const p=$("#binprog");if(p)p.textContent="Deleting "+i+" of "+t+"…"});
+    closeModal();toast(r.gone+" deleted for good"+(r.bad?" — "+r.bad+" couldn't be removed (they're still in the bin)":""));render()}}
 function binLabel(t,x){
   if(t==="account")return x.name;
   if(t==="contact")return x.name;
@@ -18156,6 +18184,9 @@ function bind(){
     {const x=t.closest("[data-stcmat]");if(x){stcMatModal(Number(x.dataset.stcmat));return}}
     {const x=t.closest("[data-stcrates]");if(x){stcRatesModal();return}}
     {const x=t.closest("[data-stccsv]");if(x){stcCsv();return}}
+    {const x=t.closest("[data-binpurge]");if(x){binPurgeAsk(binList());return}}
+    {const x=t.closest("[data-binkill]");if(x){const i=x.dataset.binkill.indexOf(":"),ty=x.dataset.binkill.slice(0,i),k=x.dataset.binkill.slice(i+1);
+      const m=S[BIN_COLL[ty]];const rec=m&&m.get(k);if(rec&&rec.deleted)binPurgeAsk([{t:ty,x:rec}]);return}}
     {const x=t.closest("[data-bint]");if(x){S.binT=x.dataset.bint;S.binN=200;render();return}}
     {const x=t.closest("[data-binmore]");if(x){S.binN=(S.binN||200)+200;render();return}}
     {const x=t.closest("[data-stcnocut]");if(x){S.stcF=Object.assign({},S.stcF||{},{nocut:!(S.stcF&&S.stcF.nocut),page:0});render();return}}

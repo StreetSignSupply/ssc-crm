@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-146 (delete forever from the recycle bin)
+- The Recycle bin is in the left menu under Admin (also Settings → Backup → Open the recycle bin).
+- Owner only: **Delete forever** on each row, and **Delete forever: empty the bin / these N** for everything the search and type buttons are showing. One record asks plainly; many need DELETE typed, with a "Download a full backup" button right there. Records that went into the bin with it (a project's work orders and files) and its field history go too; a file's stored copy is removed. It can't be undone.
+
 ## 2026.11.25-145 (edge-cleaned cut files on 371 stencils)
 - Stencils: 371 stencils now have their DXF cut file and matching PDF in Files, ready to open and download. They ship with the CRM (no upload step). A file uploaded to that stencil after this set replaces just that kind (the DXF or the PDF); an older upload is no longer the one offered.
 - Five names in the batch are not a stencil SKU (`SSS-FAA-072-02-0`, `-2`, `-5`, `-7`, `-8`), so those files were not attached to a stencil.

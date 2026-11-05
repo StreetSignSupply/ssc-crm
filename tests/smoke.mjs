@@ -297,7 +297,21 @@ await pg.setViewportSize({ width: 1400, height: 900 });
   await pg.fill("#lq", "gone sign"); await pg.waitForTimeout(500);
   const b = await pg.evaluate(() => ({ t: (document.querySelector(".main") || {}).innerText || "", chips: document.querySelectorAll("[data-bint]").length }));
   if (!/Gone Sign Co/.test(b.t) || /Recycle bin\s*\n?\s*0/.test(b.t)) bad.push("the recycle bin search doesn't find a deleted account");
-  if (b.chips < 2) bad.push("the recycle bin has no type filter"); }
+  if (b.chips < 2) bad.push("the recycle bin has no type filter");
+  // the owner can delete for good: one asks plainly, many need DELETE typed
+  const k = await pg.evaluate(() => { const x = document.querySelector('[data-binkill="account:a9"]'); if (!x) return ""; x.click(); return "ok"; }); await pg.waitForTimeout(300);
+  if (!k) bad.push("the recycle bin has no Delete forever for the owner");
+  else { const m = await pg.evaluate(() => (document.querySelector(".mbox") || {}).innerText || "");
+    if (!/can't be undone/.test(m)) bad.push("Delete forever doesn't warn it can't be undone");
+    await pg.evaluate(() => document.getElementById("bingo").click()); await pg.waitForTimeout(600);
+    const tst = await pg.evaluate(() => [...document.querySelectorAll(".toast,[class*=toast]")].map((x) => x.innerText).join(" "));
+    if (!/1 deleted for good/.test(tst)) bad.push("Delete forever didn't delete (" + tst.slice(0, 60) + ")"); }
+  await pg.fill("#lq", ""); await pg.waitForTimeout(400);
+  await pg.evaluate(() => document.querySelector("[data-binpurge]").click()); await pg.waitForTimeout(300);
+  await pg.evaluate(() => document.getElementById("bingo").click()); await pg.waitForTimeout(300);
+  const still = await pg.evaluate(() => !!document.getElementById("binsure"));
+  if (!still) bad.push("emptying the bin doesn't need DELETE typed first");
+  await pg.evaluate(() => { const c = document.querySelector(".mbox [data-close]"); if (c) c.click(); }); await pg.waitForTimeout(350); }
 // a separate billing address: on the account's Billing card, and the form shows its boxes only when ticked
 { await pg.evaluate(() => { location.hash = "#/account/a1"; }); await pg.waitForTimeout(600);
   const tx = await pg.evaluate(() => (document.querySelector(".main") || {}).innerText || "");
