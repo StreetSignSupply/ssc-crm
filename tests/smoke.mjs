@@ -268,6 +268,12 @@ await pg.setViewportSize({ width: 1400, height: 900 });
     const still = await pg.evaluate(() => !!document.getElementById("f-name"));
     if (still) bad.push("'Create it anyway' sends you back to the form instead of saving"); }
   await pg.evaluate(() => { const b = document.querySelector(".mbox [data-close]"); if (b) b.click(); }); await pg.waitForTimeout(350); }
+// the recycle bin searches and filters by type, so an old deleted account can be found among thousands
+{ await pg.evaluate(() => { location.hash = "#/bin"; }); await pg.waitForTimeout(500);
+  await pg.fill("#lq", "gone sign"); await pg.waitForTimeout(500);
+  const b = await pg.evaluate(() => ({ t: (document.querySelector(".main") || {}).innerText || "", chips: document.querySelectorAll("[data-bint]").length }));
+  if (!/Gone Sign Co/.test(b.t) || /Recycle bin\s*\n?\s*0/.test(b.t)) bad.push("the recycle bin search doesn't find a deleted account");
+  if (b.chips < 2) bad.push("the recycle bin has no type filter"); }
 // a separate billing address: on the account's Billing card, and the form shows its boxes only when ticked
 { await pg.evaluate(() => { location.hash = "#/account/a1"; }); await pg.waitForTimeout(600);
   const tx = await pg.evaluate(() => (document.querySelector(".main") || {}).innerText || "");

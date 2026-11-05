@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-144 (a recycle bin you can search)
+- Settings → Recycle bin now has a **search box**, **type buttons with counts** (accounts, contacts, projects, files …) and shows 200 at a time with "Show more". It holds about 1,600 old account copies from past imports and clean-ups, so before this you couldn't find anything in it.
+- Each row says why it's there when it's known: "merged into <account>" (with a link to the live one) or "removed by an import clean-up".
+
 ## 2026.11.25-143 (new accounts no longer stopped by old deleted copies)
 - Saving a new account no longer pops up "In the recycle bin … Restore it". The bin holds about 1,600 old copies from past imports and clean-ups, and roughly 1 in 5 new accounts matched one by name, phone or website — so a brand-new account looked archived. Only a **live** account that looks the same now asks first ("This account may already be in the CRM").
 - "Create it anyway" now saves the account straight away instead of sending you back to the form to press Save again (and a new account started from the contact form still links back to that contact).
