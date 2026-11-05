@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-149 (possible-duplicate warning on new accounts and contacts)
+- Saving a new account or contact that looks like one already in the CRM shows a **⚠ Possible duplicate** box at the top of the form — the form stays open. Each match says why (same name, same email, same phone, same website or email domain) and has **View** (shows its address, phone, rep, contacts and projects — or for a contact, its account, email and phones — right there) and **Open it**. Then **Continue — save it anyway** or **Don't create it**.
+- Old copies in the recycle bin don't trigger it — only records in use.
+
 ## 2026.11.25-148 (a cleaner Activity card)
 - Activity (projects, accounts, contacts, work orders): the two rows of look-alike coloured buttons are gone. Now one bar: plain tabs on the left to filter — **All · Tasks · Emails · Calls · Notes** with counts — and one **+ Add** menu on the right (Log a call, Log an email, Write a note, Give someone a task).
 - The same message logged twice (sent from the CRM and picked up from Gmail, or saved twice) shows once — the Gmail copy is kept.

@@ -10946,6 +10946,39 @@ function contactKey(n){return String(n||"").toLowerCase().replace(/\(.*?\)/g,"")
 // a person's name, not a shared inbox or a department ("Bids", "Purchasing", "General inbox", "City Office")
 const GENERIC_CONTACT=/\b(inbox|bids?|estimat\w*|purchas\w*|procure\w*|accounts?|payable|receivable|office|sales|info|admin|billing|public works|department|dept|general|main|reception|contracts?|engineering|no named)\b/i;
 function personName(n){const t=String(n||"").replace(/\(.*?\)/g,"").trim();return /^[A-Za-z'.-]{2,}\s+[A-Za-z'.-]{2,}/.test(t)&&!GENERIC_CONTACT.test(t)}
+// "Possible duplicate" warning inside the new account / new contact form: what matched and why, a View button to check
+// each one without leaving the form, then Continue (save anyway) or Don't create it
+function dupWhy(kind,a,x){const r=[];const dig=v=>String(v||"").replace(/\D/g,"").slice(-10);
+  if(kind==="account"){if(acctKey(a.name)&&acctKey(a.name)===acctKey(x.name))r.push("same name");
+    if(dig(a.phone).length===10&&dig(a.phone)===dig(x.phone))r.push("same phone");
+    const da=acctDomains(a),dx=acctDomains(x);if([...dx].some(d=>da.has(d)))r.push("same website or email domain")}
+  else{if(a.email&&String(x.email||"").toLowerCase()===String(a.email).toLowerCase())r.push("same email");
+    if(contactKey(a.name)&&contactKey(a.name)===contactKey(x.name))r.push("same name"+(x.accountId===a.accountId?" on the same account":""));
+    const pa=dig(a.phone||a.mobile);if(pa.length===10&&[dig(x.phone),dig(x.mobile)].indexOf(pa)>=0)r.push("same phone")}
+  return r.join(", ")||"looks alike"}
+function dupFacts(kind,x){
+  if(kind==="account"){const ad=[x.street,x.city,x.state,x.zip].filter(Boolean).join(", ");const rp=x.repId?teamById(x.repId):null;
+    const cs=contactsOf(x.id),ps=live(S.projects).filter(p=>p.accountId===x.id);
+    return [["Type",x.type],["Address",ad],["Phone",x.phone?fmtPhone(x.phone):""],["Website",x.website],["Sales rep",rp?rp.name:""],
+      ["Contacts",cs.length?cs.slice(0,4).map(c=>c.name).join(", ")+(cs.length>4?" +"+(cs.length-4):""):"none"],["Projects",String(ps.length)],["Added",x.createdAt?fmtDate(new Date(x.createdAt).toISOString().slice(0,10)):""]]}
+  const a=acct(x.accountId);
+  return [["Account",a?a.name:"—"],["Title",x.title],["Role",x.role],["Email",x.email],["Phone",x.phone?fmtPhone(x.phone):""],["Mobile",x.mobile?fmtPhone(x.mobile):""],["Added",x.createdAt?fmtDate(new Date(x.createdAt).toISOString().slice(0,10)):""]]}
+function dupWarn(kind,typed,list,onGo){
+  const body=$(".mbox .body");if(!body)return;let box=document.getElementById("dupwarn");
+  if(!box){box=document.createElement("div");box.id="dupwarn";body.insertBefore(box,body.firstChild)}
+  const word=kind==="account"?"account":"contact";
+  box.className="warn";box.setAttribute("role","alert");box.style.margin="0 0 12px";
+  box.innerHTML=`<b>⚠ Possible duplicate</b> — ${list.length===1?"this looks like a "+word+" that's":"this looks like "+list.length+" "+word+"s that are"} already in the CRM. Check before you save.
+    <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">${list.slice(0,5).map(x=>`<div style="background:var(--card);border:1px solid var(--line);border-radius:6px;padding:8px 10px">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:160px"><b>${esc(x.name||"(no name)")}</b> <span class="sub">— ${esc(dupWhy(kind,typed,x))}</span></span>
+        <button type="button" class="btn sm" data-dupv="${esc(x.id)}" aria-expanded="false">View</button>
+        <button type="button" class="btn sm" data-go="${kind}/${esc(x.id)}" data-close="1" title="Leave this form and open it">Open it</button></div>
+      <div class="dupd" id="dupd-${esc(x.id)}" hidden style="margin-top:6px"><table style="table-layout:auto;width:100%"><tbody>${dupFacts(kind,x).filter(r=>r[1]).map(r=>`<tr><td class="sub" style="width:90px">${esc(r[0])}</td><td>${esc(r[1])}</td></tr>`).join("")}</tbody></table></div></div>`).join("")}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button type="button" class="btn p" id="dupgo">Continue — save it anyway</button><button type="button" class="btn" data-close="1">Don't create it</button></div>`;
+  box.querySelectorAll("[data-dupv]").forEach(b=>b.onclick=ev=>{ev.stopPropagation();const d=document.getElementById("dupd-"+b.dataset.dupv);if(!d)return;d.hidden=!d.hidden;b.setAttribute("aria-expanded",String(!d.hidden));b.textContent=d.hidden?"View":"Hide"});
+  document.getElementById("dupgo").onclick=ev=>{ev.stopPropagation();onGo()};
+  body.scrollTop=0;try{box.scrollIntoView({block:"start"})}catch(e){}
+  const g=document.getElementById("dupgo");if(g)g.focus()}
 function dupContacts(c){
   const k=contactKey(c.name),em=String(c.email||"").trim().toLowerCase(),ph=String(c.phone||c.mobile||"").replace(/\D/g,"").slice(-10);
   return live(S.contacts).filter(x=>x.id!==c.id&&(
@@ -11355,7 +11388,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-148";
+const APP_VERSION="2026.11.25-149";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -14468,6 +14501,7 @@ function staleCheck(kind,id,seenAt,cb){
   return false;
 }
 function accountModal(a,then){
+  window.__dupOk=0;
   a=a||{};
   const _seen=a.updatedAt||0;
   openModal(mshell(a.id?"Edit account":"New account","acct",
@@ -14528,13 +14562,7 @@ function accountModal(a,then){
     // only a live account that looks the same stops the save. Old deleted copies in the recycle bin don't — there are
     // hundreds from past imports and clean-ups, and asking about them made a brand-new account look "archived".
     if(!a.id&&!window.__dupOk){const d=dupAccounts(rec);
-      if(d.length){window.__dupPending=rec;
-        askConfirm("This account may already be in the CRM",
-          `<p style="margin:0 0 8px">${d.slice(0,5).map(x=>`<b>${esc(x.name)}</b>${x.phone?" · "+esc(fmtPhone(x.phone)):""}${x.city?" · "+esc(x.city):""} <button class="btn sm" data-go="account/${esc(x.id)}" data-close="1">Open</button>`).join("<br>")}</p>
-           <p class="note">Open that one instead, or create this new account anyway.</p>`,
-          "Create it anyway",false,()=>{window.__dupOk=1;accountModal(Object.assign({},window.__dupPending,{id:""}),then);
-            setTimeout(()=>{const b=$("#save");if(b&&window.__dupOk)b.click()},0)});
-        return}}
+      if(d.length){dupWarn("account",rec,d,()=>{window.__dupOk=1;const b=$("#save");if(b)b.click()});return}}
     window.__dupOk=0;
     const diffs=diffFields("account",a.id?a:null,rec);
     if(a.id&&a.exempt&&!rec.exempt){
@@ -14557,7 +14585,7 @@ function accountModal(a,then){
   focusFirst("f-name");
 }
 function contactModal(c,aid){
-  c=c||{};
+  c=c||{};S._ctDupOk=false;
   const _seen=c.updatedAt||0;
   const accs=live(S.accounts).sort((x,y)=>(x.name||"").localeCompare(y.name||"")).map(x=>({v:x.id,l:x.name}));
   openModal(mshell(c.id?"Edit contact":"New contact","cont",
@@ -14587,9 +14615,9 @@ function contactModal(c,aid){
     if(!ph0&&!$("#f-email").value.trim()&&!$("#f-phone").value.replace(/\D/g,"")&&!$("#f-mobile").value.replace(/\D/g,""))
       {$("#f-email").focus();return toast("Give an email or a phone number — or tick Placeholder if you don't have one yet.")}
     if(!ph0&&/\s(and|&|\+)\s|[,;\/]/.test(name)){$("#f-name").focus();return toast("One person per contact — add the others as their own contacts.")}
-    {const dups=live(S.contacts).filter(o=>o.id!==c.id&&((o.email&&$("#f-email").value.trim()&&o.email.toLowerCase()===$("#f-email").value.trim().toLowerCase())
-      ||(String(o.name||"").trim().toLowerCase()===name.toLowerCase()&&o.accountId===$("#f-acct").value)));
-      if(dups.length&&!S._ctDupOk){S._ctDupOk=true;return toast("Looks like a duplicate of "+dups[0].name+(dups[0].email?" ("+dups[0].email+")":"")+" — press Save again to keep both.")}}
+    if(!c.id&&!S._ctDupOk){const typed={id:"",name,email:$("#f-email").value.trim(),phone:$("#f-phone").value.trim(),mobile:$("#f-mobile").value.trim(),accountId:$("#f-acct").value};
+      const dups=dupContacts(typed);
+      if(dups.length){dupWarn("contact",typed,dups,()=>{S._ctDupOk=true;const b=$("#save");if(b)b.click()});return}}
     S._ctDupOk=false;
     const id=c.id||uid("ct");
     const rec={id,name,accountId:$("#f-acct").value,role:$("#f-role").value,title:$("#f-title").value.trim(),

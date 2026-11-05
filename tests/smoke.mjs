@@ -289,10 +289,23 @@ await pg.setViewportSize({ width: 1400, height: 900 });
   if (/f-name/.test(await pg.evaluate(() => document.getElementById("f-name") ? "f-name" : ""))) bad.push("a new account didn't save (form still open)");
   await pg.evaluate(() => { location.hash = "#/accounts"; }); await pg.waitForTimeout(400);
   const m2 = await tryNew("Test County");
-  if (!/may already be in the CRM/.test(m2)) bad.push("a new account with the same name as a live one doesn't ask first");
-  else { await pg.evaluate(() => document.getElementById("confirmok").click()); await pg.waitForTimeout(500);
+  if (!/Possible duplicate/.test(m2) || !/same name/.test(m2)) bad.push("a new account with the same name as a live one doesn't warn it's a possible duplicate");
+  else { const v = await pg.evaluate(() => { const b = document.querySelector("#dupwarn [data-dupv]"); b.click(); const d = document.getElementById("dupd-" + b.dataset.dupv); return d && !d.hidden ? d.innerText : ""; });
+    if (!/Address|Phone|Contacts/.test(v)) bad.push("the duplicate warning's View doesn't show the other account's details");
+    if (!(await pg.evaluate(() => !!document.getElementById("f-name")))) bad.push("the duplicate warning closed the form");
+    await pg.evaluate(() => document.getElementById("dupgo").click()); await pg.waitForTimeout(500);
     const still = await pg.evaluate(() => !!document.getElementById("f-name"));
-    if (still) bad.push("'Create it anyway' sends you back to the form instead of saving"); }
+    if (still) bad.push("'Continue — save it anyway' doesn't save the account"); }
+  // a new contact with the same email as one already in the CRM gets the same warning
+  await pg.evaluate(() => { location.hash = "#/contacts"; }); await pg.waitForTimeout(400);
+  const nc = await pg.evaluate(() => { const b = document.querySelector("[data-new='contact']"); if (!b) return false; b.click(); return true; }); await pg.waitForTimeout(300);
+  if (nc) { await pg.fill("#f-name", "Patricia Example"); await pg.fill("#f-email", "pat@example.com");
+    await pg.evaluate(() => { const s = document.getElementById("f-acct"); const o = [...s.options].find((x) => x.value === "a1"); if (o) s.value = "a1"; document.getElementById("save").click(); }); await pg.waitForTimeout(400);
+    const w = await pg.evaluate(() => (document.getElementById("dupwarn") || {}).innerText || "");
+    if (!/Possible duplicate/.test(w) || !/same email/.test(w) || !/Pat Example/.test(w)) bad.push("a new contact with an email already in the CRM doesn't warn (" + w.slice(0, 60) + ")");
+    else { await pg.evaluate(() => document.getElementById("dupgo").click()); await pg.waitForTimeout(500);
+      if (await pg.evaluate(() => !!document.getElementById("f-name"))) bad.push("'Continue — save it anyway' doesn't save the contact"); } }
+  else bad.push("the Contacts page has no New contact button");
   await pg.evaluate(() => { const b = document.querySelector(".mbox [data-close]"); if (b) b.click(); }); await pg.waitForTimeout(350); }
 // the recycle bin searches and filters by type, so an old deleted account can be found among thousands
 { await pg.evaluate(() => { location.hash = "#/bin"; }); await pg.waitForTimeout(500);
