@@ -42,7 +42,7 @@ const D = {
     // a corrected preview replaces the catalog PNG on the list, in the stencil window, and on the quote
     f5: { name: "SSS-FAA-108-01.png", type: "image/png", url: "https://raw.githubusercontent.com/StreetSignSupply/ssc-crm/main/public/pics/stencils/SSS-ALP-024-05.png", cat: "Photo", stencilSku: "SSS-FAA-108-01", byId: "t1", who: "TO", at: now + 1, size: 12000 },
     // newer than the shipped cut files, so this DXF replaces the catalog one; the PDF does not
-    f6: { name: "SSS-ADA-000-02.dxf", type: "application/dxf", url: "https://example.com/newer-cut.dxf", cat: "Cut file", stencilSku: "SSS-ADA-000-02", byId: "t1", who: "TO", at: now + 10 * day, size: 100 },
+    f6: { name: "SSS-ALP-015-02.dxf", type: "application/dxf", url: "https://example.com/newer-cut.dxf", cat: "Cut file", stencilSku: "SSS-ALP-015-02", byId: "t1", who: "TO", at: now + 10 * day, size: 100 },
     f2: { name: "Quote-Q-1001.pdf", type: "application/pdf", url: "", cat: "Quote", gen: "quote", qhash: "old", projectId: "p1", accountId: "a1", byId: "t2", who: "Test Sales", at: now } },
   activity: { x3: { id: "x3", recType: "account", recId: "a1", kind: "email", type: "email", subject: "Quote for the signs", text: "Hi Pat, here is the quote.", to: "pat@example.com", at: now - 3 * 3600e3 },
     x4: { id: "x4", recType: "account", recId: "a1", kind: "email", type: "email", subject: "RE: Quote for the signs", text: "Hi Pat, here is the quote.", to: "pat@example.com", gmailId: "g1", at: now - 3 * 3600e3 + 120e3 },
@@ -244,25 +244,25 @@ await pg.setViewportSize({ width: 1400, height: 900 });
   if (!/1 file uploaded/.test(done.t) || done.ups.length !== 1 || done.ups[0] !== "SSS-FAA-120-01.dxf") bad.push("bulk stencil upload didn't upload just the matched file (" + done.t.slice(0, 60) + " / " + done.ups.join(",") + ")");
   await pg.evaluate(() => { const b = document.querySelector(".mbox [data-close]"); if (b) b.click(); }); await pg.waitForTimeout(350);
   // shipped cut files: both kinds download from the repo, and a newer upload replaces only its kind
-  await pg.fill("#lq", "SSS-ADA-000-05"); await pg.waitForTimeout(500);
-  await pg.evaluate(() => document.querySelector('[data-stcview="SSS-ADA-000-05"]').click()); await pg.waitForTimeout(500);
+  await pg.fill("#lq", "SSS-BRD-018-02"); await pg.waitForTimeout(500);
+  await pg.evaluate(() => document.querySelector('[data-stcview="SSS-BRD-018-02"]').click()); await pg.waitForTimeout(500);
   const cut = await pg.evaluate(async () => {
     const b = document.getElementById("stc-files"); if (!b) return null;
     const ids = [...b.querySelectorAll("[data-dl]")].map((x) => x.getAttribute("data-dl"));
-    const pdf = ids.find((id) => id === "cut:SSS-ADA-000-05:pdf");
+    const pdf = ids.find((id) => id === "cut:SSS-BRD-018-02:pdf");
     let ok = false;
-    if (pdf) { const r = await fetch("https://raw.githubusercontent.com/StreetSignSupply/ssc-crm/main/public/cut/SSS-ADA-000-05.dxf"); ok = r.ok && (await r.text()).indexOf("SECTION") >= 0; }
+    if (pdf) { const r = await fetch("https://raw.githubusercontent.com/StreetSignSupply/ssc-crm/main/public/cut/SSS-BRD-018-02.dxf"); ok = r.ok && (await r.text()).indexOf("SECTION") >= 0; }
     return { t: b.innerText, ids, ok, del: !!b.querySelector("[data-stcdelfile^='cut:']") };
   });
   if (!cut) bad.push("a shipped cut file's stencil has no Files area");
-  else { if (!/SSS-ADA-000-05\.dxf/.test(cut.t) || !/SSS-ADA-000-05\.pdf/.test(cut.t)) bad.push("the shipped DXF and PDF are not on the stencil (" + cut.t.slice(0, 80) + ")");
-    if (cut.ids.indexOf("cut:SSS-ADA-000-05:dxf") < 0 || cut.ids.indexOf("cut:SSS-ADA-000-05:pdf") < 0 || !cut.ok) bad.push("the shipped cut file isn't the one offered (" + cut.ids.join(",") + ")");
+  else { if (!/SSS-BRD-018-02\.dxf/.test(cut.t) || !/SSS-BRD-018-02\.pdf/.test(cut.t)) bad.push("the shipped DXF and PDF are not on the stencil (" + cut.t.slice(0, 80) + ")");
+    if (cut.ids.indexOf("cut:SSS-BRD-018-02:dxf") < 0 || cut.ids.indexOf("cut:SSS-BRD-018-02:pdf") < 0 || !cut.ok) bad.push("the shipped cut file isn't the one offered (" + cut.ids.join(",") + ")");
     if (cut.del) bad.push("a shipped cut file offers delete"); }
   await pg.evaluate(() => { const b = document.querySelector(".mbox [data-close]"); if (b) b.click(); }); await pg.waitForTimeout(350);
-  await pg.fill("#lq", "SSS-ADA-000-02"); await pg.waitForTimeout(500);
-  await pg.evaluate(() => document.querySelector('[data-stcview="SSS-ADA-000-02"]').click()); await pg.waitForTimeout(500);
+  await pg.fill("#lq", "SSS-ALP-015-02"); await pg.waitForTimeout(500);
+  await pg.evaluate(() => document.querySelector('[data-stcview="SSS-ALP-015-02"]').click()); await pg.waitForTimeout(500);
   const repl = await pg.evaluate(() => { const b = document.getElementById("stc-files"); const ids = b ? [...b.querySelectorAll("[data-dl]")].map((x) => x.getAttribute("data-dl")) : []; return ids; });
-  if (repl.indexOf("f6") < 0 || repl.indexOf("cut:SSS-ADA-000-02:dxf") >= 0 || repl.indexOf("cut:SSS-ADA-000-02:pdf") < 0) bad.push("a newer DXF didn't replace just the shipped DXF (" + repl.join(",") + ")");
+  if (repl.indexOf("f6") < 0 || repl.indexOf("cut:SSS-ALP-015-02:dxf") >= 0 || repl.indexOf("cut:SSS-ALP-015-02:pdf") < 0) bad.push("a newer DXF didn't replace just the shipped DXF (" + repl.join(",") + ")");
   await pg.evaluate(() => { const b = document.querySelector(".mbox [data-close]"); if (b) b.click(); }); await pg.waitForTimeout(350);
   await pg.fill("#lq", ""); await pg.waitForTimeout(500);
   // an uploaded picture replaces the catalog PNG on the list and on the quote (print uses the same picture)
@@ -349,7 +349,9 @@ await pg.setViewportSize({ width: 1400, height: 900 });
     await pg.fill("#lq", "gone sign"); await pg.waitForTimeout(400); }
   { const h = await pg.evaluate(() => { const x = document.querySelector('[data-binhist="account:a9"]'); if (!x) return ""; x.click(); return "ok"; }); await pg.waitForTimeout(400);
     const m = await pg.evaluate(() => (document.querySelector(".mbox") || {}).innerText || "");
-    if (!h || !/History — Gone Sign Co/.test(m) || !/in the bin since/.test(m)) bad.push("a deleted record's History can't be seen from the recycle bin");
+    if (!h || !/Gone Sign Co — in the recycle bin/.test(m) || !/in the bin since/.test(m) || !/Restore it/.test(m) || !/Delete forever/.test(m)) bad.push("a deleted record can't be looked at from the recycle bin before keeping or deleting it");
+    const nameLink = await pg.evaluate(() => !!document.querySelector('td button.lnk[data-binhist="account:a9"]'));
+    if (!nameLink) bad.push("a record's name in the recycle bin isn't clickable");
     await pg.evaluate(() => { const c = document.querySelector(".mbox [data-close]"); if (c) c.click(); }); await pg.waitForTimeout(350); }
   // the owner can delete for good: one asks plainly, many need DELETE typed
   const k = await pg.evaluate(() => { const x = document.querySelector('[data-binkill="account:a9"]'); if (!x) return ""; x.click(); return "ok"; }); await pg.waitForTimeout(300);
