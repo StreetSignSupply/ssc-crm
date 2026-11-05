@@ -1841,8 +1841,12 @@ function daysSince(ms){if(!ms)return null;return Math.max(0,Math.floor((Date.now
 
 /* ========== email from the CRM — Gmail compose or the mail app, with the logging copy address on every one ========== */
 // Settings → Connections → Email logging. The copy address is where the agents read what was sent, for every user.
+// The CRM reads each person's own Gmail to log customer emails (Settings → Sending email), so the hidden copy is only
+// added when that isn't connected — or when someone turns "Also add the hidden copy" on. A Bcc nobody needs looks odd
+// to the person sending and gets stripped by hand.
 function mailCfg(){const b=S.brand||{};
-  return {mode:b.mailMode==="mailto"?"mailto":"gmail",cc:b.crmCcOn===false?"":String(b.crmCc==null?"crm@streetsignsupply.com":b.crmCc).trim()}}
+  const want=b.crmBccOn===true||(!b.mailSendOk&&b.crmCcOn!==false);
+  return {mode:b.mailMode==="mailto"?"mailto":"gmail",cc:want?String(b.crmCc==null?"crm@streetsignsupply.com":b.crmCc).trim():""}}
 // the link that opens an email; ctx {cc:false} for mail that isn't to a customer (reminders to ourselves, vendors, the team)
 function mailLink(to,subject,body,ctx){
   const c=mailCfg();const cc=(ctx&&ctx.cc===false)?"":c.cc;const enc=encodeURIComponent;
@@ -11404,7 +11408,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-155";
+const APP_VERSION="2026.11.25-156";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -14085,13 +14089,13 @@ function settingsView(){
           Sent to the sheet: <b>${ps.length-ps.filter(p=>!has("projects/"+p.id)).length}</b> · <b>${js.length-js.filter(j=>!has("jobs/"+j.num)).length}</b> · <b>${ac.filter(a=>has("accounts/"+a.id)).length}</b> · <b>${ct.filter(c=>has("contacts/"+c.id)).length}</b>.
           ${miss.length?`<details style="margin-top:4px"><summary class="lnk">${miss.length} quote${miss.length===1?"":"s"} and work order${miss.length===1?"":"s"} never sent</summary><div class="sub" style="max-height:140px;overflow:auto">${miss.map(esc).join("<br>")}</div></details>`:`<span class="pill g">every quote and work order sent</span>`}</div>`})()}
     </div></section>
-    <section class="card"><header><h2>Email logging</h2><span class="sub">Every email opened from the CRM carries this copy address, and the agents log whatever lands there to the right account, for every user. Replies land too when the customer replies-all.</span></header><div class="body">
+    <section class="card"><header><h2>Email logging</h2><span class="sub">${b.mailSendOk?"Customer emails are logged straight from each person's own Gmail, so emails opened from the CRM no longer carry a hidden copy (Bcc).":"Every email opened from the CRM carries this hidden copy address, and the agents log whatever lands there to the right account. Once Gmail is connected (below), emails are logged straight from Gmail and the copy isn't needed."}</span></header><div class="body">
       <div class="fgrid">
         <div class="fld"><div class="k">Open emails in</div>
           <select id="b-mailmode"><option value="gmail" ${(b.mailMode||"gmail")==="gmail"?"selected":""}>Gmail in the browser (new tab)</option><option value="mailto" ${b.mailMode==="mailto"?"selected":""}>The computer's mail app</option></select></div>
         ${inp("b-crmcc","Hidden copy (Bcc) the agents watch",b.crmCc==null?"crm@streetsignsupply.com":b.crmCc)}
       </div>
-      <div style="margin-top:8px">${ck("b-crmccon",b.crmCcOn!==false,"Add the copy address to every customer email opened here","Off, emails have to be logged by hand again")}</div>
+      <div style="margin-top:8px">${b.mailSendOk?ck("b-crmbccon",b.crmBccOn===true,"Also add the hidden copy (Bcc) to every customer email","Not needed — Gmail is logged on its own"):ck("b-crmccon",b.crmCcOn!==false,"Add the copy address to every customer email opened here","Off, emails have to be logged by hand again")}</div>
     </div></section>
     <section class="card"><header><h2>Sending email and signatures</h2><span class="sub">${b.mailSendOk?`Sending is working — last checked ${esc(fmtTs(b.mailSendAt))}. Emails go out from each person's own @streetsignsupply.com Gmail; Gmail is also read to log customer emails automatically.`:`Not connected yet — Send falls back to opening your own email.`}</span></header><div class="body">
       ${b.mailSendOk?"":`<div class="warn" style="margin-bottom:10px"><b>One step in Google Admin turns it on</b> (an admin of streetsignsupply.com): admin.google.com → Security → Access and data control → API controls → <b>Manage Domain Wide Delegation</b> → <b>Add new</b>.<br>
@@ -15600,6 +15604,7 @@ async function saveBrand(){let b2keep=null;
     mailMode:$("#b-mailmode")?$("#b-mailmode").value:((S.brand||{}).mailMode||"gmail"),
     crmCc:$("#b-crmcc")?$("#b-crmcc").value.trim():((S.brand||{}).crmCc==null?"crm@streetsignsupply.com":(S.brand||{}).crmCc),
     crmCcOn:$("#b-crmccon")?!!$("#b-crmccon").checked:((S.brand||{}).crmCcOn!==false),
+    crmBccOn:$("#b-crmbccon")?!!$("#b-crmbccon").checked:((S.brand||{}).crmBccOn===true),
     inkSqft:$("#b-ink")?(Number($("#b-ink").value)||0.39):((S.brand||{}).inkSqft||0.39),inkCover:$("#b-inkcov")?(Number($("#b-inkcov").value)||63):((S.brand||{}).inkCover||63),
     mailFrom:$("#b-mailfrom")?$("#b-mailfrom").value.trim().toLowerCase():((S.brand||{}).mailFrom||""),
     mailSend:$("#b-mailsend")?!!$("#b-mailsend").checked:((S.brand||{}).mailSend!==false),

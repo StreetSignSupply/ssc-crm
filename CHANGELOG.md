@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-156 (no more hidden crm@ copy on email links)
+- Email links in the CRM (a contact's or account's email, Compose in Gmail) no longer add a hidden copy (Bcc) to crm@streetsignsupply.com. The CRM already logs customer emails straight from each person's own Gmail, so the copy wasn't needed and people (and Bob's agent) were deleting it by hand. If Gmail ever isn't connected, the copy comes back on its own so nothing goes unlogged. Settings → Email logging has "Also add the hidden copy" if you want it anyway.
+
 ## 2026.11.25-155 (look at anything in the recycle bin before keeping or deleting it)
 - Recycle bin: click a record's name (or **View**) to see what it is — an account's address, phone, contacts and projects; a contact's account, email and phones; a project's stage, quote, value and lines; a work order's items; a file shown right there (PDF or picture) with "Open it in a new tab"; an activity entry's text. It lists what comes back with it, shows its history, and has **Restore it** and **Delete forever** right there.
 
