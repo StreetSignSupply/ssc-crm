@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-153 (accounts that aren't vendors can be marked so)
+- "Accounts that might be vendors": each account now has **Vendor** or **Not a vendor**. Not a vendor stops it being asked about again (noted in its field history), so the notice goes away once each one is decided. **None of these are vendors** marks them all at once. Each has an "open it" link to check first, and choosing doesn't trigger the "throw away what you typed?" question.
+
 ## 2026.11.25-152 (take a reviewed quote off the review bar without sending it)
 - Quotes to review: each quote now has **Reviewed — not sending** next to Approve and Send back. It takes the quote off the list (and the red bar goes away when nothing's left) without approving it, emailing anyone or telling the rep it was rejected. It's noted in the project's history. If the quote is changed later, it comes back for review.
 
