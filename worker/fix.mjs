@@ -174,6 +174,31 @@ if (STEP === "dupcheck") {
     return { deleted: del.length, recent: recent.length, agg, binMerged, binMergedLive, binSameNameAsLive, byWho, deletedWithOurDomain: ourDom, biggestSharedDomainInBin: Math.max(0, ...Object.values(domCount)), phonesOnManyAccounts: Object.values(phCount).filter((n) => n >= 3).sort((a, b) => b - a) }; });
   step("dup check read");
 }
+// FIX_STEP=bincheck -> read-only: how the accounts in the recycle bin got there — grouped by who and when, with what each
+// group had on it and what its field history says. Counts and fixed wording only — no names.
+if (STEP === "bincheck") {
+  result = await page.evaluate(async () => { const T = window.__T; const S = T.S; const all = [...S.accounts.values()]; const del = all.filter((x) => x.deleted);
+    const liveKey = new Set(all.filter((x) => !x.deleted).map((x) => T.acctKey(x.name)));
+    const tz = (ms) => new Date(ms).toLocaleString("en-US", { timeZone: "America/Denver", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+    const groups = {};
+    del.forEach((x) => { const at = Number(x.deletedAt) || 0; const k = String(x.deletedBy || "?") + " " + (at ? tz(Math.floor(at / 600000) * 600000) : "no date") + (x.mergedInto ? " merged" : "");
+      const g = groups[k] || (groups[k] = { n: 0, liveSameName: 0, withProjects: 0, withContacts: 0, withActivity: 0, created: [], keys: {}, hist: {} }); g.n++;
+      if (liveKey.has(T.acctKey(x.name))) g.liveSameName++;
+      if ([...S.projects.values()].some((p) => p.accountId === x.id)) g.withProjects++;
+      if ([...S.contacts.values()].some((c) => c.accountId === x.id)) g.withContacts++;
+      if ([...S.activity.values()].some((a) => a.recType === "account" && a.recId === x.id)) g.withActivity++;
+      if (x.createdAt) g.created.push(Number(x.createdAt));
+      Object.keys(x).forEach((f) => { if (/src|source|import|batch|from|lead|origin/i.test(f)) g.keys[f + "=" + String(x[f]).slice(0, 24)] = (g.keys[f + "=" + String(x[f]).slice(0, 24)] || 0) + 1; }); });
+    // field history for a sample of each group
+    const db = T.getDb();
+    for (const k of Object.keys(groups)) { const g = groups[k]; const sample = del.filter((x) => { const at = Number(x.deletedAt) || 0; return (String(x.deletedBy || "?") + " " + (at ? tz(Math.floor(at / 600000) * 600000) : "no date") + (x.mergedInto ? " merged" : "")) === k; }).slice(0, 6);
+      for (const x of sample) { try { const d = await db.doc("history/account_" + x.id).get(); const ok = d && (typeof d.exists === "function" ? d.exists() : d.exists); const h = ok ? (d.data().h || d.data().entries || []) : [];
+          const ev = (Array.isArray(h) ? h : []).filter((e) => /Deleted|Event/.test(e.f || "")).map((e) => (e.f || "") + ": " + String(e.n || "").replace(/ — .*/, "").replace(/[A-Z][a-z]+ [A-Z][a-z]+/g, "").slice(0, 70) + " by " + (e.w || "?"));
+          ev.forEach((t) => { g.hist[t] = (g.hist[t] || 0) + 1; }); if (!ev.length) g.hist[ok ? "history has no delete entry" : "no history doc"] = (g.hist[ok ? "history has no delete entry" : "no history doc"] || 0) + 1; } catch (e) { g.hist["history read failed"] = (g.hist["history read failed"] || 0) + 1; } }
+      g.created = g.created.length ? tz(Math.min(...g.created)) + " to " + tz(Math.max(...g.created)) : "unknown"; }
+    return { deleted: del.length, groups: Object.entries(groups).sort((a, b) => b[1].n - a[1].n).slice(0, 25) }; });
+  step("bin check read");
+}
 // FIX_STEP=stencils -> the stencil export (one row per stencil per grade, with today's cost) goes to the
 // "CRM Stencils" tab of the SSS Pipeline sheet for the weekly cost audit. Counts only in the log.
 if (STEP === "stencils") {
@@ -282,7 +307,7 @@ if (STEP === "qb") {
 const fixSrc = fsys.existsSync(path.resolve(here, "fixes.js")) ? fsys.readFileSync(path.resolve(here, "fixes.js"), "utf8") : "";
 const wantAll = STEP === "sync" || (STEP === "apply" && /\/\/ send all/.test(fixSrc));
 if (STEP === "recent") { console.log("::notice::fix step recent: " + JSON.stringify(result).slice(0, 6000) + " | " + errors + " page errors"); await browser.close(); process.exit(0); }
-if (STEP === "review" || STEP === "dupcheck") { console.log("::notice::fix step " + STEP + ": " + JSON.stringify(result).slice(0, 3000) + " | " + errors + " page errors"); await browser.close(); process.exit(0); }
+if (STEP === "review" || STEP === "dupcheck" || STEP === "bincheck") { console.log("::notice::fix step " + STEP + ": " + JSON.stringify(result).slice(0, 12000) + " | " + errors + " page errors"); await browser.close(); process.exit(0); }
 if (STEP === "aitest") { console.log("::notice::fix step aitest: " + JSON.stringify(result).slice(0, 1800) + " | " + errors + " page errors " + JSON.stringify(errs.slice(0, 3)));
   await browser.close(); process.exit((result && result.error) || errors > 0 ? 1 : 0); }
 const sent = wantAll ? await page.evaluate(async () => { try { await window.__T.syncAll(); return "ok"; } catch (e) { return "sync error " + String(e).slice(0, 100); } }) : "changes only";
