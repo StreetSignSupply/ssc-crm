@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-145 (edge-cleaned cut files on 371 stencils)
+- Stencils: 371 stencils now have their DXF cut file and matching PDF in Files, ready to open and download. They ship with the CRM (no upload step). A file uploaded to that stencil after this set replaces just that kind (the DXF or the PDF); an older upload is no longer the one offered.
+- Five names in the batch are not a stencil SKU (`SSS-FAA-072-02-0`, `-2`, `-5`, `-7`, `-8`), so those files were not attached to a stencil.
+
 ## 2026.11.25-144 (a recycle bin you can search)
 - Settings → Recycle bin now has a **search box**, **type buttons with counts** (accounts, contacts, projects, files …) and shows 200 at a time with "Show more". It holds about 1,600 old account copies from past imports and clean-ups, so before this you couldn't find anything in it.
 - Each row says why it's there when it's known: "merged into <account>" (with a link to the live one) or "removed by an import clean-up".
