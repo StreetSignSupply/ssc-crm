@@ -43,7 +43,9 @@ const D = {
     // newer than the shipped cut files, so this DXF replaces the catalog one; the PDF does not
     f6: { name: "SSS-ADA-000-02.dxf", type: "application/dxf", url: "https://example.com/newer-cut.dxf", cat: "Cut file", stencilSku: "SSS-ADA-000-02", byId: "t1", who: "TO", at: now + 10 * day, size: 100 },
     f2: { name: "Quote-Q-1001.pdf", type: "application/pdf", url: "", cat: "Quote", gen: "quote", qhash: "old", projectId: "p1", accountId: "a1", byId: "t2", who: "Test Sales", at: now } },
-  activity: { x1: { id: "x1", recType: "account", recId: "a1", kind: "note", type: "call", text: "Called about the bid", contactId: "c1", at: now - day, when: new Date(now - day).toISOString().slice(0, 10) },
+  activity: { x3: { id: "x3", recType: "account", recId: "a1", kind: "email", type: "email", subject: "Quote for the signs", text: "Hi Pat, here is the quote.", to: "pat@example.com", at: now - 3 * 3600e3 },
+    x4: { id: "x4", recType: "account", recId: "a1", kind: "email", type: "email", subject: "RE: Quote for the signs", text: "Hi Pat, here is the quote.", to: "pat@example.com", gmailId: "g1", at: now - 3 * 3600e3 + 120e3 },
+    x1: { id: "x1", recType: "account", recId: "a1", kind: "note", type: "call", text: "Called about the bid", contactId: "c1", at: now - day, when: new Date(now - day).toISOString().slice(0, 10) },
     x2: { id: "x2", recType: "account", recId: "a1", kind: "task", type: "task", text: "Call back about the bid", assigneeId: "t1", whoId: "t1", who: "TO", at: now,
       due: new Date(now + 2 * day).toISOString().slice(0, 10), dueTime: "14:30", done: false } },
   events: {}, history: {}, invtx: {}, notifications: {}, reminders: {}, access: { "u1": { role: "owner", teamId: "t1" }, "owner@example.com": { role: "owner", teamId: "t1" } } };
@@ -312,6 +314,19 @@ await pg.setViewportSize({ width: 1400, height: 900 });
   const still = await pg.evaluate(() => !!document.getElementById("binsure"));
   if (!still) bad.push("emptying the bin doesn't need DELETE typed first");
   await pg.evaluate(() => { const c = document.querySelector(".mbox [data-close]"); if (c) c.click(); }); await pg.waitForTimeout(350); }
+// the Activity card: one bar — plain tabs to filter on the left, one "+ Add" menu on the right — and a message logged twice shows once
+{ await pg.evaluate(() => { location.hash = "#/account/a1"; }); await pg.waitForTimeout(600);
+  const ac = await pg.evaluate(() => { const c = document.querySelector(".actcard"); if (!c) return null;
+    return { tabs: [...c.querySelectorAll(".segf [data-actf]")].map((b) => b.innerText.replace(/\s+/g, " ").trim()), add: c.querySelectorAll(".addm [data-log]").length, row4: c.querySelectorAll(".actrow4").length,
+      emails: [...c.querySelectorAll("ul.act > li")].filter((li) => /here is the quote/.test(li.innerText)).length }; });
+  if (!ac) bad.push("the account has no Activity card");
+  else { if (ac.add !== 4) bad.push("the Activity card's + Add menu doesn't offer call, email, note and task");
+    if (ac.row4) bad.push("the Activity card still has the old row of add buttons that look like the filters");
+    if (!ac.tabs.some((t) => /^Emails 1$/.test(t))) bad.push("the Activity tabs don't count an email logged twice once (" + ac.tabs.join(", ") + ")");
+    if (ac.emails !== 1) bad.push("an email logged twice shows twice in Activity"); }
+  await pg.evaluate(() => { const b = document.querySelector('.actcard .segf [data-actf="email"]'); if (b) b.click(); }); await pg.waitForTimeout(400);
+  const only = await pg.evaluate(() => [...document.querySelectorAll(".actcard ul.act > li")].length);
+  if (only !== 1) bad.push("the Emails tab doesn't show only emails (" + only + ")"); }
 // a separate billing address: on the account's Billing card, and the form shows its boxes only when ticked
 { await pg.evaluate(() => { location.hash = "#/account/a1"; }); await pg.waitForTimeout(600);
   const tx = await pg.evaluate(() => (document.querySelector(".main") || {}).innerText || "");

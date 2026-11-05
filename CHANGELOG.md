@@ -1,5 +1,10 @@
 # What changed
 
+## 2026.11.25-148 (a cleaner Activity card)
+- Activity (projects, accounts, contacts, work orders): the two rows of look-alike coloured buttons are gone. Now one bar: plain tabs on the left to filter — **All · Tasks · Emails · Calls · Notes** with counts — and one **+ Add** menu on the right (Log a call, Log an email, Write a note, Give someone a task).
+- The same message logged twice (sent from the CRM and picked up from Gmail, or saved twice) shows once — the Gmail copy is kept.
+- Files on a project: the "All / Project / Work order" filter uses the same plain tabs.
+
 ## 2026.11.25-147 (stencil diagrams drawn to scale)
 - **How it's measured** draws the sheet and the painted area to the same scale, with a border on every side. The labels are the same inches as the drawing: sheet width across the top, sheet height down the side, painted size on the painted area.
 - Sheet sizes now follow 1-800-Stencil. Where they publish a material size, that size is used (an 18″×9″ letter is cut from material 22″ tall, with 1″ on each side of the letter). Where they don't, letters get 2″ top and bottom and 1″ on each side, and symbols get 4″ on every side. 288 sheets were corrected. Prices and pictures are unchanged.
