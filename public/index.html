@@ -11272,7 +11272,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-143";
+const APP_VERSION="2026.11.25-144";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -14120,23 +14120,36 @@ function settingsView(){
 }
 function binView(){
   const all=deletedAll();
-  const d=all.filter(({x})=>!x.deletedWith).sort((a,b)=>(b.x.deletedAt||0)-(a.x.deletedAt||0));
+  const top=all.filter(({x})=>!x.deletedWith).sort((a,b)=>(b.x.deletedAt||0)-(a.x.deletedAt||0));
   const kidsOf=tag=>all.filter(({x})=>x.deletedWith===tag).length;
+  // thousands of old import copies live here, so it searches, filters by type and shows a page at a time
+  const T=S.binT||"";const q=String(S.q||"").trim().toLowerCase();const words=q.split(/\s+/).filter(Boolean);
+  const counts={};top.forEach(({t})=>{counts[t]=(counts[t]||0)+1});
+  const d=top.filter(({t,x})=>(!T||t===T)&&(!words.length||words.every(w=>(binLabel(t,x)+" "+(x.city||"")+" "+(x.email||"")+" "+(x.phone||"")).toLowerCase().indexOf(w)>=0)));
+  const N=S.binN||200,shown=d.slice(0,N);
+  const why=(t,x)=>{if(x.mergedInto){const m=(t==="account"?S.accounts:t==="contact"?S.contacts:null);const to=m&&m.get(x.mergedInto);
+      return to&&!to.deleted?`merged into <button class="lnk" data-go="${t}/${esc(to.id)}">${esc(to.name)}</button>`:"merged"}
+    return x.deletedBy==="AI"?"removed by an import clean-up":""};
   return `<div class="pad">
     ${crumbBar([{l:"Company dashboard",h:"home"},{l:"Settings",h:"settings"},{l:"Recycle bin"}])}
     <section class="card flush">
-    <header><h2>Recycle bin</h2><span class="n">${d.length}</span>
+    <header><h2>Recycle bin</h2><span class="n">${d.length}${d.length!==top.length?" of "+top.length:""}</span>
       <span class="sub">nothing here is gone — restore any time</span>
-      <span class="sp"><button class="btn" data-go="settings">Back to settings</button></span></header>
+      <span class="sp"><input class="btn" id="lq" placeholder="Search the bin" aria-label="Search the bin" value="${esc(S.q)}" style="font-weight:400;width:190px">
+        <button class="btn" data-go="settings">Back to settings</button></span></header>
+    <div class="chipbar" style="display:flex;flex-wrap:wrap;gap:6px;padding:10px 15px;border-bottom:1px solid var(--line2)">
+      <button class="btn sm${!T?" p":""}" data-bint="">Everything · ${top.length}</button>
+      ${Object.keys(counts).sort((a,b)=>counts[b]-counts[a]).map(t=>`<button class="btn sm${T===t?" p":""}" data-bint="${esc(t)}">${esc(t==="activity"?"activity":t+"s")} · ${counts[t]}</button>`).join("")}</div>
     ${d.length?`<table><thead><tr><th>Record</th><th>Type</th><th>Deleted</th><th></th></tr></thead>
-      <tbody>${d.map(({t,x})=>`<tr>
-        <td>${esc(binLabel(t,x))}
-          ${(function(){const k=kidsOf(t+":"+String(x.id||x.num));
-            return k?`<div class="sub">+ ${k} related record${k>1?"s":""} — they come back together</div>`:""})()}</td>
+      <tbody>${shown.map(({t,x})=>`<tr>
+        <td>${esc(binLabel(t,x))}${x.city?` <span class="sub">· ${esc(x.city)}</span>`:""}
+          ${(function(){const k=kidsOf(t+":"+String(x.id||x.num));const w=why(t,x);
+            return (w?`<div class="sub">${w}</div>`:"")+(k?`<div class="sub">+ ${k} related record${k>1?"s":""} — they come back together</div>`:"")})()}</td>
         <td><span class="pill">${esc(t)}</span></td>
         <td class="sub mono">${esc(x.deletedBy||"")} · ${fmtTs(x.deletedAt)}</td>
-        <td style="text-align:right"><button class="btn sm p" data-restore="${esc(t)}:${esc(String(x.id||x.num))}">Restore</button></td></tr>`).join("")}</tbody></table>`
-    :`<div class="empty"><b>The bin is empty</b>Deleted records land here instead of disappearing.</div>`}
+        <td style="text-align:right"><button class="btn sm p" data-restore="${esc(t)}:${esc(String(x.id||x.num))}">Restore</button></td></tr>`).join("")}</tbody></table>
+      ${d.length>N?`<div style="padding:10px 15px"><button class="btn sm" data-binmore="1">Show ${Math.min(200,d.length-N)} more</button> <span class="sub">${N} of ${d.length} shown — or search above</span></div>`:""}`
+    :`<div class="empty">${top.length?`<b>Nothing in the bin matches</b>Try fewer words or another type.`:`<b>The bin is empty</b>Deleted records land here instead of disappearing.`}</div>`}
   </section></div>`;
 }
 function binLabel(t,x){
@@ -18101,6 +18114,8 @@ function bind(){
     {const x=t.closest("[data-stcmat]");if(x){stcMatModal(Number(x.dataset.stcmat));return}}
     {const x=t.closest("[data-stcrates]");if(x){stcRatesModal();return}}
     {const x=t.closest("[data-stccsv]");if(x){stcCsv();return}}
+    {const x=t.closest("[data-bint]");if(x){S.binT=x.dataset.bint;S.binN=200;render();return}}
+    {const x=t.closest("[data-binmore]");if(x){S.binN=(S.binN||200)+200;render();return}}
     {const x=t.closest("[data-stcnocut]");if(x){S.stcF=Object.assign({},S.stcF||{},{nocut:!(S.stcF&&S.stcF.nocut),page:0});render();return}}
     {const x=t.closest("[data-stcbulk]");if(x){stcBulkModal();return}}
     {const x=t.closest("[data-stcpicbulk]");if(x){stcPicBulkModal();return}}
