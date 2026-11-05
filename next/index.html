@@ -6386,7 +6386,7 @@ const STENCIL_SRC="https://raw.githubusercontent.com/StreetSignSupply/ssc-crm/ma
    its price and every stencil follows. A stencil with no sheet for its grade, or no material sq ft, is flagged — never $0. */
 const STC_SRC="https://raw.githubusercontent.com/StreetSignSupply/ssc-crm/main/public/stencil-catalog.json";
 const STC_PIC="https://raw.githubusercontent.com/StreetSignSupply/ssc-crm/main/public/pics/stencils/";
-// edge-cleaned cut files shipped with the CRM (public/cut/SKU.dxf and SKU.pdf). A file uploaded
+// cut files shipped with the CRM (public/cut/SKU.dxf, SKU.pdf, and for a kit SKU.zip). A file uploaded
 // after stencil-cuts.json's "at" replaces that kind; anything older stays hidden behind these.
 const STC_CUT="https://raw.githubusercontent.com/StreetSignSupply/ssc-crm/main/public/cut/";
 const STC_CUT_SRC="https://raw.githubusercontent.com/StreetSignSupply/ssc-crm/main/public/stencil-cuts.json";
@@ -6606,8 +6606,9 @@ function stencilsView(){
   let list=all.filter(s=>(!f.cat||s.cat===f.cat)&&(!words.length||words.every(w=>(s.sku+" "+s.n+" "+(s.cat||"")+" "+(s.stn||"")).toLowerCase().indexOf(w)>=0)));
   const flagged=all.filter(s=>stcFlags(s).length);
   if(f.flag)list=list.filter(s=>stcFlags(s).length);
-  const FI=stcFileIdx();const withCut=all.filter(s=>(FI[s.sku]||{}).dxf).length;
-  if(f.nocut)list=list.filter(s=>!(FI[s.sku]||{}).dxf);
+  const FI=stcFileIdx();const hasCut=s=>{const o=FI[s.sku]||{};return !!(o.dxf||o.zip)};
+  const withCut=all.filter(hasCut).length;
+  if(f.nocut)list=list.filter(s=>!hasCut(s));
   const cats=[...new Set(all.map(s=>s.cat).filter(Boolean))].sort();
   const PG=150,pages=Math.max(1,Math.ceil(list.length/PG));if(f.page>=pages)f.page=0;
   const shown=list.slice(f.page*PG,f.page*PG+PG);const gi=f.gi;const showCost=can("cost");
@@ -6641,7 +6642,7 @@ function stencilsView(){
           return `<tr>
           <td class="pic">${pic?`<img src="${esc(pic)}" alt="" loading="lazy" style="width:62px;height:34px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:3px">`:`<span class="sub">no picture</span>`}</td>
           <td class="mono sku" style="white-space:nowrap"><button class="lnk mono" data-stcview="${esc(s.sku)}">${esc(s.sku)}</button></td>
-          <td class="nm" style="max-width:320px;white-space:normal"><button class="lnk" style="text-align:left" data-stcview="${esc(s.sku)}">${esc(s.n)}</button><div class="sub">${esc(s.cat||"")} · ${(function(){const d=stcDims(s);const w=stcWhat(s);return d.onePiece?`<b style="color:var(--danger-ink)">${esc(w)}</b>`:esc(w)})()}${(function(){const o=FI[s.sku];return o&&(o.dxf||o.pdf)?` · <button class="lnk" data-stcview="${esc(s.sku)}" title="Open it for the files">${[o.dxf?"DXF":"",o.pdf?"PDF":""].filter(Boolean).join(" + ")} on file</button>`:""})()}</div></td>
+          <td class="nm" style="max-width:320px;white-space:normal"><button class="lnk" style="text-align:left" data-stcview="${esc(s.sku)}">${esc(s.n)}</button><div class="sub">${esc(s.cat||"")} · ${(function(){const d=stcDims(s);const w=stcWhat(s);return d.onePiece?`<b style="color:var(--danger-ink)">${esc(w)}</b>`:esc(w)})()}${(function(){const o=FI[s.sku];return o&&(o.dxf||o.pdf||o.zip)?` · <button class="lnk" data-stcview="${esc(s.sku)}" title="Open it for the files">${[o.dxf?"DXF":"",o.pdf?"PDF":"",o.zip?"ZIP":""].filter(Boolean).join(" + ")} on file</button>`:""})()}</div></td>
           <td class="mono ps" style="white-space:nowrap">${(function(){const d=stcDims(s);return d.H?esc(d.W?d.H+"″ × "+d.W+"″":d.H+"″"+(d.chars?" letters":" tall")):"—"})()}</td>
           <td class="mono sh" style="white-space:nowrap">${s.w&&s.h?esc(s.w+"″ × "+s.h+"″")+(stcDims(s).fits?"":` <span class="pill o" title="Smaller than the painted size — check the artwork">check</span>`):"—"}</td>
           <td class="mono pcs" style="text-align:right">${esc(s.pc||1)}</td>
@@ -6694,7 +6695,7 @@ const STC_FILE_OK=/\.(dxf|pdf)$/i;
 const STC_PIC_OK=/\.(png|jpe?g|webp)$/i;
 const STC_PIC_CHUNK=40; // a full corrected set is about 1,600 pictures — upload them in batches, not one giant request
 function stcFileKind(name){const n=name||"";
-  return /\.dxf$/i.test(n)?"dxf":/\.pdf$/i.test(n)?"pdf":STC_PIC_OK.test(n)?"pic":""}
+  return /\.dxf$/i.test(n)?"dxf":/\.zip$/i.test(n)?"zip":/\.pdf$/i.test(n)?"pdf":STC_PIC_OK.test(n)?"pic":""}
 function stcIsPic(f){return !!f&&(STC_PIC_OK.test(f.name||"")||/^image\/(png|jpeg|webp)$/i.test(f.type||""))}
 // which stencils have a cut file / PDF: the shipped cut file, unless a newer upload of that kind replaced it
 let STC_CUTS_LOADING=null;
@@ -6711,8 +6712,9 @@ function stcCutRec(sku){const items=S.stcCuts&&S.stcCuts.items;if(!items||!sku)r
   const s=stcBySku(sku);if(s&&items[s.sku])return {sku:s.sku,rec:items[s.sku]};return null}
 function stcRepoCut(sku,kind){const hit=stcCutRec(sku);if(!hit||!hit.rec[kind])return null;
   const name=hit.sku+"."+kind;
+  const meta=kind==="dxf"?["application/dxf","Cut file"]:kind==="zip"?["application/zip","Cut files"]:["application/pdf","Artwork proof"];
   return {id:"cut:"+hit.sku+":"+kind,repo:1,name,size:Number(hit.rec[kind])||0,
-    type:kind==="dxf"?"application/dxf":"application/pdf",cat:kind==="dxf"?"Cut file":"Artwork proof",
+    type:meta[0],cat:meta[1],
     url:STC_CUT+encodeURIComponent(name),at:stcCutAt(),stencilSku:hit.sku,deleted:false,who:""}}
 // newest upload of this kind wins only when it is newer than the shipped cut files; otherwise the shipped file replaces it
 function stcShownCut(sku,kind){const hit=stcCutRec(sku);const canon=hit?hit.sku:(stcBySku(sku)?stcBySku(sku).sku:String(sku||""));
@@ -6720,22 +6722,22 @@ function stcShownCut(sku,kind){const hit=stcCutRec(sku);const canon=hit?hit.sku:
   if(newest&&(Number(newest.at)||0)>stcCutAt())return newest;
   return stcRepoCut(canon,kind)||newest}
 function stcFilesFor(sku){const s=stcBySku(sku);const canon=s?s.sku:String(sku||"");
-  const cuts=["dxf","pdf"].map(k=>stcShownCut(canon,k)).filter(Boolean);
-  const rest=filesOf("stencil",canon).filter(f=>{const k=stcFileKind(f.name);return k!=="dxf"&&k!=="pdf"});
+  const cuts=["dxf","pdf","zip"].map(k=>stcShownCut(canon,k)).filter(Boolean);
+  const rest=filesOf("stencil",canon).filter(f=>{const k=stcFileKind(f.name);return k!=="dxf"&&k!=="pdf"&&k!=="zip"});
   return cuts.concat(rest)}
-function stcCutById(fid){const m=/^cut:([^:]+):(dxf|pdf)$/.exec(String(fid||""));if(!m)return null;return stcShownCut(m[1],m[2])}
+function stcCutById(fid){const m=/^cut:([^:]+):(dxf|pdf|zip)$/.exec(String(fid||""));if(!m)return null;return stcShownCut(m[1],m[2])}
 function crmFile(fid){return S.files.get(fid)||stcCutById(fid)||null}
 function stcFileIdx(){const cutSig=S.stcCuts?String(S.stcCuts.at)+":"+Object.keys(S.stcCuts.items||{}).length:"0";
   const sig=S.files.size+":"+[...S.files.values()].reduce((t,f)=>t+(f.stencilSku?(Number(f.at)||1)+(f.deleted?7:0):0),0)+":"+cutSig;
   if(S._stcFI&&S._stcFI.sig===sig)return S._stcFI.m;const ups={};
-  live(S.files).forEach(f=>{if(!f.stencilSku)return;const kd=stcFileKind(f.name);if(kd!=="dxf"&&kd!=="pdf")return;
+  live(S.files).forEach(f=>{if(!f.stencilSku)return;const kd=stcFileKind(f.name);if(kd!=="dxf"&&kd!=="pdf"&&kd!=="zip")return;
     const k=String(f.stencilSku).toUpperCase();const o=ups[k]||(ups[k]={});if(!o[kd]||(Number(f.at)||0)>(Number(o[kd].at)||0))o[kd]=f});
   const m={};const cutAt=stcCutAt();const items=(S.stcCuts&&S.stcCuts.items)||{};
   const skus=new Set(Object.keys(items).concat(Object.keys(ups)));
   skus.forEach(raw=>{const s=stcBySku(raw);const canon=s?s.sku:raw;const ku=String(canon).toUpperCase();
-    const repo=items[canon]||items[ku]||null;const up=ups[ku]||{};const o={dxf:0,pdf:0};
-    ["dxf","pdf"].forEach(kd=>{const u=up[kd];if(u&&(Number(u.at)||0)>cutAt)o[kd]=1;else if(repo&&repo[kd])o[kd]=1;else if(u)o[kd]=1});
-    if(o.dxf||o.pdf)m[canon]=o});
+    const repo=items[canon]||items[ku]||null;const up=ups[ku]||{};const o={dxf:0,pdf:0,zip:0};
+    ["dxf","pdf","zip"].forEach(kd=>{const u=up[kd];if(u&&(Number(u.at)||0)>cutAt)o[kd]=1;else if(repo&&repo[kd])o[kd]=1;else if(u)o[kd]=1});
+    if(o.dxf||o.pdf||o.zip)m[canon]=o});
   S._stcFI={sig,m};return m}
 // the newest uploaded picture for each stencil (PNG, JPG or WebP). The catalog PNG is the fallback.
 function stcPicIdx(){const sig=S.files.size+":"+[...S.files.values()].reduce((t,f)=>t+(f.stencilSku&&stcIsPic(f)?(Number(f.at)||1)+(f.deleted?7:0):0),0);
@@ -6761,10 +6763,10 @@ function stcFilesHtml(sku){const fs=stcFilesFor(sku);
       <span style="flex:1"></span>${S.canUpload?`<button class="btn sm p" data-stcup="${esc(sku)}">Upload DXF or PDF</button>`:""}</div>
     ${fs.length?`<ul class="stcfl" style="list-style:none;margin:0;padding:0;border:1px solid var(--line);border-radius:6px">${fs.map(f=>{const kd=stcFileKind(f.name);
       return `<li style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 10px;border-bottom:1px solid var(--line2)">
-        <span class="pill ${kd==="dxf"?"b":""}" style="min-width:42px;justify-content:center">${esc(kd?kd.toUpperCase():"FILE")}</span>
-        <span style="flex:1;min-width:160px"><b style="word-break:break-all">${esc(f.name)}</b><span class="sub" style="display:block">${esc([kd==="dxf"?"Cut file":kd==="pdf"?"PDF":kd==="pic"?"Picture":f.cat,bytes(f.size),fileWho(f),f.at?fmtTs(f.at):""].filter(Boolean).join(" · "))}</span></span>
-        ${kd!=="dxf"?`<button class="btn sm" data-view="${esc(f.id)}">Open</button>`:""}
-        <button class="btn sm${kd==="dxf"?" p":""}" data-dl="${esc(f.id)}">Download</button>
+        <span class="pill ${kd==="dxf"||kd==="zip"?"b":""}" style="min-width:42px;justify-content:center">${esc(kd?kd.toUpperCase():"FILE")}</span>
+        <span style="flex:1;min-width:160px"><b style="word-break:break-all">${esc(f.name)}</b><span class="sub" style="display:block">${esc([kd==="dxf"?"Cut file":kd==="zip"?"Cut files":kd==="pdf"?"PDF":kd==="pic"?"Picture":f.cat,bytes(f.size),fileWho(f),f.at?fmtTs(f.at):""].filter(Boolean).join(" · "))}</span></span>
+        ${kd!=="dxf"&&kd!=="zip"?`<button class="btn sm" data-view="${esc(f.id)}">Open</button>`:""}
+        <button class="btn sm${kd==="dxf"||kd==="zip"?" p":""}" data-dl="${esc(f.id)}">Download</button>
         ${canDelFile(f)?`<button class="btn sm d" data-stcdelfile="${esc(f.id)}:${esc(sku)}" title="Delete this file — it goes to the recycle bin">Delete</button>`:""}</li>`}).join("")}</ul>`
     :`<div class="${S.canUpload?"drop":"empty"}" data-stcdrop="${esc(sku)}" style="padding:14px">${S.canUpload?"No cut file or PDF yet — drop the <b>.dxf</b> and <b>.pdf</b> here, or use Upload.":"No cut file or PDF yet."}</div>`}`}
 function stcFilesRefresh(sku){const el=document.getElementById("stc-files");if(el&&el.dataset.sku===sku){el.innerHTML=stcFilesHtml(sku);stcDropWire(el)}}
@@ -11388,7 +11390,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-150";
+const APP_VERSION="2026.11.25-151";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}

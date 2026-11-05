@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-151 (FAA kit cut files)
+- Nine FAA kits now have their character cut files as a ZIP, plus one PDF of all the proofs, in Files. The ZIP downloads like the other cut files. The loose per-character files are inside the ZIP, not attached on their own.
+
 ## 2026.11.25-150 (recycle bin: where each record came from, and its history)
 - Each row in the Recycle bin says where it came from when known — "prospect-list lead the sales agents added, then removed" — and flags any that **had projects or activity** in bold, so real work stands out from bulk prospect leads.
 - **History** on each row opens that record's field history (who added it, what changed, who put it in the bin) without restoring it, with a **Restore it** button.
