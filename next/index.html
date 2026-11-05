@@ -9850,7 +9850,7 @@ window.addEventListener("hashchange",()=>{
     if(!confirm("You have changes in Settings that aren't saved. Leave without saving?")){history.replaceState(null,"","#/settings");return}}
   SET_DIRTY=false;
   S.route=parseHash();S.ptab="all";S.czOpen={};S.gsearch="";S.q="";S.viewerFile=null;   // going to another page closes an open file
-  S.actFilter="";S.fileFilter="";S.showClosed=false;S.showArchive=false;S.noRep=false;S.fuEdit="";S.drEdit="";
+  S.actFilter="";S.fileFilter="";S.binLeads=false;S.showClosed=false;S.showArchive=false;S.noRep=false;S.fuEdit="";S.drEdit="";
   if(S.route.v!=="projects")S.projFollow=false;
   if(S.route.v!=="archive")S.archAcct="";
   render();toTop()});
@@ -11390,7 +11390,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-151";
+const APP_VERSION="2026.11.25-152";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -14256,9 +14256,16 @@ function settingsView(){
       <button class="btn p" id="savebrand">Save settings</button></div></div>
   </div>`;
 }
+// accounts the sales agents added from a prospect list and later removed, with no project or activity of anyone's on
+// them: kept out of the normal bin view (in their own "Agent prospect leads" view) so the team isn't confused while
+// working the list. Nothing is deleted.
+function binAgentLeads(all){const pa=new Set([...S.projects.values()].map(p=>p.accountId)),aa=new Set([...S.activity.values()].filter(a=>a.recType==="account"&&!a.deleted).map(a=>a.recId));
+  const ids=new Set();all.forEach(({t,x})=>{if(t==="account"&&!x.mergedInto&&/^(Prospects\b|Agent \d+ research)/i.test(String(x.source||""))&&!pa.has(x.id)&&!aa.has(x.id))ids.add(x.id)});return ids}
+function binTop(all){const top=all.filter(({x})=>!x.deletedWith);const L=binAgentLeads(all);
+  return {top:top.filter(({t,x})=>S.binLeads?(t==="account"&&L.has(x.id)):!(t==="account"&&L.has(x.id))),leads:L.size}}
 function binView(){
   const all=deletedAll();
-  const top=all.filter(({x})=>!x.deletedWith).sort((a,b)=>(b.x.deletedAt||0)-(a.x.deletedAt||0));
+  const BT=binTop(all);const top=BT.top.sort((a,b)=>(b.x.deletedAt||0)-(a.x.deletedAt||0));
   const kidsOf=tag=>all.filter(({x})=>x.deletedWith===tag).length;
   // thousands of old import copies live here, so it searches, filters by type and shows a page at a time
   const T=S.binT||"";const q=String(S.q||"").trim().toLowerCase();const words=q.split(/\s+/).filter(Boolean);
@@ -14281,8 +14288,9 @@ function binView(){
         ${myAccess()==="owner"&&d.length?`<button class="btn d" data-binpurge="1" title="Remove what's listed for good — this can't be undone">Delete forever: ${d.length===top.length?"empty the bin":"these "+d.length}</button>`:""}
         <button class="btn" data-go="settings">Back to settings</button></span></header>
     <div class="chipbar" style="display:flex;flex-wrap:wrap;gap:6px;padding:10px 15px;border-bottom:1px solid var(--line2)">
-      <button class="btn sm${!T?" p":""}" data-bint="">Everything · ${top.length}</button>
-      ${Object.keys(counts).sort((a,b)=>counts[b]-counts[a]).map(t=>`<button class="btn sm${T===t?" p":""}" data-bint="${esc(t)}">${esc(t==="activity"?"activity":t+"s")} · ${counts[t]}</button>`).join("")}</div>
+      ${S.binLeads?`<button class="btn sm" data-binleads="0">← Back to the recycle bin</button><span class="sub" style="align-self:center">Prospect-list leads the sales agents added and later removed — no projects or activity on any of them. They're kept here, out of the way; nothing is deleted.</span>`:`<button class="btn sm${!T?" p":""}" data-bint="">Everything · ${top.length}</button>
+      ${Object.keys(counts).sort((a,b)=>counts[b]-counts[a]).map(t=>`<button class="btn sm${T===t?" p":""}" data-bint="${esc(t)}">${esc(t==="activity"?"activity":t+"s")} · ${counts[t]}</button>`).join("")}
+      ${BT.leads?`<button class="btn sm" data-binleads="1" style="margin-left:auto" title="Kept apart so they don't mix with real records">Agent prospect leads · ${BT.leads} (kept apart)</button>`:""}`}</div>
     ${d.length?`<table><thead><tr><th>Record</th><th>Type</th><th>Deleted</th><th></th></tr></thead>
       <tbody>${shown.map(({t,x})=>`<tr>
         <td>${esc(binLabel(t,x))}${x.city?` <span class="sub">· ${esc(x.city)}</span>`:""}
@@ -14298,7 +14306,7 @@ function binView(){
 // permanently removing what's in the bin — the owner only, always asked first; a record's related records
 // (the ones that went into the bin with it) and its field history go too, and a file's stored copy is removed
 const BIN_COLL={account:"accounts",contact:"contacts",project:"projects",job:"jobs",file:"files",activity:"activity",event:"events",vendor:"vendors",item:"items",team:"team"};
-function binList(){const all=deletedAll();const top=all.filter(({x})=>!x.deletedWith);const T=S.binT||"";const words=String(S.q||"").trim().toLowerCase().split(/\s+/).filter(Boolean);
+function binList(){const all=deletedAll();const top=binTop(all).top;const T=S.binT||"";const words=String(S.q||"").trim().toLowerCase().split(/\s+/).filter(Boolean);
   return top.filter(({t,x})=>(!T||t===T)&&(!words.length||words.every(w=>(binLabel(t,x)+" "+(x.city||"")+" "+(x.email||"")+" "+(x.phone||"")).toLowerCase().indexOf(w)>=0)))}
 async function binKill(items,onProg){const all=deletedAll();let gone=0,bad=0;const todo=[];
   items.forEach(({t,x})=>{todo.push({t,x});const tag=t+":"+String(x.id||x.num);all.filter(k=>k.x.deletedWith===tag).forEach(k=>todo.push(k))});
@@ -18292,6 +18300,7 @@ function bind(){
     {const x=t.closest("[data-binres]");if(x){const i=x.dataset.binres.indexOf(":"),k0=x.dataset.binres.slice(0,i),i0=x.dataset.binres.slice(i+1);closeModal();
       const w=restoreGuard(k0,i0);if(w){askConfirm("Restore anyway?",`<p style="margin:0">${esc(w)}</p>`,"Restore it",false,()=>restore(k0,i0));return}restore(k0,i0);return}}
     {const x=t.closest("[data-binhist]");if(x){const i=x.dataset.binhist.indexOf(":"),ty=x.dataset.binhist.slice(0,i),k=x.dataset.binhist.slice(i+1);binHistModal(ty,k);return}}
+    {const x=t.closest("[data-binleads]");if(x){S.binLeads=x.dataset.binleads==="1";S.binT="";S.binN=200;render();return}}
     {const x=t.closest("[data-binpurge]");if(x){binPurgeAsk(binList());return}}
     {const x=t.closest("[data-binkill]");if(x){const i=x.dataset.binkill.indexOf(":"),ty=x.dataset.binkill.slice(0,i),k=x.dataset.binkill.slice(i+1);
       const m=S[BIN_COLL[ty]];const rec=m&&m.get(k);if(rec&&rec.deleted)binPurgeAsk([{t:ty,x:rec}]);return}}
