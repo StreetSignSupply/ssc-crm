@@ -6722,6 +6722,12 @@ function stcRepoCut(sku,kind){const hit=stcCutRec(sku);if(!hit||!hit.rec[kind])r
   return {id:"cut:"+hit.sku+":"+kind,repo:1,name,size:Number(hit.rec[kind])||0,
     type:meta[0],cat:meta[1],
     url:STC_CUT+encodeURIComponent(name),at:stcCutAt(),stencilSku:hit.sku,deleted:false,who:""}}
+// a kit's characters live with the kit, not as their own stencils: public/cut/kits/SKU/name plus one SKU.zip
+function stcRepoParts(sku){const hit=stcCutRec(sku);const parts=hit&&hit.rec&&hit.rec.parts;if(!Array.isArray(parts))return [];
+  return parts.map(p=>{const name=String(p[0]||""),size=Number(p[1])||0;const kind=stcFileKind(name);
+    const meta=kind==="dxf"?["application/dxf","Cut file"]:kind==="pdf"?["application/pdf","Artwork proof"]:["application/octet-stream","File"];
+    return {id:"cut:"+hit.sku+":p:"+name,repo:1,name,size,type:meta[0],cat:meta[1],
+      url:STC_CUT+"kits/"+encodeURIComponent(hit.sku)+"/"+encodeURIComponent(name),at:stcCutAt(),stencilSku:hit.sku,deleted:false,who:""}})}
 // newest upload of this kind wins only when it is newer than the shipped cut files; otherwise the shipped file replaces it
 function stcShownCut(sku,kind){const hit=stcCutRec(sku);const canon=hit?hit.sku:(stcBySku(sku)?stcBySku(sku).sku:String(sku||""));
   let newest=null;filesOf("stencil",canon).forEach(f=>{if(stcFileKind(f.name)!==kind)return;if(!newest||(Number(f.at)||0)>(Number(newest.at)||0))newest=f});
@@ -6729,9 +6735,13 @@ function stcShownCut(sku,kind){const hit=stcCutRec(sku);const canon=hit?hit.sku:
   return stcRepoCut(canon,kind)||newest}
 function stcFilesFor(sku){const s=stcBySku(sku);const canon=s?s.sku:String(sku||"");
   const cuts=["dxf","pdf","zip"].map(k=>stcShownCut(canon,k)).filter(Boolean);
-  const rest=filesOf("stencil",canon).filter(f=>{const k=stcFileKind(f.name);return k!=="dxf"&&k!=="pdf"&&k!=="zip"});
-  return cuts.concat(rest)}
-function stcCutById(fid){const m=/^cut:([^:]+):(dxf|pdf|zip)$/.exec(String(fid||""));if(!m)return null;return stcShownCut(m[1],m[2])}
+  const parts=stcRepoParts(canon);
+  const names={};parts.forEach(f=>{names[String(f.name).toLowerCase()]=1});
+  const rest=filesOf("stencil",canon).filter(f=>{const k=stcFileKind(f.name);if(k==="dxf"||k==="pdf"||k==="zip")return false;return !names[String(f.name||"").toLowerCase()]});
+  return cuts.concat(parts).concat(rest)}
+function stcCutById(fid){const m=/^cut:([^:]+):(dxf|pdf|zip)$/.exec(String(fid||""));if(m)return stcShownCut(m[1],m[2]);
+  const p=/^cut:([^:]+):p:(.+)$/.exec(String(fid||""));if(!p)return null;
+  const hit=stcRepoParts(p[1]).find(f=>f.name===p[2]);return hit||null}
 function crmFile(fid){return S.files.get(fid)||stcCutById(fid)||null}
 function stcFileIdx(){const cutSig=S.stcCuts?String(S.stcCuts.at)+":"+Object.keys(S.stcCuts.items||{}).length:"0";
   const sig=S.files.size+":"+[...S.files.values()].reduce((t,f)=>t+(f.stencilSku?(Number(f.at)||1)+(f.deleted?7:0):0),0)+":"+cutSig;
@@ -6742,7 +6752,8 @@ function stcFileIdx(){const cutSig=S.stcCuts?String(S.stcCuts.at)+":"+Object.key
   const skus=new Set(Object.keys(items).concat(Object.keys(ups)));
   skus.forEach(raw=>{const s=stcBySku(raw);const canon=s?s.sku:raw;const ku=String(canon).toUpperCase();
     const repo=items[canon]||items[ku]||null;const up=ups[ku]||{};const o={dxf:0,pdf:0,zip:0};
-    ["dxf","pdf","zip"].forEach(kd=>{const u=up[kd];if(u&&(Number(u.at)||0)>cutAt)o[kd]=1;else if(repo&&repo[kd])o[kd]=1;else if(u)o[kd]=1});
+    ["dxf","pdf","zip"].forEach(kd=>{const u=up[kd];if(u&&(Number(u.at)||0)>cutAt)o[kd]=1;else if(repo&&repo[kd]&&kd!=="parts")o[kd]=1;else if(u)o[kd]=1});
+    if(repo&&Array.isArray(repo.parts))repo.parts.forEach(pt=>{const kd=stcFileKind(pt[0]);if(o[kd]===0)o[kd]=1});
     if(o.dxf||o.pdf||o.zip)m[canon]=o});
   S._stcFI={sig,m};return m}
 // the newest uploaded picture for each stencil (PNG, JPG or WebP). The catalog PNG is the fallback.
@@ -11404,7 +11415,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-154";
+const APP_VERSION="2026.11.25-155";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}

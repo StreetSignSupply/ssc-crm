@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-155 (small kit cut files)
+- Seven small kits now have each character's DXF and PDF in Files, plus one ZIP of the whole set. The characters are not separate stencils. SSS-ALP-002-01 (36), SSS-NEW-019 (26), SSS-NEW-020 (26), and SSS-NUM-003-01 through SSS-NUM-003-04 (10 each).
+
 ## 2026.11.25-154 (more stencil cut files)
 - 51 more stencils got a DXF and a PDF. Another 267 in this batch were already on file with the same bytes, so those were left as they were. No FAA kit bundle is included.
 - Eight cut files that came from the full-sheet batch were removed, because the bridges are too thin to cut. Those stencils show no cut file until a fixed one arrives: SSS-EVC-000-04, SSS-EVC-036-05, SSS-PRK-006-06, SSS-PRK-008-06, SSS-WRD-012-07, SSS-WRD-012-58, SSS-WRD-036-43, SSS-WRD-072-09.
