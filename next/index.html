@@ -11649,7 +11649,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-158";
+const APP_VERSION="2026.11.25-159";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -11786,11 +11786,33 @@ async function taskSave(kind,id,existingId){
   if(toId)notify(toId,"task-assigned",text+(due?" — due "+taskDueLabel(rec):"")+(recTitle(rec)?" ("+recTitle(rec)+")":""),recLink(rec),aid);
   toast((to&&toId!==meId()?"Assigned to "+to.name:"Task added")+(to&&!String(to.email||"").includes("@")?" — "+to.name+" has no email on file, so it's the bell only":" — they'll get a bell notice and an email"));
 }
-async function taskToggle(taskId,done){
+// the call, email, note or meeting logged on a task's record (or, for a project task, its account) after the task was
+// given — the proof the work happened. Tasks, auto entries and deleted entries don't count.
+function taskProof(a){const since=Number(a.assignedAt||a.at)||0;const ids=[String(a.recId)];
+  if(a.recType==="project"){const p=proj(a.recId);if(p&&p.accountId)ids.push("account:"+p.accountId)}
+  const hit=x=>x&&!x.deleted&&x.id!==a.id&&x.kind!=="task"&&x.type!=="task"&&!x.auto&&Number(x.at)>since&&
+    (x.recType===a.recType&&String(x.recId)===String(a.recId)||(a.recType==="project"&&x.recType==="account"&&ids.indexOf("account:"+x.recId)>=0));
+  return live(S.activity).filter(hit).sort((x,y)=>(y.at||0)-(x.at||0))[0]||null}
+// A task is done only when the work is on record. Ticking it with a later call, email or note on the record completes it and
+// keeps that entry as the proof; with nothing logged since the task was given, a window asks what was done and writes that as a
+// note first (closing the window leaves the task open). Two P-2032 tasks were ticked Nov 5 with nothing behind them.
+async function taskToggle(taskId,done,noteText){
   const a=S.activity.get(taskId);if(!a)return;
-  const now=Date.now();
-  await push("activity/"+taskId,{done,doneAt:done?now:0,doneById:done?meId():"",doneByName:done?meName():""});
-  recordHistory(a.recType,a.recId,[{f:"Task",o:"",n:(done?"Done":"Reopened")+" — "+(a.text||"").slice(0,60),ev:1}]);
+  const now=Date.now();let proof=null;
+  if(done){proof=taskProof(a);
+    if(!proof&&noteText==null){
+      askConfirm("Mark this task done?",`<p style="margin:0 0 10px">Nothing has been logged ${esc(recTitle(a)?"on "+recTitle(a):"here")} since this task was given — no call, email or note.</p>
+        <p style="margin:0 0 6px"><b>${esc((a.text||"").slice(0,120))}</b></p>
+        <div class="fld full"><div class="k">What was done?</div><textarea data-cin="why" data-req="Say what was done — or cancel and log the call or email first." rows="3" aria-label="What was done" placeholder="e.g. Called Pat, they'll send the PO Monday"></textarea></div>
+        <div class="sub" style="margin-top:8px">This goes on the record as a note, then the task is marked done. To log a proper call or email instead, cancel and use + Add.</div>`,
+        "Done — note it",false,v=>taskToggle(taskId,true,String((v&&v.why)||"").trim()));
+      render();return}
+    if(!proof&&noteText){const nid=uid("ac");
+      proof={id:nid,recType:a.recType,recId:String(a.recId),kind:"note",type:"note",text:"Task done — "+noteText+"\n(task: "+(a.text||"").slice(0,120)+")",
+        whoId:meId(),who:me(),subject:"",contactId:a.contactId||"",direction:"",when:today(),due:"",backOn:"",noBack:true,at:now,done:false,deleted:false,taskId};
+      try{await setDoc("activity/"+nid,proof)}catch(e){toast("That didn't save.");render();return}}}
+  await push("activity/"+taskId,{done,doneAt:done?now:0,doneById:done?meId():"",doneByName:done?meName():"",doneProof:done&&proof?proof.id:"",doneNote:done&&noteText?noteText.slice(0,500):""});
+  recordHistory(a.recType,a.recId,[{f:"Task",o:"",n:(done?"Done":"Reopened")+" — "+(a.text||"").slice(0,60)+(done&&noteText?" (no call or email logged; note: "+noteText.slice(0,80)+")":""),ev:1}]);
   const giver=a.assignedById;
   if(done&&giver&&giver!==meId())notify(giver,"task-done",a.text||"",recLink(a),taskId);
 }
@@ -11839,7 +11861,7 @@ function activityRow(x){
         return `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:4px">
           <span class="pill ${as&&as.id===meId()?"b":""}">${ic("contact",11)} ${esc(as?as.name:"Unassigned")}</span>
           ${x.due?`<span class="pill ${late?"r":""}">due ${esc(taskDueLabel(x))}${late?" — late":""}</span>`:""}
-          ${x.done?`<span class="pill g">done ${esc(stampFull(x.doneAt))}${x.doneByName?" by "+esc(x.doneByName):""}</span>`:""}
+          ${x.done?`<span class="pill g" title="${esc(x.doneNote?"No call or email was logged — "+x.doneNote:x.doneProof?"Backed by the call, email or note logged after it":"")}">done ${esc(stampFull(x.doneAt))}${x.doneByName?" by "+esc(x.doneByName):""}${x.doneNote?" · no record, noted":""}</span>`:""}
           ${!x.done?`<button class="btn sm" data-tkre="${esc(x.id)}" style="padding:2px 8px;font-size:12px">Change time / reassign</button>`:""}
           ${!x.done&&as&&as.email&&!window.sscHosted?`<a class="btn sm" style="padding:2px 8px;font-size:12px;text-decoration:none"
             href="${esc(mailLink(as.email,"Task: "+(x.text||"").slice(0,60),(x.text||"")+"\n\n"+recTitle(x),{cc:false}))}"${mailTarget()}>Email them</a>`:""}
@@ -17664,13 +17686,13 @@ async function freshenSignLinks(C,body){
   let signId=String((C&&C.signId)||"");body=String(body||"");const R=S.signreq||new Map();
   const base=signBase();const re=new RegExp(base.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\?t=([0-9a-f]{16,64})","gi");
   const toks=new Set();let m;while((m=re.exec(body)))toks.add(m[1].toLowerCase());if(signId)toks.add(signId.toLowerCase());
-  const live=r=>r&&!r.deleted&&r.status==="sent"&&!(r.expiresAt&&r.expiresAt<Date.now());
+  const isLive=r=>r&&!r.deleted&&r.status==="sent"&&!(r.expiresAt&&r.expiresAt<Date.now());
   const tokOf=u=>{const k=String(u||"").match(/[?&]t=([0-9a-f]{16,64})/i);return k?k[1].toLowerCase():""};
   for(const tok of toks){const r=R.get(tok);if(!r)continue;let nt=tok;
     if(r.deleted||r.status==="cancelled")return {stop:"That approval link was cancelled, so it can't go out. Make a new one with Get it signed, then send."};
     if(r.status==="declined")return {stop:"The customer asked for changes on that approval link. Make the changes, then a new link with Get it signed."};
     if(r.status==="signed")return {stop:"That approval link was already signed. Take it out of the email, or make a new link if there's something new to approve."};
-    if(r.status==="replaced"){const nr=R.get(tokOf(r.replacedBy));if(live(nr))nt=nr.token;
+    if(r.status==="replaced"){const nr=R.get(tokOf(r.replacedBy));if(isLive(nr))nt=nr.token;
       else return {stop:"That approval link was replaced and the newer one isn't live either. Make a new one with Get it signed, then send."}}
     else if(r.status==="sent"&&r.expiresAt&&r.expiresAt<Date.now()){
       // expired: the same request again under a fresh token, good for another 30 days
@@ -17680,7 +17702,7 @@ async function freshenSignLinks(C,body){
       try{await setDoc("signreq/"+nt,rec)}catch(e){return {stop:"Couldn't make a new approval link — try Get it signed."}}
       await setDoc("signreq/"+tok,Object.assign({},r,{status:"replaced",replacedBy:signUrl(nt)})).catch(()=>{});
       if(r.projectId)logEvent("project",r.projectId,"Approval link had expired — a new one was made for this email")}
-    else if(!live(r))return {stop:"That approval link isn't live any more. Make a new one with Get it signed, then send."};
+    else if(!isLive(r))return {stop:"That approval link isn't live any more. Make a new one with Get it signed, then send."};
     if(nt!==tok){body=body.split(signUrl(tok)).join(signUrl(nt));body=body.split(signUrl(tok.toUpperCase())).join(signUrl(nt));if(signId.toLowerCase()===tok)signId=nt}}
   return {body,signId}}
 async function composeGo(send){const C=S._cmp||{};const to=$("#cm-to").value.split(/[,;]/).map(x=>x.trim()).filter(x=>/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(x));

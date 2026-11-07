@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-159 (a task is done only when the work is on record)
+- **Ticking a task done** now checks the record first. If a call, email, note or meeting was logged on that account or project (or the project's account) after the task was given, the task completes as before and keeps that entry as its proof. If nothing was logged, a window asks **What was done?** — the answer goes on the record as a note, then the task is marked done and its "done" tag says "no record, noted" (and the history says so). Closing the window leaves the task open. Two tasks on P-2032 were ticked done on Nov 5 with nothing behind them; that can't happen quietly now.
+- The release check ticks a task with nothing behind it (must ask, must not write) and one with a later call (must complete with that call as the proof).
+
 ## 2026.11.25-158 (no email goes out with a dead approval link)
 - **Approval links are checked before an email goes.** The CRM's email window (Send and Open in my email) now looks at every signing link in the email — the one it was opened with and any pasted into the text. A link that was **cancelled**, that the customer **asked for changes** on, or that was **already signed** stops the email with a plain message (make a new link with Get it signed). A link that **ran out** (30 days) is quietly replaced with a fresh one for the same quote or proof, noted in the project's history; a link that was **replaced** is swapped for the newer one. A customer got a cancelled link on Nov 4 (P-2032); that can't happen from the email window now. The mail worker that sends queued emails is unchanged.
 - The release check now sends three emails on a hosted page — a cancelled, an expired and a live approval link — and fails the build if the wrong one gets through.

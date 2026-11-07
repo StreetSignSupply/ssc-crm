@@ -57,7 +57,9 @@ const D = {
     x4: { id: "x4", recType: "account", recId: "a1", kind: "email", type: "email", subject: "RE: Quote for the signs", text: "Hi Pat, here is the quote.", to: "pat@example.com", gmailId: "g1", at: now - 3 * 3600e3 + 120e3 },
     x1: { id: "x1", recType: "account", recId: "a1", kind: "note", type: "call", text: "Called about the bid", contactId: "c1", at: now - day, when: new Date(now - day).toISOString().slice(0, 10) },
     x2: { id: "x2", recType: "account", recId: "a1", kind: "task", type: "task", text: "Call back about the bid", assigneeId: "t1", whoId: "t1", who: "TO", at: now,
-      due: new Date(now + 2 * day).toISOString().slice(0, 10), dueTime: "14:30", done: false } },
+      due: new Date(now + 2 * day).toISOString().slice(0, 10), dueTime: "14:30", done: false },
+    // an older task on the same account: the call x1 and emails x3/x4 were logged after it, so it can be ticked done straight away
+    x5: { id: "x5", recType: "account", recId: "a1", kind: "task", type: "task", text: "Send the price list", assigneeId: "t1", whoId: "t1", who: "TO", at: now - 2 * day, done: false } },
   // signing links for p3: one cancelled yesterday, one that ran out, one live
   signreq: { ["c".repeat(48)]: { token: "c".repeat(48), kind: "quote", projectId: "p3", status: "cancelled", createdAt: now - 2 * day, expiresAt: now + 28 * day, contactEmail: "ana@example.com", contactName: "Ana Ridge" },
     ["e".repeat(48)]: { token: "e".repeat(48), kind: "quote", projectId: "p3", status: "sent", createdAt: now - 40 * day, expiresAt: now - 10 * day, contactEmail: "ana@example.com", contactName: "Ana Ridge" },
@@ -96,6 +98,19 @@ for (const [r, sel] of forms) { await pg.evaluate((r) => { location.hash = "#/" 
   const el = await pg.$(sel); if (el) { await el.click().catch(() => {}); await pg.waitForTimeout(400); if (!(await pg.$(".modal"))) bad.push(r + " " + sel + ": form didn't open"); await pg.keyboard.press("Escape"); await pg.waitForTimeout(300); }
   if (errs.length > before) bad.push(r + " " + sel + ": " + errs.slice(before).join(" | ")); }
 await pg.waitForTimeout(300);
+// a task can't be ticked done with nothing behind it: no call, email or note logged since it was given asks what was done
+// (closing leaves it open); a task with a later call on the record completes and keeps that call as its proof
+{ await pg.evaluate(() => { location.hash = "#/account/a1"; }); await pg.waitForTimeout(500);
+  const r = await pg.evaluate(async () => { const w = (ms) => new Promise((r) => setTimeout(r, ms)); const out = {};
+    const tick = async (id) => { const b = document.querySelector('[data-task="' + id + '"]'); if (!b) return "no checkbox"; window.__writes = []; b.click(); await w(500);
+      const m = document.querySelector(".modal"); return { modal: m ? m.innerText.slice(0, 200) : "", writes: window.__writes.filter((x) => /^activity\//.test(x[1])).map((x) => [x[1], x[2].done, x[2].doneProof]) }; };
+    out.bare = await tick("x2"); document.querySelectorAll(".modal .mx").forEach((x) => x.click()); await w(400);
+    out.bareAfter = { modal: !!document.querySelector(".modal"), checked: (document.querySelector('[data-task="x2"]') || {}).checked };
+    out.proved = await tick("x5"); return out; });
+  if (typeof r.bare === "string") bad.push("task done check: " + r.bare);
+  else { if (!/Mark this task done\?/.test(r.bare.modal) || r.bare.writes.length) bad.push("a task with nothing logged behind it was ticked done without asking (" + (r.bare.modal ? r.bare.modal.slice(0, 40) : "no window") + (r.bare.writes.length ? "; it was written" : "") + ")");
+    if (r.bareAfter.modal || r.bareAfter.checked) bad.push("closing the 'what was done?' window didn't leave the task open");
+    if (typeof r.proved === "string" || r.proved.modal || !r.proved.writes.some((x) => x[0] === "activity/x5" && x[1] === true && /^x[134]$/.test(x[2]))) bad.push("a task with a later call on the record didn't complete with that call as its proof (" + JSON.stringify(r.proved).slice(0, 120) + ")"); } }
 // list filters must actually filter (a release once dropped the Accounts filter handler and nothing reacted)
 const rows = () => pg.evaluate(() => document.querySelectorAll(".main section.wide tbody tr").length);
 const filt = [["accounts", "select[data-acfilt=type]", "Contractor"], ["accounts", "select[data-acfilt=rep]", "t1"], ["inventory", "select[data-invfilt=cat]", "Substrate"]];
