@@ -1,5 +1,10 @@
 # What changed
 
+## 2026.11.25-160 (one "due" reminder a day, and follow-ups nobody is writing)
+- **One reminder a day, from any copy of the CRM.** The "due" reminder that goes to the sheet (and on to email or text) was held to once a day per copy of the CRM, so a desktop, a phone and a second tab each sent it — the Log showed the same follow-up reminder several times a day (Sky Mountain, Red Rock, Southern Utah Sealcoating, Watts). Before delivering, each copy now reads the shared sent-list again and skips anything another copy already sent today.
+- **Follow-ups nobody is writing.** A planned follow-up with no draft more than 3 days past due now shows on the dashboard as a red chip — "N follow-ups late — nobody has written them" (click it for the list) — and the project's follow-up row says "Nobody has written this — N days late. Write it, or skip it." The followup record on the order sync carries `writer` (none / drafted) and `late_days`, so the agents' checks can pick them up from CRM Orders.
+- The release check looks for the chip and the row on a project with a 5-day-late follow-up.
+
 ## 2026.11.25-159 (a task is done only when the work is on record)
 - **Ticking a task done** now checks the record first. If a call, email, note or meeting was logged on that account or project (or the project's account) after the task was given, the task completes as before and keeps that entry as its proof. If nothing was logged, a window asks **What was done?** — the answer goes on the record as a note, then the task is marked done and its "done" tag says "no record, noted" (and the history says so). Closing the window leaves the task open. Two tasks on P-2032 were ticked done on Nov 5 with nothing behind them; that can't happen quietly now.
 - The release check ticks a task with nothing behind it (must ask, must not write) and one with a later call (must complete with that call as the proof).

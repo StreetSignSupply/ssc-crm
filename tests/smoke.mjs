@@ -40,7 +40,11 @@ const D = {
       { id: "l3", charge: "setup", desc: "Setup", qty: "1", price: "18.50", cost: "12.50" }] },
     p2: { num: 2002, name: "Inquiry only", accountId: "a2", stage: "inquiry", createdAt: now - 2 * day },
     p3: { num: 2003, name: "Entrance signs", accountId: "a4", stage: "quoted", repId: "t1", createdAt: now - 5 * day, quote: "Q-1003", contacts: ["c3"], orderLines: [
-      { id: "l5", code: "R1-1", desc: "Stop", size: "30x30", grade: "HIP", qty: "2", price: "79.45" }] } },
+      { id: "l5", code: "R1-1", desc: "Stop", size: "30x30", grade: "HIP", qty: "2", price: "79.45" }],
+      // follow-up 1 was due 5 days ago and nobody drafted it ("no writer"); 2 and 3 are still ahead
+      followups: [{ id: "fu1", n: 1, due: new Date(now - 5 * day).toISOString().slice(0, 10), status: "planned", subject: "", body: "" },
+        { id: "fu2", n: 2, due: new Date(now + 2 * day).toISOString().slice(0, 10), status: "planned", subject: "", body: "" },
+        { id: "fu3", n: 3, due: new Date(now + 9 * day).toISOString().slice(0, 10), status: "planned", subject: "", body: "" }] } },
   jobs: { 1001: { num: 1001, desc: "Signs and stencils", projectId: "p1", accountId: "a1", prod: "sign", status: "production", due: new Date(now + 3 * day).toISOString().slice(0, 10),
     items: [{ qty: "4", code: "R1-1", desc: "Stop", size: "30x30", grade: "HIP", lineId: "l1" }], gates: {}, route: {}, ship: {}, statusLog: [{ status: "new", at: now - day }] } },
   files: { f1: { name: "Proof.png", type: "image/png", url: "", cat: "Artwork proof", projectId: "p1", accountId: "a1", at: now },
@@ -111,6 +115,14 @@ await pg.waitForTimeout(300);
   else { if (!/Mark this task done\?/.test(r.bare.modal) || r.bare.writes.length) bad.push("a task with nothing logged behind it was ticked done without asking (" + (r.bare.modal ? r.bare.modal.slice(0, 40) : "no window") + (r.bare.writes.length ? "; it was written" : "") + ")");
     if (r.bareAfter.modal || r.bareAfter.checked) bad.push("closing the 'what was done?' window didn't leave the task open");
     if (typeof r.proved === "string" || r.proved.modal || !r.proved.writes.some((x) => x[0] === "activity/x5" && x[1] === true && /^x[134]$/.test(x[2]))) bad.push("a task with a later call on the record didn't complete with that call as its proof (" + JSON.stringify(r.proved).slice(0, 120) + ")"); } }
+// a planned follow-up more than 3 days late with no draft is "no writer": the dashboard says so and the project row says so
+{ await pg.evaluate(() => { location.hash = "#/home"; }); await pg.waitForTimeout(500);
+  const chip = await pg.evaluate(() => [...document.querySelectorAll(".main .tchip")].map((x) => x.innerText).find((x) => /nobody has written/.test(x)) || "");
+  if (!/^1 follow-up late — nobody has written it$/.test(chip.trim())) bad.push("the dashboard doesn't flag a follow-up nobody has written (" + (chip || "no chip") + ")");
+  await pg.evaluate(() => { location.hash = "#/project/p3"; }); await pg.waitForTimeout(500);
+  await pg.evaluate(() => document.querySelectorAll(".main .card.collapsed button.cz").forEach((b) => b.click())); await pg.waitForTimeout(200);
+  const row = await pg.evaluate(() => (document.querySelector(".main") || {}).innerText || "");
+  if (!/Nobody has written this — 5 days late/.test(row)) bad.push("the project's follow-up row doesn't say nobody has written it"); }
 // list filters must actually filter (a release once dropped the Accounts filter handler and nothing reacted)
 const rows = () => pg.evaluate(() => document.querySelectorAll(".main section.wide tbody tr").length);
 const filt = [["accounts", "select[data-acfilt=type]", "Contractor"], ["accounts", "select[data-acfilt=rep]", "t1"], ["inventory", "select[data-invfilt=cat]", "Substrate"]];

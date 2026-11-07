@@ -10899,7 +10899,8 @@ function home(){
       <div class="today-items">
         <button class="tchip ${dt.length?"o":"g"}" data-go="jobs">${dt.length?dt.length+" work order"+(dt.length===1?"":"s")+" due today":"Nothing due today"}</button>
         ${attn.map(a=>`<button class="tchip ${a.c}" data-go="${esc(a.h)}">${esc(a.t)}</button>`).join("")}
-        ${(function(){const n=followDueCount(all.filter(p2=>inScope(p2)));return n?`<button class="tchip o" data-followdue="1">${n} follow-up${n===1?"":"s"} due</button>`:""})()}
+        ${(function(){const sc=all.filter(p2=>inScope(p2));const n=followDueCount(sc),nw=followNoWriterCount(sc);return (n?`<button class="tchip o" data-followdue="1">${n} follow-up${n===1?"":"s"} due</button>`:"")
+          +(nw?`<button class="tchip r" data-followdue="1" title="Planned more than 3 days ago, no draft yet — write them or skip them">${nw} follow-up${nw===1?"":"s"} late — nobody has written ${nw===1?"it":"them"}</button>`:"")})()}
         ${tasks.length?`<span class="tchip b" style="cursor:default">${tasks.length} open task${tasks.length===1?"":"s"}</span>`:""}
       </div>
       <div class="today-acts"><button class="btn sm q" data-remind="1">Email the due list</button><button class="btn sm q" data-ics="all">Export dates</button></div>
@@ -11649,7 +11650,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-159";
+const APP_VERSION="2026.11.25-160";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -13330,9 +13331,10 @@ function myBook(){
         <button class="btn" data-scope="${esc(t.id)}:jobs">My work orders</button>
         <button class="btn p" data-new="project">New project</button></div></div></div>
 
-    ${(function(){const n=followDueCount(mine);const rems=remFor(t);
-      if(!n&&!rems.length)return "";
+    ${(function(){const n=followDueCount(mine),nw=followNoWriterCount(mine);const rems=remFor(t);
+      if(!n&&!nw&&!rems.length)return "";
       return `<div class="today-items" style="margin:-4px 0 14px">${n?`<button class="tchip o" data-followdue="1">${n} follow-up${n===1?"":"s"} due</button>`:""}
+        ${nw?`<button class="tchip r" data-followdue="1" title="Planned more than 3 days ago, no draft yet — write them or skip them">${nw} follow-up${nw===1?"":"s"} late — nobody has written ${nw===1?"it":"them"}</button>`:""}
         ${rems.length?`<span class="tchip ${rems.some(r=>r.type==="terms"||r.type==="tracking")?"r":"y"}" style="cursor:default">${rems.length} reminder${rems.length===1?"":"s"} in the bell</span>`:""}</div>`})()}
     ${kpiRow([
       kpi("Open pipeline",money(pipe),open.length+" project"+(open.length===1?"":"s")),
@@ -16977,6 +16979,15 @@ async function syncSentLoad(){
     else{SYNC.sent=syncLS("sscSyncSent")||{};if(Object.keys(SYNC.sent).length)syncSentSave(SYNC.sent)}   // first computer on the new store seeds it
   }catch(e){}
 }
+// what other copies of the CRM have sent since this one loaded: read the shared sent-list again and keep whichever mark is
+// newer for each record. Run before delivering reminders, so one reminder goes out once a day from ANY copy, not once per copy.
+async function syncSentRefresh(){if(!db)return;
+  try{const d=await db.doc("settings/syncsent").get();const ok=d&&(typeof d.exists==="function"?d.exists():d.exists);
+    const data=ok&&d.data()?d.data():null;if(!data||!data.sent)return;
+    const cur=Object.assign({},syncSent());let changed=false;
+    Object.keys(data.sent).forEach(k=>{const key=syncKeyDec(k),v=data.sent[k];if(!v)return;const mine=cur[key];
+      if(!mine||(Number(v.at)||0)>(Number(mine.at)||0)){cur[key]=v;changed=true}});
+    if(changed){SYNC.sent=cur;syncLS("sscSyncSent",cur)}}catch(e){}}
 function syncSentSave(sent){SYNC.sent=sent;syncLS("sscSyncSent",sent);
   if(!db)return;clearTimeout(SYNC.sentTmr);
   SYNC.sentTmr=setTimeout(()=>{try{const enc={};Object.keys(SYNC.sent||{}).forEach(k=>{enc[syncKeyEnc(k)]=SYNC.sent[k]});
@@ -17326,7 +17337,7 @@ function followCard(p){
           ${editing?`<input type="text" id="fu-subj-${esc(f.id)}" value="${esc(f.subject||"")}" placeholder="Subject">
             <textarea id="fu-body-${esc(f.id)}" placeholder="What to say">${esc(f.body||"")}</textarea>`
           :(f.subject||f.body)?`<div class="rr-p">${f.subject?`<b>${esc(f.subject)}</b>\n`:""}${esc(f.body||"")}</div>`
-          :f.status==="planned"?`<div class="sub" style="margin-top:3px">${f.due<=t?"Waiting for the writer — the draft lands here.":"The writer drafts it the day it's due."}</div>`:""}</div>
+          :f.status==="planned"?`<div class="sub" style="margin-top:3px">${followNoWriter(f)&&open?`<b style="color:var(--red)">Nobody has written this — ${followLateDays(f)} days late.</b> Write it, or skip it.`:f.due<=t?"Waiting for the writer — the draft lands here.":"The writer drafts it the day it's due."}</div>`:""}</div>
         <div class="rr-b">${editing?`<button class="btn sm p" data-fusave="${esc(id)}:${esc(f.id)}">Save</button><button class="btn sm" data-fucancel="1">Cancel</button>`
           :canAct?`${(f.body||f.subject)?`<button class="btn sm p" data-fusend="${esc(id)}:${esc(f.id)}">Send</button>`:""}
             <button class="btn sm" data-fuedit="${esc(f.id)}">${(f.body||f.subject)?"Edit":"Write it"}</button><button class="btn sm" data-fuskip="${esc(id)}:${esc(f.id)}">Skip</button>`:""}</div></div>`}).join("")}
@@ -17341,6 +17352,7 @@ function followSyncRec(p,f){
     quote_number:p.quote||"",quote_date:p.quoteDate||"",customer:a.name||"",account_id:p.accountId||"",
     contact:c?(c.name||""):"",email:c?(c.email||""):"",phone:c?(c.phone||c.mobile||""):(a.phone||""),
     due:f.due||"",n:f.n,auto:followAutoOk(p),stop:p.followStop||"",lines:linesSummary(p),value:syncN(projValue(p)),
+    late_days:(f.status==="planned"||f.status==="drafted")&&followOpen(p)?followLateDays(f):0,writer:followNoWriter(f)&&followOpen(p)?"none":f.status==="drafted"||f.subject||f.body?"drafted":"",
     rep:rep2?(rep2.initials||""):"",rep_name:rep2?(rep2.name||""):"",rep_email:rep2?(rep2.email||""):"",
     project:p.name||"",subject:f.subject||"",text:f.body||"",sent_at:syncISO(f.sentAt),deleted:!!p.deleted}}
 // one record out, if the sheet hasn't seen this version of it (hash kept in settings/syncsent like every other record)
@@ -17351,6 +17363,12 @@ function syncSend(key,r,event,url){
 function syncFollowups(pid,url){const p=proj(pid)||S.projects.get(pid);if(!p||!(p.followups||[]).length)return 0;let n=0;
   p.followups.forEach(f=>{if(syncSend("followup/"+p.id+":"+f.n,followSyncRec(p,f),f.status||"planned",url))n++});return n}
 function followDueCount(list){return list.reduce((t,p)=>t+followDueOf(p).length,0)}
+// days a follow-up is past its due date (0 when not due yet)
+function followLateDays(f){if(!f||!f.due)return 0;const d=Math.floor((Date.parse(today())-Date.parse(f.due))/864e5);return d>0?d:0}
+// a planned follow-up with no draft more than 3 days past due: nobody is writing it
+function followNoWriter(f){return !!f&&f.status==="planned"&&!(f.subject||f.body)&&followLateDays(f)>3}
+function followNoWriterOf(p){return followOpen(p)?(p.followups||[]).filter(followNoWriter):[]}
+function followNoWriterCount(list){return list.reduce((t,p)=>t+followNoWriterOf(p).length,0)}
 
 /* ---------- reminders: computed here, read by one person in the bell, delivered by the agent ---------- */
 function remLabel(k){const x=REM_TYPES.find(y=>y[0]===k);return x?x[1]:k}
@@ -17504,7 +17522,9 @@ async function accessSync(force){if(ACCESS_BUSY||!db||!S.ready||!S.team||!S.team
   }
   finally{ACCESS_BUSY=false}
   return {n,gone,total:Object.keys(accessWanted()).length}}
-function remTick(){try{if(!db||!S.ready||!S.brandLoaded)return;remDeliver();accessSync().catch(()=>{});
+function remTick(){try{if(!db||!S.ready||!S.brandLoaded)return;
+    // another copy of the CRM may have sent today's reminders already: read the shared sent-list first, then deliver
+    syncSentRefresh().then(()=>{try{remDeliver()}catch(e){}});accessSync().catch(()=>{});
     const n=remMine().length;if(S._remN!==n){S._remN=n;if(!typing()&&!S.modal)render()}}catch(e){}}
 function bellBtn(){
   if(!S.viewerTeam)return "";
