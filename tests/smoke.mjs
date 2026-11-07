@@ -10,9 +10,12 @@ const PAGE = path.resolve(here, "__smoke.html");
 fs.writeFileSync(PAGE, fs.readFileSync(SRC, "utf8"));
 const now = Date.now(), day = 86400000;
 const D = {
+  // settings: aluminum price breaks by the pound, and a commission plan (t1 is on it)
+  __docs: { "settings/brand": { alumBreaks: [{ vendor: "Vendor A", minLb: 0, perLb: 4.5, freight: "extra", freightLb: 0.25 }, { vendor: "Vendor B", minLb: 1500, perLb: 3.9, freight: "extra", freightLb: 0.25 }],
+    commPlans: [{ id: "cp1", name: "Rep plan", type: "sale", rate: 5 }] } },
   // t1 (the person signed in) is an older owner record with no level set, and another record is set to owner explicitly —
   // the owner must still get Settings (release -119..-128 turned such a record into Shop)
-  team: { t1: { name: "Test Owner", initials: "TO", claudeId: "u1", email: "owner@example.com" }, t9: { name: "Second Owner", initials: "SO", access: "owner", email: "owner2@example.com" }, t2: { name: "Test Sales", initials: "TS", access: "sales", email: "sales@example.com" } },
+  team: { t1: { name: "Test Owner", initials: "TO", claudeId: "u1", email: "owner@example.com", isRep: true, commPlanId: "cp1" }, t9: { name: "Second Owner", initials: "SO", access: "owner", email: "owner2@example.com" }, t2: { name: "Test Sales", initials: "TS", access: "sales", email: "sales@example.com" } },
   accounts: { a1: { name: "Test County", street: "1 Main St", city: "Town", state: "UT", type: "Government agency", terms: "Net 30", repId: "t1",
     billDiff: true, billStreet: "PO Box 77", billCity: "Town", billState: "UT", billZip: "84000" }, a2: { name: "Test Contractor", type: "Contractor", terms: "Prepay" },
     // a vendor that was also entered as an account: it has to be offered as a vendor, not left as a Lead
@@ -25,7 +28,8 @@ const D = {
     i1: { name: "LDPE .125 Stencil Sheet 5x10", cat: "Stencil material", cost: "91.20", vendorId: "v1", vendorPrice: "91.20", unit: "sheet", onHand: 4, reorderPoint: 2,
       onOrder: 3, orders: [{ ref: "PR-20261026-1", vendor: "Test Plastics", qty: 3, left: 3, expected: "2026-11-02", at: now - day }] },
     i2: { name: "Aluminum .080 sheet 48x96", cat: "Substrate", cost: "141.20", vendorId: "v2", vendorPrice: "141.20", unit: "sheet", onHand: 0 },
-    i3: { name: "3M HIP White 3930 48in x 50yd", cat: "Film / vinyl", cost: "900", unit: "roll", onHand: 1 } },
+    i3: { name: "3M HIP White 3930 48in x 50yd", cat: "Film / vinyl", cost: "900", unit: "roll", onHand: 1 },
+    i4: { sku: "BLK-080-3030", name: "Blank .080 30x30 square", cat: "Substrate", cost: "26.66", costSrc: "invoice", unit: "each", onHand: 10 } },
   projects: {
     p1: { num: 2001, name: "Signs and stencils", accountId: "a1", stage: "quoted", repId: "t1", createdAt: now - 9 * day, orderLines: [
       { id: "l1", code: "R1-1", desc: "Stop", size: "30x30", grade: "HIP", qty: "4", price: "79.45" },
@@ -51,12 +55,12 @@ const D = {
       due: new Date(now + 2 * day).toISOString().slice(0, 10), dueTime: "14:30", done: false } },
   events: {}, history: {}, invtx: {}, notifications: {}, reminders: {}, access: { "u1": { role: "owner", teamId: "t1" }, "owner@example.com": { role: "owner", teamId: "t1" } } };
 const ROUTES = ["home", "mybook", "accounts", "account/a1", "contacts", "contact/c1", "projects", "project/p1", "project/p2", "jobs", "job/1001", "tracker", "calendar",
-  "files", "purchasing", "inventory", "item/i1", "stencils", "vendors", "vendor/v1", "reports", "audit", "archive", "bin", "settings", "new"];
+  "files", "purchasing", "inventory", "item/i1", "stencils", "vendors", "vendor/v1", "reports", "audit", "archive", "bin", "settings", "new", "commissions"];
 const browser = await chromium.launch(); const pg = await browser.newPage({ viewport: { width: 1400, height: 900 } });
 const errs = [];
 pg.on("pageerror", (e) => errs.push(String(e.message || e).slice(0, 160)));
 await pg.addInitScript((D) => { const db = { collection(c) { return { onSnapshot(cb) { const docs = Object.entries(D[c] || {}).map(([id, d]) => ({ id, data: () => d })); setTimeout(() => cb({ docs, size: docs.length, forEach: (f) => docs.forEach(f) }), 10); return () => {}; } }; },
-    doc(p) { return { path: p, async get() { return { exists: false, data: () => null }; }, set() { return Promise.resolve(); }, update() { return Promise.resolve(); }, delete() { return Promise.resolve(); }, onSnapshot(cb) { setTimeout(() => cb({ exists: false, data: () => null }), 10); return () => {}; }, async acquire() { return { acquired: true }; } }; },
+    doc(p) { return { path: p, async get() { return { exists: false, data: () => null }; }, set() { return Promise.resolve(); }, update() { return Promise.resolve(); }, delete() { return Promise.resolve(); }, onSnapshot(cb) { const v = (D.__docs || {})[p]; setTimeout(() => cb({ exists: !!v, data: () => v || null }), 10); return () => {}; }, async acquire() { return { acquired: true }; } }; },
     nextCounter: async () => 1 };
   window.__ups = [];
   const assets = { async upload(f) { window.__ups.push(f.name); return { id: "as" + window.__ups.length, url: "https://example.com/" + encodeURIComponent(f.name), sizeBytes: f.size, contentType: f.type }; } };
@@ -364,6 +368,26 @@ await pg.setViewportSize({ width: 1400, height: 900 });
   await pg.evaluate(() => { const b = document.querySelector('.actcard .segf [data-actf="email"]'); if (b) b.click(); }); await pg.waitForTimeout(400);
   const only = await pg.evaluate(() => [...document.querySelectorAll(".actcard ul.act > li")].length);
   if (only !== 1) bad.push("the Emails tab doesn't show only emails (" + only + ")"); }
+// aluminum by the pound and commissions: the project shows its aluminum buy and the rep's commission; the pages render
+{ await pg.evaluate(() => { location.hash = "#/project/p1"; }); await pg.waitForTimeout(700);
+  const t = await pg.evaluate(() => (document.querySelector(".main") || {}).innerText || "");
+  { const al = await pg.evaluate(() => { const c = [...document.querySelectorAll(".main section.card")].find((x) => /^\s*Aluminum buy/.test(x.innerText)); if (!c) return null;
+      return [...c.querySelectorAll("tbody tr")].map((tr) => tr.querySelectorAll("td")[1] ? tr.querySelectorAll("td")[1].innerText : ""); });
+    if (al && al.length >= 2 && al[0] === al[1]) bad.push("costing blanks by the pound doesn't change the job's cost (" + al.join(" / ") + ")"); }
+  if (!/Aluminum buy/.test(t) || !/By the pound at/.test(t) || !/Blank cost on file/.test(t)) bad.push("the project doesn't show its aluminum buy (" + (t.match(/Aluminum buy[\s\S]{0,80}/) || [""])[0] + ")");
+  if (!/Commission/.test(t) || !/If won/.test(t) || !/5% of the sale/.test(t)) bad.push("the project doesn't show the rep's commission");
+  await pg.evaluate(() => { location.hash = "#/commissions"; }); await pg.waitForTimeout(500);
+  const c = await pg.evaluate(() => (document.querySelector(".main") || {}).innerText || "");
+  if (!/Earned — owed/.test(c) || !/On open quotes/.test(c)) bad.push("the Commissions page doesn't show owed, pending and paid out");
+  await pg.evaluate(() => { location.hash = "#/settings"; }); await pg.waitForTimeout(600);
+  await pg.evaluate(() => { const b = document.querySelector('[data-stab="pricing"]'); if (b) b.click(); }); await pg.waitForTimeout(300);
+  const st = await pg.evaluate(() => (document.querySelector('[data-spanel="pricing"]') || {}).innerText || "");
+  await pg.evaluate(() => { const b = document.querySelector('[data-stab="comm"]'); if (b) b.click(); }); await pg.waitForTimeout(300);
+  const st2 = await pg.evaluate(() => (document.querySelector('[data-spanel="comm"]') || {}).innerText || "");
+  if (!/Aluminum by the pound/.test(st) || !/Who's on which plan/.test(st2)) bad.push("Settings doesn't have Aluminum by the pound and Commissions");
+  await pg.evaluate(() => { location.hash = "#/home"; }); await pg.waitForTimeout(500);
+  const h = await pg.evaluate(() => (document.querySelector(".main") || {}).innerText || "");
+  if (!/Commissions/.test(h)) bad.push("the company dashboard has no Commissions card"); }
 // a separate billing address: on the account's Billing card, and the form shows its boxes only when ticked
 { await pg.evaluate(() => { location.hash = "#/account/a1"; }); await pg.waitForTimeout(600);
   const tx = await pg.evaluate(() => (document.querySelector(".main") || {}).innerText || "");

@@ -576,6 +576,10 @@ html[data-theme="dark"] .nextbar .nextbar-tag,html[data-theme="dark"] .nextbar-g
 .cell{width:100%;max-width:112px;padding:5px 7px;border:1px solid var(--line);border-radius:4px;background:var(--card2);
   text-align:right;font-family:"Overpass Mono",ui-monospace,monospace;font-size:12.5px;color:var(--ink)}
 .cell:focus{outline:2px solid var(--act);outline-offset:1px;background:var(--card)}
+/* inputs inside a settings table (aluminum breaks, commission plans) */
+.tin{width:100%;min-width:0;padding:6px 8px;border:1px solid var(--border-input,var(--line));border-radius:4px;background:var(--card2);font:inherit;font-size:13px;color:var(--ink)}
+.tin.num{text-align:right;font-family:"Overpass Mono",ui-monospace,monospace}
+.tunit{display:flex;align-items:center;gap:4px}.tunit span{color:var(--ink2);font-weight:700}
 .mnav{display:none}
 @media (max-width:760px){
   .main td,.main th{overflow-wrap:normal;word-break:normal}
@@ -980,6 +984,9 @@ a.kc{color:inherit;text-decoration:none}
 .mbox>.foot{padding:13px 18px;border-top:1px solid var(--line);display:flex;gap:8px;
   justify-content:flex-end;flex-wrap:wrap;background:var(--hd)}
 @media (max-width:760px){.cal .day{padding:4px 3px}.cal .day .dadd{min-width:20px;min-height:24px;padding:0;font-size:14px}}
+/* phone: a day column is ~50px — "Today" doesn't fit beside the date and the +, so today is shown by the date's own circle */
+@media (max-width:760px){.cal .dhead{gap:2px;min-width:0}.cal .dtoday{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .cal .day.today .dnum,.cal .dhead:has(.dtoday) .dnum{background:var(--act);color:#fff;border-radius:999px;padding:0 5px}}
 /* stencil list on a phone: picture, name and price across the top, SKU under the name, then size, sheet, cost and margin,
    then any flags — the rest (sq ft, material, CNC, price date) is in the stencil's window (tap its name) */
 @media (max-width:760px){.main table.stack.stclist tr{display:grid!important;grid-template-columns:64px minmax(0,1fr) auto;column-gap:10px;row-gap:1px;padding:12px 14px}
@@ -3062,7 +3069,7 @@ function priceOfLine(j,it){
    quote has Refresh costs to retake them all. */
 function costKey(l){return [l.code,l.size,l.grade,l.build,l.lam===true?"L":0,l.sub,l.legend,(l.legends||[]).join("+")].map(x=>String(x==null?"":x)).join("|")}
 function lockedCostOf(l){return l&&l.costLock!==undefined&&l.costLock!==""&&l.costKey===costKey(l)?Number(l.costLock):null}
-function quoteLineCost(line){const k=lockedCostOf(line);
+function quoteLineCost(line){const k=alumOn(S._alumP)&&lineIsAlum(line)?null:lockedCostOf(line);
   if(k!==null)return {cost:k,src:"locked",why:"cost locked "+(line.costAt?fmtDate(isoDay(line.costAt)):"when quoted")+(line.costWhy?" — "+line.costWhy:"")};
   return quoteLineCostLive(line)}
 const LOCK_STAGES=["quoted","won","production","shipped","invoiced","closed"];
@@ -3143,7 +3150,7 @@ function quoteLineCostLive(line){
    Invoice or Quote: what a vendor charged or offered. Cut from another blank: the stock blank it's cut from (6x33 from
    36x6) plus optional cutting labor. Estimate: nothing yet, so it's worked out from the $/sq in of the nearest-size blank of
    the same gauge and shape, rounded up — shown in orange, still counted in the margin, replaced when a quote or invoice comes in. */
-const COST_SRC={estimate:"Estimate",quote:"Quote",invoice:"Invoice",cut:"Cut from another blank"};
+const COST_SRC={estimate:"Estimate",quote:"Quote",invoice:"Invoice",cut:"Cut from another blank",alum:"By the pound"};
 function isBlankItem(it){return !!it&&(/^BLK-/i.test(String(it.sku||""))||/\bblank\b/i.test(String(it.name||""))&&/substrate|blank/i.test(String(it.cat||"")))}
 // BLK-080-2424O → gauge 080, 24 × 24 = 576 sq in, shape O; BLK-EXT-0636 → gauge EXT, 216 sq in
 function blankDims(it){const m=String(it&&it.sku||"").toUpperCase().match(/^BLK-([A-Z0-9]+)-(\d{2})(\d{2})([A-Z]*)/);
@@ -3153,6 +3160,7 @@ function srcGuess(it){const t=String(it&&it.vendorSource||"");
   if(/^\s*est\b|estimate|not quoted/i.test(t))return "estimate";
   return /invoice|\binv\b|USS\d|\bpaid\b/i.test(t)?"invoice":/quote|\bq\d|quot/i.test(t)?"quote":""}
 function blankCostInfo(it,depth){depth=depth||0;if(!it)return {cost:0,src:""};
+  {const ab=alumBlankCost(it);if(ab)return ab}
   if(it.costSrc==="cut"&&it.cutFrom&&depth<4){const par=S.items.get(it.cutFrom);
     if(par&&!par.deleted){const pc=blankCostInfo(par,depth+1);const lab=Number(it.cutLabor)||0;
       if(pc.cost>0)return {cost:Math.round((pc.cost+lab)*100)/100,src:"cut",est:!!pc.est,parent:par,
@@ -3245,7 +3253,8 @@ function projValue(p){
 }
 // what the job costs, the same way the Quote lines table adds it up (each line's cost × qty, plus charges and other
 // costs), so the header margin and the lines never disagree. Material actually pulled is shown separately (projPulled).
-function projCost(p){if(!p)return 0;const js=jobsOf(p.id);const lines=orderedLines(p);
+function projCost(p){return S._alumP===p?projCost0(p):withAlum(p,()=>projCost0(p))}
+function projCost0(p){if(!p)return 0;const js=jobsOf(p.id);const lines=orderedLines(p);
   const est=lines.filter(l=>!isCharge(l)).reduce((t,l)=>{let c=0;try{const r=quoteLineCost(l);c=r&&r.cost?r.cost:0}catch(e){}return t+(Number(l.qty)||0)*c},0);
   const base=lines.some(l=>!isCharge(l))?est:js.reduce((t,j)=>t+jobCost(j),0);
   return base+(Number(p.otherCost)||0)+lines.filter(isCharge).reduce((t,l)=>t+(Number(l.qty)||1)*(Number(l.cost)||0),0)}
@@ -3254,7 +3263,8 @@ function valueFrom(p){return !p||!p.amountAuto?"typed in":orderedLines(p).some(l
   :orderedLines(p).some(l=>!isCharge(l))?"no prices on the lines yet":"from the work order lines"}
 // margin is read only off lines that have a cost: a sign line with no cost yet would count as 100% margin and push the
 // figure up (a charge with no cost really is nothing out of pocket, so charges always count). Extra project costs count.
-function costedMargin(p){let rev=0,cost=0,un=0,nu=0;orderedLines(p).forEach(l=>{const q=Number(l.qty)||(isCharge(l)?1:0),pr=Number(l.price)||0;if(!q||!pr)return;
+function costedMargin(p){return S._alumP===p?costedMargin0(p):withAlum(p,()=>costedMargin0(p))}
+function costedMargin0(p){let rev=0,cost=0,un=0,nu=0;orderedLines(p).forEach(l=>{const q=Number(l.qty)||(isCharge(l)?1:0),pr=Number(l.price)||0;if(!q||!pr)return;
   let c=0;if(isCharge(l))c=Number(l.cost)||0;else{try{c=quoteLineCost(l).cost||0}catch(e){}}
   if(isCharge(l)||c>0){rev+=q*pr;cost+=q*c}else{un+=q*pr;nu++}});
   cost+=Number(p&&p.otherCost)||0;
@@ -10373,7 +10383,7 @@ const NAVG=[
   {id:"sales",label:"Sales",icon:"project",pages:[["mybook","contact","Dashboard"],["accounts","account","Accounts"],["contacts","contact","Contacts"],["projects","project","Projects"],["tasks","task","Tasks"]]},
   {id:"shop",label:"Production",icon:"job",pages:[["jobs","job","Work orders"],["tracker","chart","Tracker"],["calendar","calendar","Calendar"],["files","file","Files"]]},
   {id:"stock",label:"Inventory",icon:"inventory",pages:[["inventory","inventory","Inventory"],["stencils","inventory","Stencils","sub"],["purchasing","inventory","Purchase orders","sub"],["vendors","vendor","Vendors"]]},
-  {id:"money",label:"Reports",icon:"chart",pages:[["reports","chart","Reports"]]},
+  {id:"money",label:"Reports",icon:"chart",pages:[["reports","chart","Reports"],["commissions","money","Commissions"]]},
   {id:"admin",label:"Admin",icon:"history",pages:[["new","history","What's new"],["archive","archive","Archive"],["bin","archive","Recycle bin"],["audit","history","Change history"],["settings","history","Settings"]]}];
 /* ===== who can do what =====
    Each person on the team has an access level. Owner: everything. Office: everything but Settings.
@@ -10454,7 +10464,7 @@ function rail(){
   const tog=onDash&&canCompanyDash()?`<nav class="rail-tog" aria-label="Which dashboard">
       <a href="#/mybook" class="${cur!=="home"?"on":""}" title="${esc(dashLabel("mybook"))}"><span class="full">${esc(dashFirst()==="My"?"Mine":dashFirst()+"'s")}</span><span class="abbr">${esc(mineAbbr)}</span></a><a href="#/home" class="${cur==="home"?"on":""}" title="Company dashboard"><span class="full">Company</span><span class="abbr">Co</span></a></nav>`:"";
   const groups=NAVG.map(g=>{
-    const pages=g.pages.filter(([r])=>r!=="mybook").filter(([r])=>r!=="settings"||can("settings"));
+    const pages=g.pages.filter(([r])=>r!=="mybook").filter(([r])=>r!=="settings"||can("settings")).filter(([r])=>r!=="commissions"||can("price"));
     const inG=pages.some(([r])=>r===cur);
     return `<div class="rail-g">${esc(g.label)}</div>${pages.filter(x=>x[3]!=="sub"||inG).map(([r,i,l,sub])=>sub?item(r,i,l).replace('class="rail-i ','class="rail-i rail-sub '):item(r,r==="settings"?"settings":i,l)).join("")}`}).join("");
   return `<aside class="rail" aria-label="Main menu">
@@ -10505,10 +10515,17 @@ function body(){
     case "settings":return settingsView();
     case "archive":return archiveView();
     case "bin":return binView();
+    case "commissions":return commissionsView();
     default:return home();
   }
 }
 
+document.addEventListener("click",e=>{const x=e.target&&e.target.closest&&e.target.closest("[data-setsec]");if(!x)return;const sec=x.dataset.setsec;S.stab=sec==="comm"?"comm":"pricing";
+  setTimeout(()=>{const el=document.getElementById("set-"+sec);if(el)el.scrollIntoView({block:"start"})},400)},true);
+document.addEventListener("change",e=>{const t=e.target;if(!t||!t.dataset)return;
+  if(t.dataset.alumlb){const v=t.value.trim();alumSave(t.dataset.alumlb,{lb:v===""?"":Math.max(0,Number(v)||0),on:true}).then(()=>render());return}
+  if(t.dataset.cm==="type"){S._cmDraft=commReadRows();render();return}
+  if(t.dataset.commrep){S.commF=Object.assign({st:"owed",rep:""},S.commF||{},{rep:t.value});render();return}});
 /* ========== LIVE TRACKER ========== */
 function tracker(){
   let ps=openProjects();
@@ -10600,6 +10617,229 @@ function shopStrip(){
 }
 
 /* ========== home ========== */
+/* ========== aluminum by the pound ==========
+   Blank vendors price aluminum by weight: the more pounds on one order, the lower the $/lb (a vendor's base pricing
+   often has a minimum weight; bigger orders come in lower). Settings → Pricing holds each
+   vendor's price breaks. A project can then cost its flat aluminum blanks by the pound at the break its buy reaches —
+   this job alone, or a bigger buy shared with other jobs — and its cost, margin and commission follow. Off by default:
+   blanks keep the cost on file. */
+const AL_DENS=0.0975;   // lb per cubic inch of sign-blank aluminum (5052-H38), the figure blank vendors weigh by
+function alumRows(){const r=(S.brand||{}).alumBreaks;return Array.isArray(r)?r.filter(x=>x&&String(x.vendor||"").trim()&&Number(x.perLb)>0):[]}
+function blankLbOf(sqin,g){const t=(Number(String(g||"080").replace(/\D/g,""))||80)/1000;return sqin*t*AL_DENS}
+function lineSqin(l){const d=parseSize(l&&l.size);if(d)return d.w*d.h;const m=String(l&&l.size||"").trim().match(/^(\d+(?:\.\d+)?)\s*(?:in|"|″)?$/i);return m?Math.pow(+m[1],2):0}
+// a line made on (or sold as) a flat aluminum blank — signs and bare blanks; extruded blades are priced by the foot, not here
+function lineIsAlum(l){if(!l||isCharge(l))return false;const t=(l.desc||"")+" "+(l.title||"")+" "+(l.sub||"");
+  if(/extru|plastic|pvc|acm|coroplast|stencil|ldpe/i.test(t))return false;
+  const lp=lineProd(l);if(lp!=="sign"&&!/\bblanks?\b/i.test(t))return false;return lineSqin(l)>0}
+function lineAlumLb(l){return (Number(l.qty)||0)*blankLbOf(lineSqin(l),lineGauge(l))}
+function projAlumLb(p){return orderedLines(p).filter(lineIsAlum).reduce((t,l)=>t+lineAlumLb(l),0)}
+function projAlumPcs(p){return orderedLines(p).filter(lineIsAlum).reduce((t,l)=>t+(Number(l.qty)||0),0)}
+function projBuyLb(p){const b=p&&p.alumBuy;return b&&Number(b.lb)>0?Number(b.lb):projAlumLb(p)}
+// each vendor's break for a weight: the highest "from" at or under it; the cheapest delivered $/lb wins
+function alumBreakFor(rows,v,lb){return rows.filter(r=>r.vendor===v&&(Number(r.minLb)||0)<=lb).sort((a,b)=>(Number(b.minLb)||0)-(Number(a.minLb)||0))[0]||null}
+function alumRate(lb){const rows=alumRows();if(!rows.length)return null;const vs=[...new Set(rows.map(r=>r.vendor))];
+  const opts=vs.map(v=>{const r=alumBreakFor(rows,v,lb);if(!r)return null;const fr=r.freight==="incl"?0:(Number(r.freightLb)||0);
+    return {vendor:v,perLb:Math.round(((Number(r.perLb)||0)+fr)*1000)/1000,metal:Number(r.perLb)||0,freight:fr,perPc:Number(r.perPc)||0,from:Number(r.minLb)||0}}).filter(Boolean);
+  // compare on a 24" × 24" .080 blank (4.5 lb) so a per-blank charge counts too
+  opts.sort((a,b)=>(a.perLb*4.49+a.perPc)-(b.perLb*4.49+b.perPc));return opts[0]||null}
+// the next weight at which some vendor's price drops below what this weight gets
+function alumNext(lb){const cur=alumRate(lb);if(!cur)return null;
+  const mins=[...new Set(alumRows().map(r=>Number(r.minLb)||0))].filter(m=>m>lb).sort((a,b)=>a-b);
+  for(const m of mins){const r=alumRate(m);if(r&&r.perLb*4.49+r.perPc<cur.perLb*4.49+cur.perPc-0.005)return {lb:m,r}}return null}
+function withAlum(p,fn){const prev=S._alumP;S._alumP=p||null;try{return fn()}finally{S._alumP=prev}}
+function alumOn(p){return !!(p&&p.alumBuy&&p.alumBuy.on&&alumRows().length)}
+// a flat aluminum blank costed by the pound for the project being worked out (null = the cost on file)
+function alumBlankCost(it){const p=S._alumP;if(!alumOn(p))return null;const d=blankDims(it);if(!d||!/^\d{3}$/.test(d.g))return null;
+  const lb=blankLbOf(d.sqin,d.g);const r=alumRate(projBuyLb(p));if(!r)return null;
+  const c=Math.round((lb*r.perLb+r.perPc)*100)/100;
+  return {cost:c,src:"alum",why:lb.toFixed(2)+" lb at $"+r.perLb.toFixed(2)+"/lb"+(r.freight?" with freight":"")+(r.perPc?" + $"+r.perPc.toFixed(2)+" a blank":"")+" — "+r.vendor+", "+Math.round(projBuyLb(p)).toLocaleString()+" lb buy"}}
+function lbTxt(n){return Math.round(n).toLocaleString()+" lb"}
+// the card on a project: how much aluminum it uses, what a buy that size costs, and what that does to the margin
+function alumCard(p){if(!can("cost")||!projAlumPcs(p))return "";const id=p.id;const rows=alumRows();
+  const lb=projAlumLb(p),pcs=projAlumPcs(p),on=alumOn(p),buy=projBuyLb(p);
+  if(!rows.length)return `<section class="card flush" data-defshut><header><h2>Aluminum buy</h2><span class="n">${lbTxt(lb)}</span></header>
+    <div class="body"><p style="margin:0">This job uses about <b>${lbTxt(lb)}</b> of aluminum (${pcs} blank${pcs===1?"":"s"}). Put your vendors' price-per-pound breaks in ${can("settings")?`<button class="lnk" data-go="settings" data-setsec="alum">Settings → Aluminum by the pound</button>`:"Settings"} and this card shows what a buy this size really costs.</p></div></section>`;
+  const r=alumRate(buy),nx=alumNext(buy);
+  const onFile=withAlum(Object.assign({},p,{alumBuy:{on:false}}),()=>costedMargin0(p));
+  const byLb=withAlum(Object.assign({},p,{alumBuy:{on:true,lb:(p.alumBuy||{}).lb||""}}),()=>costedMargin0(Object.assign({},p,{alumBuy:{on:true,lb:(p.alumBuy||{}).lb||""}})));
+  const pct=x=>x.m==null?"—":Math.round(x.m)+"%";
+  const nxSave=nx?(function(){const q=Object.assign({},p,{alumBuy:{on:true,lb:nx.lb}});return withAlum(q,()=>costedMargin0(q))})():null;
+  return `<section class="card flush"><header><h2>Aluminum buy</h2><span class="n">${lbTxt(lb)}</span>
+      <span class="sp"><label class="btn sm" style="gap:6px"><input type="checkbox" data-alumon="${esc(id)}"${on?" checked":""}>Cost blanks by the pound</label></span></header>
+    <div class="body">
+      <p style="margin:0 0 8px">This job uses about <b>${lbTxt(lb)}</b> of aluminum — ${pcs} blank${pcs===1?"":"s"}.</p>
+      <div class="fgrid" style="padding:0">
+        <div class="fld"><div class="k">Pounds on the order</div><input type="number" min="0" step="50" data-alumlb="${esc(id)}" value="${esc(String((p.alumBuy||{}).lb||""))}" placeholder="${Math.round(lb)} (this job)" aria-label="Pounds of aluminum on the order"><div class="sub">Buying with other jobs? Put the total pounds on that order.</div></div>
+        <div class="fld"><div class="k">Price at ${lbTxt(buy)}</div><div class="v">${r?`<b>$${r.perLb.toFixed(2)}/lb</b> ${r.freight?"with freight":""}${r.perPc?" + $"+r.perPc.toFixed(2)+" a blank":""}<div class="sub">${esc(r.vendor)} · break from ${lbTxt(r.from)}</div>`:`<span class="sub">no vendor break covers ${lbTxt(buy)}</span>`}</div></div></div>
+      <table style="table-layout:auto;width:100%;margin-top:10px"><thead><tr><th></th><th style="text-align:right">Cost</th><th style="text-align:right">Margin</th></tr></thead><tbody>
+        <tr${on?"":` style="font-weight:700"`}><td>Blank cost on file${on?"":" <span class='pill'>in use</span>"}</td><td class="mono" style="text-align:right">${money(onFile.cost)}</td><td style="text-align:right">${pct(onFile)}</td></tr>
+        <tr${on?` style="font-weight:700"`:""}><td>By the pound at ${lbTxt(buy)}${on?" <span class='pill g'>in use</span>":""}</td><td class="mono" style="text-align:right">${money(byLb.cost)}</td><td style="text-align:right">${pct(byLb)}</td></tr>
+        ${nxSave?`<tr><td class="sub">If the order reaches ${lbTxt(nx.lb)} (${esc(nx.r.vendor)} $${nx.r.perLb.toFixed(2)}/lb)</td><td class="mono sub" style="text-align:right">${money(nxSave.cost)}</td><td class="sub" style="text-align:right">${pct(nxSave)}</td></tr>`:""}
+      </tbody></table>
+      <div class="sub" style="margin-top:6px">Weight: sq in × gauge × ${AL_DENS} lb/cu in, the way blank vendors weigh it. Only flat aluminum blanks change; sheeting, film and ink stay at their costs.</div>
+    </div></section>`}
+async function alumSave(pid,patch){const p=proj(pid);if(!p)return;const cur=Object.assign({on:false,lb:""},p.alumBuy||{});const nb=Object.assign(cur,patch);
+  try{await push("projects/"+pid,{alumBuy:nb,updatedAt:Date.now()})}catch(e){return toast("That didn't save — try again.")}
+  recordHistory("project",pid,[{f:"Aluminum buy",o:"",n:nb.on?"By the pound at "+lbTxt(Number(nb.lb)||projAlumLb(p)):"Blank cost on file"}])}
+// Settings: each vendor's price breaks
+function alumSettingsCard(){if(!can("settings"))return "";const rows=S._alDraft||(Array.isArray((S.brand||{}).alumBreaks)?S.brand.alumBreaks:[]);
+  const row=(r,i)=>`<tr data-alrow="${i}"><td><input class="tin" data-al="vendor" value="${esc(r.vendor||"")}" aria-label="Vendor" style="min-width:130px"></td>
+    <td><input class="tin num" data-al="minLb" type="number" min="0" step="100" value="${esc(String(r.minLb==null?"":r.minLb))}" aria-label="From pounds" style="width:90px"></td>
+    <td><input class="tin num" data-al="perLb" type="number" min="0" step="0.01" value="${esc(String(r.perLb==null?"":r.perLb))}" aria-label="Dollars per pound" style="width:80px"></td>
+    <td><select class="tin" data-al="freight" style="width:auto;margin-bottom:4px" aria-label="Freight"><option value="extra"${r.freight!=="incl"?" selected":""}>add</option><option value="incl"${r.freight==="incl"?" selected":""}>included</option></select>
+      <input class="tin num" data-al="freightLb" type="number" min="0" step="0.01" value="${esc(String(r.freightLb==null?"":r.freightLb))}" aria-label="Freight dollars per pound" style="width:70px" placeholder="$/lb"></td>
+    <td><input class="tin num" data-al="perPc" type="number" min="0" step="0.01" value="${esc(String(r.perPc==null?"":r.perPc))}" aria-label="Charge per blank" style="width:70px"></td>
+    <td><input class="tin" data-al="note" value="${esc(r.note||"")}" aria-label="Note" placeholder="quote # / date"></td>
+    <td><button class="btn sm d" data-aldel="${i}" aria-label="Remove this break">✕</button></td></tr>`;
+  return `<section class="card" id="set-alum"><header><h2>Aluminum by the pound</h2><span class="sub">Each vendor's price breaks for flat aluminum blanks. A project can cost its blanks at the break its order reaches (project page → Aluminum buy).</span></header><div class="body">
+    <div style="overflow-x:auto"><table style="table-layout:auto;width:100%"><thead><tr><th>Vendor</th><th>From (lb)</th><th>$ per lb</th><th>Freight ($/lb)</th><th>+ per blank</th><th>Where it's from</th><th></th></tr></thead>
+      <tbody id="al-body">${rows.map(row).join("")||`<tr><td colspan="7" class="sub">No breaks yet.</td></tr>`}</tbody></table></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn sm" data-aladd="1">Add a break</button>
+      <span style="flex:1"></span><button class="btn sm p" data-alsave="1">Save breaks</button></div>
+    <div class="sub" style="margin-top:8px">A break applies from its weight up, until that vendor's next break. Freight "add" puts the freight $/lb on top. "+ per blank" is any cut or handling charge per piece.</div>
+  </div></section>`}
+function alumReadRows(){return [...document.querySelectorAll("#al-body tr[data-alrow]")].map(tr=>{const g=k=>{const el=tr.querySelector(`[data-al="${k}"]`);return el?el.value:""};
+  return {vendor:g("vendor").trim(),minLb:Number(g("minLb"))||0,perLb:Number(g("perLb"))||0,freight:g("freight")==="incl"?"incl":"extra",freightLb:Number(g("freightLb"))||0,perPc:Number(g("perPc"))||0,note:g("note").trim()}})}
+async function alumSaveRows(rows,msg){rows=rows.filter(r=>r.vendor||r.perLb);
+  try{await push("settings/brand",{alumBreaks:rows})}catch(e){const b2=Object.assign({},S.brand||{},{alumBreaks:rows});await setDoc("settings/brand",b2)}
+  S.brand=Object.assign({},S.brand||{},{alumBreaks:rows});S._alDraft=null;toast(msg||"Saved");render()}
+
+/* ========== commissions ==========
+   Each rep is on a plan (Settings → Commissions): a % of the sale, everything over the company price (the price a piece
+   has to sell for — its cost at the company's margin — with all or a share of the difference to the rep), a flat $ per
+   piece, or a flat $ per job. A project can use another plan or a set amount. Products only: shipping, freight, setup and
+   other charges aren't commissioned. Pending from Won; earned (owed) when the customer pays; paid out when it's marked so. */
+const COMM_T={sale:"% of the sale",floor:"Over the company price",piece:"Flat $ per piece",job:"Flat $ per job"};
+function commPlans(){const r=(S.brand||{}).commPlans;return Array.isArray(r)?r.filter(x=>x&&x.id):[]}
+function commPlanTxt(pl){if(!pl)return "";const r=Number(pl.rate)||0;
+  return pl.type==="sale"?r+"% of the sale":pl.type==="piece"?"$"+r.toFixed(2)+" a piece":pl.type==="job"?"$"+r.toFixed(2)+" a job"
+    :(Number(pl.share)||100)+"% of what's over the company price (cost at "+(Number(pl.floorMargin)||0)+"% margin)"}
+const WON_ST=["won","production","shipped","invoiced","closed"];
+function commFor(p){if(!p)return null;const rep=repFor(p);if(!rep)return null;
+  const pid=p.commPlanId||rep.commPlanId||"";const plan=commPlans().find(x=>x.id===pid)||null;
+  const hasAdj=p.commAdj!=null&&p.commAdj!=="";if(!plan&&!hasAdj)return null;
+  return withAlum(p,()=>{const L=orderedLines(p).filter(l=>!isCharge(l)&&(Number(l.qty)||0)>0&&(Number(l.price)||0)>0);
+    const sale=L.length?L.reduce((t,l)=>t+(Number(l.qty)||0)*(Number(l.price)||0),0):projValue(p);
+    let amt=0,why="",rows=[],uncosted=0,under=0;const rate=plan?Number(plan.rate)||0:0;
+    if(plan&&plan.type==="sale"){amt=sale*rate/100;why=rate+"% of "+money2(sale)}
+    else if(plan&&plan.type==="piece"){const pcs=L.reduce((t,l)=>t+(Number(l.qty)||0),0);amt=pcs*rate;why=pcs+" piece"+(pcs===1?"":"s")+" × $"+rate.toFixed(2)}
+    else if(plan&&plan.type==="job"){amt=rate;why="flat for the job"}
+    else if(plan&&plan.type==="floor"){const fm=Math.min(95,Math.max(0,Number(plan.floorMargin)||0)),sh=plan.share===""||plan.share==null?100:Number(plan.share)||0;let over=0;
+      L.forEach(l=>{let c=0;try{c=quoteLineCost(l).cost||0}catch(e){}const q=Number(l.qty)||0,pr=Number(l.price)||0;
+        if(!(c>0)){uncosted++;rows.push({l,floor:null,over:0});return}
+        const floor=Math.round(c/(1-fm/100)*100)/100,o=(pr-floor)*q;if(o<0)under++;over+=Math.max(0,o);rows.push({l,floor,over:o})});
+      amt=over*sh/100;why=(sh===100?"":sh+"% of ")+money2(over)+" over the company price"+(uncosted?" — "+uncosted+" line"+(uncosted===1?"":"s")+" with no cost left out":"")}
+    if(hasAdj){why="set by hand"+(plan?" (plan says "+money2(Math.round(amt*100)/100)+")":"");amt=Number(p.commAdj)||0}
+    const won=WON_ST.indexOf(p.stage)>=0;
+    const status=p.commPaid?"paidout":!won?(p.stage==="lost"?"none":"ifwon"):billState(p)==="paid"?"owed":"pending";
+    return {p,rep,plan,amt:Math.round(amt*100)/100,sale,why,rows,uncosted,under,status,own:!!p.commPlanId,adj:hasAdj}})}
+const COMM_ST={ifwon:{l:"If won",c:""},pending:{l:"Pending — not paid yet",c:"y"},owed:{l:"Earned — owed",c:"o"},paidout:{l:"Paid out",c:"g"},none:{l:"Lost — none",c:""}};
+function commAll(){return real(live(S.projects)).map(commFor).filter(x=>x&&x.status!=="none"&&(x.amt||x.status!=="ifwon"))}
+function commMine(list){if(can("cost"))return list;const mid=meId();return list.filter(x=>x.rep&&x.rep.id===mid)}
+function commTotals(list){const yr=new Date().getFullYear();const t={owed:0,pending:0,paidYr:0,ifwon:0,nOwed:0,nPend:0};
+  list.forEach(x=>{if(x.status==="owed"){t.owed+=x.amt;t.nOwed++}else if(x.status==="pending"){t.pending+=x.amt;t.nPend++}else if(x.status==="ifwon")t.ifwon+=x.amt;
+    else if(x.status==="paidout"&&new Date(Number(x.p.commPaid.at)||0).getFullYear()===yr)t.paidYr+=Number(x.p.commPaid.amt)||x.amt});return t}
+// on a project
+function commCard(p){if(!can("price"))return "";const c=commFor(p);const r=repFor(p);
+  if(!c&&!(can("settings")&&r))return "";
+  if(!can("cost")&&(!c||!r||r.id!==meId()))return "";
+  const own=can("settings");
+  if(!c)return `<section class="card flush" data-defshut><header><h2>Commission</h2></header><div class="body"><p style="margin:0">${esc(r.name)} isn't on a commission plan. ${own?`<button class="lnk" data-go="settings" data-setsec="comm">Set up plans</button> or <button class="lnk" data-commedit="${esc(p.id)}">set this project's</button>.`:""}</p></div></section>`;
+  const st=COMM_ST[c.status];
+  return `<section class="card flush"><header><h2>Commission</h2><span class="pill ${st.c}">${esc(st.l)}</span>
+      ${own?`<span class="sp"><button class="btn sm" data-commedit="${esc(p.id)}">Change</button></span>`:""}</header>
+    <div class="body">
+      <div style="display:flex;gap:12px;align-items:baseline;flex-wrap:wrap"><span class="mono" style="font-size:22px;font-weight:800">${money2(c.amt)}</span>
+        <span>${esc(c.rep.name)} · ${esc(c.plan?(c.plan.name||COMM_T[c.plan.type])+" — "+commPlanTxt(c.plan):"set amount")}${c.own?" <span class='pill'>this project's plan</span>":""}</span></div>
+      <div class="sub" style="margin-top:4px">${esc(c.why)}${c.status==="pending"?" · earned once the customer pays":""}${c.status==="paidout"?" · paid out "+esc(fmtDate(isoDay(c.p.commPaid.at)))+(c.p.commPaid.by?" by "+esc(c.p.commPaid.by):""):""}</div>
+      ${c.plan&&c.plan.type==="floor"&&c.rows.length?`<table style="table-layout:auto;width:100%;margin-top:8px"><thead><tr><th>Line</th><th style="text-align:right">Company price</th><th style="text-align:right">Sold at</th><th style="text-align:right">Over</th></tr></thead><tbody>
+        ${c.rows.map(x=>`<tr><td>${esc(String(x.l.qty))} × ${esc(x.l.desc||x.l.code||"line")}</td><td class="mono" style="text-align:right">${x.floor==null?"<span class='sub'>no cost</span>":money2(x.floor)}</td><td class="mono" style="text-align:right">${money2(Number(x.l.price)||0)}</td>
+          <td class="mono" style="text-align:right;${x.over<0?"color:var(--danger-ink);font-weight:700":""}">${x.floor==null?"—":money2(x.over)}</td></tr>`).join("")}</tbody></table>
+        ${c.under?`<div class="sub" style="color:var(--danger-ink);font-weight:700;margin-top:4px">⚠ ${c.under} line${c.under===1?" is":"s are"} under the company price — nothing over on ${c.under===1?"it":"them"}</div>`:""}`:""}
+      ${own&&c.status==="owed"?`<div style="margin-top:10px"><button class="btn sm p" data-commpay="${esc(p.id)}">Mark ${money2(c.amt)} paid out</button></div>`:""}
+      ${own&&c.status==="paidout"?`<div style="margin-top:10px"><button class="btn sm" data-communpay="${esc(p.id)}">Undo paid out</button></div>`:""}
+    </div></section>`}
+function commEditModal(pid){const p=proj(pid);if(!p||!can("settings"))return;const r=repFor(p);
+  openModal(mshell("Commission on P-"+p.num,"money",`<div class="fgrid">
+      <div class="fld full"><div class="k">Plan for this project</div><select id="cm-plan"><option value="">${esc(r&&r.commPlanId?"The rep's plan ("+((commPlans().find(x=>x.id===r.commPlanId)||{}).name||"")+")":"The rep's plan (none)")}</option>
+        ${commPlans().map(pl=>`<option value="${esc(pl.id)}"${p.commPlanId===pl.id?" selected":""}>${esc((pl.name||COMM_T[pl.type])+" — "+commPlanTxt(pl))}</option>`).join("")}</select></div>
+      <div class="fld full"><div class="k">Or a set amount ($)</div><input id="cm-adj" type="number" step="0.01" value="${esc(p.commAdj==null?"":String(p.commAdj))}" placeholder="leave blank to use the plan"><div class="sub">A set amount replaces what the plan works out.</div></div></div>`,
+    `<button class="btn" data-close="1">Cancel</button><button class="btn p" id="cm-save">Save</button>`));
+  $("#cm-save").onclick=async()=>{const pl=$("#cm-plan").value,adj=$("#cm-adj").value.trim();
+    try{await push("projects/"+pid,{commPlanId:pl,commAdj:adj===""?null:Number(adj),updatedAt:Date.now()})}catch(e){return toast("That didn't save — try again.")}
+    recordHistory("project",pid,[{f:"Commission",o:"",n:adj!==""?"Set to $"+Number(adj).toFixed(2):pl?"Plan: "+((commPlans().find(x=>x.id===pl)||{}).name||""):"The rep's plan"}]);closeModal();toast("Saved");render()}}
+async function commPayOut(ids,undo){let n=0,sum=0;for(const id of ids){const c=commFor(proj(id));if(!c)continue;
+    if(!undo&&c.status!=="owed")continue;
+    try{await push("projects/"+id,{commPaid:undo?null:{amt:c.amt,at:Date.now(),by:me(),byId:meId()},updatedAt:Date.now()});n++;sum+=c.amt;
+      recordHistory("project",id,[{f:"Commission",o:"",n:undo?"Paid out undone":"Paid out "+money2(c.amt)+" to "+c.rep.name}])}catch(e){}}
+  toast(undo?"Undone":n+" commission"+(n===1?"":"s")+" marked paid out — "+money2(sum));render()}
+// the Commissions page: a rep sees their own; the owner sees everyone's and marks them paid out
+function commissionsView(){const all=commMine(commAll());const F=S.commF||{st:"owed",rep:""};
+  const reps=[...new Map(all.map(x=>[x.rep.id,x.rep])).values()];
+  let list=all.filter(x=>!F.rep||x.rep.id===F.rep);const T=commTotals(list);
+  const shown=list.filter(x=>F.st==="all"||x.status===F.st).sort((a,b)=>(Number(b.p.paidDate?Date.parse(b.p.paidDate):b.p.updatedAt)||0)-(Number(a.p.paidDate?Date.parse(a.p.paidDate):a.p.updatedAt)||0));
+  const own=can("settings");
+  const tab=(k,l,n)=>`<button role="tab" aria-selected="${F.st===k}" class="${F.st===k?"on":""}" data-commst="${k}">${esc(l)} <span class="n">${n}</span></button>`;
+  return `<div class="pad">
+    <div class="pagehead"><h1>Commissions</h1><span class="sp">${own?`<button class="btn" data-go="settings" data-setsec="comm">Plans</button>`:""}</span></div>
+    ${commPlans().length?"":`<div class="note" style="margin-bottom:12px">No commission plans yet.${own?` <button class="lnk" data-go="settings" data-setsec="comm">Set them up in Settings</button>.`:" Ask Matt to set yours up."}</div>`}
+    ${kpiRow([kpi("Earned — owed",money2(T.owed),T.nOwed+" paid job"+(T.nOwed===1?"":"s")+" not paid out",T.owed?"o":""),kpi("Pending",money2(T.pending),T.nPend+" won, waiting on the customer's payment"),
+      kpi("Paid out this year",money2(T.paidYr),String(new Date().getFullYear())),kpi("On open quotes",money2(T.ifwon),"if they're won")])}
+    <section class="card flush">
+      <div class="segbar"><div class="segf" role="tablist" aria-label="Show">${tab("owed","Owed",all.filter(x=>(!F.rep||x.rep.id===F.rep)&&x.status==="owed").length)}${tab("pending","Pending",list.filter(x=>x.status==="pending").length)}${tab("paidout","Paid out",list.filter(x=>x.status==="paidout").length)}${tab("ifwon","On quotes",list.filter(x=>x.status==="ifwon").length)}${tab("all","All",list.length)}</div>
+        ${reps.length>1?`<select data-commrep="1" aria-label="Rep" style="margin:0 0 6px auto"><option value="">Everyone</option>${reps.map(r=>`<option value="${esc(r.id)}"${F.rep===r.id?" selected":""}>${esc(r.name)}</option>`).join("")}</select>`:""}</div>
+      ${shown.length?`<table><thead><tr><th>Project</th><th>Rep</th><th>Plan</th><th style="text-align:right">Sale</th><th style="text-align:right">Commission</th><th>Status</th>${own?"<th></th>":""}</tr></thead><tbody>
+        ${shown.map(x=>`<tr><td><button class="lnk" data-go="project/${esc(x.p.id)}">P-${esc(String(x.p.num))} ${esc(x.p.name||"")}</button><div class="sub">${esc(accName(x.p.accountId))}</div></td>
+          <td>${esc(x.rep.name)}</td><td class="sub">${esc(x.adj?"set amount":x.plan?(x.plan.name||COMM_T[x.plan.type]):"")}</td>
+          <td class="mono" style="text-align:right">${money2(x.sale)}</td><td class="mono" style="text-align:right;font-weight:700">${money2(x.amt)}</td>
+          <td><span class="pill ${COMM_ST[x.status].c}">${esc(COMM_ST[x.status].l)}</span>${x.status==="owed"&&x.p.paidDate?`<div class="sub">paid ${esc(fmtDate(x.p.paidDate))}</div>`:""}${x.status==="paidout"?`<div class="sub">${esc(fmtDate(isoDay(x.p.commPaid.at)))}</div>`:""}</td>
+          ${own?`<td style="text-align:right">${x.status==="owed"?`<button class="btn sm p" data-commpay="${esc(x.p.id)}">Mark paid out</button>`:""}</td>`:""}</tr>`).join("")}</tbody></table>
+        ${own&&F.st==="owed"&&shown.length>1?`<div style="padding:10px 15px"><button class="btn p" data-commpayall="1">Mark all ${shown.length} paid out — ${money2(shown.reduce((t,x)=>t+x.amt,0))}</button></div>`:""}`
+      :`<div class="empty">${F.st==="owed"?"Nothing owed right now.":"Nothing here."}</div>`}
+    </section>
+    <div class="sub" style="margin-top:8px">Commission is on products only — shipping, freight, setup and other charges aren't included. It's pending from Won and earned when the customer pays.</div></div>`}
+// the dashboard card — the owner sees everyone, a rep sees their own
+function commDashCard(mineOnly){if(!can("price"))return "";let all=commAll();
+  if(mineOnly){const t=S.viewerTeam;if(!t)return "";all=all.filter(x=>x.rep.id===t.id);if(!all.length&&!t.commPlanId)return ""}
+  else if(!can("cost"))return "";
+  if(!commPlans().length&&!all.length)return can("settings")&&!mineOnly?`<section class="card flush"><header><h2>Commissions</h2></header><div class="body"><p style="margin:0">Set up your reps' commission plans and this shows what's owed. <button class="lnk" data-go="settings" data-setsec="comm">Set up plans</button></p></div></section>`:"";
+  const T=commTotals(all);const byRep=[...new Map(all.map(x=>[x.rep.id,x.rep])).values()].map(r=>({r,t:commTotals(all.filter(x=>x.rep.id===r.id))}));
+  return `<section class="card flush"><header><h2>${mineOnly?"My commissions":"Commissions"}</h2><span class="sp"><button class="btn sm" data-go="commissions">Open</button></span></header>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-bottom:1px solid var(--line2)">
+      <div style="padding:10px 15px;border-right:1px solid var(--line2)"><div class="kpi-l">Owed</div><div class="mono" style="font-size:18px;font-weight:800;${T.owed?"color:var(--orange-text)":""}">${money2(T.owed)}</div></div>
+      <div style="padding:10px 15px;border-right:1px solid var(--line2)"><div class="kpi-l">Pending</div><div class="mono" style="font-size:18px;font-weight:800">${money2(T.pending)}</div></div>
+      <div style="padding:10px 15px"><div class="kpi-l">Paid out ${new Date().getFullYear()}</div><div class="mono" style="font-size:18px;font-weight:800">${money2(T.paidYr)}</div></div></div>
+    ${!mineOnly&&byRep.length?byRep.map(o=>`<div style="display:flex;gap:10px;padding:8px 15px;border-bottom:1px solid var(--line2)"><span style="flex:1">${esc(o.r.name)}</span><span class="sub">owed <b class="mono">${money2(o.t.owed)}</b> · pending <span class="mono">${money2(o.t.pending)}</span></span></div>`).join(""):""}
+  </section>`}
+// Settings: the plans and who's on which
+function commSettingsCard(){if(!can("settings"))return "";const pls=S._cmDraft||commPlans();const team=live(S.team).filter(t=>t.isRep||t.commPlanId||teamRole(t)==="sales");
+  const row=(pl,i)=>{const fl=pl.type==="floor",pre=pl.type==="piece"||pl.type==="job";
+    return `<tr data-cmrow="${i}" data-cmid="${esc(pl.id)}"><td><input class="tin" data-cm="name" value="${esc(pl.name||"")}" aria-label="Plan name" placeholder="e.g. Bob's plan" style="min-width:130px"></td>
+    <td><select class="tin" data-cm="type" aria-label="Rule">${Object.keys(COMM_T).map(k=>`<option value="${k}"${pl.type===k?" selected":""}>${esc(COMM_T[k])}</option>`).join("")}</select></td>
+    <td>${fl?`<span class="sub">—</span><input type="hidden" data-cm="rate" value="">`:`<div class="tunit">${pre?"<span>$</span>":""}<input class="tin num" data-cm="rate" type="number" min="0" step="0.01" value="${esc(String(pl.rate==null?"":pl.rate))}" aria-label="${pre?"Dollars":"Percent of the sale"}" style="width:84px">${pre?"":"<span>%</span>"}</div>`}</td>
+    <td>${fl?`<div class="tunit"><input class="tin num" data-cm="floorMargin" type="number" min="0" max="95" step="1" value="${esc(String(pl.floorMargin==null?"":pl.floorMargin))}" aria-label="Company margin percent" style="width:70px" placeholder="40"><span>%</span></div>`:`<span class="sub">—</span><input type="hidden" data-cm="floorMargin" value="${esc(String(pl.floorMargin==null?"":pl.floorMargin))}">`}</td>
+    <td>${fl?`<div class="tunit"><input class="tin num" data-cm="share" type="number" min="0" max="100" step="1" value="${esc(String(pl.share==null?"":pl.share))}" aria-label="Rep's share percent" style="width:70px" placeholder="100"><span>%</span></div>`:`<span class="sub">—</span><input type="hidden" data-cm="share" value="${esc(String(pl.share==null?"":pl.share))}">`}</td>
+    <td><button class="btn sm d" data-cmdel="${i}" aria-label="Remove this plan">✕</button></td></tr>`};
+  return `<section class="card" id="set-comm"><header><h2>Commissions</h2><span class="sub">Plans for the sales team. Products only (no shipping, freight or charges). Pending from Won, earned when the customer pays, then you mark it paid out.</span></header><div class="body">
+    <div style="overflow-x:auto"><table style="table-layout:auto;width:100%"><thead><tr><th>Plan</th><th>Rule</th><th>Rate</th><th>Company margin</th><th>Rep's share</th><th></th></tr></thead>
+      <tbody id="cm-body">${pls.map(row).join("")||`<tr><td colspan="6" class="sub">No plans yet.</td></tr>`}</tbody></table></div>
+    <div class="sub" style="margin:6px 0 10px">"Over the company price": each piece's company price is its cost at the company margin (cost ÷ (1 − margin)). Everything sold above it — or the rep's share of it — is the commission. If blank costs change with the aluminum buy, the company price follows.</div>
+    <button class="btn sm" data-cmadd="1">Add a plan</button>
+    <div class="k" style="margin:14px 0 6px">Who's on which plan</div>
+    ${team.length?team.map(t=>`<div style="display:flex;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line2)"><span style="flex:1">${esc(t.name)}</span>
+      <select class="tin" style="width:auto" data-cmteam="${esc(t.id)}" aria-label="${esc(t.name)}'s plan"><option value="">No commission</option>${pls.map(pl=>`<option value="${esc(pl.id)}"${t.commPlanId===pl.id?" selected":""}>${esc(pl.name||COMM_T[pl.type])}</option>`).join("")}</select></div>`).join("")
+      :`<div class="sub">Tick "Sales rep" on a team member (Settings → Our team) to put them on a plan.</div>`}
+    <div style="display:flex;margin-top:10px"><span style="flex:1"></span><button class="btn sm p" data-cmsave="1">Save commissions</button></div>
+  </div></section>`}
+function commReadRows(){return [...document.querySelectorAll("#cm-body tr[data-cmrow]")].map(tr=>{const g=k=>{const el=tr.querySelector(`[data-cm="${k}"]`);return el?el.value:""};
+  return {id:tr.dataset.cmid||uid("cp"),name:g("name").trim(),type:g("type")||"sale",rate:g("rate")===""?"":Number(g("rate")),floorMargin:g("floorMargin")===""?"":Number(g("floorMargin")),share:g("share")===""?"":Number(g("share"))}})}
+async function commSaveAll(){const rows=commReadRows().filter(r=>r.name||r.rate!=="");
+  try{await push("settings/brand",{commPlans:rows})}catch(e){const b2=Object.assign({},S.brand||{},{commPlans:rows});await setDoc("settings/brand",b2)}
+  S.brand=Object.assign({},S.brand||{},{commPlans:rows});S._cmDraft=null;
+  for(const sel of document.querySelectorAll("[data-cmteam]")){const t=S.team.get(sel.dataset.cmteam);if(!t)continue;const v=rows.some(r=>r.id===sel.value)?sel.value:"";
+    if(String(t.commPlanId||"")!==v){try{await push("team/"+t.id,{commPlanId:v})}catch(e){}}}
+  toast("Commissions saved");render()}
+
 function home(){
   const all=real(live(S.projects)), open=real(openProjects()), oj=openJobs().filter(realJob);
   const ym=thisYM(), yr=new Date().getFullYear();
@@ -10689,6 +10929,7 @@ function home(){
         ${jobTable(oj.filter(j=>(JS[j.status]||{}).shop).sort(byDue).slice(0,10),true)}</section>
       <div>
         ${myTasksCard()}
+        ${commDashCard(false)}
         <section class="card flush"><header><h2>Open tasks</h2><span class="n">${tasks.length}</span></header>
           ${tasks.length?`<ul class="act">${tasks.map(activityRow).join("")}</ul>`
           :`<div class="empty">Nothing open.</div>`}</section>
@@ -11408,7 +11649,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-156";
+const APP_VERSION="2026.11.25-157";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -11651,7 +11892,8 @@ function actFilterBar(items){
       title="Show only ${esc(ATYPE[k].l.toLowerCase())}s">${ic(ATYPE[k].i,14)}${esc(ATYPE[k].l)} <span class="n">${counts[k]}</span></button>`).join("")}</div>`;
 }
 
-function projectRec(id){
+function projectRec(id){return withAlum(proj(id),()=>projectRec0(id))}
+function projectRec0(id){
   const p=proj(id);if(!p)return notFound("Project");
   const a=acct(p.accountId)||{};
   const js=jobsOf(id),cur=PATH.indexOf(p.stage),sl=p.stageLog||[];
@@ -11823,6 +12065,7 @@ function projectRec(id){
                 <button class="btn sm" data-invmail="${esc(id)}">Email the invoice</button></div>`:""}</div>
             </div></section>
 
+        ${commCard(p)}${alumCard(p)}
         <section class="card flush"><header><span class="oi sm oi-cont">${ic("contact",14)}</span><h2>Contacts on this project</h2>
           <span class="n">${onProj.length}</span>
           <span class="sp"><button class="btn sm" data-assign="${esc(id)}">Assign</button>
@@ -13113,6 +13356,7 @@ function myBook(){
               <div style="margin-top:12px"><button class="btn p" data-fixrep="1">Assign accounts</button></div></div>`})()}
         </section>
         ${myTasksCard()}
+        ${commDashCard(true)}
       </div>
     </div>
     <section class="card flush"><header><span class="oi sm oi-job">${ic("job",14)}</span><h2>Work orders on my projects</h2>
@@ -13921,7 +14165,7 @@ function archiveView(){
   </div>`;
 }
 /* ========== settings + bin ========== */
-const SET_GROUPS=[["company","Company"],["pricing","Pricing"],["connections","Connections"],["production","Production"],
+const SET_GROUPS=[["company","Company"],["pricing","Pricing"],["comm","Commissions"],["connections","Connections"],["production","Production"],
   ["codes","Codes & pictures"],["team","Team & access"],["data","Data"],["about","How it works"]];
 function settingsView(){
   if(!can("settings"))return `<div class="pad"><div class="empty"><b>Settings are for the owner</b>Ask Matt to change anything here.</div></div>`;
@@ -14027,7 +14271,10 @@ function settingsView(){
         <div class="fld"><div class="k">Labour</div><div class="v">not included</div></div>`:""}
       </div>`:""}
     </section>
+    ${alumSettingsCard()}
     ${costCheckCard()}`)}
+
+    ${panel("comm","Commissions","The sales team's commission plans and who's on which.",commSettingsCard())}
 
     ${panel("connections","Connections","The website, the agents' sheets and QuickBooks. Each one says when it last ran.",`
     <section class="card"><header><h2>Website orders</h2><span class="sub">streetsignsupply.com sends paid orders in. On your own site the CRM checks every 15 minutes.</span></header><div class="body">
@@ -18339,6 +18586,19 @@ function bind(){
     {const x=t.closest("[data-binres]");if(x){const i=x.dataset.binres.indexOf(":"),k0=x.dataset.binres.slice(0,i),i0=x.dataset.binres.slice(i+1);closeModal();
       const w=restoreGuard(k0,i0);if(w){askConfirm("Restore anyway?",`<p style="margin:0">${esc(w)}</p>`,"Restore it",false,()=>restore(k0,i0));return}restore(k0,i0);return}}
     {const x=t.closest("[data-binhist]");if(x){const i=x.dataset.binhist.indexOf(":"),ty=x.dataset.binhist.slice(0,i),k=x.dataset.binhist.slice(i+1);binHistModal(ty,k);return}}
+    {const x=t.closest("[data-alumon]");if(x&&x.tagName==="INPUT"){alumSave(x.dataset.alumon,{on:x.checked}).then(()=>render());return}}
+    {const x=t.closest("[data-aladd]");if(x){S._alDraft=alumReadRows().concat([{vendor:"",minLb:0,perLb:"",freight:"extra",freightLb:"",perPc:"",note:""}]);render();return}}
+    {const x=t.closest("[data-aldel]");if(x){const r=alumReadRows();r.splice(Number(x.dataset.aldel),1);S._alDraft=r;render();return}}
+    {const x=t.closest("[data-alsave]");if(x){alumSaveRows(alumReadRows(),"Aluminum breaks saved");return}}
+    {const x=t.closest("[data-cmadd]");if(x){S._cmDraft=commReadRows().concat([{id:uid("cp"),name:"",type:"sale",rate:"",floorMargin:"",share:""}]);render();return}}
+    {const x=t.closest("[data-cmdel]");if(x){const r=commReadRows();r.splice(Number(x.dataset.cmdel),1);S._cmDraft=r;render();return}}
+    {const x=t.closest("[data-cmsave]");if(x){commSaveAll();return}}
+    {const x=t.closest("[data-commedit]");if(x){commEditModal(x.dataset.commedit);return}}
+    {const x=t.closest("[data-commpay]");if(x){const c=commFor(proj(x.dataset.commpay));if(!c)return;askConfirm("Mark "+money2(c.amt)+" paid out to "+c.rep.name+"?",`<p style="margin:0">P-${esc(String(c.p.num))} ${esc(c.p.name||"")}. It moves to Paid out and goes in the project's history.</p>`,"Mark paid out",false,()=>commPayOut([c.p.id]));return}}
+    {const x=t.closest("[data-communpay]");if(x){commPayOut([x.dataset.communpay],true);return}}
+    {const x=t.closest("[data-commpayall]");if(x){const F=S.commF||{st:"owed",rep:""};const L=commMine(commAll()).filter(c=>c.status==="owed"&&(!F.rep||c.rep.id===F.rep));
+      askConfirm("Mark "+L.length+" commissions paid out?",`<p style="margin:0">${money2(L.reduce((t,c)=>t+c.amt,0))} in all. Each goes in its project's history.</p>`,"Mark paid out",false,()=>commPayOut(L.map(c=>c.p.id)));return}}
+    {const x=t.closest("[data-commst]");if(x){S.commF=Object.assign({st:"owed",rep:""},S.commF||{},{st:x.dataset.commst});render();return}}
     {const x=t.closest("[data-binleads]");if(x){S.binLeads=x.dataset.binleads==="1";S.binT="";S.binN=200;render();return}}
     {const x=t.closest("[data-binpurge]");if(x){binPurgeAsk(binList());return}}
     {const x=t.closest("[data-binkill]");if(x){const i=x.dataset.binkill.indexOf(":"),ty=x.dataset.binkill.slice(0,i),k=x.dataset.binkill.slice(i+1);

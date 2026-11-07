@@ -1,5 +1,12 @@
 # What changed
 
+## 2026.11.25-157 (aluminum by the pound, and commissions)
+- **Aluminum by the pound** (Settings → Pricing): each blank vendor's price breaks — from how many pounds, $ per lb, freight (added or included) and any per-blank charge.
+- **Aluminum buy** on each project with blanks: how many pounds the job uses, the price at that weight, and its cost and margin with the blank cost on file vs by the pound — plus what it would be if the order reached the next break. Put in the pounds when buying with other jobs. Tick "Cost blanks by the pound" and the project's cost, margin and commission use it. Weight is sq in × gauge × 0.0975 lb/cu in; only flat aluminum blanks change.
+- **Commissions**: plans in Settings → Commissions — % of the sale, over the company price (each piece's cost at the company's margin; the rep gets all or a share of what it sells above that), flat $ per piece, or flat $ per job — and which rep is on which plan. A project can use another plan or a set amount. Products only (no shipping, freight or charges). Pending from Won, earned when the customer pays, then the owner marks it paid out.
+- Each project shows its **Commission** (on the company-price plan, each line's company price and how much it's over). A **Commissions** page (Reports) lists owed, pending, paid out and on open quotes — reps see their own, the owner sees everyone and marks them paid out. The company dashboard has a Commissions card; a rep's dashboard has "My commissions".
+- Calendar on a phone: "Today" no longer pushes the last day of the week off the screen (today's date is circled instead).
+
 ## 2026.11.25-156 (no more hidden crm@ copy on email links)
 - Email links in the CRM (a contact's or account's email, Compose in Gmail) no longer add a hidden copy (Bcc) to crm@streetsignsupply.com. The CRM already logs customer emails straight from each person's own Gmail, so the copy wasn't needed and people (and Bob's agent) were deleting it by hand. If Gmail ever isn't connected, the copy comes back on its own so nothing goes unlogged. Settings → Email logging has "Also add the hidden copy" if you want it anyway.
 
