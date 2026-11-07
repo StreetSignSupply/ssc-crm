@@ -11649,7 +11649,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-157";
+const APP_VERSION="2026.11.25-158";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -17656,9 +17656,36 @@ async function quoteOkFor(p,to,cc,atts){const ap=p&&p.quoteApproval;if(!ap||ap.v
   if(atts&&atts.length){const ok=new Set(ap.sha||[]);for(const a of atts){let h="";try{h=await shaOfUrl(a.url)}catch(e){return false}if(!ok.has(h))return false}}
   const ok=new Set((ap.to||[]).concat(ap.cc||[]).map(x=>String(x).toLowerCase()));return to.concat(cc||[]).every(x=>ok.has(String(x).toLowerCase()))}
 const MAX_RECIP=6;
+// Every signing link an email carries — the one its window was opened with and any pasted into the text — has to be live
+// when it goes. Cancelled, declined or already signed: the email is refused with a plain message. Expired: a fresh copy of
+// that request is made and the link swapped in. Replaced: the newer live link takes its place. Links the CRM doesn't know
+// (another site, or a token not loaded) are left alone. Returns {stop} to refuse, else {body, signId}.
+async function freshenSignLinks(C,body){
+  let signId=String((C&&C.signId)||"");body=String(body||"");const R=S.signreq||new Map();
+  const base=signBase();const re=new RegExp(base.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\?t=([0-9a-f]{16,64})","gi");
+  const toks=new Set();let m;while((m=re.exec(body)))toks.add(m[1].toLowerCase());if(signId)toks.add(signId.toLowerCase());
+  const live=r=>r&&!r.deleted&&r.status==="sent"&&!(r.expiresAt&&r.expiresAt<Date.now());
+  const tokOf=u=>{const k=String(u||"").match(/[?&]t=([0-9a-f]{16,64})/i);return k?k[1].toLowerCase():""};
+  for(const tok of toks){const r=R.get(tok);if(!r)continue;let nt=tok;
+    if(r.deleted||r.status==="cancelled")return {stop:"That approval link was cancelled, so it can't go out. Make a new one with Get it signed, then send."};
+    if(r.status==="declined")return {stop:"The customer asked for changes on that approval link. Make the changes, then a new link with Get it signed."};
+    if(r.status==="signed")return {stop:"That approval link was already signed. Take it out of the email, or make a new link if there's something new to approve."};
+    if(r.status==="replaced"){const nr=R.get(tokOf(r.replacedBy));if(live(nr))nt=nr.token;
+      else return {stop:"That approval link was replaced and the newer one isn't live either. Make a new one with Get it signed, then send."}}
+    else if(r.status==="sent"&&r.expiresAt&&r.expiresAt<Date.now()){
+      // expired: the same request again under a fresh token, good for another 30 days
+      nt=signToken();const now=Date.now();
+      const rec=Object.assign({},r,{token:nt,status:"sent",createdAt:now,expiresAt:now+30*864e5,createdBy:meName(),createdById:meId(),
+        viewedAt:0,viewLogged:false,signedName:"",signedTitle:"",signedAt:0,sigImg:"",note:"",pieces:[],filed:false,wonSet:false,gateSet:false,renewedFrom:tok});
+      try{await setDoc("signreq/"+nt,rec)}catch(e){return {stop:"Couldn't make a new approval link — try Get it signed."}}
+      await setDoc("signreq/"+tok,Object.assign({},r,{status:"replaced",replacedBy:signUrl(nt)})).catch(()=>{});
+      if(r.projectId)logEvent("project",r.projectId,"Approval link had expired — a new one was made for this email")}
+    else if(!live(r))return {stop:"That approval link isn't live any more. Make a new one with Get it signed, then send."};
+    if(nt!==tok){body=body.split(signUrl(tok)).join(signUrl(nt));body=body.split(signUrl(tok.toUpperCase())).join(signUrl(nt));if(signId.toLowerCase()===tok)signId=nt}}
+  return {body,signId}}
 async function composeGo(send){const C=S._cmp||{};const to=$("#cm-to").value.split(/[,;]/).map(x=>x.trim()).filter(x=>/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(x));
   const cc=$("#cm-cc").value.split(/[,;]/).map(x=>x.trim()).filter(x=>/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(x));
-  const subject=$("#cm-subj").value.trim(),body=$("#cm-body").value;
+  const subject=$("#cm-subj").value.trim();let body=$("#cm-body").value;
   if(!to.length){toast("Put in who it goes to.");$("#cm-to").focus();return}
   if(!subject){toast("Give it a subject.");$("#cm-subj").focus();return}
   if(to.length+cc.length>MAX_RECIP)return toast("At most "+MAX_RECIP+" people on one email (To and Cc together).");
@@ -17671,6 +17698,8 @@ async function composeGo(send){const C=S._cmp||{};const to=$("#cm-to").value.spl
   const quoteOut=isQuoteMail(C,atts);if(quoteOut&&pq&&quoteFileStale(pq,atts))return toast("The quote PDF attached is older than the quote — make a new one (Documents → Quote) and attach that.");
   const needOk=quoteOut&&myAccess()!=="owner"&&!(await quoteOkFor(pq,to,cc,atts));
   if(needOk&&!send)return toast("This quote needs Matt's OK first — press Send and it goes out the moment he approves it.");
+  // every approval link in the email must still be live (P-2032 got a link that had been cancelled the day before)
+  const sl=await freshenSignLinks(C,body);if(sl.stop)return toast(sl.stop);body=sl.body;const signId=sl.signId;
   const tl=to.map(x=>x.toLowerCase()),hit=x=>x&&x.email&&tl.indexOf(String(x.email).toLowerCase())>=0;
   const pA=C.pid?(proj(C.pid)||{}).accountId:C.aid;
   const c=hit(C.contact)?C.contact:(contactsOf(pA||"").find(hit)||live(S.contacts).find(hit)||null);
@@ -17678,9 +17707,9 @@ async function composeGo(send){const C=S._cmp||{};const to=$("#cm-to").value.spl
   closeModal();
   await setDoc("activity/"+xid,{id:xid,recType,recId:String(recId),kind:"note",type:"email",direction:"out",subject,text:body+(atts.length?"\n\n📎 "+atts.map(a=>a.name).join(", "):""),
     contactId:c?c.id:"",whoId:meId(),who:me(),when:today(),due:"",backOn:"",noBack:true,at:now,done:true,deleted:false,mailId:send?mid:"",sendState:send?(needOk?"approval":"queued"):"opened",to:to.join(", "),
-    mailCopy:send?{to,cc,subject,body,atts,quote:quoteOut?{pid:pq.id,hash:quoteHash(pq),no:pq.quote||""}:null,signId:C.signId||"",follow:C.follow?{pid:C.follow.pid,id:C.follow.id}:null,recType,recId:String(recId)}:null});
+    mailCopy:send?{to,cc,subject,body,atts,quote:quoteOut?{pid:pq.id,hash:quoteHash(pq),no:pq.quote||""}:null,signId,follow:C.follow?{pid:C.follow.pid,id:C.follow.id}:null,recType,recId:String(recId)}:null});
   if(send){await setDoc("mail/"+mid,Object.assign({id:mid,kind:"customer",to,cc,from:myMailFrom(),fromName:meName(),byId:meId(),message:{subject,text:body},attachments:atts,
-      status:"queued",at:now,activityId:xid,recType,recId:String(recId),signId:C.signId||""},
+      status:"queued",at:now,activityId:xid,recType,recId:String(recId),signId},
       quoteOut?{quote:{pid:pq.id,hash:quoteHash(pq),no:pq.quote||""}}:{},C.follow?{follow:{pid:C.follow.pid,id:C.follow.id}}:{}));
     toast(needOk?"Quote sent to Matt to approve — it goes out from "+myMailFrom()+" as soon as he OKs it.":"Sending — it goes out from "+myMailFrom()+" within about a minute.")}
   else{mailOpen(to.join(","),subject,body,{cc:false});toast("Opened in your email — it's logged here.")}

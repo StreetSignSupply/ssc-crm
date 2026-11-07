@@ -1,5 +1,10 @@
 # What changed
 
+## 2026.11.25-158 (no email goes out with a dead approval link)
+- **Approval links are checked before an email goes.** The CRM's email window (Send and Open in my email) now looks at every signing link in the email — the one it was opened with and any pasted into the text. A link that was **cancelled**, that the customer **asked for changes** on, or that was **already signed** stops the email with a plain message (make a new link with Get it signed). A link that **ran out** (30 days) is quietly replaced with a fresh one for the same quote or proof, noted in the project's history; a link that was **replaced** is swapped for the newer one. A customer got a cancelled link on Nov 4 (P-2032); that can't happen from the email window now. The mail worker that sends queued emails is unchanged.
+- The release check now sends three emails on a hosted page — a cancelled, an expired and a live approval link — and fails the build if the wrong one gets through.
+- Agents' feed: a **stage** row's `po` column (added to the Feed sheet Nov 7) sets the project's PO number and records it in history — confirmed in this build's code; nothing needed changing.
+
 ## 2026.11.25-157 (aluminum by the pound, and commissions)
 - **Aluminum by the pound** (Settings → Pricing): each blank vendor's price breaks — from how many pounds, $ per lb, freight (added or included) and any per-blank charge.
 - **Aluminum buy** on each project with blanks: how many pounds the job uses, the price at that weight, and its cost and margin with the blank cost on file vs by the pound — plus what it would be if the order reached the next break. Put in the pounds when buying with other jobs. Tick "Cost blanks by the pound" and the project's cost, margin and commission use it. Weight is sq in × gauge × 0.0975 lb/cu in; only flat aluminum blanks change.

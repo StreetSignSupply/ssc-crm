@@ -21,8 +21,11 @@ const D = {
     // a vendor that was also entered as an account: it has to be offered as a vendor, not left as a Lead
     a8: { name: "Prospect Lead Town", source: "Prospects P0075 (NV list, stage 1)", deleted: true, deletedAt: now - 2 * day, deletedBy: "AI" },
     a9: { name: "Gone Sign Co", city: "Town", state: "UT", type: "Contractor", deleted: true, deletedAt: now - day },
-    a3: { name: "Test Plastics Inc", type: "Contractor", createdAt: now } },
-  contacts: { c1: { name: "Pat Example", accountId: "a1", email: "pat@example.com", phone: "4355550100", role: "Buyer" }, c2: { name: "Lee Sample", accountId: "a2", phone: "4355550101", role: "Buyer" } },
+    a3: { name: "Test Plastics Inc", type: "Contractor", createdAt: now },
+    // a real-looking customer (nothing named "test"), so emails from its project aren't held back as a dry run
+    a4: { name: "Pine Ridge HOA", city: "Town", state: "UT", type: "HOA", terms: "Prepay", repId: "t1" } },
+  contacts: { c1: { name: "Pat Example", accountId: "a1", email: "pat@example.com", phone: "4355550100", role: "Buyer" }, c2: { name: "Lee Sample", accountId: "a2", phone: "4355550101", role: "Buyer" },
+    c3: { name: "Ana Ridge", accountId: "a4", email: "ana@example.com", role: "Manager" } },
   vendors: { v1: { name: "Test Plastics" }, v2: { name: "Test Metals" } },
   items: {
     i1: { name: "LDPE .125 Stencil Sheet 5x10", cat: "Stencil material", cost: "91.20", vendorId: "v1", vendorPrice: "91.20", unit: "sheet", onHand: 4, reorderPoint: 2,
@@ -35,7 +38,9 @@ const D = {
       { id: "l1", code: "R1-1", desc: "Stop", size: "30x30", grade: "HIP", qty: "4", price: "79.45" },
       { id: "l2", code: "SSS-FAA-108-01", desc: "108\" FAA Airport Stencil Kit", size: "48x120", grade: "LDPE .125", qty: "1", price: "219.50" },
       { id: "l3", charge: "setup", desc: "Setup", qty: "1", price: "18.50", cost: "12.50" }] },
-    p2: { num: 2002, name: "Inquiry only", accountId: "a2", stage: "inquiry", createdAt: now - 2 * day } },
+    p2: { num: 2002, name: "Inquiry only", accountId: "a2", stage: "inquiry", createdAt: now - 2 * day },
+    p3: { num: 2003, name: "Entrance signs", accountId: "a4", stage: "quoted", repId: "t1", createdAt: now - 5 * day, quote: "Q-1003", contacts: ["c3"], orderLines: [
+      { id: "l5", code: "R1-1", desc: "Stop", size: "30x30", grade: "HIP", qty: "2", price: "79.45" }] } },
   jobs: { 1001: { num: 1001, desc: "Signs and stencils", projectId: "p1", accountId: "a1", prod: "sign", status: "production", due: new Date(now + 3 * day).toISOString().slice(0, 10),
     items: [{ qty: "4", code: "R1-1", desc: "Stop", size: "30x30", grade: "HIP", lineId: "l1" }], gates: {}, route: {}, ship: {}, statusLog: [{ status: "new", at: now - day }] } },
   files: { f1: { name: "Proof.png", type: "image/png", url: "", cat: "Artwork proof", projectId: "p1", accountId: "a1", at: now },
@@ -53,19 +58,24 @@ const D = {
     x1: { id: "x1", recType: "account", recId: "a1", kind: "note", type: "call", text: "Called about the bid", contactId: "c1", at: now - day, when: new Date(now - day).toISOString().slice(0, 10) },
     x2: { id: "x2", recType: "account", recId: "a1", kind: "task", type: "task", text: "Call back about the bid", assigneeId: "t1", whoId: "t1", who: "TO", at: now,
       due: new Date(now + 2 * day).toISOString().slice(0, 10), dueTime: "14:30", done: false } },
+  // signing links for p3: one cancelled yesterday, one that ran out, one live
+  signreq: { ["c".repeat(48)]: { token: "c".repeat(48), kind: "quote", projectId: "p3", status: "cancelled", createdAt: now - 2 * day, expiresAt: now + 28 * day, contactEmail: "ana@example.com", contactName: "Ana Ridge" },
+    ["e".repeat(48)]: { token: "e".repeat(48), kind: "quote", projectId: "p3", status: "sent", createdAt: now - 40 * day, expiresAt: now - 10 * day, contactEmail: "ana@example.com", contactName: "Ana Ridge" },
+    ["a".repeat(48)]: { token: "a".repeat(48), kind: "quote", projectId: "p3", status: "sent", createdAt: now - day, expiresAt: now + 29 * day, contactEmail: "ana@example.com", contactName: "Ana Ridge" } },
   events: {}, history: {}, invtx: {}, notifications: {}, reminders: {}, access: { "u1": { role: "owner", teamId: "t1" }, "owner@example.com": { role: "owner", teamId: "t1" } } };
 const ROUTES = ["home", "mybook", "accounts", "account/a1", "contacts", "contact/c1", "projects", "project/p1", "project/p2", "jobs", "job/1001", "tracker", "calendar",
   "files", "purchasing", "inventory", "item/i1", "stencils", "vendors", "vendor/v1", "reports", "audit", "archive", "bin", "settings", "new", "commissions"];
 const browser = await chromium.launch(); const pg = await browser.newPage({ viewport: { width: 1400, height: 900 } });
 const errs = [];
 pg.on("pageerror", (e) => errs.push(String(e.message || e).slice(0, 160)));
-await pg.addInitScript((D) => { const db = { collection(c) { return { onSnapshot(cb) { const docs = Object.entries(D[c] || {}).map(([id, d]) => ({ id, data: () => d })); setTimeout(() => cb({ docs, size: docs.length, forEach: (f) => docs.forEach(f) }), 10); return () => {}; } }; },
-    doc(p) { return { path: p, async get() { return { exists: false, data: () => null }; }, set() { return Promise.resolve(); }, update() { return Promise.resolve(); }, delete() { return Promise.resolve(); }, onSnapshot(cb) { const v = (D.__docs || {})[p]; setTimeout(() => cb({ exists: !!v, data: () => v || null }), 10); return () => {}; }, async acquire() { return { acquired: true }; } }; },
+const mockInit = (D) => { window.__writes = []; const db = { collection(c) { return { onSnapshot(cb) { const docs = Object.entries(D[c] || {}).map(([id, d]) => ({ id, data: () => d })); setTimeout(() => cb({ docs, size: docs.length, forEach: (f) => docs.forEach(f) }), 10); return () => {}; } }; },
+    doc(p) { return { path: p, async get() { return { exists: false, data: () => null }; }, set(v) { window.__writes.push(["set", p, v]); return Promise.resolve(); }, update(v) { window.__writes.push(["update", p, v]); return Promise.resolve(); }, delete() { return Promise.resolve(); }, onSnapshot(cb) { const v = (D.__docs || {})[p]; setTimeout(() => cb({ exists: !!v, data: () => v || null }), 10); return () => {}; }, async acquire() { return { acquired: true }; } }; },
     nextCounter: async () => 1 };
   window.__ups = [];
   const assets = { async upload(f) { window.__ups.push(f.name); return { id: "as" + window.__ups.length, url: "https://example.com/" + encodeURIComponent(f.name), sizeBytes: f.size, contentType: f.type }; } };
   const caps = { db, assets, user: { async me() { return { id: "u1", name: "Test Owner", email: "owner@example.com" }; } } };
-  window.__mock = { use: async (n) => { if (!(n in caps)) throw Object.assign(new Error("x"), { code: "not_declared" }); return caps[n]; } }; }, D);
+  window.__mock = { use: async (n) => { if (!(n in caps)) throw Object.assign(new Error("x"), { code: "not_declared" }); return caps[n]; } }; };
+await pg.addInitScript(mockInit, D);
 await pg.route(/firebase-adapter\.js$/, (r) => r.fulfill({ status: 200, contentType: "text/javascript", body: "" }));
 await pg.route(/raw\.githubusercontent\.com\/StreetSignSupply\/ssc-crm\/main\/public\/([^?]*)/, (r) => { const f = path.resolve(root, "public", decodeURIComponent(r.request().url().match(/main\/public\/([^?]*)/)[1]));
   if (fs.existsSync(f)) r.fulfill({ status: 200, contentType: f.endsWith(".png") ? "image/png" : f.endsWith(".pdf") ? "application/pdf" : f.endsWith(".dxf") ? "application/dxf" : f.endsWith(".zip") ? "application/zip" : f.endsWith(".json") ? "application/json" : "text/plain", body: fs.readFileSync(f) }); else r.fulfill({ status: 404, body: "" }); });
@@ -436,6 +446,33 @@ await pg.setViewportSize({ width: 1400, height: 900 });
   await pg.evaluate(() => { location.hash = "#/settings"; }); await pg.waitForTimeout(500);
   const txt = await pg.evaluate(() => (document.querySelector(".main") || {}).innerText || "");
   if (!/Order sync|Reminders|Our team|Team/i.test(txt) || /owner only|only the owner/i.test(txt.slice(0, 200))) bad.push("Settings didn't open for the owner"); }
+// an email can't go out with a dead approval link in it (P-2032's customer got one that had been cancelled the day before);
+// an expired link is swapped for a fresh one. Signing links only load on the hosted site, so this runs on a page marked hosted.
+{ const pg2 = await browser.newPage({ viewport: { width: 1400, height: 900 } }); pg2.on("pageerror", (e) => errs.push("hosted: " + String(e.message || e).slice(0, 160)));
+  await pg2.addInitScript(() => { window.sscHosted = true; }); await pg2.addInitScript(mockInit, D);
+  await pg2.route(/firebase-adapter\.js$/, (r) => r.fulfill({ status: 200, contentType: "text/javascript", body: "" }));
+  await pg2.route(/^https?:\/\//, (r) => r.abort());
+  await pg2.goto("file://" + PAGE); await pg2.evaluate(() => window.__sscResolve && window.__sscResolve(window.__mock)); await pg2.waitForTimeout(1500);
+  const link = (t) => "https://ssc-crm-a7224.web.app/sign.html?t=" + t.repeat(48);
+  const mail = async (body) => pg2.evaluate(async (body) => { const w = (ms) => new Promise((r) => setTimeout(r, ms));
+    location.hash = "#/project/p3"; await w(500); document.querySelectorAll(".modal .mx").forEach((x) => x.click()); await w(200);
+    const b = document.querySelector("[data-compose='project:p3']"); if (!b) return { err: "no New email button" }; b.click(); await w(500);
+    const to = document.querySelector("#cm-to"), su = document.querySelector("#cm-subj"), bd = document.querySelector("#cm-body"); if (!bd) return { err: "the email window didn't open" };
+    to.value = "ana@example.com"; su.value = "Your quote"; bd.value = body; window.__writes = []; document.querySelector("#cm-open").click(); await w(800);
+    const t = document.querySelector(".toast"); const act = window.__writes.find((x) => /^activity\//.test(x[1]));
+    return { toast: t ? t.innerText : "", open: !!document.querySelector(".modal"), newLink: window.__writes.filter((x) => /^signreq\//.test(x[1]) && x[2] && x[2].status === "sent").map((x) => x[2].token), body: act ? act[2].text : "" }; }, body);
+  const e0 = errs.length;
+  const c = await mail("Hi Pat,\n\nHere it is:\n" + link("c") + "\n\nThanks");
+  if (c.err) bad.push("dead approval link: " + c.err);
+  else if (!/cancelled/.test(c.toast) || !c.open || c.body) bad.push("an email with a cancelled approval link wasn't refused (" + (c.toast || "no message").slice(0, 60) + (c.body ? "; it was logged" : "") + ")");
+  const e = await mail("Hi Pat,\n\nHere it is:\n" + link("e") + "\n\nThanks");
+  if (e.err) bad.push("expired approval link: " + e.err);
+  else if (e.open || e.newLink.length !== 1 || e.body.indexOf(link("e")) >= 0 || e.body.indexOf("?t=" + e.newLink[0]) < 0) bad.push("an expired approval link wasn't swapped for a fresh one (" + (e.toast || "").slice(0, 60) + ")");
+  const a = await mail("Hi Pat,\n\nHere it is:\n" + link("a") + "\n\nThanks");
+  if (a.err) bad.push("live approval link: " + a.err);
+  else if (a.open || a.newLink.length || a.body.indexOf(link("a")) < 0) bad.push("an email with a live approval link didn't go (" + (a.toast || "").slice(0, 60) + ")");
+  if (errs.length > e0) bad.push("approval-link check: " + errs.slice(e0).join(" | "));
+  await pg2.close(); }
 const ver = await pg.evaluate(() => { const m = document.documentElement.innerHTML.match(/APP_VERSION="([^"]+)"/); return m ? m[1] : ""; });
 await browser.close(); fs.unlinkSync(PAGE);
 if (bad.length) { console.log("::error::release check failed: " + bad.slice(0, 8).join(" || ")); process.exit(1); }
