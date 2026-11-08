@@ -11736,7 +11736,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-164";
+const APP_VERSION="2026.11.25-165";
 // the release check (which opens the page from a file) can reach these; the hosted site exposes nothing
 if(location.protocol==="file:")window.__sscTest={S,benchDue,benchChip,weekMonday,picRough,webcatStat};
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
@@ -16784,6 +16784,58 @@ async function pipeImportRows(rows){
         await push("items/"+it.id,patch);
         recordHistory("item",it.id,[{f:"Stock",o:String(onHand(it)),n:String(onHand(it)+qty)+" (received — agents' feed"+(o.ref?", "+o.ref:"")+")"}])}
       out.inventory++;done[id]=1;mark(id);continue}
+    // --- send (build 165): email the quote or proof to the customer from the CRM, with a fresh signing link, the way the
+    //     Email window does it. text = JSON {"to","cc","kind":"quote|proof|both|email","subject","body","from","sign","attach"}.
+    //     The email goes from a team member's own address (default: the sales rep on the project, else the bot's team record
+    //     by "from"); a quote from anyone but the owner waits for Matt's OK exactly as it does for a person. Fix list item 14.
+    if(type==="send"){const o=pipeJSON(r.text);const tgt=pipeFind(r.project||r.updates);
+      if(!o||!tgt){out.bad++;continue}
+      const p=tgt;const note=why=>{logEvent("project",p.id,"Agents — email not sent: "+why);out.blocked++;done[id]=1;mark(id)};
+      if(noMail(p)){note("the project is marked as a test");continue}
+      const kind=/^(proof|both|email)$/.test(String(o.kind||"").toLowerCase())?String(o.kind).toLowerCase():"quote";
+      const em=x=>String(x||"").trim().toLowerCase();const okE=x=>/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(x);
+      const cts=(p.contacts||[]).map(x=>S.contacts.get(x)).concat(contactsOf(p.accountId)).filter((x,i,a)=>x&&x.email&&a.findIndex(y=>y&&y.id===x.id)===i);
+      let to=(Array.isArray(o.to)?o.to:String(o.to||"").split(/[,;]/)).map(em).filter(okE);
+      if(!to.length){const fc=followContact(p)||cts[0];if(fc&&fc.email)to=[em(fc.email)]}
+      const cc=(Array.isArray(o.cc)?o.cc:String(o.cc||"").split(/[,;]/)).map(em).filter(okE);
+      if(!to.length){note("no customer email on the project");continue}
+      if(to.length+cc.length>MAX_RECIP){note("more than "+MAX_RECIP+" people");continue}
+      // who it goes from: the project's rep, else the team member whose address is "from", else the Bob record — never Matt
+      const team=live(S.team).filter(t=>/@streetsignsupply\.com$/i.test(String(t.email||"")));
+      let w=(repFor(p)&&team.find(t=>t.id===repFor(p).id))||(o.from?team.find(t=>em(t.email)===em(o.from)):null)||team.find(t=>em(t.email)==="bob@streetsignsupply.com")||null;
+      if(!w){note("no team member with a company address to send from");continue}
+      const ct=cts.find(x=>em(x.email)===to[0])||cts[0]||null;
+      const withQ=kind!=="proof"&&kind!=="email";
+      if(withQ&&!orderedLines(p).some(l=>!isCharge(l)&&Number(l.qty)>0)){note("the quote has no lines yet");continue}
+      // the quote PDF: the newest CRM-made one, or whatever file "attach" names
+      let f=null;const qpdfs=live(S.files).filter(x=>x.projectId===p.id&&!x.deleted&&x.url&&/pdf/i.test((x.type||"")+(x.name||""))).sort((a,b)=>(b.at||0)-(a.at||0));
+      if(o.attach&&o.attach!=="quote")f=S.files.get(String(o.attach))||qpdfs.find(x=>x.name===o.attach)||null;
+      if(!f&&withQ)f=qpdfs.find(x=>x.cat==="Quote"&&x.gen==="quote")||qpdfs.find(x=>x.cat==="Quote")||null;
+      if(withQ&&!f){note("no quote PDF on the project yet (Documents → Quote makes it)");continue}
+      if(withQ&&f&&f.gen==="quote"&&f.qhash&&f.qhash!==quoteHash(p)){note("the quote PDF is older than the quote — make a new one first");continue}
+      // a signing link, unless sign is false or this is a plain email
+      let signUrlS="",signId="";
+      if(kind!=="email"&&o.sign!==false){let arts=[];try{arts=proofArt(p).concat(proofLineArts(p)).filter(a=>a&&a.url)}catch(e){}
+        if(kind==="proof"&&!arts.length&&!f){note("no artwork on the project yet for a proof");continue}
+        const tok=signToken();const rec=signRec(p,kind,f,ct,arts,tok);rec.createdBy="Agents";rec.createdById=w.id;
+        try{await setDoc("signreq/"+tok,rec)}catch(e){note("couldn't make the signing link");continue}
+        for(const old of signReqsFor(p.id).filter(x=>x.token!==tok&&x.status==="sent"))await setDoc("signreq/"+old.token,Object.assign({},old,{status:"replaced",replacedBy:signUrl(tok)})).catch(()=>{});
+        signUrlS=signUrl(tok);signId=tok;logEvent("project",p.id,(kind==="both"?"Quote + proof":kind==="proof"?"Proof":"Quote")+" sent for signature (agents' feed)"+(ct?" to "+ct.name:""))}
+      const tpl=MAIL_TPL.find(t=>t.id===(kind==="proof"?"proof":withQ?"quote":"blank"))||MAIL_TPL[0];
+      const ctx={pid:p.id,contact:ct,signUrl:signUrlS};const keepRep=S.viewerTeam;S.viewerTeam=w;   // the signature and {sig_name} are the sender's
+      let subject=String(o.subject||"").trim()||mailFill(tpl.subject,ctx);let body=String(o.body||"").trim()||mailFill(tpl.body,ctx);S.viewerTeam=keepRep;
+      if(signUrlS&&body.indexOf(signUrlS)<0)body=body.replace(/\n\nThanks,/,"\n\nYou can review and approve it online here — it takes a minute:\n"+signUrlS+"\n\nThanks,");
+      if(signUrlS&&body.indexOf(signUrlS)<0)body+="\n\nYou can review and approve it online here:\n"+signUrlS;
+      const atts=f?[{name:f.name,url:f.url,type:f.type||"",fileId:f.id,gen:f.gen||"",cat:f.cat||"",qhash:f.qhash||""}]:[];
+      const quoteOut=withQ;const needOk=quoteOut&&w.access!=="owner";
+      const xid=uid("ac"),mid=uid("ml");
+      await setDoc("activity/"+xid,{id:xid,recType:"project",recId:String(p.id),kind:"note",type:"email",direction:"out",subject,text:body+(atts.length?"\n\n📎 "+atts.map(a=>a.name).join(", "):""),
+        contactId:ct?ct.id:"",whoId:w.id,who:w.name||"AI",when:today(),due:"",backOn:"",noBack:true,at:now,done:true,deleted:false,mailId:mid,sendState:needOk?"approval":"queued",to:to.join(", "),feedId:id,
+        mailCopy:{to,cc,subject,body,atts,quote:quoteOut?{pid:p.id,hash:quoteHash(p),no:p.quote||""}:null,signId,follow:null,recType:"project",recId:String(p.id)}});
+      await setDoc("mail/"+mid,Object.assign({id:mid,kind:"customer",to,cc,from:em(w.email),fromName:w.name||"",byId:w.id,message:{subject,text:body},attachments:atts,
+        status:"queued",at:now,activityId:xid,recType:"project",recId:String(p.id),signId,feedId:id},quoteOut?{quote:{pid:p.id,hash:quoteHash(p),no:p.quote||""}}:{}));
+      logEvent("project",p.id,"Email "+(needOk?"waiting for Matt's OK":"queued")+" to "+to.join(", ")+" — "+subject+" (agents' feed, from "+(w.name||w.email)+")");
+      out.sends=(out.sends||0)+1;done[id]=1;mark(id);continue}
     // --- invoice: the accountant's QuickBooks invoice for a project ---
     if(type==="invoice"){const o=pipeJSON(r.text);const tgt=pipeFind(r.project||r.updates);
       if(!o||!tgt){out.bad++;continue}
