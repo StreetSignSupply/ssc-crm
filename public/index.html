@@ -3535,6 +3535,24 @@ function proofLines(p){
 }
 function addBizDays(d,n){const x=new Date(d);const step=n<0?-1:1;let k=Math.abs(n);
   while(k>0){x.setDate(x.getDate()+step);if(x.getDay()!==0&&x.getDay()!==6)k--}return x}
+/* ===== shop capacity (Settings → Automations) =====
+   Hours the bench has in a week, and the hours a typical work order takes. Open work orders due in a week fill it;
+   a due date filled in automatically is pushed a week at a time while the week it lands in is full (up to 4 weeks),
+   and the dashboard says when this week is over. The numbers come from Matt; nothing here makes a work order. */
+function weekMonday(d){const x=new Date(d);x.setHours(0,0,0,0);const wd=(x.getDay()+6)%7;x.setDate(x.getDate()-wd);return isoDay(x)}
+function benchCap(weekIso){const c=(S.brand||{}).capHours||{};const o=(c.byWeek||{})[weekIso];const v=o==null||o===""?Number(c.def):Number(o);return v>0?v:0}
+function benchPerWO(){const c=(S.brand||{}).capHours||{};const v=Number(c.perWO);return v>0?v:4}
+function benchJobs(weekIso){return liveJobs().filter(realJob).filter(j=>j.due&&j.status!=="shipped"&&weekMonday(new Date(j.due+"T00:00:00"))===weekIso)}
+function benchLoad(weekIso){const per=benchPerWO();return benchJobs(weekIso).reduce((h,j)=>h+(Number(j.hours)>0?Number(j.hours):per),0)}
+function benchFull(weekIso,extraHours){const cap=benchCap(weekIso);if(!cap)return false;return benchLoad(weekIso)+(extraHours==null?benchPerWO():extraHours)>cap}
+// the due date a work order gets when the bench is taken into account: the lead-time date, or the first Monday after it
+// in a week that still has room (at most four weeks out). Returns {due, pushed} — pushed = weeks moved.
+function benchDue(dueIso){let due=dueIso,pushed=0;
+  for(let i=0;i<4;i++){const wk=weekMonday(new Date(due+"T00:00:00"));if(!benchFull(wk))break;
+    const m=new Date(wk+"T00:00:00");m.setDate(m.getDate()+7);due=isoDay(m);pushed++}
+  return {due,pushed}}
+function benchChip(){const wk=weekMonday(new Date());const cap=benchCap(wk);if(!cap)return "";const load=benchLoad(wk);if(load<=cap)return "";
+  const n=benchJobs(wk).length;return "Bench full — "+n+" work order"+(n===1?"":"s")+" ≈ "+Math.round(load)+" h vs "+cap+" h this week"}
 // a quote line with no uploaded artwork of its own still has a picture (the website sign, the agents' picture,
 // or the drawing): it goes on the proof and in the project's files so the customer can approve what they'll get
 function proofLineArts(p){if(!p)return [];let m0={};try{m0=artMatches(p)}catch(e){}
@@ -5276,6 +5294,29 @@ function closePaperPending(p){if(!p)return [];const fl=projFiles(p.id).filter(f=
   fl.forEach(f=>{if(!f.needsCheck&&!f.link)push("files/"+f.id,{needsCheck:true}).catch(()=>{})});return fl}
 // the three papers, and whether each is covered: a checked file, the owner's waiver for this project (with a reason), or the
 // account doesn't use POs / invoices (set by the owner). The database rules accept a close on exactly the same terms.
+// Prospect quotes: Lead-stage projects, or ones the customer never asked for (the "prospect quote" box on the project).
+// They show apart from the open pipeline so the dashboard number is what customers actually requested (Matt, Nov 7 2026).
+function prospectQuote(p){return !!p&&!p.deleted&&(p.stage==="lead"||!!p.unrequested)}
+// Won needs the customer's yes on record: a PO or signed quote in Files, a PO number, or an approval someone filed from the customer's own words.
+function wonProofMissing(p){if(!p)return "";
+  const fl=p.id?projFiles(p.id).filter(f=>!f.deleted&&f.projectId===p.id):[];
+  if(fl.some(f=>f.cat==="Purchase order"||f.cat==="Signed quote"))return "";
+  if(String(p.po||"").trim())return "";
+  if(p.wonApproval&&String(p.wonApproval.note||"").trim())return "";
+  return "no signed quote or PO in Files, no PO number, and no customer approval recorded"}
+// words that belong inside the shop and never on a quote or invoice the customer reads (a P-2029 quote once carried "Proactive ... TBD")
+const CUST_WORDS=[["proactive","proactive"],["tbd","TBD"],["starter","starter"],["tier","tier"],["margin","margin"],["dry run","dry run"],["agent","agent"],["crm","CRM"],["stage","stage"],["pipeline","pipeline"],["upsell","upsell"],["internal","internal"]];
+function custTextLint(t){t=String(t||"");const out=[];
+  CUST_WORDS.forEach(([k,l])=>{if(new RegExp("(^|[^a-z])"+k.replace(" ","\\s+")+"(s|ed|ing)?([^a-z]|$)","i").test(t))out.push(l)});
+  if(/\bP-\d{4}\b/.test(t))out.push("P-number");return out}
+// a filed PO, signed quote or signed proof closes the open tasks on the project that were chasing it (with a note saying why)
+async function closeChaseTasks(pid,cat){const p=proj(pid)||S.projects.get(pid);if(!p)return 0;
+  const want=/^(Purchase order|Signed quote)$/.test(cat)?/\b(po|purchase order|signed quote|signature|sign(ed)? (the |their )?quote|approval|approve)\b/i:/^Signed proof$/.test(cat)?/\bproof\b/i:null;if(!want)return 0;
+  const ts=live(S.activity).filter(a=>a.kind==="task"&&!a.done&&a.recType==="project"&&String(a.recId)===String(pid)&&want.test(a.text||""));
+  const now=Date.now();
+  for(const a of ts){await push("activity/"+a.id,{done:true,doneAt:now,doneById:meId(),doneByName:meName()||"CRM",doneNote:"closed itself: "+cat+" was filed"});
+    recordHistory("project",pid,[{f:"Task",o:"",n:"Done — "+(a.text||"").slice(0,60)+" ("+cat+" filed, closed itself)",ev:1}])}
+  return ts.length}
 const PAPER=[["quote","The quote PDF made by the CRM (Documents → Quote)","Quote PDF"],["po","The PO or the signed quote, filed on the project","PO / signed quote"],["inv","The invoice, filed on the project","Invoice"]];
 function paperWaiver(p,k){const w=((p&&p.closeWaive)||{})[k];if(w&&String(w.why||"").trim().length>=3)return w;
   const a=p?acct(p.accountId)||S.accounts.get(p.accountId):null,o=p?S.accounts.get(p.origAccountId||p.accountId):null;
@@ -6094,9 +6135,10 @@ function autoPass(){
   live(S.jobs).forEach(j=>{if(j.due||j.status==="shipped")return;const d=Number(lead[prodOf(j)]);if(!(d>0))return;
     if((Number(j.createdAt)||0)<(Number(b.leadSince)||since))return;
     const k="due:"+j.num;if(done.has(k))return;done.set(k,1);
-    const from=j.createdAt?new Date(j.createdAt):new Date();const due=isoDay(addBizDays(from,d));
+    const from=j.createdAt?new Date(j.createdAt):new Date();const bd=benchDue(isoDay(addBizDays(from,d)));const due=bd.due;
     push("jobs/"+j.num,{due,updatedAt:Date.now()});
-    recordHistory("job",String(j.num),[{f:"Due",o:"",n:due+" — "+d+" business days' lead time for "+kindLabel(prodOf(j)).toLowerCase(),ev:1}]);
+    recordHistory("job",String(j.num),[{f:"Due",o:"",n:due+" — "+d+" business days' lead time for "+kindLabel(prodOf(j)).toLowerCase()
+      +(bd.pushed?"; pushed "+bd.pushed+" week"+(bd.pushed===1?"":"s")+" because the bench is full (shop capacity in Settings)":""),ev:1}]);
   });
   // the follow-up autopilot: a quoted project (from now on) with a number and no plan gets its three touches;
   // one that moved on with touches still open has them stopped
@@ -6992,7 +7034,20 @@ function webcatUrl(which){
   if(/gid=\d+/.test(base))return base.replace(/gid=\d+/,"gid="+WEBCAT_GIDS[which]);
   return base+(base.indexOf("?")>=0?"&":"?")+"gid="+WEBCAT_GIDS[which]+"&single=true&output=csv"}
 function webcatStat(){const m=S.webcatMeta||{};if(!m.products)return "Nothing pulled yet.";
-  return m.products+" products"+(m.stencils?" (incl. "+m.stencils+" stencils)":"")+", "+(m.vars||0)+" sizes and materials, "+(m.pics||0)+" with pictures"+(m.codes?", "+m.codes+" MUTCD codes pictured":"")+" — pulled "+fmtTs(m.updatedAt||0)}
+  return m.products+" products"+(m.stencils?" (incl. "+m.stencils+" stencils)":"")+", "+(m.vars||0)+" sizes and materials, "+(m.pics||0)+" with pictures"+(m.codes?", "+m.codes+" MUTCD codes pictured":"")
+    +(m.roughPics?", "+m.roughPics+" picture"+(m.roughPics===1?"":"s")+" that look"+(m.roughPics===1?"s":"")+" like a screenshot or phone photo":"")+" — pulled "+fmtTs(m.updatedAt||0)}
+// a website picture whose file name says it was never a product shot: a screenshot, a phone photo, an untitled download.
+// Returns "" for a normal name, otherwise a few words saying what it looks like.
+function picRough(url){const u=String(url||"");if(!u)return "";
+  let f="";try{f=decodeURIComponent(u.split("?")[0].split("#")[0].split("/").pop()||"")}catch(e){f=u.split("/").pop()||""}
+  const base0=f.replace(/\.[a-z0-9]{2,5}$/i,"").replace(/-\d{2,4}x\d{2,4}$/,"");const base=base0.replace(/[_\s-]?\d+$/,"");
+  if(/screen[\s_-]*shot|screencapture|screen[\s_-]*capture|snip|clipboard/i.test(base0))return "screenshot";
+  if(/^(img|dsc|dscn|dcim|pxl|mvimg|photo|pict|picture)[_\s-]*\d|^\d{8}[_-]\d{4,6}|whatsapp|^signal-|^fb_img|^received_/i.test(base0))return "phone photo";
+  if(/^(untitled|unknown|download|new[\s_-]*image|image|photo|picture|temp|scan)$|^image[\s_-]*\(\d|^untitled/i.test(base))return "untitled file";
+  if(!/[a-z]/i.test(base))return "no name, just numbers";
+  return ""}
+// the flagged pictures from the last pull, for Settings and the agents
+function webcatRoughList(){const m=S.webcatMeta||{};return Array.isArray(m.roughList)?m.roughList:[]}
 function webcatParseAttrs(attrs,variation){
   const o={size:"",mat:""};const parts=String(attrs||"").split(/,\s*(?=[A-Za-z ]+:)/);
   const rest=[];
@@ -7033,7 +7088,10 @@ async function webcatSync(auto){
         if(!vars.length)return;prods.set(id,{id,name:nm,cat:"Stencils",url:"",img:"",thumb:"",codes:[],code:it.c,size:it.z||"",vars});nSten++})}}
   catch(e){}
   const list=[...prods.values()].sort((x,y)=>x.name.localeCompare(y.name));
-  const meta={stencils:nSten,products:list.length,vars:list.reduce((n,p)=>n+p.vars.length,0),pics:list.filter(p=>p.img).length,updatedAt:Date.now()};
+  // pictures that were never product shots are flagged (the product keeps its picture; Settings lists them so they get replaced on the website)
+  const rough=[];list.forEach(p=>{const why=p.img?picRough(p.img):"";if(why){p.picRough=why;rough.push({name:p.name,why,file:String(p.img).split("?")[0].split("/").pop()||"",url:p.url||""})}});
+  const meta={stencils:nSten,products:list.length,vars:list.reduce((n,p)=>n+p.vars.length,0),pics:list.filter(p=>p.img).length,
+    roughPics:rough.length,roughList:rough.slice(0,60),updatedAt:Date.now()};
   const chunks=[];let cur=[],size=0;
   list.forEach(p=>{const j=JSON.stringify(p).length;if(size+j>700000&&cur.length){chunks.push(cur);cur=[];size=0}cur.push(p);size+=j});
   if(cur.length)chunks.push(cur);
@@ -9833,12 +9891,22 @@ function autoModal(){
       <div style="margin-top:6px"><button type="button" class="btn sm" data-catchup="1">Catch them up</button> <span class="sub">Only when you press it.</span></div></div>`:""})()}
     <div style="margin:12px 0 6px"><b>Proof approval date</b> — <input id="au-pd" type="number" min="0" value="${esc(String(b.proofDays==null?3:b.proofDays))}" style="width:55px"> business days before the due date</div>
     <div style="margin:12px 0 6px"><b>Lead time</b> — business days from the order to the due date, filled in on any work order that has none. Blank = leave it to you.</div>
-    <div class="fgrid">${kinds.map(k=>inp("au-ld-"+k,kindLabel(k),ld[k]==null?"":ld[k],"number")).join("")}</div></div>`,
+    <div class="fgrid">${kinds.map(k=>inp("au-ld-"+k,kindLabel(k),ld[k]==null?"":ld[k],"number")).join("")}</div>
+    ${(function(){const c=b.capHours||{};const w0=weekMonday(new Date()),m=new Date(w0+"T00:00:00");m.setDate(m.getDate()+7);const w1=isoDay(m);const bw=c.byWeek||{};
+      return `<div style="margin:14px 0 6px"><b>Shop capacity</b> — hours the bench has in a week. A due date filled in automatically moves to the next week with room when its week is full; the dashboard says when this week is over. Blank = no limit.</div>
+      <div class="fgrid">${inp("au-cap-def","Hours in a normal week",c.def==null?"":c.def,"number")}${inp("au-cap-w0","This week (from "+fmtDate(w0)+")",bw[w0]==null?"":bw[w0],"number")}${inp("au-cap-w1","Next week (from "+fmtDate(w1)+")",bw[w1]==null?"":bw[w1],"number")}${inp("au-cap-per","Hours a typical work order takes",c.perWO==null?"":c.perWO,"number")}</div>
+      <div class="sub" id="au-cap-now">${esc((function(){const cap=benchCap(w0);const n=benchJobs(w0).length;return cap?"This week: "+n+" open work order"+(n===1?"":"s")+" ≈ "+Math.round(benchLoad(w0))+" h of "+cap+" h":"No limit set — "+n+" open work order"+(n===1?"":"s")+" due this week"})())}</div>`})()}</div>`,
     `<button class="btn" data-close="1">Cancel</button><button class="btn p" id="au-save">Save</button>`));
+  const capRead=()=>{const c=Object.assign({},b.capHours||{});const bw=Object.assign({},c.byWeek||{});const w0=weekMonday(new Date()),m=new Date(w0+"T00:00:00");m.setDate(m.getDate()+7);const w1=isoDay(m);
+    const num=id=>{const v=$("#"+id).value.trim();return v===""?null:Math.max(0,Number(v)||0)};
+    const d=num("au-cap-def"),a=num("au-cap-w0"),n=num("au-cap-w1"),per=num("au-cap-per");
+    if(a==null)delete bw[w0];else bw[w0]=a;if(n==null)delete bw[w1];else bw[w1]=n;
+    Object.keys(bw).forEach(k=>{if(k<w0)delete bw[k]});   // weeks gone by drop off
+    const out={byWeek:bw};if(d!=null)out.def=d;if(per!=null)out.perWO=per;return out};
   $("#au-save").onclick=async()=>{const lead={};kinds.forEach(k=>{const v=$("#au-ld-"+k).value.trim();if(v!=="")lead[k]=Math.max(0,Number(v)||0)});
     const b2=Object.assign({},S.brand||{},{autoStage:$("#au-stage").checked,autoFollow:$("#au-follow").checked,
       followDays:$("#au-fu").value.split(/[,\s]+/).map(Number).filter(x=>x>0).slice(0,4),proofChase:Math.max(1,Number($("#au-pc").value)||2),
-      proofDays:Math.max(0,Number($("#au-pd").value)||0),leadDays:lead,
+      proofDays:Math.max(0,Number($("#au-pd").value)||0),leadDays:lead,capHours:capRead(),
       leadSince:JSON.stringify(lead)===JSON.stringify((S.brand||{}).leadDays||{})?((S.brand||{}).leadSince||Date.now()):Date.now()});
     try{await setDoc("settings/brand",b2);S.brand=b2;closeModal();toast("Automations saved")}catch(e){toast("That didn't save.")}};
 }
@@ -10851,7 +10919,7 @@ function home(){
   // only lines with a cost count toward margin (see costedMargin); a project with no quote lines uses its work-order cost
   const mYTD=fullYTD.map(p2=>orderedLines(p2).some(l=>!isCharge(l)&&Number(l.price)>0)?costedMargin(p2):{rev:projValue(p2),cost:projCost(p2)}).filter(x=>x.cost>0);
   const revFull=mYTD.reduce((t,x)=>t+x.rev,0), costYTD=mYTD.reduce((t,x)=>t+x.cost,0);
-  const pipe=open.reduce((t,p2)=>t+projValue(p2),0);
+  const pros=open.filter(prospectQuote),pipeOpen=open.filter(p2=>!prospectQuote(p2));const pipe=pipeOpen.reduce((t,p2)=>t+projValue(p2),0),prosVal=pros.reduce((t,p2)=>t+projValue(p2),0);
   const late=oj.filter(isLateJob);
   const dt=oj.filter(j=>daysOut(j.due)===0);
   const toInv=all.filter(p2=>p2.stage==="shipped"&&billState(p2)!=="invoiced"&&billState(p2)!=="paid");
@@ -10861,7 +10929,7 @@ function home(){
   const pastTerms=awaiting.filter(isPastTerms);
   const readyClose=all.filter(p2=>(p2.stage==="shipped"||p2.stage==="invoiced")&&billState(p2)==="paid");
   const wr=winRate(all,180);
-  const stageRows=PATH.map(st=>{const l=open.filter(p2=>p2.stage===st);
+  const stageRows=PATH.map(st=>{const l=pipeOpen.filter(p2=>p2.stage===st);
     return {k:(SG[st]||{}).label||st,v:l.reduce((x,p2)=>x+projValue(p2),0),n:l.length}}).filter(r=>r.n);
   const monRows=lastMonths(6).map(m2=>({k:ymLabel(m2),v:invIn(all,m2).reduce((x,p2)=>x+billedValue(p2),0),
     n:invIn(all,m2).length}));
@@ -10890,6 +10958,7 @@ function home(){
     if(unpaid.length)attn.push({t:unpaid.length+" prepaid order"+(unpaid.length===1?"":"s")+" waiting on money before it can run",h:"projects",c:"r"})})();
   if(noExempt.length)attn.push({t:noExempt.length+" agency account"+(noExempt.length===1?"":"s")+" with no exemption certificate",h:"accounts",c:"y"});
   if(unsignedWO.length)attn.push({t:unsignedWO.length+" shipped work order"+(unsignedWO.length===1?"":"s")+" with no signed copy scanned",h:"jobs",c:"y"});
+  {const bc=benchChip();if(bc)attn.push({t:bc,h:"jobs",c:"o"})}
   const todayD=new Date();
   return `<div class="pad">
     <div class="pagehead"><h1>Company dashboard</h1><span class="livebar"><span class="dot"></span>live</span>
@@ -10899,7 +10968,8 @@ function home(){
       <div class="today-items">
         <button class="tchip ${dt.length?"o":"g"}" data-go="jobs">${dt.length?dt.length+" work order"+(dt.length===1?"":"s")+" due today":"Nothing due today"}</button>
         ${attn.map(a=>`<button class="tchip ${a.c}" data-go="${esc(a.h)}">${esc(a.t)}</button>`).join("")}
-        ${(function(){const n=followDueCount(all.filter(p2=>inScope(p2)));return n?`<button class="tchip o" data-followdue="1">${n} follow-up${n===1?"":"s"} due</button>`:""})()}
+        ${(function(){const sc=all.filter(p2=>inScope(p2));const n=followDueCount(sc),nw=followNoWriterCount(sc);return (n?`<button class="tchip o" data-followdue="1">${n} follow-up${n===1?"":"s"} due</button>`:"")
+          +(nw?`<button class="tchip r" data-followdue="1" title="Planned more than 3 days ago, no draft yet — write them or skip them">${nw} follow-up${nw===1?"":"s"} late — nobody has written ${nw===1?"it":"them"}</button>`:"")})()}
         ${tasks.length?`<span class="tchip b" style="cursor:default">${tasks.length} open task${tasks.length===1?"":"s"}</span>`:""}
       </div>
       <div class="today-acts"><button class="btn sm q" data-remind="1">Email the due list</button><button class="btn sm q" data-ics="all">Export dates</button></div>
@@ -10909,7 +10979,8 @@ function home(){
       kpi("Invoiced YTD",money(revYTD),yr+" to date"),
       kpi("Margin YTD",revFull&&costYTD?Math.round((revFull-costYTD)/revFull*100)+"%":"—",costYTD?money(revFull-costYTD)+" kept after material and costs, on this year's invoiced projects that have costs booked":"no cost booked"),
       kpi("Waiting on payment",money(awaitVal),awaiting.length+" invoiced"+(pastTerms.length?" · "+pastTerms.length+" past terms":""),pastTerms.length?"r":""),
-      kpi("Open pipeline",money(pipe),open.length+" open project"+(open.length===1?"":"s")),
+      kpi("Open pipeline",money(pipe),pipeOpen.length+" open project"+(pipeOpen.length===1?"":"s")+" the customer asked for"),
+      kpi("Prospect quotes",money(prosVal),pros.length+" lead-stage or not requested — not counted in the pipeline"),
       kpi("Won this month",money(wonM.reduce((t,p2)=>t+projValue(p2),0)),wonM.length+" won"),
       kpi("Win rate",wr===null?"—":wr+"%",winSub(all,180),wr===null?"":wr>=50?"g":wr>=30?"":"o")])}
 
@@ -11043,6 +11114,21 @@ function dupAccounts(rec,archived){
 // the certificate itself, uploaded to the account's Files (filed as Tax certificate, or named like one)
 function certFile(a){if(!a)return null;return live(S.files).find(f=>f.accountId===a.id&&!f.projectId&&(f.cat==="Tax certificate"||/exempt|certificate|tax.?cert|resale/i.test(f.name||"")))||null}
 function isExempt(a){return !!(a&&a.exempt&&a.exemptExp&&String(a.exemptExp)>=today()&&certFile(a))}
+// the last time we asked this account for its certificate (an outgoing email on the account about it)
+function certAsked(a){if(!a)return null;return live(S.activity).filter(x=>x.recType==="account"&&String(x.recId)===String(a.id)&&!x.deleted&&x.type==="email"&&x.direction==="out"
+  &&/exempt|certificate|tc-?721/i.test(String(x.subject||"")+" "+String(x.text||"").slice(0,200))).sort((x,y)=>(y.at||0)-(x.at||0))[0]||null}
+function certNeedsCard(a){return !!a&&(a.type==="Government agency"||a.certNeeded||a.exempt)}
+// the account page's exemption checklist: asked → certificate uploaded → expiry entered → bills tax-free
+function certCard(a){const id=a.id;const asked=certAsked(a),f=certFile(a),ok=isExempt(a);
+  const step=(done,label,detail,btn)=>`<div style="display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-top:1px solid var(--line)">
+    <span class="pill ${done?"g":"y"}" style="min-width:58px;text-align:center">${done?"Done":"To do"}</span><div style="flex:1"><b>${label}</b><div class="sub">${detail}</div></div>${btn||""}</div>`;
+  const askBtn=`<button class="btn sm${asked?"":" p"}" data-certask="${esc(id)}">${asked?"Ask again":"Ask for it"}</button>`;
+  return `<section class="card flush" id="cert-card"><header><h2>Exemption certificate</h2><span class="sub">${ok?"On file — this account bills tax-free":"This account bills taxable until the certificate is on file"}</span></header>
+    <div style="padding:0 14px 8px">
+    ${step(!!asked||!!f,"Certificate requested",asked?"Asked "+esc(fmtDate(isoDay(asked.at)))+(asked.to?" — "+esc(asked.to):""):f?"Not asked from here, but a certificate is on file":"One click opens the email in your own words — form TC-721 for Utah agencies",ok?"":askBtn)}
+    ${step(!!f,"Certificate uploaded to Files",f?esc(f.name):"Upload it to this account's Files as <b>Tax certificate</b>",f?"":`<button class="btn sm" data-upload="account:${esc(id)}:Tax certificate">Upload</button>`)}
+    ${step(!!(a.exempt&&a.exemptExp),"Expiry date entered",a.exempt&&a.exemptExp?"Good to "+esc(fmtDate(a.exemptExp)):"Tick Tax exemption certificate on file and put in the date from the certificate",a.exempt&&a.exemptExp?"":`<button class="btn sm" data-edit="account:${esc(id)}">Enter it</button>`)}
+    </div></section>`}
 function exemptPill(a){
   if(a.exempt&&!a.exemptExp)return `<span class="pill y" title="Marked exempt, but no certificate expiry date is recorded — it bills taxable until you enter it from the certificate">Taxable · add cert date</span>`;
   if(a.exempt&&String(a.exemptExp)<today())return `<span class="pill r" title="Certificate expired ${esc(fmtDate(a.exemptExp))}">Expired</span>`;
@@ -11155,6 +11241,7 @@ function accountRec(id){
           ${fldHFull("Billing address",acctBillAddr(a)?cxAddr(acctBillAddr(a))+`<div class="sub">${acctHasBill(a)?"Different from the physical address — invoices are mailed here":"Same as the physical address"}</div>`
             :`<span class="sub">Not on file — <button class="lnk" data-edit="account:${esc(id)}">add it</button></span>`)}
         </div></section>
+      ${certNeedsCard(a)?certCard(a):""}
       ${(function(){const d=acctDiscount(a);const cps=Object.entries(a.contractPrices||{});
         return `<section class="card flush"><header><h2>Special pricing</h2>
           <span class="sp"><button class="btn sm" data-negadd="${esc(id)}">Add a negotiated price</button>
@@ -11649,7 +11736,9 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-157";
+const APP_VERSION="2026.11.25-162";
+// the release check (which opens the page from a file) can reach these; the hosted site exposes nothing
+if(location.protocol==="file:")window.__sscTest={S,benchDue,benchChip,weekMonday,picRough,webcatStat};
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -11786,11 +11875,33 @@ async function taskSave(kind,id,existingId){
   if(toId)notify(toId,"task-assigned",text+(due?" — due "+taskDueLabel(rec):"")+(recTitle(rec)?" ("+recTitle(rec)+")":""),recLink(rec),aid);
   toast((to&&toId!==meId()?"Assigned to "+to.name:"Task added")+(to&&!String(to.email||"").includes("@")?" — "+to.name+" has no email on file, so it's the bell only":" — they'll get a bell notice and an email"));
 }
-async function taskToggle(taskId,done){
+// the call, email, note or meeting logged on a task's record (or, for a project task, its account) after the task was
+// given — the proof the work happened. Tasks, auto entries and deleted entries don't count.
+function taskProof(a){const since=Number(a.assignedAt||a.at)||0;const ids=[String(a.recId)];
+  if(a.recType==="project"){const p=proj(a.recId);if(p&&p.accountId)ids.push("account:"+p.accountId)}
+  const hit=x=>x&&!x.deleted&&x.id!==a.id&&x.kind!=="task"&&x.type!=="task"&&!x.auto&&Number(x.at)>since&&
+    (x.recType===a.recType&&String(x.recId)===String(a.recId)||(a.recType==="project"&&x.recType==="account"&&ids.indexOf("account:"+x.recId)>=0));
+  return live(S.activity).filter(hit).sort((x,y)=>(y.at||0)-(x.at||0))[0]||null}
+// A task is done only when the work is on record. Ticking it with a later call, email or note on the record completes it and
+// keeps that entry as the proof; with nothing logged since the task was given, a window asks what was done and writes that as a
+// note first (closing the window leaves the task open). Two P-2032 tasks were ticked Nov 5 with nothing behind them.
+async function taskToggle(taskId,done,noteText){
   const a=S.activity.get(taskId);if(!a)return;
-  const now=Date.now();
-  await push("activity/"+taskId,{done,doneAt:done?now:0,doneById:done?meId():"",doneByName:done?meName():""});
-  recordHistory(a.recType,a.recId,[{f:"Task",o:"",n:(done?"Done":"Reopened")+" — "+(a.text||"").slice(0,60),ev:1}]);
+  const now=Date.now();let proof=null;
+  if(done){proof=taskProof(a);
+    if(!proof&&noteText==null){
+      askConfirm("Mark this task done?",`<p style="margin:0 0 10px">Nothing has been logged ${esc(recTitle(a)?"on "+recTitle(a):"here")} since this task was given — no call, email or note.</p>
+        <p style="margin:0 0 6px"><b>${esc((a.text||"").slice(0,120))}</b></p>
+        <div class="fld full"><div class="k">What was done?</div><textarea data-cin="why" data-req="Say what was done — or cancel and log the call or email first." rows="3" aria-label="What was done" placeholder="e.g. Called Pat, they'll send the PO Monday"></textarea></div>
+        <div class="sub" style="margin-top:8px">This goes on the record as a note, then the task is marked done. To log a proper call or email instead, cancel and use + Add.</div>`,
+        "Done — note it",false,v=>taskToggle(taskId,true,String((v&&v.why)||"").trim()));
+      render();return}
+    if(!proof&&noteText){const nid=uid("ac");
+      proof={id:nid,recType:a.recType,recId:String(a.recId),kind:"note",type:"note",text:"Task done — "+noteText+"\n(task: "+(a.text||"").slice(0,120)+")",
+        whoId:meId(),who:me(),subject:"",contactId:a.contactId||"",direction:"",when:today(),due:"",backOn:"",noBack:true,at:now,done:false,deleted:false,taskId};
+      try{await setDoc("activity/"+nid,proof)}catch(e){toast("That didn't save.");render();return}}}
+  await push("activity/"+taskId,{done,doneAt:done?now:0,doneById:done?meId():"",doneByName:done?meName():"",doneProof:done&&proof?proof.id:"",doneNote:done&&noteText?noteText.slice(0,500):""});
+  recordHistory(a.recType,a.recId,[{f:"Task",o:"",n:(done?"Done":"Reopened")+" — "+(a.text||"").slice(0,60)+(done&&noteText?" (no call or email logged; note: "+noteText.slice(0,80)+")":""),ev:1}]);
   const giver=a.assignedById;
   if(done&&giver&&giver!==meId())notify(giver,"task-done",a.text||"",recLink(a),taskId);
 }
@@ -11839,7 +11950,7 @@ function activityRow(x){
         return `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:4px">
           <span class="pill ${as&&as.id===meId()?"b":""}">${ic("contact",11)} ${esc(as?as.name:"Unassigned")}</span>
           ${x.due?`<span class="pill ${late?"r":""}">due ${esc(taskDueLabel(x))}${late?" — late":""}</span>`:""}
-          ${x.done?`<span class="pill g">done ${esc(stampFull(x.doneAt))}${x.doneByName?" by "+esc(x.doneByName):""}</span>`:""}
+          ${x.done?`<span class="pill g" title="${esc(x.doneNote?"No call or email was logged — "+x.doneNote:x.doneProof?"Backed by the call, email or note logged after it":"")}">done ${esc(stampFull(x.doneAt))}${x.doneByName?" by "+esc(x.doneByName):""}${x.doneNote?" · no record, noted":""}</span>`:""}
           ${!x.done?`<button class="btn sm" data-tkre="${esc(x.id)}" style="padding:2px 8px;font-size:12px">Change time / reassign</button>`:""}
           ${!x.done&&as&&as.email&&!window.sscHosted?`<a class="btn sm" style="padding:2px 8px;font-size:12px;text-decoration:none"
             href="${esc(mailLink(as.email,"Task: "+(x.text||"").slice(0,60),(x.text||"")+"\n\n"+recTitle(x),{cc:false}))}"${mailTarget()}>Email them</a>`:""}
@@ -13289,11 +13400,11 @@ function myBook(){
     return r&&r.id===t.id&&j.status!=="shipped"}).sort(byDue);
   const tasks=real(live(S.activity)).filter(a=>a.kind==="task"&&!a.done&&taskIsMine(a,t))
     .sort((a,b)=>taskDueKey(a).localeCompare(taskDueKey(b)));
-  const pipe=open.reduce((x,p2)=>x+projValue(p2),0);
+  const pros=open.filter(prospectQuote),pipeOpen=open.filter(p2=>!prospectQuote(p2));const pipe=pipeOpen.reduce((x,p2)=>x+projValue(p2),0),prosVal=pros.reduce((x,p2)=>x+projValue(p2),0);
   const late=open.filter(p2=>stillDue(p2)&&daysOut(p2.due)!==null&&daysOut(p2.due)<0);
   const wr=winRate(mine,180);
   const stalled=stalledAccounts(t);
-  const stageRows=PATH.map(st=>{const l=open.filter(p2=>p2.stage===st);
+  const stageRows=PATH.map(st=>{const l=pipeOpen.filter(p2=>p2.stage===st);
     return {k:(SG[st]||{}).label||st,v:l.reduce((x,p2)=>x+projValue(p2),0),n:l.length}}).filter(r=>r.n);
   const monRows=lastMonths(6).map(m2=>({k:ymLabel(m2),v:invIn(mine,m2).reduce((x,p2)=>x+billedValue(p2),0),
     n:invIn(mine,m2).length}));
@@ -13308,12 +13419,14 @@ function myBook(){
         <button class="btn" data-scope="${esc(t.id)}:jobs">My work orders</button>
         <button class="btn p" data-new="project">New project</button></div></div></div>
 
-    ${(function(){const n=followDueCount(mine);const rems=remFor(t);
-      if(!n&&!rems.length)return "";
+    ${(function(){const n=followDueCount(mine),nw=followNoWriterCount(mine);const rems=remFor(t);
+      if(!n&&!nw&&!rems.length)return "";
       return `<div class="today-items" style="margin:-4px 0 14px">${n?`<button class="tchip o" data-followdue="1">${n} follow-up${n===1?"":"s"} due</button>`:""}
+        ${nw?`<button class="tchip r" data-followdue="1" title="Planned more than 3 days ago, no draft yet — write them or skip them">${nw} follow-up${nw===1?"":"s"} late — nobody has written ${nw===1?"it":"them"}</button>`:""}
         ${rems.length?`<span class="tchip ${rems.some(r=>r.type==="terms"||r.type==="tracking")?"r":"y"}" style="cursor:default">${rems.length} reminder${rems.length===1?"":"s"} in the bell</span>`:""}</div>`})()}
     ${kpiRow([
-      kpi("Open pipeline",money(pipe),open.length+" project"+(open.length===1?"":"s")),
+      kpi("Open pipeline",money(pipe),pipeOpen.length+" project"+(pipeOpen.length===1?"":"s")+" the customer asked for"),
+      kpi("Prospect quotes",money(prosVal),pros.length+" lead-stage or not requested — not in the pipeline"),
       kpi("Won this month",money(wonM.reduce((x,p2)=>x+projValue(p2),0)),wonM.length+" won"),
       kpi("Invoiced this month",money(invM.reduce((x,p2)=>x+billedValue(p2),0)),invM.length+" invoiced"),
       kpi("Invoiced YTD",money(invYTD.reduce((x,p2)=>x+billedValue(p2),0)),invYTD.length+" project"+(invYTD.length===1?"":"s")),
@@ -14289,6 +14402,9 @@ function settingsView(){
       <div class="setrow"><button class="btn p" data-webcat="1" type="button">Pull the catalogue now</button></div>
       <div style="margin-top:8px">${ck("b-webcatauto",b.webcatAuto!==false,"Refresh it daily","On your own site")}</div>
       <div class="sub" id="webcat-stat" style="margin-top:6px">${esc(webcatStat())}</div>
+      ${(function(){const L=webcatRoughList();if(!L.length)return "";return `<details style="margin-top:8px" id="webcat-rough"><summary class="sub" style="cursor:pointer">Pictures to replace on the website (${L.length}) — these look like screenshots or phone photos, and they go on quotes as they are</summary>
+        <table class="tbl" style="margin-top:6px"><thead><tr><th>Product</th><th>Looks like</th><th>File</th></tr></thead><tbody>
+        ${L.map(r=>`<tr><td>${r.url?`<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.name)}</a>`:esc(r.name)}</td><td>${esc(r.why)}</td><td class="mono" style="overflow-wrap:anywhere">${esc(r.file)}</td></tr>`).join("")}</tbody></table></details>`})()}
     </div></section>
     <section class="card"><header><h2>Sales pipeline feed</h2><span class="sub">The agents' sheet, published to the web as CSV. Accounts, contacts, calls, emails, quotes, invoices, settings and stock come in from it, and the agents move projects along, make work orders, link files and ship work orders — on your own site every 15 minutes, inside Claude from Import pipeline feed on the Projects page.</span></header><div class="body">
       <input id="b-pipeurl" value="${esc(b.pipeUrl||"")}" placeholder="https://docs.google.com/spreadsheets/d/e/…/pub?output=csv" style="width:100%">
@@ -14978,7 +15094,8 @@ function projectModal(p,aid,then){
       ${ta("f-cscope","Scope on the quote / invoice — the customer sees this (leave empty for none)",p.custScope||"")}
       ${inp("f-ship","Ship to",p.shipTo,"text",1)}<input type="hidden" id="f-drive" value="${esc(p.drive||"")}">
       ${ta("f-notes","Working notes (internal)",p.notes)}
-      ${chk("f-internal","Dry run / internal test — never email anyone outside from this project",!!p.internal)}</div>`,
+      ${chk("f-internal","Dry run / internal test — never email anyone outside from this project",!!p.internal)}
+      ${chk("f-unreq","Prospect quote — the customer didn't ask for this (kept out of the open pipeline number)",!!p.unrequested)}</div>`,
     `<button class="btn" data-close="1">Cancel</button><button class="btn p" id="save">Save project</button>`));
   const fau=$("#f-auto");
   if(fau)fau.onchange=()=>{const w=$("#f-amtwrap"),h=$("#f-amthint");
@@ -15000,6 +15117,7 @@ function projectModal(p,aid,then){
     if($("#f-acct").value===NEWOPT)return toast("Pick an account, or add a new one.");
     const sd=$("#f-start").value,dd=$("#f-due").value;
     if(sd&&dd&&sd>dd)return toast("The due date is before the start date — check the dates.");
+    {const bad=custTextLint($("#f-cscope")?$("#f-cscope").value:"");if(bad.length){if($("#f-cscope"))$("#f-cscope").focus();return toast("The customer reads the scope on the quote — take out: "+bad.join(", ")+".")}}
     const id=p.id||uid("p"),stage=$("#f-stage").value;
     const num=p.num||await nextNum("nextProject",2001);
     let sl=(p.stageLog||[]).slice();
@@ -15014,11 +15132,12 @@ function projectModal(p,aid,then){
       amountAuto:$("#f-auto")?$("#f-auto").checked:!!p.amountAuto,
       billWhen:$("#f-billwhen")?$("#f-billwhen").value:(p.billWhen||"after"),
       billStatus:p.billStatus||"none",billDate:p.billDate||"",paidDate:p.paidDate||"",
-      depositAmt:p.depositAmt||"",deleted:false,internal:$("#f-internal")?$("#f-internal").checked:!!p.internal,
+      depositAmt:p.depositAmt||"",deleted:false,internal:$("#f-internal")?$("#f-internal").checked:!!p.internal,unrequested:$("#f-unreq")?$("#f-unreq").checked:!!p.unrequested,
       createdById:p.createdById||(p.id?"":meId()||""),createdAt:p.createdAt||Date.now(),updatedAt:Date.now()};
     // Edit project can't close it without the paperwork either (the database rules refuse it too)
     if(stage==="closed"&&p.stage!=="closed"){const miss=closePaperMissing(p.id?p:rec);
       if(miss.length)return toast("It can't be Closed won yet — missing: "+miss.join("; ")+".");rec.closePaper=closePaper(p)}
+    if(stage==="won"&&p.stage!=="won"){const m=wonProofMissing(Object.assign({},p,rec));if(m)return toast("Nothing on file says the customer approved it yet ("+m+"). Mark it won from the project page and record how they approved.")}
     const movedAcct=p.id&&p.accountId&&p.accountId!==rec.accountId;
     if(movedAcct){
       const okIds=contactsOf(rec.accountId).map(c=>c.id);
@@ -15220,6 +15339,7 @@ async function doUpload(files,cat,kind,id){
       if(kind==="job"){rec.jobId=String(id);const j=S.jobs.get(String(id));
         rec.projectId=j?j.projectId:"";rec.accountId=j?j.accountId:""}
       await setDoc("files/"+fid,rec);n++;
+      if(kind==="project"&&/^(Purchase order|Signed quote|Signed proof)$/.test(cat)){try{await closeChaseTasks(String(id),cat)}catch(e){}}
     }catch(e){
       const c=e&&e.code;
       toast(c==="invalid_request"?("Couldn't upload "+file.name+" — file type not accepted.")
@@ -15559,6 +15679,8 @@ async function advance(num,to,force){
   }
 }
 async function setStage(id,stage,why){
+  // Won needs the customer's yes on record (P-2028 was won with nothing filed): a PO or signed quote, a PO number, or an approval filed from their words
+  if(stage==="won"&&!/customer approved/.test(why||"")){const m=wonProofMissing(proj(id));if(m){if(S.me==="AI"||window.sscWorker)return "blocked";wonApprovalModal(id);return "blocked"}}
   if(stage==="closed"){const miss=closePaperMissing(proj(id));if(miss.length){toast("P-"+((proj(id)||{}).num||"")+" can't close yet — missing: "+miss.join("; ")+".");return "blocked"}}
   if(["quoted","won","production","shipped","invoiced","closed"].indexOf(stage)>=0){
     const p0=proj(id);if(p0&&!p0.quote)await ensureQuote(id,{noPlan:stage!=="quoted"});
@@ -15576,6 +15698,18 @@ async function setStage(id,stage,why){
     else if(stage==="lost"||PATH.indexOf(stage)>PATH.indexOf("quoted"))await followStopNow(id,stage==="lost"?"closed lost":"marked "+((SG[stage]||{}).label||stage).toLowerCase());
   }catch(e){}
 }
+// how the customer said yes, in their words, filed as an inbound email note on the project; then the project is marked won
+function wonApprovalModal(id){const p=proj(id);if(!p)return;
+  askConfirm("How did the customer approve this?",`<p style="margin:0 0 8px">Nothing on file says yes yet — no signed quote or PO in Files and no PO number. Say who approved it and how (what they wrote or said, and when); it goes on the project as the approval record. Or cancel and file the signed quote or PO first.</p>
+    <div class="fld full"><div class="k">Customer approval</div><textarea data-cin="why" data-req="Say who approved it and how — or cancel and file the signed quote or PO." rows="3" aria-label="Customer approval" placeholder="e.g. Pat Example, email Nov 7: go ahead with the 4 stop signs"></textarea></div>`,
+    "Approved — mark it won",false,async v=>{const note=String((v&&v.why)||"").trim();if(!note)return;
+      const nid=uid("ac"),now=Date.now();
+      await setDoc("activity/"+nid,{id:nid,recType:"project",recId:String(id),kind:"note",type:"email",direction:"in",subject:"Customer approval",text:"Customer approval — "+note,
+        whoId:meId(),who:me(),contactId:"",when:today(),due:"",backOn:"",noBack:true,at:now,done:false,deleted:false});
+      const wa={at:now,by:meName(),note:note.slice(0,500),activityId:nid};
+      await push("projects/"+id,{wonApproval:wa,updatedAt:now});const cur=S.projects.get(id);if(cur)cur.wonApproval=wa;
+      recordHistory("project",id,[{f:"Customer approval",o:"",n:note.slice(0,120),ev:1}]);
+      setStage(id,"won","customer approved — "+note.slice(0,60))})}
 async function toggleGate(num,k,on){
   if(!needMe(()=>toggleGate(num,k,on)))return;
   const L={specs:"Specs verified",payment:"Payment path set",proof:"Proof approved",material:"Material staged",qc:"QC passed"};
@@ -15830,7 +15964,7 @@ async function saveBrand(){let b2keep=null;
     quoteWord:(S.brand||{}).quoteWord,quoteLook:(S.brand||{}).quoteLook,docFooter:(S.brand||{}).docFooter,trackMail:(S.brand||{}).trackMail,
     autoSince:(S.brand||{}).autoSince||Date.now(),decal:(S.brand||{}).decal,commonCharges:(S.brand||{}).commonCharges,leadSince:(S.brand||{}).leadSince||0,
     lists:(S.brand||{}).lists||{},autoStage:(S.brand||{}).autoStage,autoFollow:(S.brand||{}).autoFollow,followDays:(S.brand||{}).followDays,
-    proofChase:(S.brand||{}).proofChase,proofDays:(S.brand||{}).proofDays,leadDays:(S.brand||{}).leadDays||{},
+    proofChase:(S.brand||{}).proofChase,proofDays:(S.brand||{}).proofDays,leadDays:(S.brand||{}).leadDays||{},capHours:(S.brand||{}).capHours||{},
     qbItems:(S.brand||{}).qbItems||{},priceLevels:(S.brand||{}).priceLevels||[],qtyBreaks:(S.brand||{}).qtyBreaks||[],
     minMargin:(S.brand||{}).minMargin==null?40:(S.brand||{}).minMargin,
     quoteDays:Math.max(1,Number($("#b-qdays")&&$("#b-qdays").value)||30),quoteNote:$("#b-qnote")?$("#b-qnote").value.trim():"",payNote:$("#b-pnote")?$("#b-pnote").value.trim():"",
@@ -16488,6 +16622,7 @@ function agentStageWhy(p,st){
 async function agentStage(p,st,why){
   const r=agentStageWhy(p,st);if(r)return r;
   if(st==="closed"&&closePaperMissing(p).length)return "the paperwork isn't all in Files ("+closePaperMissing(p).join("; ")+")";
+  if(st==="won"){const m=wonProofMissing(p);if(m)return "nothing on file says the customer approved it ("+m+") — file the signed quote or PO, or send the PO number with the stage row"}
   if(st==="lost")await push("projects/"+p.id,{lostWhy:"other",lostTo:"",lostNote:String(why||""),updatedAt:Date.now()});
   await asAI(()=>setStage(p.id,st,"by the agents"));
   if(st==="invoiced"){const p2=proj(p.id)||p;const bs=billState(p2);if(bs==="none"||bs==="deposit")await asAI(()=>setBill(p.id,"invoiced",true))}
@@ -16717,7 +16852,8 @@ async function pipeImportRows(rows){
         if(!dup){const fid=uid("f");
           await setDoc("files/"+fid,{id:fid,assetId:"",url,name,size:0,type:agentMime(name,url),cat,who:"AI",when:stamp(),at:now,deleted:false,
             accountId:aid||"",projectId:p&&!acctLevel?p.id:"",jobId:"",link:true,kind,approved:kind==="proof"?appr:false,feedId:id});
-          out.files++}
+          out.files++;
+          if(p&&!acctLevel&&(kind==="signed_quote"||kind==="po"||(kind==="proof"&&appr))){try{await asAI(()=>closeChaseTasks(p.id,kind==="proof"?"Signed proof":cat))}catch(e){}}}
         if(p&&(kind==="signed_quote"||kind==="po")){
           const up={updatedAt:now};if(kind==="signed_quote"){up.quoteSigned=true;up.quoteSignedAt=now}else{up.poOnFile=true;up.poFileAt=now}
           const po=String(o.po||r.po||"").trim();if(po&&po!==String(p.po||"")){up.po=po;lines.push("PO "+po+" recorded.")}
@@ -16955,6 +17091,15 @@ async function syncSentLoad(){
     else{SYNC.sent=syncLS("sscSyncSent")||{};if(Object.keys(SYNC.sent).length)syncSentSave(SYNC.sent)}   // first computer on the new store seeds it
   }catch(e){}
 }
+// what other copies of the CRM have sent since this one loaded: read the shared sent-list again and keep whichever mark is
+// newer for each record. Run before delivering reminders, so one reminder goes out once a day from ANY copy, not once per copy.
+async function syncSentRefresh(){if(!db)return;
+  try{const d=await db.doc("settings/syncsent").get();const ok=d&&(typeof d.exists==="function"?d.exists():d.exists);
+    const data=ok&&d.data()?d.data():null;if(!data||!data.sent)return;
+    const cur=Object.assign({},syncSent());let changed=false;
+    Object.keys(data.sent).forEach(k=>{const key=syncKeyDec(k),v=data.sent[k];if(!v)return;const mine=cur[key];
+      if(!mine||(Number(v.at)||0)>(Number(mine.at)||0)){cur[key]=v;changed=true}});
+    if(changed){SYNC.sent=cur;syncLS("sscSyncSent",cur)}}catch(e){}}
 function syncSentSave(sent){SYNC.sent=sent;syncLS("sscSyncSent",sent);
   if(!db)return;clearTimeout(SYNC.sentTmr);
   SYNC.sentTmr=setTimeout(()=>{try{const enc={};Object.keys(SYNC.sent||{}).forEach(k=>{enc[syncKeyEnc(k)]=SYNC.sent[k]});
@@ -17304,7 +17449,7 @@ function followCard(p){
           ${editing?`<input type="text" id="fu-subj-${esc(f.id)}" value="${esc(f.subject||"")}" placeholder="Subject">
             <textarea id="fu-body-${esc(f.id)}" placeholder="What to say">${esc(f.body||"")}</textarea>`
           :(f.subject||f.body)?`<div class="rr-p">${f.subject?`<b>${esc(f.subject)}</b>\n`:""}${esc(f.body||"")}</div>`
-          :f.status==="planned"?`<div class="sub" style="margin-top:3px">${f.due<=t?"Waiting for the writer — the draft lands here.":"The writer drafts it the day it's due."}</div>`:""}</div>
+          :f.status==="planned"?`<div class="sub" style="margin-top:3px">${followNoWriter(f)&&open?`<b style="color:var(--red)">Nobody has written this — ${followLateDays(f)} days late.</b> Write it, or skip it.`:f.due<=t?"Waiting for the writer — the draft lands here.":"The writer drafts it the day it's due."}</div>`:""}</div>
         <div class="rr-b">${editing?`<button class="btn sm p" data-fusave="${esc(id)}:${esc(f.id)}">Save</button><button class="btn sm" data-fucancel="1">Cancel</button>`
           :canAct?`${(f.body||f.subject)?`<button class="btn sm p" data-fusend="${esc(id)}:${esc(f.id)}">Send</button>`:""}
             <button class="btn sm" data-fuedit="${esc(f.id)}">${(f.body||f.subject)?"Edit":"Write it"}</button><button class="btn sm" data-fuskip="${esc(id)}:${esc(f.id)}">Skip</button>`:""}</div></div>`}).join("")}
@@ -17319,6 +17464,7 @@ function followSyncRec(p,f){
     quote_number:p.quote||"",quote_date:p.quoteDate||"",customer:a.name||"",account_id:p.accountId||"",
     contact:c?(c.name||""):"",email:c?(c.email||""):"",phone:c?(c.phone||c.mobile||""):(a.phone||""),
     due:f.due||"",n:f.n,auto:followAutoOk(p),stop:p.followStop||"",lines:linesSummary(p),value:syncN(projValue(p)),
+    late_days:(f.status==="planned"||f.status==="drafted")&&followOpen(p)?followLateDays(f):0,writer:followNoWriter(f)&&followOpen(p)?"none":f.status==="drafted"||f.subject||f.body?"drafted":"",
     rep:rep2?(rep2.initials||""):"",rep_name:rep2?(rep2.name||""):"",rep_email:rep2?(rep2.email||""):"",
     project:p.name||"",subject:f.subject||"",text:f.body||"",sent_at:syncISO(f.sentAt),deleted:!!p.deleted}}
 // one record out, if the sheet hasn't seen this version of it (hash kept in settings/syncsent like every other record)
@@ -17329,6 +17475,12 @@ function syncSend(key,r,event,url){
 function syncFollowups(pid,url){const p=proj(pid)||S.projects.get(pid);if(!p||!(p.followups||[]).length)return 0;let n=0;
   p.followups.forEach(f=>{if(syncSend("followup/"+p.id+":"+f.n,followSyncRec(p,f),f.status||"planned",url))n++});return n}
 function followDueCount(list){return list.reduce((t,p)=>t+followDueOf(p).length,0)}
+// days a follow-up is past its due date (0 when not due yet)
+function followLateDays(f){if(!f||!f.due)return 0;const d=Math.floor((Date.parse(today())-Date.parse(f.due))/864e5);return d>0?d:0}
+// a planned follow-up with no draft more than 3 days past due: nobody is writing it
+function followNoWriter(f){return !!f&&f.status==="planned"&&!(f.subject||f.body)&&followLateDays(f)>3}
+function followNoWriterOf(p){return followOpen(p)?(p.followups||[]).filter(followNoWriter):[]}
+function followNoWriterCount(list){return list.reduce((t,p)=>t+followNoWriterOf(p).length,0)}
 
 /* ---------- reminders: computed here, read by one person in the bell, delivered by the agent ---------- */
 function remLabel(k){const x=REM_TYPES.find(y=>y[0]===k);return x?x[1]:k}
@@ -17482,7 +17634,9 @@ async function accessSync(force){if(ACCESS_BUSY||!db||!S.ready||!S.team||!S.team
   }
   finally{ACCESS_BUSY=false}
   return {n,gone,total:Object.keys(accessWanted()).length}}
-function remTick(){try{if(!db||!S.ready||!S.brandLoaded)return;remDeliver();accessSync().catch(()=>{});
+function remTick(){try{if(!db||!S.ready||!S.brandLoaded)return;
+    // another copy of the CRM may have sent today's reminders already: read the shared sent-list first, then deliver
+    syncSentRefresh().then(()=>{try{remDeliver()}catch(e){}});accessSync().catch(()=>{});
     const n=remMine().length;if(S._remN!==n){S._remN=n;if(!typing()&&!S.modal)render()}}catch(e){}}
 function bellBtn(){
   if(!S.viewerTeam)return "";
@@ -17528,6 +17682,7 @@ const MAIL_TPL=[
   {id:"ship",name:"Shipped",subject:"Your order has shipped — {project}",body:"Hi {first},\n\nYour order for {project} shipped{carrier_part}.{tracking_part}\n\nThanks for the business,\n{sig_name}"},
   {id:"invoice",name:"Invoice",subject:"Invoice {invoice} — {project}",body:"Hi {first},\n\nThe invoice for {project} is attached ({total_tax}). Let me know if you need anything else for your records.\n\nThanks,\n{sig_name}"},
   {id:"thanks",name:"Thank you / reorder check-in",subject:"Thanks from {company}",body:"Hi {first},\n\nThanks again for the order on {project}. If you need more signs or anything else, just reply here and I'll get it quoted.\n\nThanks,\n{sig_name}"},
+  {id:"cert",name:"Ask for their exemption certificate",subject:"Tax exemption certificate for {customer}",body:"Hi {first},\n\nQuick housekeeping item on our end. For {customer} to be billed without sales tax we need a copy of your exemption certificate on file — for Utah that's form TC-721 from the State Tax Commission, signed by someone at your agency. A PDF or a clear photo is fine; just reply with it attached.\n\nUntil it's on file our invoices have to show tax, so this saves us both a correction later.\n\nThanks,\n{sig_name}"},
   {id:"blank",name:"Blank email",subject:"",body:"Hi {first},\n\n\n\nThanks,\n{sig_name}"}];
 function mailTemplates(){const own=((S.brand||{}).mailTemplates||[]).filter(t=>t&&t.name);return own.map(t=>Object.assign({own:true},t)).concat(MAIL_TPL.filter(t=>!own.some(o=>o.id===t.id)))}
 // sending from the CRM works only on the hosted site, after the mail worker has proven it can send (it sets mailSendOk)
@@ -17656,9 +17811,36 @@ async function quoteOkFor(p,to,cc,atts){const ap=p&&p.quoteApproval;if(!ap||ap.v
   if(atts&&atts.length){const ok=new Set(ap.sha||[]);for(const a of atts){let h="";try{h=await shaOfUrl(a.url)}catch(e){return false}if(!ok.has(h))return false}}
   const ok=new Set((ap.to||[]).concat(ap.cc||[]).map(x=>String(x).toLowerCase()));return to.concat(cc||[]).every(x=>ok.has(String(x).toLowerCase()))}
 const MAX_RECIP=6;
+// Every signing link an email carries — the one its window was opened with and any pasted into the text — has to be live
+// when it goes. Cancelled, declined or already signed: the email is refused with a plain message. Expired: a fresh copy of
+// that request is made and the link swapped in. Replaced: the newer live link takes its place. Links the CRM doesn't know
+// (another site, or a token not loaded) are left alone. Returns {stop} to refuse, else {body, signId}.
+async function freshenSignLinks(C,body){
+  let signId=String((C&&C.signId)||"");body=String(body||"");const R=S.signreq||new Map();
+  const base=signBase();const re=new RegExp(base.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\?t=([0-9a-f]{16,64})","gi");
+  const toks=new Set();let m;while((m=re.exec(body)))toks.add(m[1].toLowerCase());if(signId)toks.add(signId.toLowerCase());
+  const isLive=r=>r&&!r.deleted&&r.status==="sent"&&!(r.expiresAt&&r.expiresAt<Date.now());
+  const tokOf=u=>{const k=String(u||"").match(/[?&]t=([0-9a-f]{16,64})/i);return k?k[1].toLowerCase():""};
+  for(const tok of toks){const r=R.get(tok);if(!r)continue;let nt=tok;
+    if(r.deleted||r.status==="cancelled")return {stop:"That approval link was cancelled, so it can't go out. Make a new one with Get it signed, then send."};
+    if(r.status==="declined")return {stop:"The customer asked for changes on that approval link. Make the changes, then a new link with Get it signed."};
+    if(r.status==="signed")return {stop:"That approval link was already signed. Take it out of the email, or make a new link if there's something new to approve."};
+    if(r.status==="replaced"){const nr=R.get(tokOf(r.replacedBy));if(isLive(nr))nt=nr.token;
+      else return {stop:"That approval link was replaced and the newer one isn't live either. Make a new one with Get it signed, then send."}}
+    else if(r.status==="sent"&&r.expiresAt&&r.expiresAt<Date.now()){
+      // expired: the same request again under a fresh token, good for another 30 days
+      nt=signToken();const now=Date.now();
+      const rec=Object.assign({},r,{token:nt,status:"sent",createdAt:now,expiresAt:now+30*864e5,createdBy:meName(),createdById:meId(),
+        viewedAt:0,viewLogged:false,signedName:"",signedTitle:"",signedAt:0,sigImg:"",note:"",pieces:[],filed:false,wonSet:false,gateSet:false,renewedFrom:tok});
+      try{await setDoc("signreq/"+nt,rec)}catch(e){return {stop:"Couldn't make a new approval link — try Get it signed."}}
+      await setDoc("signreq/"+tok,Object.assign({},r,{status:"replaced",replacedBy:signUrl(nt)})).catch(()=>{});
+      if(r.projectId)logEvent("project",r.projectId,"Approval link had expired — a new one was made for this email")}
+    else if(!isLive(r))return {stop:"That approval link isn't live any more. Make a new one with Get it signed, then send."};
+    if(nt!==tok){body=body.split(signUrl(tok)).join(signUrl(nt));body=body.split(signUrl(tok.toUpperCase())).join(signUrl(nt));if(signId.toLowerCase()===tok)signId=nt}}
+  return {body,signId}}
 async function composeGo(send){const C=S._cmp||{};const to=$("#cm-to").value.split(/[,;]/).map(x=>x.trim()).filter(x=>/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(x));
   const cc=$("#cm-cc").value.split(/[,;]/).map(x=>x.trim()).filter(x=>/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(x));
-  const subject=$("#cm-subj").value.trim(),body=$("#cm-body").value;
+  const subject=$("#cm-subj").value.trim();let body=$("#cm-body").value;
   if(!to.length){toast("Put in who it goes to.");$("#cm-to").focus();return}
   if(!subject){toast("Give it a subject.");$("#cm-subj").focus();return}
   if(to.length+cc.length>MAX_RECIP)return toast("At most "+MAX_RECIP+" people on one email (To and Cc together).");
@@ -17671,6 +17853,8 @@ async function composeGo(send){const C=S._cmp||{};const to=$("#cm-to").value.spl
   const quoteOut=isQuoteMail(C,atts);if(quoteOut&&pq&&quoteFileStale(pq,atts))return toast("The quote PDF attached is older than the quote — make a new one (Documents → Quote) and attach that.");
   const needOk=quoteOut&&myAccess()!=="owner"&&!(await quoteOkFor(pq,to,cc,atts));
   if(needOk&&!send)return toast("This quote needs Matt's OK first — press Send and it goes out the moment he approves it.");
+  // every approval link in the email must still be live (P-2032 got a link that had been cancelled the day before)
+  const sl=await freshenSignLinks(C,body);if(sl.stop)return toast(sl.stop);body=sl.body;const signId=sl.signId;
   const tl=to.map(x=>x.toLowerCase()),hit=x=>x&&x.email&&tl.indexOf(String(x.email).toLowerCase())>=0;
   const pA=C.pid?(proj(C.pid)||{}).accountId:C.aid;
   const c=hit(C.contact)?C.contact:(contactsOf(pA||"").find(hit)||live(S.contacts).find(hit)||null);
@@ -17678,9 +17862,9 @@ async function composeGo(send){const C=S._cmp||{};const to=$("#cm-to").value.spl
   closeModal();
   await setDoc("activity/"+xid,{id:xid,recType,recId:String(recId),kind:"note",type:"email",direction:"out",subject,text:body+(atts.length?"\n\n📎 "+atts.map(a=>a.name).join(", "):""),
     contactId:c?c.id:"",whoId:meId(),who:me(),when:today(),due:"",backOn:"",noBack:true,at:now,done:true,deleted:false,mailId:send?mid:"",sendState:send?(needOk?"approval":"queued"):"opened",to:to.join(", "),
-    mailCopy:send?{to,cc,subject,body,atts,quote:quoteOut?{pid:pq.id,hash:quoteHash(pq),no:pq.quote||""}:null,signId:C.signId||"",follow:C.follow?{pid:C.follow.pid,id:C.follow.id}:null,recType,recId:String(recId)}:null});
+    mailCopy:send?{to,cc,subject,body,atts,quote:quoteOut?{pid:pq.id,hash:quoteHash(pq),no:pq.quote||""}:null,signId,follow:C.follow?{pid:C.follow.pid,id:C.follow.id}:null,recType,recId:String(recId)}:null});
   if(send){await setDoc("mail/"+mid,Object.assign({id:mid,kind:"customer",to,cc,from:myMailFrom(),fromName:meName(),byId:meId(),message:{subject,text:body},attachments:atts,
-      status:"queued",at:now,activityId:xid,recType,recId:String(recId),signId:C.signId||""},
+      status:"queued",at:now,activityId:xid,recType,recId:String(recId),signId},
       quoteOut?{quote:{pid:pq.id,hash:quoteHash(pq),no:pq.quote||""}}:{},C.follow?{follow:{pid:C.follow.pid,id:C.follow.id}}:{}));
     toast(needOk?"Quote sent to Matt to approve — it goes out from "+myMailFrom()+" as soon as he OKs it.":"Sending — it goes out from "+myMailFrom()+" within about a minute.")}
   else{mailOpen(to.join(","),subject,body,{cc:false});toast("Opened in your email — it's logged here.")}
@@ -17812,6 +17996,7 @@ async function signFile(tok){const r=(S.signreq||new Map()).get(tok);if(!r||r.st
   await setDoc("files/"+fid,{id:fid,url:signView(tok),link:true,name:(r.kind==="proof"?"Signed proof":"Signed quote")+" — "+r.signedName+" — "+isoDay(r.signedAt)+" ("+(r.pdfName||"")+")",
     size:0,type:"text/html",cat:r.kind==="proof"?"Signed proof":"Signed quote",who:me(),when:stamp(),at:now,deleted:false,accountId:p.accountId||"",projectId:p.id,jobId:""});
   await setDoc("signreq/"+tok,Object.assign({},r,{filed:true}));
+  try{await closeChaseTasks(p.id,r.kind==="proof"?"Signed proof":"Signed quote")}catch(e){}
   recordHistory("project",p.id,[{f:r.kind==="proof"?"Proof signed":"Quote signed",o:"",n:r.signedName+" "+fmtTs(r.signedAt)+" — saved to Files",ev:1}]);toast("Saved to Files")}
 
 /* ---------- one-click drafts on the project ---------- */
@@ -17983,6 +18168,9 @@ function bind(){
     if(t.closest("[data-catchup]")){const L=catchUpList();closeModal();
       (async()=>{for(const x of L)await setStage(x.p.id,x.to,"caught up by hand");toast(L.length+" project"+(L.length===1?"":"s")+" caught up")})();return}
     const nga=t.closest("[data-negadd]");if(nga){negModal(nga.dataset.negadd,null);return}
+    const cak=t.closest("[data-certask]");if(cak){const aid=cak.dataset.certask;const a=acct(aid);const bc=billingForAccount(a);const c0=(bc&&bc.email?bc:null)||contactsOf(aid).find(c=>c.email)||null;
+      if(!c0)return toast("No contact with an email on this account yet — add one first.");
+      composeModal({aid,contactId:c0.id,tpl:"cert",kind:"cert",title:"Ask for their exemption certificate"});return}
     const nge=t.closest("[data-negedit]");if(nge){const v=nge.dataset.negedit;const i=v.indexOf("|");negModal(v.slice(0,i),v.slice(i+1));return}
     const fp=t.closest("[data-fillprices]");if(fp){if(S.modal)closeModal();fillPrices(fp.dataset.fillprices);return}
     const ptg=t.closest("[data-ptabgo]");if(ptg){if(S.modal)closeModal();S.ptab="lines";go("project/"+ptg.dataset.ptabgo);return}
