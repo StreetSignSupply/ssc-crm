@@ -11736,7 +11736,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-163";
+const APP_VERSION="2026.11.25-164";
 // the release check (which opens the page from a file) can reach these; the hosted site exposes nothing
 if(location.protocol==="file:")window.__sscTest={S,benchDue,benchChip,weekMonday,picRough,webcatStat};
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
@@ -16735,6 +16735,29 @@ async function pipeImportRows(rows){
           bin:"",vendor:String(o.vendor||""),notes:"",shipClass:"parcel",feedId:id,deleted:false,createdAt:now,updatedAt:now};
         await setDoc("items/"+iid,it);logEvent("item",iid,"Item added from the agents' inventory feed");}
       const ono=Number(csvNum(o.on_order))||0;const ref=String(o.ref||"").trim();
+      // build 164: the agents can also set the reorder point / quantity, record a vendor's price, and book material
+      // used on a work order (qty below zero) — the three inventory steps that used to need a person in the CRM
+      let touched=false;
+      {const rp=csvNum(o.reorder_point),rq=csvNum(o.reorder_qty);const patch={};
+        if(rp!==""&&Number(rp)>=0&&Number(rp)!==Number(it.reorderPoint))patch.reorderPoint=Number(rp);
+        if(rq!==""&&Number(rq)>=0&&Number(rq)!==Number(it.reorderQty))patch.reorderQty=Number(rq);
+        if(Object.keys(patch).length){patch.updatedAt=now;await push("items/"+it.id,patch);Object.assign(it,patch);
+          recordHistory("item",it.id,[{f:"Reorder point",o:"",n:[patch.reorderPoint!==undefined?"at "+patch.reorderPoint:"",patch.reorderQty!==undefined?"buy "+patch.reorderQty:""].filter(Boolean).join(", ")+" (agents' feed)"}]);touched=true}}
+      {const vp=csvNum(o.vendor_price);const vn=String(o.vendor||"").trim();
+        if(vp!==""&&Number(vp)>0&&vn){const v=live(S.vendors).find(x=>lc(x.name)===lc(vn))||live(S.vendors).find(x=>lc(x.name).indexOf(lc(vn))>=0||lc(vn).indexOf(lc(x.name))>=0);
+          if(v){const list=itemVendors(it).filter(x=>!x.missing).map(x=>Object.assign({},x));let row=list.find(x=>x.vendorId===v.id);
+            if(!row){row={vendorId:v.id,cost:"",freight:"",part:"",lead:"",lastBought:"",source:"",preferred:!list.length};list.push(row)}
+            row.cost=Number(vp);if(fr!=="")row.freight=qty>0?Math.round(fr/qty*10000)/10000:Number(fr);if(o.lead)row.lead=String(o.lead);if(o.part)row.part=String(o.part);row.source="agents' feed"+(ref?" "+ref:"");
+            await itemVendSave(it.id,list);recordHistory("item",it.id,[{f:"Vendor price",o:"",n:v.name+" "+Number(vp).toFixed(2)+(row.preferred?" (preferred; item cost follows)":"")+" (agents' feed)"}]);touched=true}}}
+      if(qty<0){const txid=uid("tx");const jn=String(o.job||o.work_order||"").replace(/^WO\s*/i,"").trim();
+        const use=Math.abs(qty);const was=onHand(it),want=was-use,nowQ=Math.max(0,Math.round(want*10000)/10000);
+        await setDoc("invtx/"+txid,{id:txid,itemId:it.id,swapFor:"",type:"use",qty:-use,at:now,who:"AI",
+          note:(jn?"Used on work order "+jn:"Used")+(o.note?" — "+String(o.note).slice(0,120):"")+" (agents' feed"+(ref?", "+ref:"")+")",jobId:jn,cost:"",
+          itemName:it.name||"",unit:it.unit||"",unitCost:it.cost||"",deleted:false,feedId:id});
+        await push("items/"+it.id,Object.assign({onHand:nowQ,updatedAt:now},want<0?{needsCount:true}:{}));it.onHand=nowQ;
+        recordHistory("item",it.id,[{f:"Stock",o:String(was),n:String(nowQ)+" (used"+(jn?" on work order "+jn:"")+" — agents' feed)"+(want<0?" — the count was "+Math.round(-want*100)/100+" short; needs a recount":"")}]);
+        out.inventory++;done[id]=1;mark(id);continue}
+      if(ono<=0&&qty<=0){if(touched)out.inventory++;else out.bad++;done[id]=1;mark(id);continue}
       if(ono>0&&qty<=0){const txid=uid("tx");const exp=/^\d{4}-\d{2}-\d{2}/.test(String(o.expected||""))?String(o.expected).slice(0,10):"";
         await setDoc("invtx/"+txid,{id:txid,itemId:it.id,type:"ordered",kind:"ordered",qty:ono,at:now,who:"AI",
           note:["Ordered",o.vendor?"from "+o.vendor:"",ref?"— "+ref:"",exp?"(expected "+exp+")":""].filter(Boolean).join(" "),jobId:"",cost:uc===""?"":Number(uc).toFixed(2),
