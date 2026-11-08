@@ -254,7 +254,20 @@ if (STEP === "export") {
       const oh = Number(i.onHand || 0), oo = Math.max(0, Number(i.onOrder || 0)), rp = (i.reorderPoint === "" || i.reorderPoint == null) ? "" : Number(i.reorderPoint);
       items.push([i.id, i.name || "", i.sku || "", i.cat || "", i.unit || "", oh, oo, rp, i.reorderQty || "", rp !== "" && oh + oo <= rp ? "yes" : "", i.bin || "", vend(i.vendorId), i.cost || "", i.vendorPart || "", i.vendorLead || "", i.sample ? "yes" : "", ts(i.updatedAt)]);
     });
-    return { files, items };
+    // activity (notes, calls, tasks, emails logged in the CRM) and calendar events, last 90 days plus every open task
+    const cutoff = Date.now() - 90 * 86400000;
+    const refOf = (type, id) => { if (type === "project") { const p = S.projects.get(String(id)); return p ? "P-" + p.num + " " + (p.name || "") : ""; } if (type === "account") return acct(String(id)); if (type === "vendor") return vend(String(id)); if (type === "contact") { const c = S.contacts.get(String(id)); return c ? c.name || "" : ""; } return type === "job" ? "WO " + id : ""; };
+    const acts = [["activity_id", "at", "who", "kind", "on", "ref", "subject", "text", "to", "task_due", "task_done", "source"]];
+    live(S.activity).filter((a) => (Number(a.at) || 0) >= cutoff || (a.kind === "task" && !a.done)).sort((a, b) => (Number(b.at) || 0) - (Number(a.at) || 0)).slice(0, 3000).forEach((a) => {
+      acts.push([a.id, ts(a.at), a.who || "", a.kind || "", a.recType || "", refOf(a.recType, a.recId), a.subject || "", String(a.text || "").replace(/\s+/g, " ").slice(0, 500), a.to || "", a.due || "", a.kind === "task" ? (a.done ? "yes" : "no") : "", a.source || ""]);
+    });
+    const evs = [["event_id", "start_date", "start_time", "end_date", "end_time", "all_day", "title", "details", "location", "project", "account", "created_by"]];
+    const today = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+    live(S.events).filter((e) => String(e.startDate || "") >= today).sort((a, b) => String(a.startDate || "").localeCompare(String(b.startDate || ""))).forEach((e) => {
+      const p = e.projectId ? S.projects.get(String(e.projectId)) : null;
+      evs.push([e.id, e.startDate || "", e.startTime || "", e.endDate || "", e.endTime || "", e.allDay ? "yes" : "", e.title || "", String(e.details || "").replace(/\s+/g, " ").slice(0, 300), e.location || "", p ? "P-" + p.num : "", acct(p ? p.accountId : e.accountId), e.who || ""]);
+    });
+    return { files, items, acts, evs };
   });
   const write = async (TAB, rows, cols) => {
     const meta = await api("?fields=sheets(properties(title,sheetId,gridProperties))", "GET");
@@ -269,8 +282,10 @@ if (STEP === "export") {
   try {
     await write("CRM Files", data.files, 18); step("CRM Files written");
     await write("CRM Inventory", data.items, 17); step("CRM Inventory written");
+    await write("CRM Activity", data.acts, 12); step("CRM Activity written");
+    await write("CRM Calendar", data.evs, 12); step("CRM Calendar written");
     const vinv = data.files.slice(1).filter((r) => r[5] === "vendor" && /invoice/i.test(r[3])).length, low = data.items.slice(1).filter((r) => r[9] === "yes").length;
-    console.log("::notice::export: " + (data.files.length - 1) + " files (" + vinv + " vendor invoices), " + (data.items.length - 1) + " inventory items (" + low + " low)");
+    console.log("::notice::export: " + (data.files.length - 1) + " files (" + vinv + " vendor invoices), " + (data.items.length - 1) + " inventory items (" + low + " low), " + (data.acts.length - 1) + " activity rows, " + (data.evs.length - 1) + " calendar events");
     await browser.close(); process.exit(0);
   } catch (e) { console.log("::error::export: " + String(e.message || e).slice(0, 160)); await browser.close(); process.exit(1); }
 }
