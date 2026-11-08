@@ -47,7 +47,7 @@ const D = {
         { id: "fu3", n: 3, due: new Date(now + 9 * day).toISOString().slice(0, 10), status: "planned", subject: "", body: "" }] } },
   jobs: { 1001: { num: 1001, desc: "Signs and stencils", projectId: "p1", accountId: "a1", prod: "sign", status: "production", due: new Date(now + 3 * day).toISOString().slice(0, 10),
     items: [{ qty: "4", code: "R1-1", desc: "Stop", size: "30x30", grade: "HIP", lineId: "l1" }], gates: {}, route: {}, ship: {}, statusLog: [{ status: "new", at: now - day }] } },
-  files: { f1: { name: "Proof.png", type: "image/png", url: "", cat: "Artwork proof", projectId: "p1", accountId: "a1", at: now },
+  files: { f1: { name: "Proof.png", type: "image/png", url: "", cat: "Artwork proof", projectId: "p1", accountId: "a1", at: now, note: "ran on 54 in vinyl, Custom 48in preset" },
     // a quote PDF a sales rep made (like the sales agent's starter quotes): it has to show on the owner's review list
     // a stencil's cut file and PDF: they show on that stencil (#/stencils)
     f3: { name: "SSS-FAA-108-01.dxf", type: "application/dxf", url: "", cat: "Cut file", stencilSku: "SSS-FAA-108-01", byId: "t1", who: "TO", at: now, size: 20480 },
@@ -181,6 +181,16 @@ await pg.waitForTimeout(300);
   if (r.err) bad.push("exemption checklist: " + r.err);
   else { if (!/Certificate requested/.test(r.steps) || !/Certificate uploaded to Files/.test(r.steps) || !/Expiry date entered/.test(r.steps)) bad.push("the exemption checklist is missing a step");
     if (!r.modal || r.to !== "pat@example.com" || !/TC-721/.test(r.body) || !/exemption certificate/i.test(r.subj) || /agent|CRM|proactive/i.test(r.body)) bad.push("the certificate request email isn't right (to " + r.to + "; subject " + r.subj + ")"); } }
+// production files: the Upload window offers the category and a note line, and a file's note shows under it in Files
+{ await pg.evaluate(() => { location.hash = "#/project/p1"; }); await pg.waitForTimeout(500);
+  await pg.evaluate(() => document.querySelectorAll(".main .card.collapsed button.cz").forEach((b) => b.click())); await pg.waitForTimeout(200);
+  const shown = await pg.evaluate(() => /ran on 54 in vinyl/.test((document.querySelector(".main") || {}).innerText || ""));
+  if (!shown) bad.push("a file's note isn't shown under it in Files");
+  const r = await pg.evaluate(async () => { const w = (ms) => new Promise((r) => setTimeout(r, ms)); const b = document.querySelector("[data-upload^='project:p1']"); if (!b) return { err: "no Upload button" }; b.click(); await w(400);
+    const cat = document.querySelector("#f-cat"); const opts = cat ? [...cat.options].map((o) => o.value) : []; const note = !!document.querySelector("#f-note");
+    document.querySelectorAll(".modal .mx").forEach((x) => x.click()); await w(200); return { opts, note }; });
+  if (r.err) bad.push("upload window: " + r.err);
+  else if (r.opts.indexOf("Production file") < 0 || !r.note) bad.push("the Upload window is missing Production file or the Note line (" + r.opts.length + " categories, note " + r.note + ")"); }
 // list filters must actually filter (a release once dropped the Accounts filter handler and nothing reacted)
 const rows = () => pg.evaluate(() => document.querySelectorAll(".main section.wide tbody tr").length);
 const filt = [["accounts", "select[data-acfilt=type]", "Contractor"], ["accounts", "select[data-acfilt=rep]", "t1"], ["inventory", "select[data-invfilt=cat]", "Substrate"]];

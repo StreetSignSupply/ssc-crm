@@ -1,5 +1,11 @@
 # What changed
 
+## 2026.11.25-163 (production files live on the project)
+- **"Production file" is a file category.** The Flexi print/cut file and its PDF proof for every job printed in the shop go on the project (or account) under Production file, so the exact file that ran is always there to run again or refer to.
+- **A note on upload.** The Upload window has an optional Note line (media, RIP preset, measured width, cutter condition, result for a production file; anything for other files). It shows under the file in Files. Up to 300 characters.
+- **Agents' file links carry the same.** A Feed `file` row may use `kind: production` (→ Production file) or `kind: cut_file` (→ Cut file) and an optional `note`, which shows under the linked file.
+- The release check confirms the Upload window offers Production file and the Note line, and that a file with a note shows it.
+
 ## 2026.11.25-162 (the bench has a size; rough website pictures are listed; agencies get asked for their certificate)
 - **Shop capacity.** Settings → Automations has a Shop capacity block: hours the bench has in a normal week, this week and next, and the hours a typical work order takes. A due date the CRM fills in from lead time now moves to the next week with room when the week it lands in is already full (one week at a time, up to four), and the history line says so. The dashboard shows "Bench full — N work orders ≈ H h vs C h this week" when this week is over. Blank = no limit, nothing changes. Nothing here makes or moves a work order by itself; Matt still runs production.
 - **Website pictures that were never product shots.** The catalogue pull flags pictures whose file name says screenshot, phone photo, untitled or just numbers; the daily refresh keeps the list current. Settings → Website catalogue shows how many and lists them (product, what it looks like, file name) so they can be replaced on the website. The product keeps its picture meanwhile — nothing on quotes changes until the site does.

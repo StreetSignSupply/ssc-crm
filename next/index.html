@@ -1726,7 +1726,7 @@ const ROUTE=R_BLANK.stock.concat(R_METHOD.film).concat(R_FINAL);
 const SHIPM=["UPS / FedEx","Freight","Will call","Local delivery"];
 const ACCT_TYPE=["Government agency","Contractor","Reseller","Retail","Vendor"];
 const TERMS=["Due on receipt","Card at checkout","Net 30","Net 45","Net 60","Prepay"];
-const FILECAT=["Artwork proof","Cut file","Signed proof","Signed work order","Artwork","Purchase order","Quote","Signed quote","Invoice","Packing slip / BOL","Photo","Spec sheet","Tax certificate","Other"];
+const FILECAT=["Artwork proof","Cut file","Production file","Signed proof","Signed work order","Artwork","Purchase order","Quote","Signed quote","Invoice","Packing slip / BOL","Photo","Spec sheet","Tax certificate","Other"];
 const ROLES=["Buyer / purchasing","Accounts payable","Engineer","Public works","Field contact","Other"];
 const SRC=["Website","Phone","Email","Agency PO","Bid","Walk-in","Referral"];
 const LBL={
@@ -11736,7 +11736,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-162";
+const APP_VERSION="2026.11.25-163";
 // the release check (which opens the page from a file) can reach these; the hosted site exposes nothing
 if(location.protocol==="file:")window.__sscTest={S,benchDue,benchChip,weekMonday,picRough,webcatStat};
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
@@ -12724,6 +12724,7 @@ function linkTile(f,showSrc){
     return `<div class="ftile" data-view="${esc(f.id)}" style="cursor:pointer"><div class="th" title="View ${esc(f.name)}"><span class="ext">${esc(ext)}</span></div>
     <div class="meta"><b class="nm" title="${esc(f.name)}">${esc(f.name)}</b>
       <span class="sub">${esc(f.cat||"Other")} · saved in Google Drive${f.who==="AI"?" · added by the agents":""}</span>
+      ${f.note?`<span class="sub" style="display:block;margin-top:3px;white-space:normal" title="${esc(f.note)}">${esc(f.note)}</span>`:""}
       ${showSrc&&f._src?`<span class="pill" style="margin-top:3px">${esc(f._src)}</span>`:""}</div>
     <div class="row" data-stop="1">
       <button class="btn sm" data-view="${esc(f.id)}">View</button>
@@ -12733,6 +12734,7 @@ function linkTile(f,showSrc){
   return `<div class="ftile"><a class="th" href="${esc(f.url)}" target="_blank" rel="noopener" title="Open ${esc(f.name)}" style="text-decoration:none"><span class="ext">LINK</span></a>
     <div class="meta"><b class="nm" title="${esc(f.name)}">${esc(f.name)}</b>
       <span class="sub">${esc(f.cat||"Other")} · ${esc(linkHost(f.url))}${f.who==="AI"?" · added by the agents":""}</span>
+      ${f.note?`<span class="sub" style="display:block;margin-top:3px;white-space:normal" title="${esc(f.note)}">${esc(f.note)}</span>`:""}
       ${showSrc&&f._src?`<span class="pill" style="margin-top:3px">${esc(f._src)}</span>`:""}</div>
     <div class="row" data-stop="1">
       <a class="btn sm" href="${esc(f.url)}" target="_blank" rel="noopener" style="text-decoration:none">Open link</a>
@@ -12756,6 +12758,7 @@ function fileTile(f,showSrc){
     <div class="meta"><b class="nm" title="${esc(f.name)}">${esc(f.name)}</b>
       <span class="sub">${esc([f.cat||"Other",bytes(f.size)].filter(Boolean).join(" · "))}${fileVersionPill(f)}</span>
       <span class="sub" style="font-size:11.5px">${esc(fileWho(f))}${fileLocked(f)?" · 🔒 kept":""}</span>
+      ${f.note?`<span class="sub" style="display:block;margin-top:3px;white-space:normal" title="${esc(f.note)}">${esc(f.note)}</span>`:""}
       ${showSrc&&f._src?`<span class="pill" style="margin-top:3px">${esc(f._src)}</span>`:""}</div>
     <div class="row" data-stop="1">
       <button class="btn sm" data-view="${esc(f.id)}">Open</button>
@@ -15301,12 +15304,13 @@ function uploadModal(kind,id,preset){
     <div class="fgrid"><div class="fld full"><div class="k">Choose files</div>
       <input type="file" id="f-files" multiple style="padding:8px 0;border:0;background:none"></div>
       ${sel("f-cat","Category",preset||FILECAT[1],FILECAT)}<div class="fld"></div>
+      <div class="fld full"><div class="k">Note <span class="sub">(optional — shows under the file; for a production file: media, preset, width, cutter condition, result)</span></div><input id="f-note" maxlength="300" placeholder="e.g. 54 in white print vinyl + 8508 · Custom 48in preset · FC9000 cond. 1 · 100 cut clean"></div>
       <div class="fld full sub">Images, PDFs, and documents up to 20 MB each.</div></div>
       <div id="upstat" class="sub" style="padding:0 14px 8px"></div>`,
     `<button class="btn" data-close="1">Cancel</button><button class="btn p" id="doup">Upload</button>`));
   $("#doup").onclick=()=>{
     const el=$("#f-files");if(!el.files||!el.files.length)return toast("Pick at least one file.");
-    doUpload([...el.files],$("#f-cat").value,kind,id);
+    doUpload([...el.files],$("#f-cat").value,kind,id,($("#f-note")&&$("#f-note").value.trim())||"");
   };
 }
 // a quote or invoice PDF goes into the project's Files as well, and any older PDF of the same quote or invoice number
@@ -15321,7 +15325,7 @@ async function docToFiles(d){if(!d||!d.pid)return;if(!assets)throw {code:"no fil
   if(no)for(const f of live(S.files).filter(f=>f.id!==fid&&f.projectId===p.id&&f.gen===(d.kind||"quote")&&String(f.docNo||"")===no))
     await push("files/"+f.id,{deleted:true,deletedAt:now,deletedBy:me(),supersededBy:fid,updatedAt:now});
   logEvent("project",p.id,(d.kind==="invoice"?"Invoice":"Quote")+" PDF "+d.name+" saved to Files"+(no?" (older copies moved to the bin)":""))}
-async function doUpload(files,cat,kind,id){
+async function doUpload(files,cat,kind,id,note){
   if(!assets){toast("Uploading isn't available on this view.");return}
   const stat=$("#upstat");let n=0;
   for(const file of files){
@@ -15331,7 +15335,7 @@ async function doUpload(files,cat,kind,id){
       const fid=uid("f");
       const rec={id:fid,assetId:up.id,url:up.url,name:file.name,size:up.sizeBytes||file.size,
         type:up.contentType||file.type,cat,who:me(),when:stamp(),at:Date.now(),deleted:false,
-        accountId:"",projectId:"",jobId:""};
+        accountId:"",projectId:"",jobId:"",note:String(note||"").slice(0,300)};
       if(kind==="account")rec.accountId=String(id);
       if(kind==="vendor")rec.vendorId=String(id);      // vendor invoices, quotes and price sheets stay on the vendor
       if(kind==="item")rec.itemId=String(id);
@@ -16645,7 +16649,7 @@ async function agentWO(p,due,note){
   }
   return {made,why:made.length?"":"the work order didn't save"};
 }
-const AGENT_FILE={signed_quote:"Signed quote",po:"Purchase order",artwork:"Artwork",proof:"Artwork proof",photo:"Photo",
+const AGENT_FILE={signed_quote:"Signed quote",po:"Purchase order",artwork:"Artwork",proof:"Artwork proof",photo:"Photo",production:"Production file",cut_file:"Cut file",
   rfp:"RFP / bid documents",bid_form:"Bid form (filled)",addendum:"Bid addendum",w9:"W-9",certificate:"Certificate (insurance / tax)",
   registration:"Vendor registration",contract:"Contract",other:"Other"};
 function agentMime(name,url){if(/(drive|docs)\.google\.com/i.test(String(url||"")))return "";   // a Drive page, not the file itself
@@ -16851,7 +16855,7 @@ async function pipeImportRows(rows){
         const lines=[dup?"Agents linked “"+name+"” again — it's already on file as "+cat+".":"Agents attached “"+name+"” ("+cat+") as a link: "+url];
         if(!dup){const fid=uid("f");
           await setDoc("files/"+fid,{id:fid,assetId:"",url,name,size:0,type:agentMime(name,url),cat,who:"AI",when:stamp(),at:now,deleted:false,
-            accountId:aid||"",projectId:p&&!acctLevel?p.id:"",jobId:"",link:true,kind,approved:kind==="proof"?appr:false,feedId:id});
+            accountId:aid||"",projectId:p&&!acctLevel?p.id:"",jobId:"",link:true,kind,approved:kind==="proof"?appr:false,feedId:id,note:String(o.note||"").slice(0,300)});
           out.files++;
           if(p&&!acctLevel&&(kind==="signed_quote"||kind==="po"||(kind==="proof"&&appr))){try{await asAI(()=>closeChaseTasks(p.id,kind==="proof"?"Signed proof":cat))}catch(e){}}}
         if(p&&(kind==="signed_quote"||kind==="po")){
