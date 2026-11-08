@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-165 (the agents can send the quote and its signing link)
+- **Feed `send` row (fix list item 14).** A `send` row on a project emails the customer the way the Email window does: `text` = JSON `{"to","cc","kind":"quote|proof|both|email","subject","body","from","sign","attach"}`. For a quote it attaches the newest CRM-made quote PDF (refused if the PDF is older than the quote), makes a fresh signing link (older live links on the project are marked replaced, so a cancelled or dead link can never go out), fills the standard template when no subject or body is given, and queues the email **from the sales rep's own address** (else the team member named in `from`, else Bob's record) — never from Matt. A quote from anyone but the owner waits for Matt's OK exactly as it does for a person; the activity row and the project history say so. Test projects, projects with no lines, no customer email, or no quote PDF are refused with a history note instead of a guess.
+
 ## 2026.11.25-164 (the agents can run inventory end to end)
 - **Material used on a work order, from the Feed.** An `inventory` row with a negative `qty` and a `job` (work order number) books a use transaction against that item, lowers on hand, and flags a recount when the count goes short — the same as Pull material in the CRM. The Shop Equipment Manager posts one after each print or cut, so stock no longer waits for someone to click Pull material.
 - **Reorder points from the Feed.** `reorder_point` and `reorder_qty` on an `inventory` row set the item's reorder point and buy quantity in the CRM (the record), so Josh's twice-weekly reorder-point pass lands here, not only in the workbook mirror.
