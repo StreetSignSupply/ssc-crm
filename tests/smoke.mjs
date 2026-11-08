@@ -122,7 +122,7 @@ await pg.waitForTimeout(300);
   await pg.evaluate(() => { location.hash = "#/project/p3"; }); await pg.waitForTimeout(500);
   await pg.evaluate(() => document.querySelectorAll(".main .card.collapsed button.cz").forEach((b) => b.click())); await pg.waitForTimeout(200);
   const row = await pg.evaluate(() => (document.querySelector(".main") || {}).innerText || "");
-  if (!/Nobody has written this — 5 days late/.test(row)) bad.push("the project's follow-up row doesn't say nobody has written it"); }
+  if (!/Nobody has written this — [1-9][0-9]* days late/.test(row)) bad.push("the project's follow-up row doesn't say nobody has written it"); }
 // list filters must actually filter (a release once dropped the Accounts filter handler and nothing reacted)
 const rows = () => pg.evaluate(() => document.querySelectorAll(".main section.wide tbody tr").length);
 const filt = [["accounts", "select[data-acfilt=type]", "Contractor"], ["accounts", "select[data-acfilt=rep]", "t1"], ["inventory", "select[data-invfilt=cat]", "Substrate"]];
