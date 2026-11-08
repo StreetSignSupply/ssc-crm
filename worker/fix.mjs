@@ -228,6 +228,52 @@ if (STEP === "stencils") {
     await browser.close(); process.exit(0);
   } catch (e) { console.log("::error::stencil export: " + String(e.message || e).slice(0, 160)); await browser.close(); process.exit(1); }
 }
+// FIX_STEP=export -> what the Order sync does not carry: every file in the CRM (what it is attached to, who added it,
+// category, link) to the "CRM Files" tab, and every inventory item (on hand, on order, reorder point, vendor) to the
+// "CRM Inventory" tab of the SSS Pipeline sheet, so Josh, the accountants and the Equipment Manager see vendor
+// invoices, customer POs, artwork and stock without signing in to the CRM. Read-only; counts only in the log.
+if (STEP === "export") {
+  const SHEET = process.env.PIPE_SHEET || "1aChWjS_R0ImI19AkBD-WAXRYoJz0douDNdhsASwIuVs", tok = process.env.SHEETS_TOKEN;
+  const api = async (url, method, body) => { const r = await fetch("https://sheets.googleapis.com/v4/spreadsheets/" + SHEET + url, { method, headers: { Authorization: "Bearer " + tok, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+    if (!r.ok) { const t = await r.text(); const why = /has not been used|is disabled/.test(t) ? "Sheets API not turned on for the project" : /permission|PERMISSION/.test(t) ? "the sheet isn't shared with the CRM's service account" : ((t.match(/"status":\s*"([A-Z_]+)"/) || [])[1] || ""); throw new Error(method + " " + r.status + " " + why); } return r.json(); };
+  const data = await page.evaluate(() => {
+    const T = window.__T, S = T.S;
+    const live = (m) => T.live(m);
+    const ts = (v) => v ? new Date(Number(v)).toISOString().replace("T", " ").slice(0, 16) : "";
+    const acct = (id) => { const a = S.accounts.get(id); return a ? a.name : ""; };
+    const vend = (id) => { const v = S.vendors.get(id); return v ? v.name : ""; };
+    const files = [["file_id", "added", "added_by", "category", "name", "on", "ref", "project", "work_order", "account", "vendor", "stencil_sku", "note", "approved", "verified", "size_bytes", "url", "link"]];
+    live(S.files).sort((a, b) => (Number(b.at) || 0) - (Number(a.at) || 0)).forEach((f) => {
+      const p = f.projectId ? S.projects.get(f.projectId) : null;
+      const on = p ? "project" : f.jobId ? "work_order" : f.vendorId ? "vendor" : f.accountId ? "account" : f.stencilSku ? "stencil" : "other";
+      const ref = p ? "P-" + p.num + " " + (p.name || "") : f.jobId ? "WO " + f.jobId : f.vendorId ? vend(f.vendorId) : f.accountId ? acct(f.accountId) : f.stencilSku || "";
+      files.push([f.id, ts(f.at) || (f.when || ""), f.who || "", f.cat || "", f.name || "", on, ref, p ? "P-" + p.num : "", f.jobId || "", acct(p ? p.accountId : f.accountId), vend(f.vendorId), f.stencilSku || "", f.note || "", f.approved ? "yes" : "", f.verified ? "yes" : "", Number(f.size) || "", f.url || "", f.link || ""]);
+    });
+    const items = [["item_id", "name", "sku", "category", "unit", "on_hand", "on_order", "reorder_point", "reorder_qty", "low", "bin", "preferred_vendor", "cost", "vendor_part", "lead", "sample", "updated"]];
+    live(S.items).sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""))).forEach((i) => {
+      const oh = Number(i.onHand || 0), oo = Math.max(0, Number(i.onOrder || 0)), rp = (i.reorderPoint === "" || i.reorderPoint == null) ? "" : Number(i.reorderPoint);
+      items.push([i.id, i.name || "", i.sku || "", i.cat || "", i.unit || "", oh, oo, rp, i.reorderQty || "", rp !== "" && oh + oo <= rp ? "yes" : "", i.bin || "", vend(i.vendorId), i.cost || "", i.vendorPart || "", i.vendorLead || "", i.sample ? "yes" : "", ts(i.updatedAt)]);
+    });
+    return { files, items };
+  });
+  const write = async (TAB, rows, cols) => {
+    const meta = await api("?fields=sheets(properties(title,sheetId,gridProperties))", "GET");
+    let sh = (meta.sheets || []).find((x) => x.properties.title === TAB);
+    if (!sh) { await api(":batchUpdate", "POST", { requests: [{ addSheet: { properties: { title: TAB, gridProperties: { rowCount: rows.length + 50, columnCount: cols } } } }] }); }
+    else if (sh.properties.gridProperties.rowCount < rows.length + 5) await api(":batchUpdate", "POST", { requests: [{ appendDimension: { sheetId: sh.properties.sheetId, dimension: "ROWS", length: rows.length + 5 - sh.properties.gridProperties.rowCount } }] });
+    const last = String.fromCharCode(64 + cols);
+    await api("/values/" + encodeURIComponent("'" + TAB + "'!A:" + last) + ":clear", "POST", {});
+    rows[0] = rows[0].concat(["Exported from the CRM " + new Date().toISOString().replace("T", " ").slice(0, 16) + " UTC"]);
+    await api("/values/" + encodeURIComponent("'" + TAB + "'!A1") + "?valueInputOption=RAW", "PUT", { values: rows });
+  };
+  try {
+    await write("CRM Files", data.files, 18); step("CRM Files written");
+    await write("CRM Inventory", data.items, 17); step("CRM Inventory written");
+    const vinv = data.files.slice(1).filter((r) => r[5] === "vendor" && /invoice/i.test(r[3])).length, low = data.items.slice(1).filter((r) => r[9] === "yes").length;
+    console.log("::notice::export: " + (data.files.length - 1) + " files (" + vinv + " vendor invoices), " + (data.items.length - 1) + " inventory items (" + low + " low)");
+    await browser.close(); process.exit(0);
+  } catch (e) { console.log("::error::export: " + String(e.message || e).slice(0, 160)); await browser.close(); process.exit(1); }
+}
 // FIX_STEP=qb -> QuickBooks is the source of truth for billing. Reads the "QB Invoices" tab (filled each morning
 // from QuickBooks), matches each invoice to its CRM project, makes the CRM's invoice number, invoice date, tax and
 // paid status match QuickBooks, and writes what it changed and anything it couldn't settle to the "QB Check" tab.
