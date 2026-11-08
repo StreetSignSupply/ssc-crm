@@ -149,6 +149,38 @@ await pg.waitForTimeout(300);
     document.querySelectorAll(".modal .mx").forEach((x) => x.click()); await w(200); return out; });
   if (r.err) bad.push("won gate: " + r.err);
   else if (!/How did the customer approve/.test(r.modal) || r.moved) bad.push("a project was marked won with nothing on file from the customer (" + (r.modal || "no window").slice(0, 50) + (r.moved ? "; it moved" : "") + ")"); }
+// the bench has a size: with a week already full, a due date filled in from lead time moves to the next Monday, and the dashboard says the bench is full
+{ const r = await pg.evaluate(() => { const { S, benchDue, benchChip, weekMonday } = window.__sscTest; const out = {}; const due = (S.jobs.get("1001") || S.jobs.get(1001) || {}).due; out.due = due;
+    S.brand = Object.assign({}, S.brand || {}, { capHours: { def: 6, perWO: 4 } });   // one 4-hour work order is already in that week; a second won't fit
+    const r1 = benchDue(due); out.pushed = r1.pushed; out.newDue = r1.due; out.newDay = new Date(r1.due + "T00:00:00").getDay();
+    const wk0 = weekMonday(new Date(due + "T00:00:00")), wk1 = weekMonday(new Date(r1.due + "T00:00:00")); out.nextWeek = wk1 > wk0;
+    // the chip is about this week, so put the work order's due date in this week for a moment (its real date may fall in next week)
+    const j = S.jobs.get("1001") || S.jobs.get(1001); const keep = j.due; const t = new Date(); j.due = t.getFullYear() + "-" + String(t.getMonth() + 1).padStart(2, "0") + "-" + String(t.getDate()).padStart(2, "0");
+    S.brand.capHours = { def: 3, perWO: 4 }; out.chip = benchChip(); j.due = keep;
+    S.brand.capHours = {}; out.noLimit = benchDue(due); return out; });
+  if (r.pushed !== 1 || r.newDay !== 1 || !r.nextWeek) bad.push("a full week didn't push the filled-in due date to the next Monday (" + JSON.stringify(r) + ")");
+  if (!/^Bench full — 1 work order ≈ 4 h vs 3 h this week$/.test(r.chip || "")) bad.push("the bench-full line is wrong (" + (r.chip || "none") + ")");
+  if (r.noLimit.pushed !== 0 || r.noLimit.due !== r.due) bad.push("with no capacity set the due date still moved");
+  const keepDue = await pg.evaluate(() => { const S = window.__sscTest.S; const j = S.jobs.get("1001") || S.jobs.get(1001); const k = j.due; const t = new Date(); j.due = t.getFullYear() + "-" + String(t.getMonth() + 1).padStart(2, "0") + "-" + String(t.getDate()).padStart(2, "0");
+    S.brand.capHours = { def: 3, perWO: 4 }; location.hash = "#/home"; return k; }); await pg.waitForTimeout(500);
+  const chip = await pg.evaluate(() => [...document.querySelectorAll(".main .tchip")].map((x) => x.innerText).find((x) => /Bench full/.test(x)) || "");
+  if (!chip) bad.push("the dashboard doesn't show the bench-full chip");
+  await pg.evaluate((k) => { const S = window.__sscTest.S; S.brand.capHours = {}; (S.jobs.get("1001") || S.jobs.get(1001)).due = k; }, keepDue); }
+// website pictures that were never product shots are flagged by file name; real product names pass
+{ const r = await pg.evaluate(() => ["Screenshot-2024-05-02-at-10.12.33-AM-300x300.png", "IMG_4521.jpg", "20240502_101233.jpg", "image-3.png", "12345.jpg", "R1-1-Stop-Sign-30in.jpg", "Accessible-EV-Charging-Use-Last-Sign.png", "W11-2-Pedestrian-Crossing-600x600.jpg"].map((f) => window.__sscTest.picRough("https://example.com/wp-content/uploads/" + f)));
+  if (!(r[0] && r[1] && r[2] && r[3] && r[4])) bad.push("a screenshot / phone photo / untitled / numbers-only picture wasn't flagged (" + JSON.stringify(r.slice(0, 5)) + ")");
+  if (r[5] || r[6] || r[7]) bad.push("a real product picture was flagged (" + JSON.stringify(r.slice(5)) + ")");
+  const stat = await pg.evaluate(() => { const { S, webcatStat } = window.__sscTest; const keep = S.webcatMeta; S.webcatMeta = { products: 10, vars: 20, pics: 9, roughPics: 2, updatedAt: Date.now() }; const t = webcatStat(); S.webcatMeta = keep; return t; });
+  if (!/2 pictures that look like a screenshot or phone photo/.test(stat)) bad.push("the catalogue line doesn't count the rough pictures (" + stat + ")"); }
+// a government agency's account page has the exemption-certificate checklist, and "Ask for it" opens the request email to the billing contact
+{ await pg.evaluate(() => { location.hash = "#/account/a1"; }); await pg.waitForTimeout(500);
+  const r = await pg.evaluate(async () => { const w = (ms) => new Promise((r) => setTimeout(r, ms)); const card = document.querySelector("#cert-card"); if (!card) return { err: "no checklist card" };
+    const steps = card.innerText; const b = card.querySelector("[data-certask='a1']"); if (!b) return { err: "no Ask for it button", steps };
+    b.click(); await w(500); const m = document.querySelector(".modal"); const to = (document.querySelector("#cm-to") || {}).value || "", body = (document.querySelector("#cm-body") || {}).value || "", subj = (document.querySelector("#cm-subj") || {}).value || "";
+    document.querySelectorAll(".modal .mx").forEach((x) => x.click()); await w(200); return { steps, modal: !!m, to, body, subj }; });
+  if (r.err) bad.push("exemption checklist: " + r.err);
+  else { if (!/Certificate requested/.test(r.steps) || !/Certificate uploaded to Files/.test(r.steps) || !/Expiry date entered/.test(r.steps)) bad.push("the exemption checklist is missing a step");
+    if (!r.modal || r.to !== "pat@example.com" || !/TC-721/.test(r.body) || !/exemption certificate/i.test(r.subj) || /agent|CRM|proactive/i.test(r.body)) bad.push("the certificate request email isn't right (to " + r.to + "; subject " + r.subj + ")"); } }
 // list filters must actually filter (a release once dropped the Accounts filter handler and nothing reacted)
 const rows = () => pg.evaluate(() => document.querySelectorAll(".main section.wide tbody tr").length);
 const filt = [["accounts", "select[data-acfilt=type]", "Contractor"], ["accounts", "select[data-acfilt=rep]", "t1"], ["inventory", "select[data-invfilt=cat]", "Substrate"]];

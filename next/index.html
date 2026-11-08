@@ -3535,6 +3535,24 @@ function proofLines(p){
 }
 function addBizDays(d,n){const x=new Date(d);const step=n<0?-1:1;let k=Math.abs(n);
   while(k>0){x.setDate(x.getDate()+step);if(x.getDay()!==0&&x.getDay()!==6)k--}return x}
+/* ===== shop capacity (Settings → Automations) =====
+   Hours the bench has in a week, and the hours a typical work order takes. Open work orders due in a week fill it;
+   a due date filled in automatically is pushed a week at a time while the week it lands in is full (up to 4 weeks),
+   and the dashboard says when this week is over. The numbers come from Matt; nothing here makes a work order. */
+function weekMonday(d){const x=new Date(d);x.setHours(0,0,0,0);const wd=(x.getDay()+6)%7;x.setDate(x.getDate()-wd);return isoDay(x)}
+function benchCap(weekIso){const c=(S.brand||{}).capHours||{};const o=(c.byWeek||{})[weekIso];const v=o==null||o===""?Number(c.def):Number(o);return v>0?v:0}
+function benchPerWO(){const c=(S.brand||{}).capHours||{};const v=Number(c.perWO);return v>0?v:4}
+function benchJobs(weekIso){return liveJobs().filter(realJob).filter(j=>j.due&&j.status!=="shipped"&&weekMonday(new Date(j.due+"T00:00:00"))===weekIso)}
+function benchLoad(weekIso){const per=benchPerWO();return benchJobs(weekIso).reduce((h,j)=>h+(Number(j.hours)>0?Number(j.hours):per),0)}
+function benchFull(weekIso,extraHours){const cap=benchCap(weekIso);if(!cap)return false;return benchLoad(weekIso)+(extraHours==null?benchPerWO():extraHours)>cap}
+// the due date a work order gets when the bench is taken into account: the lead-time date, or the first Monday after it
+// in a week that still has room (at most four weeks out). Returns {due, pushed} — pushed = weeks moved.
+function benchDue(dueIso){let due=dueIso,pushed=0;
+  for(let i=0;i<4;i++){const wk=weekMonday(new Date(due+"T00:00:00"));if(!benchFull(wk))break;
+    const m=new Date(wk+"T00:00:00");m.setDate(m.getDate()+7);due=isoDay(m);pushed++}
+  return {due,pushed}}
+function benchChip(){const wk=weekMonday(new Date());const cap=benchCap(wk);if(!cap)return "";const load=benchLoad(wk);if(load<=cap)return "";
+  const n=benchJobs(wk).length;return "Bench full — "+n+" work order"+(n===1?"":"s")+" ≈ "+Math.round(load)+" h vs "+cap+" h this week"}
 // a quote line with no uploaded artwork of its own still has a picture (the website sign, the agents' picture,
 // or the drawing): it goes on the proof and in the project's files so the customer can approve what they'll get
 function proofLineArts(p){if(!p)return [];let m0={};try{m0=artMatches(p)}catch(e){}
@@ -6117,9 +6135,10 @@ function autoPass(){
   live(S.jobs).forEach(j=>{if(j.due||j.status==="shipped")return;const d=Number(lead[prodOf(j)]);if(!(d>0))return;
     if((Number(j.createdAt)||0)<(Number(b.leadSince)||since))return;
     const k="due:"+j.num;if(done.has(k))return;done.set(k,1);
-    const from=j.createdAt?new Date(j.createdAt):new Date();const due=isoDay(addBizDays(from,d));
+    const from=j.createdAt?new Date(j.createdAt):new Date();const bd=benchDue(isoDay(addBizDays(from,d)));const due=bd.due;
     push("jobs/"+j.num,{due,updatedAt:Date.now()});
-    recordHistory("job",String(j.num),[{f:"Due",o:"",n:due+" — "+d+" business days' lead time for "+kindLabel(prodOf(j)).toLowerCase(),ev:1}]);
+    recordHistory("job",String(j.num),[{f:"Due",o:"",n:due+" — "+d+" business days' lead time for "+kindLabel(prodOf(j)).toLowerCase()
+      +(bd.pushed?"; pushed "+bd.pushed+" week"+(bd.pushed===1?"":"s")+" because the bench is full (shop capacity in Settings)":""),ev:1}]);
   });
   // the follow-up autopilot: a quoted project (from now on) with a number and no plan gets its three touches;
   // one that moved on with touches still open has them stopped
@@ -7015,7 +7034,20 @@ function webcatUrl(which){
   if(/gid=\d+/.test(base))return base.replace(/gid=\d+/,"gid="+WEBCAT_GIDS[which]);
   return base+(base.indexOf("?")>=0?"&":"?")+"gid="+WEBCAT_GIDS[which]+"&single=true&output=csv"}
 function webcatStat(){const m=S.webcatMeta||{};if(!m.products)return "Nothing pulled yet.";
-  return m.products+" products"+(m.stencils?" (incl. "+m.stencils+" stencils)":"")+", "+(m.vars||0)+" sizes and materials, "+(m.pics||0)+" with pictures"+(m.codes?", "+m.codes+" MUTCD codes pictured":"")+" — pulled "+fmtTs(m.updatedAt||0)}
+  return m.products+" products"+(m.stencils?" (incl. "+m.stencils+" stencils)":"")+", "+(m.vars||0)+" sizes and materials, "+(m.pics||0)+" with pictures"+(m.codes?", "+m.codes+" MUTCD codes pictured":"")
+    +(m.roughPics?", "+m.roughPics+" picture"+(m.roughPics===1?"":"s")+" that look"+(m.roughPics===1?"s":"")+" like a screenshot or phone photo":"")+" — pulled "+fmtTs(m.updatedAt||0)}
+// a website picture whose file name says it was never a product shot: a screenshot, a phone photo, an untitled download.
+// Returns "" for a normal name, otherwise a few words saying what it looks like.
+function picRough(url){const u=String(url||"");if(!u)return "";
+  let f="";try{f=decodeURIComponent(u.split("?")[0].split("#")[0].split("/").pop()||"")}catch(e){f=u.split("/").pop()||""}
+  const base0=f.replace(/\.[a-z0-9]{2,5}$/i,"").replace(/-\d{2,4}x\d{2,4}$/,"");const base=base0.replace(/[_\s-]?\d+$/,"");
+  if(/screen[\s_-]*shot|screencapture|screen[\s_-]*capture|snip|clipboard/i.test(base0))return "screenshot";
+  if(/^(img|dsc|dscn|dcim|pxl|mvimg|photo|pict|picture)[_\s-]*\d|^\d{8}[_-]\d{4,6}|whatsapp|^signal-|^fb_img|^received_/i.test(base0))return "phone photo";
+  if(/^(untitled|unknown|download|new[\s_-]*image|image|photo|picture|temp|scan)$|^image[\s_-]*\(\d|^untitled/i.test(base))return "untitled file";
+  if(!/[a-z]/i.test(base))return "no name, just numbers";
+  return ""}
+// the flagged pictures from the last pull, for Settings and the agents
+function webcatRoughList(){const m=S.webcatMeta||{};return Array.isArray(m.roughList)?m.roughList:[]}
 function webcatParseAttrs(attrs,variation){
   const o={size:"",mat:""};const parts=String(attrs||"").split(/,\s*(?=[A-Za-z ]+:)/);
   const rest=[];
@@ -7056,7 +7088,10 @@ async function webcatSync(auto){
         if(!vars.length)return;prods.set(id,{id,name:nm,cat:"Stencils",url:"",img:"",thumb:"",codes:[],code:it.c,size:it.z||"",vars});nSten++})}}
   catch(e){}
   const list=[...prods.values()].sort((x,y)=>x.name.localeCompare(y.name));
-  const meta={stencils:nSten,products:list.length,vars:list.reduce((n,p)=>n+p.vars.length,0),pics:list.filter(p=>p.img).length,updatedAt:Date.now()};
+  // pictures that were never product shots are flagged (the product keeps its picture; Settings lists them so they get replaced on the website)
+  const rough=[];list.forEach(p=>{const why=p.img?picRough(p.img):"";if(why){p.picRough=why;rough.push({name:p.name,why,file:String(p.img).split("?")[0].split("/").pop()||"",url:p.url||""})}});
+  const meta={stencils:nSten,products:list.length,vars:list.reduce((n,p)=>n+p.vars.length,0),pics:list.filter(p=>p.img).length,
+    roughPics:rough.length,roughList:rough.slice(0,60),updatedAt:Date.now()};
   const chunks=[];let cur=[],size=0;
   list.forEach(p=>{const j=JSON.stringify(p).length;if(size+j>700000&&cur.length){chunks.push(cur);cur=[];size=0}cur.push(p);size+=j});
   if(cur.length)chunks.push(cur);
@@ -9856,12 +9891,22 @@ function autoModal(){
       <div style="margin-top:6px"><button type="button" class="btn sm" data-catchup="1">Catch them up</button> <span class="sub">Only when you press it.</span></div></div>`:""})()}
     <div style="margin:12px 0 6px"><b>Proof approval date</b> — <input id="au-pd" type="number" min="0" value="${esc(String(b.proofDays==null?3:b.proofDays))}" style="width:55px"> business days before the due date</div>
     <div style="margin:12px 0 6px"><b>Lead time</b> — business days from the order to the due date, filled in on any work order that has none. Blank = leave it to you.</div>
-    <div class="fgrid">${kinds.map(k=>inp("au-ld-"+k,kindLabel(k),ld[k]==null?"":ld[k],"number")).join("")}</div></div>`,
+    <div class="fgrid">${kinds.map(k=>inp("au-ld-"+k,kindLabel(k),ld[k]==null?"":ld[k],"number")).join("")}</div>
+    ${(function(){const c=b.capHours||{};const w0=weekMonday(new Date()),m=new Date(w0+"T00:00:00");m.setDate(m.getDate()+7);const w1=isoDay(m);const bw=c.byWeek||{};
+      return `<div style="margin:14px 0 6px"><b>Shop capacity</b> — hours the bench has in a week. A due date filled in automatically moves to the next week with room when its week is full; the dashboard says when this week is over. Blank = no limit.</div>
+      <div class="fgrid">${inp("au-cap-def","Hours in a normal week",c.def==null?"":c.def,"number")}${inp("au-cap-w0","This week (from "+fmtDate(w0)+")",bw[w0]==null?"":bw[w0],"number")}${inp("au-cap-w1","Next week (from "+fmtDate(w1)+")",bw[w1]==null?"":bw[w1],"number")}${inp("au-cap-per","Hours a typical work order takes",c.perWO==null?"":c.perWO,"number")}</div>
+      <div class="sub" id="au-cap-now">${esc((function(){const cap=benchCap(w0);const n=benchJobs(w0).length;return cap?"This week: "+n+" open work order"+(n===1?"":"s")+" ≈ "+Math.round(benchLoad(w0))+" h of "+cap+" h":"No limit set — "+n+" open work order"+(n===1?"":"s")+" due this week"})())}</div>`})()}</div>`,
     `<button class="btn" data-close="1">Cancel</button><button class="btn p" id="au-save">Save</button>`));
+  const capRead=()=>{const c=Object.assign({},b.capHours||{});const bw=Object.assign({},c.byWeek||{});const w0=weekMonday(new Date()),m=new Date(w0+"T00:00:00");m.setDate(m.getDate()+7);const w1=isoDay(m);
+    const num=id=>{const v=$("#"+id).value.trim();return v===""?null:Math.max(0,Number(v)||0)};
+    const d=num("au-cap-def"),a=num("au-cap-w0"),n=num("au-cap-w1"),per=num("au-cap-per");
+    if(a==null)delete bw[w0];else bw[w0]=a;if(n==null)delete bw[w1];else bw[w1]=n;
+    Object.keys(bw).forEach(k=>{if(k<w0)delete bw[k]});   // weeks gone by drop off
+    const out={byWeek:bw};if(d!=null)out.def=d;if(per!=null)out.perWO=per;return out};
   $("#au-save").onclick=async()=>{const lead={};kinds.forEach(k=>{const v=$("#au-ld-"+k).value.trim();if(v!=="")lead[k]=Math.max(0,Number(v)||0)});
     const b2=Object.assign({},S.brand||{},{autoStage:$("#au-stage").checked,autoFollow:$("#au-follow").checked,
       followDays:$("#au-fu").value.split(/[,\s]+/).map(Number).filter(x=>x>0).slice(0,4),proofChase:Math.max(1,Number($("#au-pc").value)||2),
-      proofDays:Math.max(0,Number($("#au-pd").value)||0),leadDays:lead,
+      proofDays:Math.max(0,Number($("#au-pd").value)||0),leadDays:lead,capHours:capRead(),
       leadSince:JSON.stringify(lead)===JSON.stringify((S.brand||{}).leadDays||{})?((S.brand||{}).leadSince||Date.now()):Date.now()});
     try{await setDoc("settings/brand",b2);S.brand=b2;closeModal();toast("Automations saved")}catch(e){toast("That didn't save.")}};
 }
@@ -10913,6 +10958,7 @@ function home(){
     if(unpaid.length)attn.push({t:unpaid.length+" prepaid order"+(unpaid.length===1?"":"s")+" waiting on money before it can run",h:"projects",c:"r"})})();
   if(noExempt.length)attn.push({t:noExempt.length+" agency account"+(noExempt.length===1?"":"s")+" with no exemption certificate",h:"accounts",c:"y"});
   if(unsignedWO.length)attn.push({t:unsignedWO.length+" shipped work order"+(unsignedWO.length===1?"":"s")+" with no signed copy scanned",h:"jobs",c:"y"});
+  {const bc=benchChip();if(bc)attn.push({t:bc,h:"jobs",c:"o"})}
   const todayD=new Date();
   return `<div class="pad">
     <div class="pagehead"><h1>Company dashboard</h1><span class="livebar"><span class="dot"></span>live</span>
@@ -11068,6 +11114,21 @@ function dupAccounts(rec,archived){
 // the certificate itself, uploaded to the account's Files (filed as Tax certificate, or named like one)
 function certFile(a){if(!a)return null;return live(S.files).find(f=>f.accountId===a.id&&!f.projectId&&(f.cat==="Tax certificate"||/exempt|certificate|tax.?cert|resale/i.test(f.name||"")))||null}
 function isExempt(a){return !!(a&&a.exempt&&a.exemptExp&&String(a.exemptExp)>=today()&&certFile(a))}
+// the last time we asked this account for its certificate (an outgoing email on the account about it)
+function certAsked(a){if(!a)return null;return live(S.activity).filter(x=>x.recType==="account"&&String(x.recId)===String(a.id)&&!x.deleted&&x.type==="email"&&x.direction==="out"
+  &&/exempt|certificate|tc-?721/i.test(String(x.subject||"")+" "+String(x.text||"").slice(0,200))).sort((x,y)=>(y.at||0)-(x.at||0))[0]||null}
+function certNeedsCard(a){return !!a&&(a.type==="Government agency"||a.certNeeded||a.exempt)}
+// the account page's exemption checklist: asked → certificate uploaded → expiry entered → bills tax-free
+function certCard(a){const id=a.id;const asked=certAsked(a),f=certFile(a),ok=isExempt(a);
+  const step=(done,label,detail,btn)=>`<div style="display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-top:1px solid var(--line)">
+    <span class="pill ${done?"g":"y"}" style="min-width:58px;text-align:center">${done?"Done":"To do"}</span><div style="flex:1"><b>${label}</b><div class="sub">${detail}</div></div>${btn||""}</div>`;
+  const askBtn=`<button class="btn sm${asked?"":" p"}" data-certask="${esc(id)}">${asked?"Ask again":"Ask for it"}</button>`;
+  return `<section class="card flush" id="cert-card"><header><h2>Exemption certificate</h2><span class="sub">${ok?"On file — this account bills tax-free":"This account bills taxable until the certificate is on file"}</span></header>
+    <div style="padding:0 14px 8px">
+    ${step(!!asked||!!f,"Certificate requested",asked?"Asked "+esc(fmtDate(isoDay(asked.at)))+(asked.to?" — "+esc(asked.to):""):f?"Not asked from here, but a certificate is on file":"One click opens the email in your own words — form TC-721 for Utah agencies",ok?"":askBtn)}
+    ${step(!!f,"Certificate uploaded to Files",f?esc(f.name):"Upload it to this account's Files as <b>Tax certificate</b>",f?"":`<button class="btn sm" data-upload="account:${esc(id)}:Tax certificate">Upload</button>`)}
+    ${step(!!(a.exempt&&a.exemptExp),"Expiry date entered",a.exempt&&a.exemptExp?"Good to "+esc(fmtDate(a.exemptExp)):"Tick Tax exemption certificate on file and put in the date from the certificate",a.exempt&&a.exemptExp?"":`<button class="btn sm" data-edit="account:${esc(id)}">Enter it</button>`)}
+    </div></section>`}
 function exemptPill(a){
   if(a.exempt&&!a.exemptExp)return `<span class="pill y" title="Marked exempt, but no certificate expiry date is recorded — it bills taxable until you enter it from the certificate">Taxable · add cert date</span>`;
   if(a.exempt&&String(a.exemptExp)<today())return `<span class="pill r" title="Certificate expired ${esc(fmtDate(a.exemptExp))}">Expired</span>`;
@@ -11180,6 +11241,7 @@ function accountRec(id){
           ${fldHFull("Billing address",acctBillAddr(a)?cxAddr(acctBillAddr(a))+`<div class="sub">${acctHasBill(a)?"Different from the physical address — invoices are mailed here":"Same as the physical address"}</div>`
             :`<span class="sub">Not on file — <button class="lnk" data-edit="account:${esc(id)}">add it</button></span>`)}
         </div></section>
+      ${certNeedsCard(a)?certCard(a):""}
       ${(function(){const d=acctDiscount(a);const cps=Object.entries(a.contractPrices||{});
         return `<section class="card flush"><header><h2>Special pricing</h2>
           <span class="sp"><button class="btn sm" data-negadd="${esc(id)}">Add a negotiated price</button>
@@ -11674,7 +11736,9 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-161";
+const APP_VERSION="2026.11.25-162";
+// the release check (which opens the page from a file) can reach these; the hosted site exposes nothing
+if(location.protocol==="file:")window.__sscTest={S,benchDue,benchChip,weekMonday,picRough,webcatStat};
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -14338,6 +14402,9 @@ function settingsView(){
       <div class="setrow"><button class="btn p" data-webcat="1" type="button">Pull the catalogue now</button></div>
       <div style="margin-top:8px">${ck("b-webcatauto",b.webcatAuto!==false,"Refresh it daily","On your own site")}</div>
       <div class="sub" id="webcat-stat" style="margin-top:6px">${esc(webcatStat())}</div>
+      ${(function(){const L=webcatRoughList();if(!L.length)return "";return `<details style="margin-top:8px" id="webcat-rough"><summary class="sub" style="cursor:pointer">Pictures to replace on the website (${L.length}) — these look like screenshots or phone photos, and they go on quotes as they are</summary>
+        <table class="tbl" style="margin-top:6px"><thead><tr><th>Product</th><th>Looks like</th><th>File</th></tr></thead><tbody>
+        ${L.map(r=>`<tr><td>${r.url?`<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.name)}</a>`:esc(r.name)}</td><td>${esc(r.why)}</td><td class="mono" style="overflow-wrap:anywhere">${esc(r.file)}</td></tr>`).join("")}</tbody></table></details>`})()}
     </div></section>
     <section class="card"><header><h2>Sales pipeline feed</h2><span class="sub">The agents' sheet, published to the web as CSV. Accounts, contacts, calls, emails, quotes, invoices, settings and stock come in from it, and the agents move projects along, make work orders, link files and ship work orders — on your own site every 15 minutes, inside Claude from Import pipeline feed on the Projects page.</span></header><div class="body">
       <input id="b-pipeurl" value="${esc(b.pipeUrl||"")}" placeholder="https://docs.google.com/spreadsheets/d/e/…/pub?output=csv" style="width:100%">
@@ -15897,7 +15964,7 @@ async function saveBrand(){let b2keep=null;
     quoteWord:(S.brand||{}).quoteWord,quoteLook:(S.brand||{}).quoteLook,docFooter:(S.brand||{}).docFooter,trackMail:(S.brand||{}).trackMail,
     autoSince:(S.brand||{}).autoSince||Date.now(),decal:(S.brand||{}).decal,commonCharges:(S.brand||{}).commonCharges,leadSince:(S.brand||{}).leadSince||0,
     lists:(S.brand||{}).lists||{},autoStage:(S.brand||{}).autoStage,autoFollow:(S.brand||{}).autoFollow,followDays:(S.brand||{}).followDays,
-    proofChase:(S.brand||{}).proofChase,proofDays:(S.brand||{}).proofDays,leadDays:(S.brand||{}).leadDays||{},
+    proofChase:(S.brand||{}).proofChase,proofDays:(S.brand||{}).proofDays,leadDays:(S.brand||{}).leadDays||{},capHours:(S.brand||{}).capHours||{},
     qbItems:(S.brand||{}).qbItems||{},priceLevels:(S.brand||{}).priceLevels||[],qtyBreaks:(S.brand||{}).qtyBreaks||[],
     minMargin:(S.brand||{}).minMargin==null?40:(S.brand||{}).minMargin,
     quoteDays:Math.max(1,Number($("#b-qdays")&&$("#b-qdays").value)||30),quoteNote:$("#b-qnote")?$("#b-qnote").value.trim():"",payNote:$("#b-pnote")?$("#b-pnote").value.trim():"",
@@ -17615,6 +17682,7 @@ const MAIL_TPL=[
   {id:"ship",name:"Shipped",subject:"Your order has shipped — {project}",body:"Hi {first},\n\nYour order for {project} shipped{carrier_part}.{tracking_part}\n\nThanks for the business,\n{sig_name}"},
   {id:"invoice",name:"Invoice",subject:"Invoice {invoice} — {project}",body:"Hi {first},\n\nThe invoice for {project} is attached ({total_tax}). Let me know if you need anything else for your records.\n\nThanks,\n{sig_name}"},
   {id:"thanks",name:"Thank you / reorder check-in",subject:"Thanks from {company}",body:"Hi {first},\n\nThanks again for the order on {project}. If you need more signs or anything else, just reply here and I'll get it quoted.\n\nThanks,\n{sig_name}"},
+  {id:"cert",name:"Ask for their exemption certificate",subject:"Tax exemption certificate for {customer}",body:"Hi {first},\n\nQuick housekeeping item on our end. For {customer} to be billed without sales tax we need a copy of your exemption certificate on file — for Utah that's form TC-721 from the State Tax Commission, signed by someone at your agency. A PDF or a clear photo is fine; just reply with it attached.\n\nUntil it's on file our invoices have to show tax, so this saves us both a correction later.\n\nThanks,\n{sig_name}"},
   {id:"blank",name:"Blank email",subject:"",body:"Hi {first},\n\n\n\nThanks,\n{sig_name}"}];
 function mailTemplates(){const own=((S.brand||{}).mailTemplates||[]).filter(t=>t&&t.name);return own.map(t=>Object.assign({own:true},t)).concat(MAIL_TPL.filter(t=>!own.some(o=>o.id===t.id)))}
 // sending from the CRM works only on the hosted site, after the mail worker has proven it can send (it sets mailSendOk)
@@ -18100,6 +18168,9 @@ function bind(){
     if(t.closest("[data-catchup]")){const L=catchUpList();closeModal();
       (async()=>{for(const x of L)await setStage(x.p.id,x.to,"caught up by hand");toast(L.length+" project"+(L.length===1?"":"s")+" caught up")})();return}
     const nga=t.closest("[data-negadd]");if(nga){negModal(nga.dataset.negadd,null);return}
+    const cak=t.closest("[data-certask]");if(cak){const aid=cak.dataset.certask;const a=acct(aid);const bc=billingForAccount(a);const c0=(bc&&bc.email?bc:null)||contactsOf(aid).find(c=>c.email)||null;
+      if(!c0)return toast("No contact with an email on this account yet — add one first.");
+      composeModal({aid,contactId:c0.id,tpl:"cert",kind:"cert",title:"Ask for their exemption certificate"});return}
     const nge=t.closest("[data-negedit]");if(nge){const v=nge.dataset.negedit;const i=v.indexOf("|");negModal(v.slice(0,i),v.slice(i+1));return}
     const fp=t.closest("[data-fillprices]");if(fp){if(S.modal)closeModal();fillPrices(fp.dataset.fillprices);return}
     const ptg=t.closest("[data-ptabgo]");if(ptg){if(S.modal)closeModal();S.ptab="lines";go("project/"+ptg.dataset.ptabgo);return}
