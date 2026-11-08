@@ -1,5 +1,12 @@
 # What changed
 
+## 2026.11.25-164 (the agents can run inventory end to end)
+- **Material used on a work order, from the Feed.** An `inventory` row with a negative `qty` and a `job` (work order number) books a use transaction against that item, lowers on hand, and flags a recount when the count goes short — the same as Pull material in the CRM. The Shop Equipment Manager posts one after each print or cut, so stock no longer waits for someone to click Pull material.
+- **Reorder points from the Feed.** `reorder_point` and `reorder_qty` on an `inventory` row set the item's reorder point and buy quantity in the CRM (the record), so Josh's twice-weekly reorder-point pass lands here, not only in the workbook mirror.
+- **Vendor prices from the Feed.** `vendor_price` (with `vendor`, optional `freight`, `lead`, `part`) on an `inventory` row records that vendor's price on the item; when it is the preferred vendor the item's cost follows, so quotes and work orders cost from the price Josh just confirmed.
+- Receiving (`qty` above zero) and on-order (`on_order`) rows are unchanged. An inventory row that changes nothing is counted as bad instead of as handled.
+- Alongside: the worker's `crm-export` workflow now writes every CRM file, inventory item, 90 days of activity and the calendar to the CRM Files / CRM Inventory / CRM Activity / CRM Calendar tabs twice an hour (worker only, no CRM change).
+
 ## 2026.11.25-163 (production files live on the project)
 - **"Production file" is a file category.** The Flexi print/cut file and its PDF proof for every job printed in the shop go on the project (or account) under Production file, so the exact file that ran is always there to run again or refer to.
 - **A note on upload.** The Upload window has an optional Note line (media, RIP preset, measured width, cutter condition, result for a production file; anything for other files). It shows under the file in Files. Up to 300 characters.
