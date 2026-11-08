@@ -123,6 +123,32 @@ await pg.waitForTimeout(300);
   await pg.evaluate(() => document.querySelectorAll(".main .card.collapsed button.cz").forEach((b) => b.click())); await pg.waitForTimeout(200);
   const row = await pg.evaluate(() => (document.querySelector(".main") || {}).innerText || "");
   if (!/Nobody has written this — [1-9][0-9]* days late/.test(row)) bad.push("the project's follow-up row doesn't say nobody has written it"); }
+// the dashboard counts only quotes the customer asked for; prospect quotes (lead stage or flagged) show apart
+{ await pg.evaluate(() => { location.hash = "#/home"; }); await pg.waitForTimeout(500);
+  const txt = await pg.evaluate(() => (document.querySelector(".main") || {}).innerText || "");
+  if (!/Prospect quotes/.test(txt)) bad.push("the dashboard has no Prospect quotes number"); }
+// internal words can't be saved into the scope the customer reads on the quote
+{ await pg.evaluate(() => { location.hash = "#/project/p1"; }); await pg.waitForTimeout(500);
+  const r = await pg.evaluate(async () => { const w = (ms) => new Promise((r) => setTimeout(r, ms));
+    const b = document.querySelector("[data-edit='project:p1']"); if (!b) return { err: "no Edit button" }; b.click(); await w(500);
+    const cs = document.querySelector("#f-cscope"); if (!cs) return { err: "no customer scope box" };
+    cs.value = "Proactive starter package — ship-to TBD"; window.__writes = []; document.querySelector("#save").click(); await w(600);
+    const t = document.querySelector(".toast"); const wrote = window.__writes.some((x) => /^projects\//.test(x[1]));
+    document.querySelectorAll(".modal .mx").forEach((x) => x.click()); await w(200);
+    return { toast: t ? t.innerText : "", wrote }; });
+  if (r.err) bad.push("scope lint: " + r.err);
+  else if (!/take out/.test(r.toast) || r.wrote) bad.push("internal words were saved into the customer-facing scope (" + (r.toast || "no message").slice(0, 60) + (r.wrote ? "; it was written" : "") + ")"); }
+// Won needs the customer's yes on record: a quoted project with no PO, no signed quote and no approval asks how they approved instead of moving
+{ await pg.evaluate(() => { location.hash = "#/project/p3"; }); await pg.waitForTimeout(500);
+  const r = await pg.evaluate(async () => { const w = (ms) => new Promise((r) => setTimeout(r, ms));
+    const b = document.querySelector("[data-stage='p3:won']"); if (!b) return { err: "no mark-it-won button" }; window.__writes = []; b.click(); await w(600);
+    // the usual "Move P-2003 to Won?" confirmation comes first; say yes to it
+    const ok = document.querySelector("[data-stageyes='p3:won']"); if (ok) { ok.click(); await w(800); }
+    const m = document.querySelector(".modal"); const moved = window.__writes.some((x) => /^projects\/p3/.test(x[1]) && x[2] && x[2].stage === "won");
+    const out = { modal: m ? m.innerText.slice(0, 120) : "", moved };
+    document.querySelectorAll(".modal .mx").forEach((x) => x.click()); await w(200); return out; });
+  if (r.err) bad.push("won gate: " + r.err);
+  else if (!/How did the customer approve/.test(r.modal) || r.moved) bad.push("a project was marked won with nothing on file from the customer (" + (r.modal || "no window").slice(0, 50) + (r.moved ? "; it moved" : "") + ")"); }
 // list filters must actually filter (a release once dropped the Accounts filter handler and nothing reacted)
 const rows = () => pg.evaluate(() => document.querySelectorAll(".main section.wide tbody tr").length);
 const filt = [["accounts", "select[data-acfilt=type]", "Contractor"], ["accounts", "select[data-acfilt=rep]", "t1"], ["inventory", "select[data-invfilt=cat]", "Substrate"]];

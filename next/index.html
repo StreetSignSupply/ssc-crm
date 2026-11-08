@@ -5276,6 +5276,29 @@ function closePaperPending(p){if(!p)return [];const fl=projFiles(p.id).filter(f=
   fl.forEach(f=>{if(!f.needsCheck&&!f.link)push("files/"+f.id,{needsCheck:true}).catch(()=>{})});return fl}
 // the three papers, and whether each is covered: a checked file, the owner's waiver for this project (with a reason), or the
 // account doesn't use POs / invoices (set by the owner). The database rules accept a close on exactly the same terms.
+// Prospect quotes: Lead-stage projects, or ones the customer never asked for (the "prospect quote" box on the project).
+// They show apart from the open pipeline so the dashboard number is what customers actually requested (Matt, Nov 7 2026).
+function prospectQuote(p){return !!p&&!p.deleted&&(p.stage==="lead"||!!p.unrequested)}
+// Won needs the customer's yes on record: a PO or signed quote in Files, a PO number, or an approval someone filed from the customer's own words.
+function wonProofMissing(p){if(!p)return "";
+  const fl=p.id?projFiles(p.id).filter(f=>!f.deleted&&f.projectId===p.id):[];
+  if(fl.some(f=>f.cat==="Purchase order"||f.cat==="Signed quote"))return "";
+  if(String(p.po||"").trim())return "";
+  if(p.wonApproval&&String(p.wonApproval.note||"").trim())return "";
+  return "no signed quote or PO in Files, no PO number, and no customer approval recorded"}
+// words that belong inside the shop and never on a quote or invoice the customer reads (a P-2029 quote once carried "Proactive ... TBD")
+const CUST_WORDS=[["proactive","proactive"],["tbd","TBD"],["starter","starter"],["tier","tier"],["margin","margin"],["dry run","dry run"],["agent","agent"],["crm","CRM"],["stage","stage"],["pipeline","pipeline"],["upsell","upsell"],["internal","internal"]];
+function custTextLint(t){t=String(t||"");const out=[];
+  CUST_WORDS.forEach(([k,l])=>{if(new RegExp("(^|[^a-z])"+k.replace(" ","\\s+")+"(s|ed|ing)?([^a-z]|$)","i").test(t))out.push(l)});
+  if(/\bP-\d{4}\b/.test(t))out.push("P-number");return out}
+// a filed PO, signed quote or signed proof closes the open tasks on the project that were chasing it (with a note saying why)
+async function closeChaseTasks(pid,cat){const p=proj(pid)||S.projects.get(pid);if(!p)return 0;
+  const want=/^(Purchase order|Signed quote)$/.test(cat)?/\b(po|purchase order|signed quote|signature|sign(ed)? (the |their )?quote|approval|approve)\b/i:/^Signed proof$/.test(cat)?/\bproof\b/i:null;if(!want)return 0;
+  const ts=live(S.activity).filter(a=>a.kind==="task"&&!a.done&&a.recType==="project"&&String(a.recId)===String(pid)&&want.test(a.text||""));
+  const now=Date.now();
+  for(const a of ts){await push("activity/"+a.id,{done:true,doneAt:now,doneById:meId(),doneByName:meName()||"CRM",doneNote:"closed itself: "+cat+" was filed"});
+    recordHistory("project",pid,[{f:"Task",o:"",n:"Done — "+(a.text||"").slice(0,60)+" ("+cat+" filed, closed itself)",ev:1}])}
+  return ts.length}
 const PAPER=[["quote","The quote PDF made by the CRM (Documents → Quote)","Quote PDF"],["po","The PO or the signed quote, filed on the project","PO / signed quote"],["inv","The invoice, filed on the project","Invoice"]];
 function paperWaiver(p,k){const w=((p&&p.closeWaive)||{})[k];if(w&&String(w.why||"").trim().length>=3)return w;
   const a=p?acct(p.accountId)||S.accounts.get(p.accountId):null,o=p?S.accounts.get(p.origAccountId||p.accountId):null;
@@ -10851,7 +10874,7 @@ function home(){
   // only lines with a cost count toward margin (see costedMargin); a project with no quote lines uses its work-order cost
   const mYTD=fullYTD.map(p2=>orderedLines(p2).some(l=>!isCharge(l)&&Number(l.price)>0)?costedMargin(p2):{rev:projValue(p2),cost:projCost(p2)}).filter(x=>x.cost>0);
   const revFull=mYTD.reduce((t,x)=>t+x.rev,0), costYTD=mYTD.reduce((t,x)=>t+x.cost,0);
-  const pipe=open.reduce((t,p2)=>t+projValue(p2),0);
+  const pros=open.filter(prospectQuote),pipeOpen=open.filter(p2=>!prospectQuote(p2));const pipe=pipeOpen.reduce((t,p2)=>t+projValue(p2),0),prosVal=pros.reduce((t,p2)=>t+projValue(p2),0);
   const late=oj.filter(isLateJob);
   const dt=oj.filter(j=>daysOut(j.due)===0);
   const toInv=all.filter(p2=>p2.stage==="shipped"&&billState(p2)!=="invoiced"&&billState(p2)!=="paid");
@@ -10861,7 +10884,7 @@ function home(){
   const pastTerms=awaiting.filter(isPastTerms);
   const readyClose=all.filter(p2=>(p2.stage==="shipped"||p2.stage==="invoiced")&&billState(p2)==="paid");
   const wr=winRate(all,180);
-  const stageRows=PATH.map(st=>{const l=open.filter(p2=>p2.stage===st);
+  const stageRows=PATH.map(st=>{const l=pipeOpen.filter(p2=>p2.stage===st);
     return {k:(SG[st]||{}).label||st,v:l.reduce((x,p2)=>x+projValue(p2),0),n:l.length}}).filter(r=>r.n);
   const monRows=lastMonths(6).map(m2=>({k:ymLabel(m2),v:invIn(all,m2).reduce((x,p2)=>x+billedValue(p2),0),
     n:invIn(all,m2).length}));
@@ -10910,7 +10933,8 @@ function home(){
       kpi("Invoiced YTD",money(revYTD),yr+" to date"),
       kpi("Margin YTD",revFull&&costYTD?Math.round((revFull-costYTD)/revFull*100)+"%":"—",costYTD?money(revFull-costYTD)+" kept after material and costs, on this year's invoiced projects that have costs booked":"no cost booked"),
       kpi("Waiting on payment",money(awaitVal),awaiting.length+" invoiced"+(pastTerms.length?" · "+pastTerms.length+" past terms":""),pastTerms.length?"r":""),
-      kpi("Open pipeline",money(pipe),open.length+" open project"+(open.length===1?"":"s")),
+      kpi("Open pipeline",money(pipe),pipeOpen.length+" open project"+(pipeOpen.length===1?"":"s")+" the customer asked for"),
+      kpi("Prospect quotes",money(prosVal),pros.length+" lead-stage or not requested — not counted in the pipeline"),
       kpi("Won this month",money(wonM.reduce((t,p2)=>t+projValue(p2),0)),wonM.length+" won"),
       kpi("Win rate",wr===null?"—":wr+"%",winSub(all,180),wr===null?"":wr>=50?"g":wr>=30?"":"o")])}
 
@@ -11650,7 +11674,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-160";
+const APP_VERSION="2026.11.25-161";
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
 function meId(){return (S.viewerTeam&&S.viewerTeam.id)||""}
 function meName(){return (S.viewerTeam&&S.viewerTeam.name)||me()}
@@ -13312,11 +13336,11 @@ function myBook(){
     return r&&r.id===t.id&&j.status!=="shipped"}).sort(byDue);
   const tasks=real(live(S.activity)).filter(a=>a.kind==="task"&&!a.done&&taskIsMine(a,t))
     .sort((a,b)=>taskDueKey(a).localeCompare(taskDueKey(b)));
-  const pipe=open.reduce((x,p2)=>x+projValue(p2),0);
+  const pros=open.filter(prospectQuote),pipeOpen=open.filter(p2=>!prospectQuote(p2));const pipe=pipeOpen.reduce((x,p2)=>x+projValue(p2),0),prosVal=pros.reduce((x,p2)=>x+projValue(p2),0);
   const late=open.filter(p2=>stillDue(p2)&&daysOut(p2.due)!==null&&daysOut(p2.due)<0);
   const wr=winRate(mine,180);
   const stalled=stalledAccounts(t);
-  const stageRows=PATH.map(st=>{const l=open.filter(p2=>p2.stage===st);
+  const stageRows=PATH.map(st=>{const l=pipeOpen.filter(p2=>p2.stage===st);
     return {k:(SG[st]||{}).label||st,v:l.reduce((x,p2)=>x+projValue(p2),0),n:l.length}}).filter(r=>r.n);
   const monRows=lastMonths(6).map(m2=>({k:ymLabel(m2),v:invIn(mine,m2).reduce((x,p2)=>x+billedValue(p2),0),
     n:invIn(mine,m2).length}));
@@ -13337,7 +13361,8 @@ function myBook(){
         ${nw?`<button class="tchip r" data-followdue="1" title="Planned more than 3 days ago, no draft yet — write them or skip them">${nw} follow-up${nw===1?"":"s"} late — nobody has written ${nw===1?"it":"them"}</button>`:""}
         ${rems.length?`<span class="tchip ${rems.some(r=>r.type==="terms"||r.type==="tracking")?"r":"y"}" style="cursor:default">${rems.length} reminder${rems.length===1?"":"s"} in the bell</span>`:""}</div>`})()}
     ${kpiRow([
-      kpi("Open pipeline",money(pipe),open.length+" project"+(open.length===1?"":"s")),
+      kpi("Open pipeline",money(pipe),pipeOpen.length+" project"+(pipeOpen.length===1?"":"s")+" the customer asked for"),
+      kpi("Prospect quotes",money(prosVal),pros.length+" lead-stage or not requested — not in the pipeline"),
       kpi("Won this month",money(wonM.reduce((x,p2)=>x+projValue(p2),0)),wonM.length+" won"),
       kpi("Invoiced this month",money(invM.reduce((x,p2)=>x+billedValue(p2),0)),invM.length+" invoiced"),
       kpi("Invoiced YTD",money(invYTD.reduce((x,p2)=>x+billedValue(p2),0)),invYTD.length+" project"+(invYTD.length===1?"":"s")),
@@ -15002,7 +15027,8 @@ function projectModal(p,aid,then){
       ${ta("f-cscope","Scope on the quote / invoice — the customer sees this (leave empty for none)",p.custScope||"")}
       ${inp("f-ship","Ship to",p.shipTo,"text",1)}<input type="hidden" id="f-drive" value="${esc(p.drive||"")}">
       ${ta("f-notes","Working notes (internal)",p.notes)}
-      ${chk("f-internal","Dry run / internal test — never email anyone outside from this project",!!p.internal)}</div>`,
+      ${chk("f-internal","Dry run / internal test — never email anyone outside from this project",!!p.internal)}
+      ${chk("f-unreq","Prospect quote — the customer didn't ask for this (kept out of the open pipeline number)",!!p.unrequested)}</div>`,
     `<button class="btn" data-close="1">Cancel</button><button class="btn p" id="save">Save project</button>`));
   const fau=$("#f-auto");
   if(fau)fau.onchange=()=>{const w=$("#f-amtwrap"),h=$("#f-amthint");
@@ -15024,6 +15050,7 @@ function projectModal(p,aid,then){
     if($("#f-acct").value===NEWOPT)return toast("Pick an account, or add a new one.");
     const sd=$("#f-start").value,dd=$("#f-due").value;
     if(sd&&dd&&sd>dd)return toast("The due date is before the start date — check the dates.");
+    {const bad=custTextLint($("#f-cscope")?$("#f-cscope").value:"");if(bad.length){if($("#f-cscope"))$("#f-cscope").focus();return toast("The customer reads the scope on the quote — take out: "+bad.join(", ")+".")}}
     const id=p.id||uid("p"),stage=$("#f-stage").value;
     const num=p.num||await nextNum("nextProject",2001);
     let sl=(p.stageLog||[]).slice();
@@ -15038,11 +15065,12 @@ function projectModal(p,aid,then){
       amountAuto:$("#f-auto")?$("#f-auto").checked:!!p.amountAuto,
       billWhen:$("#f-billwhen")?$("#f-billwhen").value:(p.billWhen||"after"),
       billStatus:p.billStatus||"none",billDate:p.billDate||"",paidDate:p.paidDate||"",
-      depositAmt:p.depositAmt||"",deleted:false,internal:$("#f-internal")?$("#f-internal").checked:!!p.internal,
+      depositAmt:p.depositAmt||"",deleted:false,internal:$("#f-internal")?$("#f-internal").checked:!!p.internal,unrequested:$("#f-unreq")?$("#f-unreq").checked:!!p.unrequested,
       createdById:p.createdById||(p.id?"":meId()||""),createdAt:p.createdAt||Date.now(),updatedAt:Date.now()};
     // Edit project can't close it without the paperwork either (the database rules refuse it too)
     if(stage==="closed"&&p.stage!=="closed"){const miss=closePaperMissing(p.id?p:rec);
       if(miss.length)return toast("It can't be Closed won yet — missing: "+miss.join("; ")+".");rec.closePaper=closePaper(p)}
+    if(stage==="won"&&p.stage!=="won"){const m=wonProofMissing(Object.assign({},p,rec));if(m)return toast("Nothing on file says the customer approved it yet ("+m+"). Mark it won from the project page and record how they approved.")}
     const movedAcct=p.id&&p.accountId&&p.accountId!==rec.accountId;
     if(movedAcct){
       const okIds=contactsOf(rec.accountId).map(c=>c.id);
@@ -15244,6 +15272,7 @@ async function doUpload(files,cat,kind,id){
       if(kind==="job"){rec.jobId=String(id);const j=S.jobs.get(String(id));
         rec.projectId=j?j.projectId:"";rec.accountId=j?j.accountId:""}
       await setDoc("files/"+fid,rec);n++;
+      if(kind==="project"&&/^(Purchase order|Signed quote|Signed proof)$/.test(cat)){try{await closeChaseTasks(String(id),cat)}catch(e){}}
     }catch(e){
       const c=e&&e.code;
       toast(c==="invalid_request"?("Couldn't upload "+file.name+" — file type not accepted.")
@@ -15583,6 +15612,8 @@ async function advance(num,to,force){
   }
 }
 async function setStage(id,stage,why){
+  // Won needs the customer's yes on record (P-2028 was won with nothing filed): a PO or signed quote, a PO number, or an approval filed from their words
+  if(stage==="won"&&!/customer approved/.test(why||"")){const m=wonProofMissing(proj(id));if(m){if(S.me==="AI"||window.sscWorker)return "blocked";wonApprovalModal(id);return "blocked"}}
   if(stage==="closed"){const miss=closePaperMissing(proj(id));if(miss.length){toast("P-"+((proj(id)||{}).num||"")+" can't close yet — missing: "+miss.join("; ")+".");return "blocked"}}
   if(["quoted","won","production","shipped","invoiced","closed"].indexOf(stage)>=0){
     const p0=proj(id);if(p0&&!p0.quote)await ensureQuote(id,{noPlan:stage!=="quoted"});
@@ -15600,6 +15631,18 @@ async function setStage(id,stage,why){
     else if(stage==="lost"||PATH.indexOf(stage)>PATH.indexOf("quoted"))await followStopNow(id,stage==="lost"?"closed lost":"marked "+((SG[stage]||{}).label||stage).toLowerCase());
   }catch(e){}
 }
+// how the customer said yes, in their words, filed as an inbound email note on the project; then the project is marked won
+function wonApprovalModal(id){const p=proj(id);if(!p)return;
+  askConfirm("How did the customer approve this?",`<p style="margin:0 0 8px">Nothing on file says yes yet — no signed quote or PO in Files and no PO number. Say who approved it and how (what they wrote or said, and when); it goes on the project as the approval record. Or cancel and file the signed quote or PO first.</p>
+    <div class="fld full"><div class="k">Customer approval</div><textarea data-cin="why" data-req="Say who approved it and how — or cancel and file the signed quote or PO." rows="3" aria-label="Customer approval" placeholder="e.g. Pat Example, email Nov 7: go ahead with the 4 stop signs"></textarea></div>`,
+    "Approved — mark it won",false,async v=>{const note=String((v&&v.why)||"").trim();if(!note)return;
+      const nid=uid("ac"),now=Date.now();
+      await setDoc("activity/"+nid,{id:nid,recType:"project",recId:String(id),kind:"note",type:"email",direction:"in",subject:"Customer approval",text:"Customer approval — "+note,
+        whoId:meId(),who:me(),contactId:"",when:today(),due:"",backOn:"",noBack:true,at:now,done:false,deleted:false});
+      const wa={at:now,by:meName(),note:note.slice(0,500),activityId:nid};
+      await push("projects/"+id,{wonApproval:wa,updatedAt:now});const cur=S.projects.get(id);if(cur)cur.wonApproval=wa;
+      recordHistory("project",id,[{f:"Customer approval",o:"",n:note.slice(0,120),ev:1}]);
+      setStage(id,"won","customer approved — "+note.slice(0,60))})}
 async function toggleGate(num,k,on){
   if(!needMe(()=>toggleGate(num,k,on)))return;
   const L={specs:"Specs verified",payment:"Payment path set",proof:"Proof approved",material:"Material staged",qc:"QC passed"};
@@ -16512,6 +16555,7 @@ function agentStageWhy(p,st){
 async function agentStage(p,st,why){
   const r=agentStageWhy(p,st);if(r)return r;
   if(st==="closed"&&closePaperMissing(p).length)return "the paperwork isn't all in Files ("+closePaperMissing(p).join("; ")+")";
+  if(st==="won"){const m=wonProofMissing(p);if(m)return "nothing on file says the customer approved it ("+m+") — file the signed quote or PO, or send the PO number with the stage row"}
   if(st==="lost")await push("projects/"+p.id,{lostWhy:"other",lostTo:"",lostNote:String(why||""),updatedAt:Date.now()});
   await asAI(()=>setStage(p.id,st,"by the agents"));
   if(st==="invoiced"){const p2=proj(p.id)||p;const bs=billState(p2);if(bs==="none"||bs==="deposit")await asAI(()=>setBill(p.id,"invoiced",true))}
@@ -16741,7 +16785,8 @@ async function pipeImportRows(rows){
         if(!dup){const fid=uid("f");
           await setDoc("files/"+fid,{id:fid,assetId:"",url,name,size:0,type:agentMime(name,url),cat,who:"AI",when:stamp(),at:now,deleted:false,
             accountId:aid||"",projectId:p&&!acctLevel?p.id:"",jobId:"",link:true,kind,approved:kind==="proof"?appr:false,feedId:id});
-          out.files++}
+          out.files++;
+          if(p&&!acctLevel&&(kind==="signed_quote"||kind==="po"||(kind==="proof"&&appr))){try{await asAI(()=>closeChaseTasks(p.id,kind==="proof"?"Signed proof":cat))}catch(e){}}}
         if(p&&(kind==="signed_quote"||kind==="po")){
           const up={updatedAt:now};if(kind==="signed_quote"){up.quoteSigned=true;up.quoteSignedAt=now}else{up.poOnFile=true;up.poFileAt=now}
           const po=String(o.po||r.po||"").trim();if(po&&po!==String(p.po||"")){up.po=po;lines.push("PO "+po+" recorded.")}
@@ -17883,6 +17928,7 @@ async function signFile(tok){const r=(S.signreq||new Map()).get(tok);if(!r||r.st
   await setDoc("files/"+fid,{id:fid,url:signView(tok),link:true,name:(r.kind==="proof"?"Signed proof":"Signed quote")+" — "+r.signedName+" — "+isoDay(r.signedAt)+" ("+(r.pdfName||"")+")",
     size:0,type:"text/html",cat:r.kind==="proof"?"Signed proof":"Signed quote",who:me(),when:stamp(),at:now,deleted:false,accountId:p.accountId||"",projectId:p.id,jobId:""});
   await setDoc("signreq/"+tok,Object.assign({},r,{filed:true}));
+  try{await closeChaseTasks(p.id,r.kind==="proof"?"Signed proof":"Signed quote")}catch(e){}
   recordHistory("project",p.id,[{f:r.kind==="proof"?"Proof signed":"Quote signed",o:"",n:r.signedName+" "+fmtTs(r.signedAt)+" — saved to Files",ev:1}]);toast("Saved to Files")}
 
 /* ---------- one-click drafts on the project ---------- */
