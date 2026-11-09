@@ -290,16 +290,18 @@ if (STEP === "export") {
       const fv = feed.values || []; const hdr = fv[0] || []; const iId = hdr.indexOf("row_id"), iAt = hdr.indexOf("at"), iType = hdr.indexOf("type");
       const health = await page.evaluate(async (rows) => {
         const T = window.__T, S = T.S; let done = {};
-        try { const d = await T.getDb().doc("settings/pipefeed").get(); const ok = d && (typeof d.exists === "function" ? d.exists() : d.exists); done = (ok && d.data() && d.data().done) || {}; } catch (e) {}
+        let doneErr = "";
+        try { const d = await T.getDb().doc("settings/pipefeed").get(); const ok = d && (typeof d.exists === "function" ? d.exists() : d.exists); done = (ok && d.data() && d.data().done) || {}; } catch (e) { doneErr = String(e && e.message || e).slice(0, 120); }
+        if (!Object.keys(done).length && S.pipeDone) done = S.pipeDone;
         const ids = new Set(); const addF = (m) => { for (const x of m.values()) if (x && x.feedId) ids.add(String(x.feedId)); };
         addF(S.activity); addF(S.projects); addF(S.accounts);
         const un = rows.filter((r) => r.id && !done[r.id] && !ids.has(r.id));
         const cfg = (T.pipeCfg || (() => ({})))(); const b = S.brand || {};
-        return { unapplied: un.length, oldest: un.length ? un.map((r) => r.at).filter(Boolean).sort()[0] || "" : "", sample: un.slice(0, 5).map((r) => r.id).join(", "), auto: cfg.auto === true, last: cfg.last || "", url: !!cfg.url, build: T.APP_VERSION || "", agentCtl: b.agentCtl !== false, doneCount: Object.keys(done).length };
+        return { unapplied: un.length, oldest: un.length ? un.map((r) => r.at).filter(Boolean).sort()[0] || "" : "", sample: un.slice(0, 5).map((r) => r.id).join(", "), auto: cfg.auto === true, last: cfg.last || "", url: !!cfg.url, build: T.APP_VERSION || "", agentCtl: b.agentCtl !== false, doneCount: Object.keys(done).length, doneErr };
       }, fv.slice(1).filter((r) => r[iId]).map((r) => ({ id: String(r[iId]).trim(), at: String(r[iAt] || ""), type: String(r[iType] || "") })));
       // age of the oldest unapplied row, from its "at" (agents write Mountain time) — fall back to "unknown"
       let ageH = null; if (health.oldest) { const m = health.oldest.match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/); if (m) ageH = Math.round((Date.now() - (Date.UTC(+m[1], m[2] - 1, +m[3], +m[4], +m[5]) + 7 * 3600000)) / 36000) / 100; }
-      const stalled = health.unapplied > 0 && ageH != null && ageH > 2;
+      const stalled = health.doneCount > 0 && health.unapplied > 0 && ageH != null && ageH > 2;
       const stamp = new Date().toISOString().replace("T", " ").slice(0, 16) + " UTC";
       let prevAlert = false; try { const prev = await api("/values/" + encodeURIComponent("'CRM Health'!A1:C12"), "GET"); prevAlert = (prev.values || []).some((r) => r[0] === "status" && r[1] === "ALERT"); } catch (e) {}
       const status = stalled ? "ALERT" : health.unapplied > 0 ? "WAITING" : "OK";
@@ -316,7 +318,8 @@ if (STEP === "export") {
         ["oldest_unapplied_at", health.oldest, ageH == null ? "" : ageH + " h ago"],
         ["worker_schedule", "see Actions > CRM worker", "every 30 min when enabled; paused 10/27 to 11/9"],
       ];
-      await write("CRM Health", rows, 5); step("CRM Health written: " + status);
+      await write("CRM Health", rows, 5); step("CRM Health written: " + status + " (done " + health.doneCount + (health.doneErr ? ", read error: " + health.doneErr : "") + ")");
+      if (!health.doneCount) { console.log("::warning::CRM Health: could not read settings/pipefeed (" + (health.doneErr || "empty") + ") so the unapplied count is not trustworthy; no alert raised"); }
       if (stalled && !prevAlert) { console.log("::error::CRM Health ALERT: " + health.unapplied + " Feed rows not applied, oldest " + ageH + " h (" + health.sample + "). This run fails on purpose so GitHub emails Matt once; later runs only warn."); await browser.close(); process.exit(1); }
       if (stalled) console.log("::warning::CRM Health still ALERT: " + health.unapplied + " unapplied, oldest " + ageH + " h");
     } catch (e) { console.log("::warning::CRM Health not written: " + String(e.message || e).slice(0, 160)); }
