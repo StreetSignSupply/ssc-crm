@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-167 (the feed can't go quiet unnoticed)
+- **The cloud worker always brings the Feed in.** Settings → Connections → "Bring the feed in by itself" now only governs people's copies of the CRM; the worker (crm-worker.yml) imports regardless. On Nov 8 we found that switch off and the worker paused since Oct 27 — twelve days of agent rows (archives, stage changes, lost marks) sat on the Feed with nothing to say so.
+- **CRM Health tab (worker only).** The twice-hourly export now also writes a small "CRM Health" tab on the SSS Pipeline sheet: feed switch state, last feed row, how many Feed rows the CRM has not applied and the age of the oldest, live build. If the oldest unapplied row is over two hours old, or the switch is off with the worker not running, the row says ALERT, and the first run that sees a new alert fails on purpose so GitHub emails Matt. Every bot reads this tab first (it is tiny), so a stalled feed is a HIGH finding within the hour instead of a surprise.
+
 ## 2026.11.25-166 (reminders go to the sheet once a day again)
 - **The order-sync sent-list is one compact field.** The record of what has already been sent to the SSS Pipeline sheet (`settings/syncsent`) was stored as one database field per record; at about 3,000 records the document went over the database's index limit, the save failed silently, and every freshly opened copy of the CRM (the agents open one each run) re-sent the day's due reminders — the Log tab got the same seven "due reminder" rows about every ten minutes on Nov 8. It is now stored as one JSON string (no per-field indexing), capped at the newest 2,500 records, read in either form, and rewritten in the new form the first time an old copy is read. Nothing changes in what gets sent; it just stops repeating.
 

@@ -67,7 +67,7 @@ await page.exposeBinding("__wWatch", (_, kind, p, id) => {
   unsub.push(kind === "coll" ? st.watchColl(p, push) : st.watchDoc(p, push));
 });
 await page.addInitScript(() => {
-  window.sscHosted = true; window.sscWorker = true;
+  window.sscHosted = true; window.sscWorker = true; window.sscImporter = true;   // this copy brings the agents' feed in even when the Settings switch is off
   try { localStorage.setItem("sscMe", ""); } catch (e) {}
   const cbs = {}; let n = 0;
   window.__wPush = (id, x) => { const cb = cbs[id]; if (!cb) return;

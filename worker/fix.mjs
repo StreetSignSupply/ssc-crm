@@ -284,6 +284,42 @@ if (STEP === "export") {
     await write("CRM Inventory", data.items, 17); step("CRM Inventory written");
     await write("CRM Activity", data.acts, 12); step("CRM Activity written");
     await write("CRM Calendar", data.evs, 12); step("CRM Calendar written");
+    // CRM Health: is the agents' feed actually landing? (Nov 8: the switch was off and the worker paused for 12 days, unnoticed.)
+    try {
+      const feed = await api("/values/" + encodeURIComponent("Feed!A1:AA5000") + "?majorDimension=ROWS", "GET");
+      const fv = feed.values || []; const hdr = fv[0] || []; const iId = hdr.indexOf("row_id"), iAt = hdr.indexOf("at"), iType = hdr.indexOf("type");
+      const health = await page.evaluate(async (rows) => {
+        const T = window.__T, S = T.S; let done = {};
+        try { const d = await T.getDb().doc("settings/pipefeed").get(); const ok = d && (typeof d.exists === "function" ? d.exists() : d.exists); done = (ok && d.data() && d.data().done) || {}; } catch (e) {}
+        const ids = new Set(); const addF = (m) => { for (const x of m.values()) if (x && x.feedId) ids.add(String(x.feedId)); };
+        addF(S.activity); addF(S.projects); addF(S.accounts);
+        const un = rows.filter((r) => r.id && !done[r.id] && !ids.has(r.id));
+        const cfg = (T.pipeCfg || (() => ({})))(); const b = S.brand || {};
+        return { unapplied: un.length, oldest: un.length ? un.map((r) => r.at).filter(Boolean).sort()[0] || "" : "", sample: un.slice(0, 5).map((r) => r.id).join(", "), auto: cfg.auto === true, last: cfg.last || "", url: !!cfg.url, build: T.APP_VERSION || "", agentCtl: b.agentCtl !== false, doneCount: Object.keys(done).length };
+      }, fv.slice(1).filter((r) => r[iId]).map((r) => ({ id: String(r[iId]).trim(), at: String(r[iAt] || ""), type: String(r[iType] || "") })));
+      // age of the oldest unapplied row, from its "at" (agents write Mountain time) — fall back to "unknown"
+      let ageH = null; if (health.oldest) { const m = health.oldest.match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/); if (m) ageH = Math.round((Date.now() - (Date.UTC(+m[1], m[2] - 1, +m[3], +m[4], +m[5]) + 7 * 3600000)) / 36000) / 100; }
+      const stalled = health.unapplied > 0 && ageH != null && ageH > 2;
+      const stamp = new Date().toISOString().replace("T", " ").slice(0, 16) + " UTC";
+      let prevAlert = false; try { const prev = await api("/values/" + encodeURIComponent("'CRM Health'!A1:C12"), "GET"); prevAlert = (prev.values || []).some((r) => r[0] === "status" && r[1] === "ALERT"); } catch (e) {}
+      const status = stalled ? "ALERT" : health.unapplied > 0 ? "WAITING" : "OK";
+      const rows = [
+        ["metric", "value", "note", "Written by the CRM export every 30 min. Every bot reads this tab first; status ALERT = Feed rows are not reaching the CRM: post Findings HIGH 'Fix needed: feed import stalled' once, then keep working."],
+        ["status", status, stalled ? "oldest unapplied Feed row is " + ageH + " h old" : health.unapplied ? "rows waiting; the worker or an open CRM copy applies them within 30 min" : "feed is landing"],
+        ["checked_at", stamp, ""],
+        ["crm_build", health.build, ""],
+        ["feed_switch", health.auto ? "on" : "off", "Settings > Connections > Bring the feed in by itself (people's copies). The cloud worker imports regardless since build 167."],
+        ["agents_can_change", health.agentCtl ? "on" : "off", "Agents can move projects, create work orders and attach files"],
+        ["last_feed_row_applied", health.last, ""],
+        ["feed_rows_total", String(fv.length - 1), "rows on the Feed tab"],
+        ["feed_rows_unapplied", String(health.unapplied), health.sample],
+        ["oldest_unapplied_at", health.oldest, ageH == null ? "" : ageH + " h ago"],
+        ["worker_schedule", "see Actions > CRM worker", "every 30 min when enabled; paused 10/27 to 11/9"],
+      ];
+      await write("CRM Health", rows, 5); step("CRM Health written: " + status);
+      if (stalled && !prevAlert) { console.log("::error::CRM Health ALERT: " + health.unapplied + " Feed rows not applied, oldest " + ageH + " h (" + health.sample + "). This run fails on purpose so GitHub emails Matt once; later runs only warn."); await browser.close(); process.exit(1); }
+      if (stalled) console.log("::warning::CRM Health still ALERT: " + health.unapplied + " unapplied, oldest " + ageH + " h");
+    } catch (e) { console.log("::warning::CRM Health not written: " + String(e.message || e).slice(0, 160)); }
     const vinv = data.files.slice(1).filter((r) => r[5] === "vendor" && /invoice/i.test(r[3])).length, low = data.items.slice(1).filter((r) => r[9] === "yes").length;
     console.log("::notice::export: " + (data.files.length - 1) + " files (" + vinv + " vendor invoices), " + (data.items.length - 1) + " inventory items (" + low + " low), " + (data.acts.length - 1) + " activity rows, " + (data.evs.length - 1) + " calendar events");
     await browser.close(); process.exit(0);
