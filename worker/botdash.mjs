@@ -43,14 +43,23 @@ export function buildBotDash(tabs, now = Date.now()) {
     if (p === "matt" || p === "decide" || p === "decision") return "Matt";
     const b = roster.find((x) => x.ownerKeys.some((k) => k.toLowerCase() === p) || x.name.toLowerCase() === p); return b ? b.name : null; };
 
-  // ---- runs (Log) ----
+  // ---- runs (Log, plus Token Usage rows for bots that log somewhere else, e.g. Hunter on Bob's sheet) ----
   const days = []; for (let i = 13; i >= 0; i--) days.push(mtDay(now - i * DAY));
   const log = rowsOf(tabs.log).map((r) => ({ t: mtTime(r.at), agent: r.agent, action: r.action, detail: r.detail })).filter((r) => r.t && r.t <= now + 3600000);
-  const per = {}; roster.forEach((b) => { per[b.name] = { runs: [], last: null, errs: 0 }; });
-  const errRe = /\b(failed|error|out of usage|usage limit|could not|couldn't|not linked|blocked|exited with)\b/i;
-  log.forEach((r) => { const b = botOfLog(r.agent); if (!b) return; const p = per[b.name]; p.runs.push(r.t);
-    if (!p.last || r.t >= p.last.t) p.last = r;
-    if (now - r.t < DAY && errRe.test((r.action || "") + " " + (r.detail || "")) && !/nothing new|no errors?|0 errors?/i.test(r.action || "")) p.errs++; });
+  const tokRows = rowsOf(tabs.tokens).map((r) => ({ t: mtTime(r.at), agent: r.bot, action: [r.routine, r.outcome].filter(Boolean).join(": "), detail: r.notes || "", tok: true })).filter((r) => r.t && r.t <= now + 3600000);
+  const per = {}; roster.forEach((b) => { per[b.name] = { runs: [], last: null }; });
+  // a problem only counts when the bot's latest entry reports it (an old error that was fixed later doesn't keep the flag up)
+  const errRe = /\b(failed|error|errors|out of usage|usage limit|rate limit|could not|couldn't|not linked|no chrome|stalled)\b/i;
+  log.forEach((r) => { const b = botOfLog(r.agent); if (!b) return; const p = per[b.name]; p.runs.push(r.t); if (!p.last || r.t >= p.last.t) p.last = r; });
+  tokRows.forEach((r) => { const b = botOfLog(r.agent); if (!b) return; const p = per[b.name];
+    if (p.runs.some((t) => Math.abs(t - r.t) < 20 * 60000)) return;            // the same run already has a Log row
+    p.runs.push(r.t); if (!p.last || r.t > p.last.t) p.last = r; });
+  // a bot that writes neither (Marketing) is still seen through the Findings rows it raises
+  rowsOf(tabs.findings).forEach((r) => { const t = mtTime(r.found_at); if (!t || now - t > 14 * DAY) return; const b = botOfLog(r.agent); if (!b) return; const p = per[b.name];
+    if (p.runs.some((x) => Math.abs(x - t) < 30 * 60000)) return;
+    p.runs.push(t); if (!p.last || t > p.last.t) p.last = { t, agent: r.agent, action: "Posted a finding: " + short(r.headline, 150), detail: "" }; });
+  roster.forEach((b) => { const p = per[b.name]; const l = p.last;
+    p.errs = l && now - l.t < DAY && errRe.test((l.action || "") + " " + (l.detail || "")) && !/nothing new|0 errors?|no errors?/i.test(l.action || "") ? 1 : 0; });
 
   // ---- findings ----
   const fRows = rowsOf(tabs.findings).filter((r) => r.finding_id);
@@ -81,7 +90,7 @@ export function buildBotDash(tabs, now = Date.now()) {
     let state = "ok", why = "";
     if (!last) { state = /no schedule|on demand/i.test(b.schedule) ? "idle" : "unknown"; why = "no Log row yet"; }
     else if (b.staleH && weekday && ageH > b.staleH) { state = "late"; why = "last ran " + Math.round(ageH) + " h ago (expected within " + b.staleH + " h)"; }
-    if (p.errs && state === "ok") { state = "warn"; why = p.errs + " problem" + (p.errs === 1 ? "" : "s") + " logged in the last 24 h"; }
+    if (p.errs && state === "ok") { state = "warn"; why = "its last run reported a problem"; }
     if (/no schedule|on demand/i.test(b.schedule) && state === "ok") state = "idle";
     const mine = open.filter((f) => f.owner === b.name);
     return { name: b.name, platform: b.platform, team: b.team, resp: b.resp, schedule: b.schedule, notes: b.notes, state, why,
