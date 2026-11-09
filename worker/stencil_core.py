@@ -26,6 +26,15 @@ FONTS = {k: json.loads((HERE / f"stencil-glyphs/{k}.json").read_text()) for k in
 FONT_LABEL = {"C": "FHWA Series C", "D": "FHWA Series D", "P": "FHWA pavement (elongated)"}
 
 
+def polys_only(g):
+    """Keep the polygon parts of a shapely result (drops stray lines/points from boolean ops)."""
+    if g.geom_type == "Polygon": return g
+    parts = [q for q in getattr(g, "geoms", []) if q.geom_type in ("Polygon", "MultiPolygon")]
+    flat = []
+    for q in parts: flat.extend(q.geoms if q.geom_type == "MultiPolygon" else [q])
+    return MultiPolygon(flat) if len(flat) != 1 else flat[0]
+
+
 def glyph_geom(font, ch):
     g = FONTS[font]["glyphs"].get(ch)
     if g is None:
@@ -37,8 +46,10 @@ def glyph_geom(font, ch):
     return geom.buffer(0), g["adv"]
 
 
-def set_line(font, text):
-    """Lay one line at cap height 1.0; returns (list of per-letter geoms, missing chars)."""
+def set_line(font, text, min_gap=0.0):
+    """Lay one line at cap height 1.0; returns (list of per-letter geoms, missing chars).
+    min_gap (cap units): the material web left between two neighbouring letters is never thinner than this
+    (the tie width), so tight FHWA pairs such as LT / AV are opened up just enough."""
     f = FONTS[font]; x = 0.0; parts = []; missing = []
     for i, ch in enumerate(text):
         if ch == " ":
@@ -47,18 +58,21 @@ def set_line(font, text):
         geom, adv = glyph_geom(font, ch)
         if geom is None:
             missing.append(ch); continue
-        if font == "P":                                   # glyph drawn from x=0, add the gap rule
-            parts.append(affinity.translate(geom, x, 0)); x += adv + f["letterGap"]
-        else:
-            parts.append(affinity.translate(geom, x, 0)); x += adv
+        g = affinity.translate(geom, x, 0)
+        if parts and min_gap > 0 and text[i - 1] != " ":
+            d = g.distance(parts[-1])
+            if d < min_gap:
+                g = affinity.translate(g, min_gap - d + 1e-4, 0); x += min_gap - d + 1e-4
+        parts.append(g)
+        x += adv + (f["letterGap"] if font == "P" else 0)  # P glyphs are drawn from x=0: add the gap rule
     return parts, missing
 
 
-def layout(font, lines, nominal):
+def layout(font, lines, nominal, tie=0.0):
     """lines: list of strings, stacked with a 0.5 cap line gap, centred. Returns list of letter geoms (inches)."""
     rows = []
     for ln in lines:
-        parts, missing = set_line(font, ln)
+        parts, missing = set_line(font, ln, (tie + 1 / 32) / nominal)
         if missing:
             return None, missing
         rows.append(parts)
@@ -82,7 +96,11 @@ def bounds(geoms):
 def add_ties(letters, tie):
     """Cut ties (material bridges) so every island is held from both sides.
     Horizontal ties at each hole's mid-height, to the left and to the right, through the stroke.
+    The tie band runs past the stroke on both sides (so a slanted leg is cut clean and the bridge is the full
+    tie width), but only the piece of the band that lies in that one stroke is removed.
+    Stroke = true (perpendicular) width at the tie: 2 x distance from the cut's midpoint to the outline.
     Returns (letters, ties_report, problem)."""
+    from shapely.geometry import Point
     out = []; report = []
     for L in letters:
         polys = list(L.geoms) if isinstance(L, MultiPolygon) else [L]
@@ -90,24 +108,40 @@ def add_ties(letters, tie):
         for P in polys:
             for hole in P.interiors:
                 h = Polygon(hole); hb = h.bounds
-                cy = (hb[1] + hb[3]) / 2
-                # put the tie on the longest straight-ish run: mid-height of the hole
+                cx, cy = (hb[0] + hb[2]) / 2, (hb[1] + hb[3]) / 2
                 for side in (-1, 1):
-                    # first stretch of material from the hole outwards
-                    hit = P.intersection(LineString([((hb[0] + hb[2]) / 2, cy), ((hb[0] + hb[2]) / 2 + side * 1e4, cy)]))
+                    hit = P.intersection(LineString([(cx, cy), (cx + side * 1e4, cy)]))
                     segs = [hit] if hit.geom_type == "LineString" else list(getattr(hit, "geoms", []))
-                    segs = [s for s in segs if s.length > 0]
+                    segs = [g for g in segs if g.geom_type == "LineString" and g.length > 0]
                     if not segs:
                         return None, report, "tie: no stroke beside an island"
-                    segs.sort(key=lambda s: abs(s.coords[0][0] - (hb[0] + hb[2]) / 2) + abs(s.coords[-1][0] - (hb[0] + hb[2]) / 2))
-                    s = segs[0]; x0, x1 = sorted([s.coords[0][0], s.coords[-1][0]])
-                    stroke = x1 - x0
+                    seg = min(segs, key=lambda g: min(abs(c[0] - cx) for c in g.coords))
+                    x0, x1 = sorted([seg.coords[0][0], seg.coords[-1][0]])
+                    mid = Point((x0 + x1) / 2, cy)
+                    stroke = 2 * mid.distance(P.boundary)
                     report.append(round(stroke, 3))
                     if tie > 0.25 * stroke + 1e-9:
                         return None, report, f"stroke {stroke:.2f} in at an island; a {tie} in tie is over 25% of it (spec: HOLD for Carla)"
-                    new = new.difference(box(x0 - 0.01, cy - tie / 2, x1 + 0.01, cy + tie / 2))
+                    # band from the island's centre (empty) out past the stroke: clean on slanted legs too
+                    band = box(x0 - 3 * tie, cy - tie / 2, cx, cy + tie / 2) if side < 0 else \
+                        box(cx, cy - tie / 2, x1 + 3 * tie, cy + tie / 2)
+                    part = P.intersection(band)
+                    parts = list(part.geoms) if hasattr(part, "geoms") else [part]
+                    cut = unary_union([q for q in parts if q.area > 0 and q.intersects(seg)])
+                    new = polys_only(new.difference(cut.buffer(0.001, join_style=2)).buffer(0))  # 0.001 in over-cut: no zero-width slivers
         out.append(new)
     return out, report, None
+
+
+def narrowest_web(geom):
+    """Smallest material width between two separate cut-outs (ties and letter gaps)."""
+    polys = list(geom.geoms) if isinstance(geom, MultiPolygon) else [geom]
+    best = None
+    for i in range(len(polys)):
+        for k in range(i + 1, len(polys)):
+            d = polys[i].distance(polys[k])
+            if d < 3 and (best is None or d < best): best = d
+    return best
 
 
 def fmt(v):
@@ -213,7 +247,7 @@ def build(job, out):
     fits = []; tried = []; low = []; per_letter = False
     for font in ("C", "D", "P"):
         for lines in candidates(legend):
-            letters, missing = layout(font, lines, nominal)
+            letters, missing = layout(font, lines, nominal, tie)
             if letters is None:
                 tried.append(f"{font}: no glyph for {''.join(sorted(set(missing)))}"); break
             b = bounds(letters); ew, eh = b[2] - b[0], b[3] - b[1]
@@ -259,10 +293,14 @@ def build(job, out):
         if p:
             problem = problem if problem and "stroke" in problem else p
             continue
+        geom = polys_only(unary_union(letters))
+        web = narrowest_web(geom)
+        if web is not None and web < tie - 1 / 64:   # a bridge (tie or letter gap) thinner than the tie width
+            problem = problem or f"narrowest web between cut-outs {web:.3f} in is under the {tie} in tie width"
+            continue
         break
     else:
         res.update(reason=problem); return res
-    geom = unary_union(letters)
     b = geom.bounds; ew, eh = b[2] - b[0], b[3] - b[1]
     geom = affinity.translate(geom, (sheet[0] - ew) / 2 - b[0], (sheet[1] - eh) / 2 - b[1])
     ext = geom.bounds
@@ -275,6 +313,7 @@ def build(job, out):
     to_png(png, geom, sheet, nominal, ext, sku, legend, font, tie)
     res.update(ok=True, nominal=fmt(nominal), extents=f"{fmt(ew)} x {fmt(eh)}", sheet=f"{fmt(sheet[0])} x {fmt(sheet[1])}",
                tie=str(tie), font=FONT_LABEL[font], layout=" / ".join(lines), islands=len(strokes) // 2,
+               narrowest_web=round(web, 3) if web is not None else None,
                min_stroke_at_tie=min(strokes) if strokes else None,
                dxf=str(dxf.relative_to(out)), png=str(png.relative_to(out)),
                sha256=hashlib.sha256(dxf.read_bytes()).hexdigest())
