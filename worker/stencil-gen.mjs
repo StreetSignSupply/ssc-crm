@@ -115,6 +115,7 @@ export function build(row) {
   const notes = [];
   if (blank && (Math.abs(blank.w - sheetW) > 0.25 || Math.abs(blank.h - sheetH) > 0.25)) notes.push("sheet " + sheetW + " x " + sheetH + " vs price-list blank " + row.blank);
   if (ref && ref.h && Math.abs(ref.w - ew) > 0.25 * Math.max(1, p.nominal / 12)) notes.push("legend " + ew.toFixed(2) + " wide vs reference " + ref.w);
+  if (ref) notes.push("reference " + row.ref);
   return { ok: checks.one_piece && checks.margin_ok && checks.closed_paths, sku: row.sku, legend: p.legend, font, fontWhy: pick.why,
     nominal: p.nominal, extents: [ew, eh], sheet: [sheetW, sheetH], tie, cut, checks, notes };
 }
@@ -160,8 +161,10 @@ async function sheetRows() {
     .filter((x) => x.sku && /^text$/i.test(x.kind));
 }
 function firstBatch(rows) {
-  const want = (p) => p && [12, 18, 24].includes(p.nominal) && (/^(STOP|ONLY)$/.test(p.legend) || /^[0-9]$/.test(p.legend) || /^[A-Z]$/.test(p.legend));
-  return rows.filter((r) => want(parseName(r.name)));
+  // the first QA batch: STOP and ONLY first, then the other plain one-line words, at 12, 18 and 24 in
+  const want = (p) => p && [12, 18, 24].includes(p.nominal) && !p.dot;
+  const rank = (r) => { const p = parseName(r.name); return (/^(STOP|ONLY)$/.test(p.legend) ? 0 : /^[0-9A-Z]$/.test(p.legend) ? 1 : 2) * 100 + p.nominal; };
+  return rows.filter((r) => want(parseName(r.name))).sort((a, b) => rank(a) - rank(b));
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
