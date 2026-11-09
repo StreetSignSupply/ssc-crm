@@ -51,3 +51,17 @@ No CRM page is opened; everything goes through the Sheets and Drive REST APIs.
 25 SKUs: STOP / ONLY / numbers 0–9 at 12, 18 and 24 in, A–E letters at 12 in. CNC Bot QA → one per
 category to the Run Queue → Equipment Manager test cut → measured numbers on the Lessons row. Volume only
 after the first 25 pass.
+
+## Built 2026-11-09 (Claude)
+- Glyphs traced into `worker/stencil-glyphs/`: `fhwa-pavement-elongated` (SHS Pavement Markings 10-1..10-7, letters
+  and numbers; counters of O and P come from the white fills on 10-3) and `fhwa-series-b/c/d/e/em/f` (SHS Standard
+  Alphabets 2000, uppercase, numerals and hyphen, with the font's own advance widths). Source PDFs and page SVGs:
+  branch `stencil-source-<run>` from `.github/workflows/stencil-source.yml`.
+- Alphabet choice: state DOT wording or 48 in and up → elongated pavement alphabet (letter gap 0.05 x height); smaller
+  legends → the Series (C, D, E or B) whose legend width comes closest to the 1800 reference size, else Series C.
+  Checked: 12 in X-ING Series C = 37.26 in wide vs reference 38; 96 in WAY elongated = 55.68 vs 56.
+- Checks per file: the sheet left after cutting is one piece, 2.00 in margin, closed paths, ties per island.
+- Files: Drive won't take uploads owned by the service account (no storage quota), so the workflow saves its output to a
+  new `stencil-out-<run id>` branch; the Stencil Program Lead (Claude, with Drive) files them in
+  `Stencil Library/<category>/` and writes the row. Sheet SHEET = extents + 2 x 2.00 in rounded up to 1/4 in; a
+  difference from the price-list blank goes in the row's notes.
