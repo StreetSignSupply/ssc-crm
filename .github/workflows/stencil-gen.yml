@@ -1,23 +1,34 @@
-# Stencil generator (worker/stencil-gen.mjs, design in docs/stencil-generator.md): reads the Stencil Build tab, draws each
-# text stencil from the FHWA alphabets to the shop spec, and saves DXF + proof PNG/SVG + numbers to a new
-# stencil-out-<run id> branch (never main, no force push). The Stencil Program Lead (Claude task) then files the files
-# in Drive "Stencil Library/<category>/" and writes the row's numbers, links and status 'generated'.
-# Inputs: first=1 for the first 25 (STOP / ONLY / numbers / letters at 12, 18, 24 in), limit = how many rows.
+# Stencil generator: builds a production DXF + proof PNG for every Stencil Build row that is ready
+# (worker/stencil-gen.mjs + worker/stencil_core.py, FHWA public-domain alphabets in worker/stencil-glyphs/),
+# commits the files to the `stencil-files` branch and writes the row (status 'generated', never further).
+# Daily 1:17 PM Mountain, or by hand (the Stencil Program Lead task runs it each afternoon).
 name: Stencil generator
 on:
   workflow_dispatch:
     inputs:
-      first: { description: "1 = first batch only", default: "0" }
-      limit: { description: "rows this run", default: "300" }
+      limit: { description: "build only the first N ready rows (0 = all, up to the daily cap)", default: "0" }
+      dry_run: { description: "1 = build and check only, no push, no sheet writes", default: "0" }
+  schedule:
+    - cron: "17 20 * * *"
 permissions:
   contents: write
   id-token: write
+concurrency: { group: stencil-gen, cancel-in-progress: false }
 jobs:
-  gen:
+  generate:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - name: Output branch (stencil-files; created empty the first time)
+        run: |
+          git config --global user.name "CRM bot" && git config --global user.email "crm-bot@streetsignsupply.com"
+          if git ls-remote --exit-code --heads origin stencil-files >/dev/null; then
+            git clone -q --depth 1 --branch stencil-files "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" stencil-out
+          else
+            git init -q stencil-out && git -C stencil-out checkout -q -b stencil-files
+            git -C stencil-out remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+          fi
       - id: gauth
         uses: google-github-actions/auth@v2
         with:
@@ -27,20 +38,20 @@ jobs:
           access_token_scopes: https://www.googleapis.com/auth/spreadsheets
       - uses: actions/setup-node@v4
         with: { node-version: "22" }
-      - working-directory: worker
-        run: npm install --no-audit --no-fund --loglevel=error 2>&1 | tail -2
-      - working-directory: worker
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -q "shapely>=2" "ezdxf>=1.3" pillow
+      - name: Generate
         env:
           SHEETS_TOKEN: ${{ steps.gauth.outputs.access_token }}
-          GEN_FIRST: ${{ inputs.first == '1' && '1' || '' }}
-          GEN_LIMIT: ${{ inputs.limit }}
-          GEN_OUT: ${{ github.workspace }}/out
-        run: node stencil-gen.mjs
-      - name: Save the files to a new stencil-out branch
-        run: |
-          B="stencil-out-${{ github.run_id }}"
-          cd out && git init -q && git checkout -q -b "$B"
-          git config user.name "CRM bot" && git config user.email "crm-bot@streetsignsupply.com"
-          git add -A && git commit -q -m "Stencil generator output, run ${{ github.run_id }}"
-          git push -q "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" "$B"
-          echo "files: branch $B" >> "$GITHUB_STEP_SUMMARY"
+          OUT_DIR: ${{ github.workspace }}/stencil-out
+          GEN_LIMIT: ${{ inputs.limit || '0' }}
+          DRY_RUN: ${{ inputs.dry_run || '0' }}
+        run: node worker/stencil-gen.mjs
+      - name: Keep the run report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stencil-gen-report
+          path: ${{ github.workspace }}/stencil-out/last-run.json
+          if-no-files-found: ignore

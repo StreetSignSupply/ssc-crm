@@ -65,3 +65,28 @@ after the first 25 pass.
   new `stencil-out-<run id>` branch; the Stencil Program Lead (Claude, with Drive) files them in
   `Stencil Library/<category>/` and writes the row. Sheet SHEET = extents + 2 x 2.00 in rounded up to 1/4 in; a
   difference from the price-list blank goes in the row's notes.
+
+## Rebuilt 2026-11-09 evening (Stencil Program Lead) — this is the generator that runs now
+The first batch above (run 42706463004) failed the Program Lead's self-check against stencil-spec-rule.md:
+(1) SHEET was extents + 4 in, not the price-list blank (spec: the legend must fit the stock blank, else HOLD);
+(2) the DXF carried a second layer SHEET (spec: one layer CUT — the CNC could cut the outline);
+(3) 1/2 in ties on 12 in Series C strokes (~1.6 in) are over the spec's 25 %-of-stroke limit (spec: HOLD for Carla).
+Those 25 rows were marked 'qa fail' and the generator was replaced:
+- `worker/stencil-gen.mjs` (sheet I/O, caps, second check, publishing) + `worker/stencil_core.py` (geometry: shapely,
+  DXF: ezdxf R12, proof: Pillow). Glyphs: `worker/stencil-glyphs/{C,D,P}.json` built by `build-glyphs.py` from the
+  stencil-source branch (Series C/D = the FHWA Standard Alphabets 2000 font embedded in Alphabets.pdf, with its own
+  advances; P = elongated pavement alphabet SHS 10-1..10-7, white-fill counters subtracted, letter gap H/16).
+  The older `fhwa-*.json` traces are kept for reference.
+- NOMINAL = the number in the name (spec) unless column L is filled; LEGEND = the trailing capital words of the name.
+- Layout: C, D and P, one line or stacked by words. SHEET = the price-list blank (either orientation, listed one first);
+  EXTENTS + 2 x 2.00 in must fit it. With a 1800 reference size (column H) the layout whose extents come closest to it
+  wins; without one, the layout must use >= 60 % of the blank on each axis (otherwise blank/font is wrong → hold).
+- Ties: two per island at the island's mid-height (left and right, through the stroke). Over 25 % of that stroke →
+  next layout; none passes → hold for Carla.
+- DXF: one layer CUT, closed POLYLINEs, origin = sheet bottom-left, $EXTMAX = sheet. PNG proof with NOMINAL, EXTENTS,
+  SHEET. Files on the `stencil-files` branch (`stencils/<category>/<SKU>-<LEGEND>-<N>in-SHEET<WxH>.dxf|.png`);
+  P/Q hold GitHub links; the workflow writes the row itself (L–S, status 'generated', never further).
+- Holds go to T as `gen hold YYYY-MM-DD: reason` (one per row, replaced each run). A 'qa fail' text row is rebuilt
+  each run; if the file comes out identical it stays held. Not built yet: symbol rows (Carla's masters), multi-piece
+  kits, per-letter sets, sheets over the 56 x 116 in bed.
+- Daily at 1:17 PM Mountain (schedule) and on demand; cap 300/day until CNC Bot has passed 25, then 600.
