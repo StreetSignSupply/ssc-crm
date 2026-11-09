@@ -4,14 +4,38 @@ import { chromium } from "playwright";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildBotDash } from "../worker/botdash.mjs";
 const here = path.dirname(fileURLToPath(import.meta.url)), root = path.resolve(here, "..");
 const SRC = path.resolve(root, process.argv[2] || "next/index.html");
 const PAGE = path.resolve(here, "__smoke.html");
 fs.writeFileSync(PAGE, fs.readFileSync(SRC, "utf8"));
 const now = Date.now(), day = 86400000;
+// the Bot team page: a small made-up team built the same way the export job builds it
+const BDT = (() => { const t = (h, m) => { const d = new Date(Date.now() - 7 * 3600000 - (h * 60 + (m || 0)) * 60000); return d.toISOString().slice(0, 16).replace("T", " "); };
+  return buildBotDash({
+    roster: [["bot", "platform", "team", "responsibilities", "schedule", "log_names", "owner_keys", "stale_after_hours", "notes"],
+      ["Bob Danforth", "Grok", "Sales", "Sales email rep: first touches and follow-ups from his own account, replies and bounces", "Every 30 min, weekdays", "bob", "Bob", "2", "Sends from his own account"],
+      ["Hunter (Lead Bot)", "Grok", "Sales", "Finds leads and bids, dedupes Prospects", "Hourly", "hunter;lead bot", "Hunter;Lead Bot", "3", ""],
+      ["Josh Smith", "Grok", "Shop", "Materials and purchasing", "Every 30 min, weekdays", "josh", "Josh", "2", ""],
+      ["CNC Bot", "Grok", "Shop", "CNC questions and stencil QA", "On demand (no schedule yet)", "cnc", "CNC", "", "Needs a routine"],
+      ["Mechanic", "Claude", "Office", "Morning sweep of every last-ran stamp; restarts stalled jobs and emails Matt only when something is stopped", "Daily 6:19 AM", "mechanic", "Mechanic", "26", ""]],
+    log: [["at", "agent", "action", "detail"], [t(0, 14), "Bob", "half-hour run :00 prep", "5 follow-up drafts ready for :30"], [t(1), "Bob Danforth", "sales run :30 send", "Sent 5 follow-ups"],
+      [t(0, 20), "Josh (materials)", "materials run — nothing new", "nothing new since 11:41"], [t(30), "Hunter", "Hourly lead run", "could not read the bid site"], [t(6), "Mechanic", "all current", "12 checks"], [t(50), "Mechanic", "all current", ""]],
+    findings: [["finding_id", "found_at", "agent", "area", "priority", "headline", "detail", "link_or_source", "action_for_matt", "status"],
+      ["F-1", t(2), "Hunter", "Bids", "HIGH", "Bid due Nov 19: Franklin County traffic signs", "", "", "Decide bid / no-bid by Nov 17", "New"],
+      ["F-2", t(3), "Bob", "Sales", "NORMAL", "Hunter: buyer rows need an email", "", "", "None", "New"],
+      ["F-3", t(4), "Marketing Bot", "Marketing", "MEDIUM", "Matt: page kit ready — make the six pages", "", "", "Use page-kit.md", "New"],
+      ["F-4", t(5), "CRM Bot", "CRM", "HIGH", "Fix needed: feed import stalled", "", "", "Check the worker", "Released"]],
+    tokens: [["at", "bot", "routine", "outcome", "tool_calls", "chars_read", "chars_written", "est_tokens"], [t(3), "Lead Bot (Hunter)", "h", "c", "72", "1", "1", "383750"], [t(1), "Bob", "s", "c", "10", "1", "1", "52000"]],
+    health: [["metric", "value", "note"], ["status", "OK", "feed is landing"], ["crm_build", "2026.11.25-168"], ["feed_rows_unapplied", "0"], ["feed_rows_broken", "683"]],
+    runq: [["run_id", "added_at", "added_by", "project_ref", "job_name", "machine", "operation", "qty", "material", "roll", "preset", "files", "preflight", "approved_by", "status", "notes", "physical_step_needed"],
+      ["R-2", "", "", "", "Run 1: level the spoilboard", "biesse", "", "", "", "", "", "", "", "", "hold", "", "record board thickness"]],
+    prs: [["req_id", "requested_by", "item", "vendor_link", "cost_usd", "why", "ret", "needed_by", "status"], ["PR-1", "Josh", "582U12 application tape, 1 roll", "", "$66.42", "", "", "", "Needs Matt"]],
+    prospects: [["pid", "source_list", "buyer_class", "last_verified"], ["P1", "Buyer Miner", "A", new Date().toISOString().slice(0, 10)], ["P2", "Buyer Miner", "B", ""], ["P3", "", "C", ""]],
+    posts: [["post_id", "status"], ["1", "posted"], ["2", "planned"], ["3", "held"]], decisions: [["decision_id", "decided_at"], ["D-1", new Date().toISOString().slice(0, 10)]] }, Date.now()); })();
 const D = {
   // settings: aluminum price breaks by the pound, and a commission plan (t1 is on it)
-  __docs: { "settings/brand": { alumBreaks: [{ vendor: "Vendor A", minLb: 0, perLb: 4.5, freight: "extra", freightLb: 0.25 }, { vendor: "Vendor B", minLb: 1500, perLb: 3.9, freight: "extra", freightLb: 0.25 }],
+  __docs: { "settings/botdash": BDT, "settings/brand": { alumBreaks: [{ vendor: "Vendor A", minLb: 0, perLb: 4.5, freight: "extra", freightLb: 0.25 }, { vendor: "Vendor B", minLb: 1500, perLb: 3.9, freight: "extra", freightLb: 0.25 }],
     commPlans: [{ id: "cp1", name: "Rep plan", type: "sale", rate: 5 }] } },
   // t1 (the person signed in) is an older owner record with no level set, and another record is set to owner explicitly —
   // the owner must still get Settings (release -119..-128 turned such a record into Shop)
@@ -70,7 +94,7 @@ const D = {
     ["a".repeat(48)]: { token: "a".repeat(48), kind: "quote", projectId: "p3", status: "sent", createdAt: now - day, expiresAt: now + 29 * day, contactEmail: "ana@example.com", contactName: "Ana Ridge" } },
   events: {}, history: {}, invtx: {}, notifications: {}, reminders: {}, access: { "u1": { role: "owner", teamId: "t1" }, "owner@example.com": { role: "owner", teamId: "t1" } } };
 const ROUTES = ["home", "mybook", "accounts", "account/a1", "contacts", "contact/c1", "projects", "project/p1", "project/p2", "jobs", "job/1001", "tracker", "calendar",
-  "files", "purchasing", "inventory", "item/i1", "stencils", "vendors", "vendor/v1", "reports", "audit", "archive", "bin", "settings", "new", "commissions"];
+  "files", "purchasing", "inventory", "item/i1", "stencils", "vendors", "vendor/v1", "reports", "audit", "archive", "bin", "settings", "new", "commissions", "bots"];
 const browser = await chromium.launch(); const pg = await browser.newPage({ viewport: { width: 1400, height: 900 } });
 const errs = [];
 pg.on("pageerror", (e) => errs.push(String(e.message || e).slice(0, 160)));
@@ -568,6 +592,28 @@ await pg.setViewportSize({ width: 1400, height: 900 });
   else if (a.open || a.newLink.length || a.body.indexOf(link("a")) < 0) bad.push("an email with a live approval link didn't go (" + (a.toast || "").slice(0, 60) + ")");
   if (errs.length > e0) bad.push("approval-link check: " + errs.slice(e0).join(" | "));
   await pg2.close(); }
+// the Bot team page: tiles, charts, the Waiting-on-you list and one card per bot in the roster; a late bot says so;
+// and no page needs sideways scrolling on a laptop or desktop screen (every table fits: tight, then one card per row)
+{ await pg.setViewportSize({ width: 1400, height: 900 }); await pg.evaluate(() => { location.hash = "#/bots"; }); await pg.waitForTimeout(700);
+  const r = await pg.evaluate(() => { const m = document.querySelector(".main"); const t = m ? m.innerText : "";
+    return { t, cards: document.querySelectorAll(".main .bt-bot").length, svg: document.querySelectorAll(".main .rchart, .main .rdonut svg, .main .bt-spark").length }; });
+  if (!/Bot team/.test(r.t) || !/Waiting on you/.test(r.t) || !/page kit ready/.test(r.t)) bad.push("the Bot team page is missing its title, the Waiting on you list or Matt's item");
+  if (r.cards !== 5) bad.push("the Bot team page should show 5 bot cards, shows " + r.cards);
+  if (r.svg < 7) bad.push("the Bot team page charts didn't draw (" + r.svg + ")");
+  if (!/Late/.test(r.t) || !/last ran 30 h ago/.test(r.t)) bad.push("a bot that hasn't run in its window isn't shown as late");
+  await pg.click('[data-btf="attn"]').catch(() => {}); await pg.waitForTimeout(300);
+  const n = await pg.evaluate(() => document.querySelectorAll(".main .bt-bot").length);
+  if (n < 1 || n >= 5) bad.push("the Needs attention filter on the Bot team page didn't narrow the cards (" + n + ")");
+  const wide = [];
+  for (const w of [1280, 1366, 1920]) { await pg.setViewportSize({ width: w, height: 860 });
+    for (const rt of ["bots", "accounts", "projects", "project/p1", "stencils", "jobs", "inventory", "reports", "mybook", "home", "files"]) {
+      await pg.evaluate((rt) => { location.hash = "#/" + rt; }, rt); await pg.waitForTimeout(rt === "stencils" ? 1500 : 500);
+      const o = await pg.evaluate(() => { const de = document.documentElement; const m = document.querySelector(".main");
+        const inner = [...document.querySelectorAll(".main *")].filter((e) => e.clientWidth > 150 && e.scrollWidth > e.clientWidth + 2 && /auto|scroll/.test(getComputedStyle(e).overflowX));
+        return (de.scrollWidth > de.clientWidth + 1 || (m && m.scrollWidth > m.clientWidth + 1) ? "page " : "") + inner.map((e) => String(e.className || e.tagName).slice(0, 30)).slice(0, 2).join(","); });
+      if (o) wide.push(w + " " + rt + ": " + o); } }
+  if (wide.length) bad.push("pages that scroll sideways: " + wide.slice(0, 5).join("; "));
+  await pg.setViewportSize({ width: 1400, height: 900 }); }
 const ver = await pg.evaluate(() => { const m = document.documentElement.innerHTML.match(/APP_VERSION="([^"]+)"/); return m ? m[1] : ""; });
 await browser.close(); fs.unlinkSync(PAGE);
 if (bad.length) { console.log("::error::release check failed: " + bad.slice(0, 8).join(" || ")); process.exit(1); }

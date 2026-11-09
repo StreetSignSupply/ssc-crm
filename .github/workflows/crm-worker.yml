@@ -1,7 +1,8 @@
 name: CRM worker
-# Paused 10/27: Matt stopped using the AI agents, so there is no agent feed to bring in.
-# Run it by hand from the Actions tab if it's ever needed again.
+# Back on 2026-11-09 at Matt's direction: the bots post Feed rows again, so the worker runs every 30 minutes.
 on:
+  schedule:
+    - cron: "3,33 * * * *"
   workflow_dispatch: {}
   push:
     branches: [main]

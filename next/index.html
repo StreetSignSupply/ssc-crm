@@ -358,6 +358,35 @@ td .btn,th .btn{white-space:nowrap;word-break:normal;overflow-wrap:normal}
   .main table.stack td .btn{margin-left:auto}
 }
 
+/* every list fits the screen — no sideways scrolling. fitTables() measures each table after it's drawn (and when the window
+   changes size): a table wider than its space first gets the tight look (headings and cells wrap, less padding), and if it's
+   still too wide it turns into one card per row, the same as on a phone. */
+.main table.fit-tight{table-layout:auto;width:100%!important;min-width:0!important}
+.main table.fit-tight th{white-space:normal!important;overflow-wrap:normal;word-break:normal;line-height:1.2;vertical-align:bottom}
+.main table.fit-tight td{white-space:normal!important}
+.main table.fit-tight td,.main table.fit-tight th{padding-left:5px!important;padding-right:5px!important}
+.main table.fit-tight th{font-size:11px;width:auto!important}
+.main table.fit-tight td{font-size:13px}
+.main table.fit-tight td.mono,.main table.fit-tight td .mono{overflow-wrap:normal;word-break:normal}
+.main table.fit-tight td.sku{min-width:8.4em}
+.main table.fit-tight img{max-width:50px!important;height:auto!important}
+.main table.fit-stack{min-width:0!important;width:100%!important}
+.main table.fit-stack thead{display:none}
+.main table.fit-stack,.main table.fit-stack tbody,.main table.fit-stack tr{display:block;width:100%}
+.main table.fit-stack tr{padding:10px 14px;border-bottom:1px solid var(--line)}
+.main table.fit-stack tr:last-child{border-bottom:0}
+.main table.fit-stack td{display:flex;gap:12px;align-items:baseline;justify-content:space-between;border:0!important;padding:3px 0!important;
+  text-align:right!important;min-height:0;width:auto!important;max-width:none!important;white-space:normal!important}
+.main table.fit-stack td[data-label]::before{content:attr(data-label);flex:0 0 30%;max-width:220px;text-align:left;
+  font-size:12px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--ink2);padding-top:2px}
+.main table.fit-stack td:not([data-label]){justify-content:flex-start;text-align:left!important}
+.main table.fit-stack td:first-child{text-align:left!important;font-size:14.5px}
+.main table.fit-stack td:first-child[data-label]::before{display:none}
+.main table.fit-stack td.stack-empty{display:none}
+.main table.fit-stack td > *{max-width:100%}
+@media (min-width:900px){.main table.fit-stack tbody{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr))}
+  .main table.fit-stack tr{border-right:1px solid var(--line)}}
+
 @container (max-width:460px){
   /* lists without headings: the name leads, the details sit underneath */
   .main table.stackplain,.main table.stackplain tbody{display:block;width:100%}
@@ -1137,6 +1166,60 @@ details.dd[open] > summary{border-color:var(--ink3)}
 .kpi-v{font-size:24px;font-weight:800;line-height:1.15;margin-top:3px;letter-spacing:-.01em}
 .kpi-s{font-size:12px;color:var(--ink3);margin-top:3px}
 
+/* ========= bot team dashboard ========= */
+.bt-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px 20px;flex-wrap:wrap;margin:2px 0 16px}
+.bt-h1{font-size:22px;font-weight:800;margin:0 0 4px;letter-spacing:-.01em}
+.bt-chips{display:flex;gap:6px;flex-wrap:wrap}
+.bt-chips .tchip.on{background:var(--ink);color:var(--card);border-color:var(--ink)}
+.bt-chips .tchip.on::before{background:var(--card)}
+.bt-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+@media (max-width:900px){.bt-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.bt-tile{background:var(--card);border:1px solid var(--line);border-radius:var(--r2);padding:14px 16px;box-shadow:var(--sh);border-top:4px solid var(--line);min-width:0}
+.bt-tile[data-btf]{cursor:pointer}.bt-tile[data-btf]:hover{border-color:var(--ink3)}
+.bt-tile.g{border-top-color:var(--green)}.bt-tile.r{border-top-color:var(--red)}.bt-tile.o{border-top-color:var(--orange)}
+.bt-tile .kpi-v{overflow-wrap:anywhere}.bt-of{font-size:15px;color:var(--ink3);font-weight:700}
+.bt-grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:16px}
+.bt-grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:16px 0}
+.bt-grid2>.card,.bt-grid3>.card{margin:0;min-width:0}
+@media (max-width:1180px){.bt-grid3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:900px){.bt-grid2,.bt-grid3{grid-template-columns:minmax(0,1fr)}}
+.bt-bots{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
+.bt-bots>.card{margin:0;min-width:0;border-top:4px solid var(--line)}
+.bt-bot.ok{border-top-color:var(--green)}.bt-bot.late{border-top-color:var(--red)}.bt-bot.warn{border-top-color:var(--orange)}
+.bt-bot header h2{font-size:15.5px}
+.bt-dot{width:10px;height:10px;border-radius:50%;flex:0 0 auto}
+.bt-resp{font-size:13.5px;line-height:1.45;margin-bottom:10px}
+.bt-meta{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12.5px;color:var(--ink2)}
+.bt-meta span{display:inline-flex;align-items:center;gap:5px}
+.bt-why{margin-top:8px;font-size:12.5px;font-weight:700;padding:6px 10px;border-radius:6px;background:var(--card2)}
+.bt-why.late{color:var(--danger-ink);background:color-mix(in srgb,var(--red) 10%,var(--card))}
+.bt-why.warn{color:var(--orange-text,#8F4405);background:color-mix(in srgb,var(--orange) 10%,var(--card))}
+.bt-last{margin-top:10px;font-size:13px;line-height:1.4;border-left:3px solid var(--line);padding-left:10px}
+.bt-last .sub{margin-top:3px;font-size:12px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.bt-stats,.bt-mini{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}
+.bt-mini{grid-template-columns:repeat(3,minmax(0,1fr));margin:0 0 10px}
+.bt-stats>div,.bt-mini>div{background:var(--card2);border-radius:8px;padding:8px 6px;text-align:center;min-width:0}
+.bt-stats b,.bt-mini b{display:block;font-size:18px;font-weight:800}
+.bt-stats span,.bt-mini span{display:block;font-size:11px;color:var(--ink2);line-height:1.25;margin-top:2px}
+.bt-hi{color:var(--danger-ink)}
+.bt-sparkw{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-top:12px;color:var(--ink)}
+.bt-spark{width:150px;height:36px;flex:0 0 auto}
+.bt-open{margin-top:10px}.bt-open summary{cursor:pointer;font-weight:700;font-size:13px}
+.bt-note{margin-top:8px;font-style:italic}
+.bt-list{list-style:none;margin:0;padding:0}
+.bt-item{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--line2)}
+.bt-item:last-child{border-bottom:0}
+.bt-item>.pill{flex:0 0 auto;margin-top:1px;min-width:62px;justify-content:center;text-align:center}
+.bt-itxt{min-width:0;flex:1}.bt-ih{font-weight:700;font-size:13.5px;line-height:1.35;overflow-wrap:anywhere}
+.bt-itxt .sub{overflow-wrap:anywhere}
+.bt-hbars{display:flex;flex-direction:column;gap:8px}
+.bt-hb{display:grid;grid-template-columns:minmax(90px,170px) minmax(0,1fr) 40px;align-items:center;gap:10px;font-size:13px}
+.bt-hbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bt-hbt{height:14px;background:var(--card2);border-radius:7px;overflow:hidden}.bt-hbt i{display:block;height:100%;border-radius:7px}
+.bt-hb b{text-align:right}
+.bt-counts{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+@media (max-width:600px){.bt-bots{grid-template-columns:minmax(0,1fr)}.bt-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
 /* ========= settings: groups down the side, one sticky save bar ========= */
 .setwrap{display:grid;grid-template-columns:200px minmax(0,1fr);gap:20px;align-items:start}
 .snav{position:sticky;top:8px;display:flex;flex-direction:column;gap:2px;background:var(--card);border:1px solid var(--line);border-radius:var(--r2);padding:6px;box-shadow:var(--sh)}
@@ -1384,6 +1467,7 @@ th.thsort:not([data-dir])::after{content:" ↕";opacity:.3;font-size:.9em}
 .rtab tr.rtot td{border-top:2px solid var(--line)}
 .rtabs{display:flex;flex-wrap:wrap;gap:2px}
 .rfbar select,.rfbar input[type=date]{min-height:38px}
+.main .card select,.main .card input:not([type=checkbox]):not([type=radio]){max-width:100%}.main .card .fld{min-width:0}
 .rcustom{margin-top:22px}.rcustom>summary{padding:14px 16px;cursor:pointer}.rcustom>.pad{padding-top:0}
 @media (max-width:600px){.rdonut svg{max-width:60%;margin:0 auto}.rchartwrap{padding:8px 6px 2px}.rfbar .fld{flex:1 1 100%}}
 /* -76 design review */
@@ -10197,6 +10281,22 @@ function decorateRows(){
     if(first&&!tr.querySelector("input,select,textarea"))tr.classList.add("rowgo");
   });
 }
+// every table fits its space: tight first, then one card per row (see the fit-tight / fit-stack styles)
+function fitTables(){
+  document.querySelectorAll(".main table").forEach(tb=>{
+    if(tb.closest(".modal")||tb.closest("[data-nofit]"))return;
+    tb.classList.remove("fit-tight","fit-stack");
+    let box=tb.parentElement;
+    while(box&&box!==document.body&&!box.classList.contains("main")){const ox=getComputedStyle(box).overflowX;if(ox==="auto"||ox==="scroll"||box.classList.contains("card"))break;box=box.parentElement}
+    if(!box)return;
+    const room=()=>Math.min(box.clientWidth,(document.querySelector(".main")||box).clientWidth);
+    if(!room()||tb.scrollWidth<=room()+1)return;
+    tb.classList.add("fit-tight");
+    if(tb.scrollWidth<=room()+1)return;
+    if(tb.classList.contains("stack"))tb.classList.add("fit-stack");
+  });
+}
+let _fitT=0;window.addEventListener("resize",()=>{clearTimeout(_fitT);_fitT=setTimeout(()=>{try{fitTables()}catch(e){}},150)});
 function decorateTables(){
   document.querySelectorAll(".main table").forEach(tb=>{
     const ths=tb.querySelectorAll(":scope > thead > tr > th");
@@ -10296,6 +10396,7 @@ function render(){
   decoratePics();
   decorateCells();
   decorateFiles();
+  try{fitTables()}catch(e){}setTimeout(()=>{try{fitTables()}catch(e){}},400);
   document.querySelectorAll(".main .fgal.fold2").forEach(g=>{const t=[...g.children];if(t.length<=2)return;
     const d=document.createElement("details");d.className="fmore";const rest=t.slice(2);
     d.innerHTML=`<summary><span class="fm-show">Show ${rest.length} more</span><span class="fm-hide">Show fewer</span></summary>`;
@@ -10443,7 +10544,7 @@ function mobileNav(){
 function moreNav(){
   openModal(mshell("Go to","",`<div style="padding:10px 14px">${NAVG.map(g=>`<div style="margin:6px 0 12px">
       <div class="k" style="font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);margin-bottom:6px">${esc(g.label)}</div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${g.pages.filter(([r])=>(r!=="mybook"||S.viewerTeam)&&(r!=="settings"||can("settings"))).map(([r,i,l])=>`<button class="btn" data-go="${r}"
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${g.pages.filter(([r])=>(r!=="mybook"||S.viewerTeam)&&(r!=="settings"||can("settings"))&&(r!=="bots"||can("cost"))).map(([r,i,l])=>`<button class="btn" data-go="${r}"
         style="flex-direction:column;display:flex;align-items:center;gap:6px;padding:12px 6px;height:auto">${ic(i,20)}<span style="font-size:12px">${l}</span></button>`).join("")}</div></div>`).join("")}</div>`,
     `<button class="btn" data-close="1">Close</button>`));
 }
@@ -10451,7 +10552,7 @@ const NAVG=[
   {id:"sales",label:"Sales",icon:"project",pages:[["mybook","contact","Dashboard"],["accounts","account","Accounts"],["contacts","contact","Contacts"],["projects","project","Projects"],["tasks","task","Tasks"]]},
   {id:"shop",label:"Production",icon:"job",pages:[["jobs","job","Work orders"],["tracker","chart","Tracker"],["calendar","calendar","Calendar"],["files","file","Files"]]},
   {id:"stock",label:"Inventory",icon:"inventory",pages:[["inventory","inventory","Inventory"],["stencils","inventory","Stencils","sub"],["purchasing","inventory","Purchase orders","sub"],["vendors","vendor","Vendors"]]},
-  {id:"money",label:"Reports",icon:"chart",pages:[["reports","chart","Reports"],["commissions","money","Commissions"]]},
+  {id:"money",label:"Reports",icon:"chart",pages:[["reports","chart","Reports"],["bots","contact","Bot team"],["commissions","money","Commissions"]]},
   {id:"admin",label:"Admin",icon:"history",pages:[["new","history","What's new"],["archive","archive","Archive"],["bin","archive","Recycle bin"],["audit","history","Change history"],["settings","history","Settings"]]}];
 /* ===== who can do what =====
    Each person on the team has an access level. Owner: everything. Office: everything but Settings.
@@ -10532,7 +10633,7 @@ function rail(){
   const tog=onDash&&canCompanyDash()?`<nav class="rail-tog" aria-label="Which dashboard">
       <a href="#/mybook" class="${cur!=="home"?"on":""}" title="${esc(dashLabel("mybook"))}"><span class="full">${esc(dashFirst()==="My"?"Mine":dashFirst()+"'s")}</span><span class="abbr">${esc(mineAbbr)}</span></a><a href="#/home" class="${cur==="home"?"on":""}" title="Company dashboard"><span class="full">Company</span><span class="abbr">Co</span></a></nav>`:"";
   const groups=NAVG.map(g=>{
-    const pages=g.pages.filter(([r])=>r!=="mybook").filter(([r])=>r!=="settings"||can("settings")).filter(([r])=>r!=="commissions"||can("price"));
+    const pages=g.pages.filter(([r])=>r!=="mybook").filter(([r])=>r!=="settings"||can("settings")).filter(([r])=>r!=="commissions"||can("price")).filter(([r])=>r!=="bots"||can("cost"));
     const inG=pages.some(([r])=>r===cur);
     return `<div class="rail-g">${esc(g.label)}</div>${pages.filter(x=>x[3]!=="sub"||inG).map(([r,i,l,sub])=>sub?item(r,i,l).replace('class="rail-i ','class="rail-i rail-sub '):item(r,r==="settings"?"settings":i,l)).join("")}`}).join("");
   return `<aside class="rail" aria-label="Main menu">
@@ -10584,6 +10685,7 @@ function body(){
     case "archive":return archiveView();
     case "bin":return binView();
     case "commissions":return commissionsView();
+    case "bots":return botsView();
     default:return home();
   }
 }
@@ -10594,6 +10696,112 @@ document.addEventListener("change",e=>{const t=e.target;if(!t||!t.dataset)return
   if(t.dataset.alumlb){const v=t.value.trim();alumSave(t.dataset.alumlb,{lb:v===""?"":Math.max(0,Number(v)||0),on:true}).then(()=>render());return}
   if(t.dataset.cm==="type"){S._cmDraft=commReadRows();render();return}
   if(t.dataset.commrep){S.commF=Object.assign({st:"owed",rep:""},S.commF||{},{rep:t.value});render();return}});
+/* ========== BOT TEAM DASHBOARD ==========
+   One page for the whole bot team: who is running, what each one owns, what it did last, what is waiting on whom,
+   and how the work is trending. The CRM export job (worker/botdash.mjs) boils the SSS Pipeline sheet's Log, Findings,
+   Token Usage, Run Queue, Purchase Requests, Prospects and Bot Roster tabs down to settings/botdash every 30 minutes;
+   this page only draws it. Owner and office only. */
+function botdashWatch(){try{db.doc("settings/botdash").onSnapshot(sn=>{const d=sn&&sn.exists?(typeof sn.data==="function"?sn.data():sn.data):null;S.botdash=d||null;
+  if(S.route&&S.route.v==="bots"&&!typing()&&!S.modal)render()},()=>{})}catch(e){}}
+function btAgo(ms){if(!ms)return "never";const m=Math.round((Date.now()-ms)/60000);if(m<1)return "just now";if(m<60)return m+" min ago";const h=Math.round(m/60);if(h<36)return h+" h ago";return Math.round(h/24)+" days ago"}
+function btNum(n){n=Number(n)||0;return n>=1e6?(n/1e6).toFixed(1)+"M":n>=1e4?Math.round(n/1e3)+"k":n>=1e3?(n/1e3).toFixed(1)+"k":String(n)}
+const BT_STATE={ok:["Running","g"],warn:["Problem logged","o"],late:["Late","r"],idle:["No schedule","s"],unknown:["Not seen yet","s"]};
+const BT_PRIO={HIGH:"r",MEDIUM:"o",NORMAL:"b",LOW:"s"};
+function btSpark(v,c){v=v||[];const W=140,H=34,max=Math.max(1,...v),bw=W/Math.max(1,v.length);
+  return `<svg viewBox="0 0 ${W} ${H}" class="bt-spark" role="img" aria-label="Runs per day, last ${v.length} days">${v.map((n,i)=>{const h=n?Math.max(2,(n/max)*(H-4)):1;
+    return `<rect x="${(i*bw+1).toFixed(1)}" y="${(H-h).toFixed(1)}" width="${Math.max(1,bw-2).toFixed(1)}" height="${h.toFixed(1)}" rx="1.5" fill="${n?c:"currentColor"}" opacity="${n?1:.15}"><title>${n} run${n===1?"":"s"}</title></rect>`}).join("")}</svg>`}
+function btHBars(rows,opt){opt=opt||{};if(!rows.length)return `<div class="empty">${esc(opt.empty||"Nothing open.")}</div>`;const max=Math.max(1,...rows.map(r=>r.v));
+  return `<div class="bt-hbars">${rows.map((r,i)=>`<div class="bt-hb"><span class="bt-hbl">${esc(r.l)}</span><span class="bt-hbt"><i style="width:${(r.v/max*100).toFixed(1)}%;background:${r.c||RCOL[i%RCOL.length]}"></i></span><b class="mono">${r.v}</b></div>`).join("")}</div>`}
+function btDonut(parts,center){const tot=parts.reduce((t,p)=>t+p.v,0);if(!tot)return `<div class="empty">No buyers scored yet.</div>`;let a=-Math.PI/2,svg="";
+  parts.forEach(p=>{if(!p.v)return;const f=p.v/tot,a2=a+f*Math.PI*2,lg=f>.5?1:0,R=70,r=44,c=[90,90];
+    const P=(ang,rad)=>[(c[0]+rad*Math.cos(ang)).toFixed(2),(c[1]+rad*Math.sin(ang)).toFixed(2)];
+    if(f>=0.9999){svg+=`<circle cx="90" cy="90" r="57" fill="none" stroke="${p.c}" stroke-width="26"/>`}
+    else{const[x1,y1]=P(a,R),[x2,y2]=P(a2,R),[x3,y3]=P(a2,r),[x4,y4]=P(a,r);svg+=`<path d="M${x1} ${y1}A${R} ${R} 0 ${lg} 1 ${x2} ${y2}L${x3} ${y3}A${r} ${r} 0 ${lg} 0 ${x4} ${y4}Z" fill="${p.c}"><title>${esc(p.l)}: ${p.v}</title></path>`}a=a2});
+  svg+=`<text x="90" y="88" text-anchor="middle" font-size="26" font-weight="800" fill="currentColor">${tot}</text><text x="90" y="108" text-anchor="middle" font-size="11" fill="currentColor" opacity=".7">${esc(center||"")}</text>`;
+  return `<div class="rdonut"><svg viewBox="0 0 180 180" role="img" aria-label="${esc(center||"chart")}">${svg}</svg><div class="rleg col">${parts.map(p=>`<span><i style="background:${p.c}"></i>${esc(p.l)} <b class="mono">${p.v}</b> <span class="sub">${Math.round(p.v/tot*100)}%</span></span>`).join("")}</div></div>`}
+function btTile(label,val,sub,tone,go){return `<div class="bt-tile${tone?" "+tone:""}"${go?` data-btf="${esc(go)}" role="button" tabindex="0"`:""}><div class="kpi-l">${esc(label)}</div><div class="kpi-v">${val}</div>${sub?`<div class="kpi-s">${sub}</div>`:""}</div>`}
+function btItem(f,showOwner){const age=f.t?btAgo(f.t):"";
+  return `<li class="bt-item"><span class="pill ${BT_PRIO[f.prio]||"s"}">${esc(f.prio||"")}</span><div class="bt-itxt"><div class="bt-ih">${esc(f.headline)}</div>
+    ${f.action?`<div class="sub">${esc(f.action)}</div>`:""}<div class="sub mono">${esc(f.id)}${showOwner&&f.owner?" · for "+esc(f.owner):""}${f.from?" · from "+esc(f.from):""}${age?" · "+esc(age):""}</div></div></li>`}
+function botsView(){
+  if(!can("cost"))return `<div class="pad"><div class="empty"><b>The bot team page is for the owner and the office</b></div></div>`;
+  const d=S.botdash;
+  if(!d||!d.bots)return `<div class="pad"><section class="card"><header><h2>Bot team</h2></header><div class="body"><div class="empty"><b>No bot data yet</b>
+    The cloud export fills this page every 30 minutes from the SSS Pipeline sheet (Bot Roster, Log, Findings, Token Usage). It shows up after its next run.</div></div></section></div>`;
+  const f=S.btF||"all",T=d.totals||{},H=d.health||{};
+  const stale=Date.now()-(d.at||0)>90*60000;
+  const teamOf=b=>String(b.team||"Other");
+  const teams=[...new Set(d.bots.map(teamOf))];
+  const shown=d.bots.filter(b=>f==="all"||(f==="attn"?(b.state==="late"||b.state==="warn"||b.openHigh>0):teamOf(b)===f));
+  const ord={late:0,warn:1,ok:2,idle:3,unknown:4};
+  shown.sort((a,b)=>(ord[a.state]-ord[b.state])||(b.openHigh-a.openHigh)||(b.lastAt-a.lastAt));
+  const days=(d.days||[]).map(x=>{const p=x.split("-");return Number(p[1])+"/"+Number(p[2])});
+  const TCOL={Sales:"#1F5FAD",Shop:"#C77A1A",Office:"#2F8F5B"};
+  const runBars=days.map((l,i)=>({label:l,parts:teams.map((t,k)=>({n:t,v:d.bots.filter(b=>teamOf(b)===t).reduce((s,b)=>s+((b.runs||[])[i]||0),0),c:TCOL[t]||RCOL[k%RCOL.length]}))}));
+  const owners=Object.entries(d.byOwner||{}).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([l,v])=>({l,v,c:l==="Matt"?"#C23B5A":undefined}));
+  const hTone=H.status==="ALERT"?"r":H.status==="WAITING"?"o":H.status==="OK"?"g":"";
+  const card=b=>{const st=BT_STATE[b.state]||["",""];const col=b.state==="ok"?"var(--green)":b.state==="late"?"var(--red)":b.state==="warn"?"var(--orange)":"var(--ink3)";
+    return `<section class="card bt-bot ${esc(b.state)}"><header><span class="bt-dot" style="background:${col}" aria-hidden="true"></span><h2>${esc(b.name)}</h2>
+      <span class="pill ${b.platform==="Claude"?"v":"t"}">${esc(b.platform||"")}</span><span class="pill s">${esc(teamOf(b))}</span><span class="sp"><span class="pill ${st[1]}">${esc(st[0])}</span></span></header>
+      <div class="body">
+        <div class="bt-resp">${esc(b.resp||"")}</div>
+        <div class="bt-meta"><span>${ic("clock",14)}${esc(b.schedule||"—")}</span><span>${ic("history",14)}Last run ${esc(b.lastAt?fmtTs(b.lastAt)+" · "+btAgo(b.lastAt):"none logged")}</span></div>
+        ${b.why?`<div class="bt-why ${b.state}">${esc(b.why)}</div>`:""}
+        ${b.lastAction?`<div class="bt-last"><b>${esc(b.lastAction)}</b>${b.lastDetail?`<div class="sub">${esc(b.lastDetail)}</div>`:""}</div>`:""}
+        <div class="bt-stats"><div><b class="mono">${b.runs24||0}</b><span>runs 24 h</span></div><div><b class="mono">${b.runs7||0}</b><span>runs 7 days</span></div>
+          <div><b class="mono${b.openHigh?" bt-hi":""}">${b.openCount||0}</b><span>open for it${b.openHigh?" · "+b.openHigh+" high":""}</span></div><div><b class="mono">${btNum(b.tokens7)}</b><span>tokens 7 days</span></div></div>
+        <div class="bt-sparkw"><span class="sub">Runs per day, 14 days</span>${btSpark(b.runs,col.indexOf("var(")===0?(b.state==="ok"?"#2F8F5B":b.state==="late"?"#C23B5A":"#C77A1A"):col)}</div>
+        ${(b.open||[]).length?`<details class="bt-open"><summary>${b.openCount} open item${b.openCount===1?"":"s"} for ${esc(b.name.split(" ")[0])}</summary><ul class="bt-list">${b.open.map(x=>btItem(x)).join("")}</ul></details>`:""}
+        ${b.notes?`<div class="sub bt-note">${esc(b.notes)}</div>`:""}
+      </div></section>`};
+  const chip=(k,l,n)=>`<button class="tchip${f===k?" on":""}" data-btf="${esc(k)}" aria-pressed="${f===k}">${esc(l)}${n!=null?` <b class="mono">${n}</b>`:""}</button>`;
+  const attn=d.bots.filter(b=>b.state==="late"||b.state==="warn"||b.openHigh>0).length;
+  const rq=d.runQueue||{},pr=d.purchases||{},by=d.buyers||{},po=d.posts||{};
+  return `<div class="pad bt">
+    <div class="bt-head"><div><h1 class="bt-h1">Bot team</h1><div class="sub">${d.bots.length} bots · updated ${esc(fmtTs(d.at))} (${esc(btAgo(d.at))})${stale?` · <b style="color:var(--danger-ink)">the export hasn't refreshed this in over 90 min</b>`:" · refreshes every 30 min"}</div></div>
+      <div class="bt-chips">${chip("all","All",d.bots.length)}${teams.map(t=>chip(t,t,d.bots.filter(b=>teamOf(b)===t).length)).join("")}${chip("attn","Needs attention",attn)}</div></div>
+    <div class="bt-tiles">
+      ${btTile("Running on schedule",`${T.ok||0}<span class="bt-of">/${T.bots||0}</span>`,`${T.idle||0} with no schedule`,"g","all")}
+      ${btTile("Need attention",String((T.late||0)+(T.warn||0)),`${T.late||0} late · ${T.warn||0} logged a problem`,(T.late||T.warn)?"r":"","attn")}
+      ${btTile("Runs, last 24 h",String(T.runs24||0),`${T.runs7||0} in 7 days`)}
+      ${btTile("Waiting on you",String(T.matt||0),"open items only you can decide",T.matt?"o":"","matt")}
+      ${btTile("Open hand-offs",String(T.open||0),`${T.openHigh||0} high priority`,T.openHigh?"o":"")}
+      ${btTile("CRM feed",esc(H.status||"—"),`${H.unapplied||0} waiting · ${H.broken||0} broken${H.build?" · build "+esc(String(H.build).split("-").pop()):""}`,hTone)}
+      ${btTile("Buyers found",String(by.total||0),`A ${by.A||0} · B ${by.B||0} · C ${by.C||0}`)}
+      ${btTile("Tokens, 7 days",btNum(T.tokens7),"from Token Usage")}
+    </div>
+    <div class="bt-grid2">
+      <section class="card rcard"><header><h2>Runs per day</h2><span class="sub">every bot, last 14 days, by team</span></header><div class="rchartwrap">${rBars(runBars,{label:"Runs per day",short:v=>String(Math.round(v)),fmt:v=>String(Math.round(v)),legend:teams.map((t,k)=>({l:t,c:TCOL[t]||RCOL[k%RCOL.length]}))})}</div></section>
+      <section class="card rcard"><header><h2>Open items by owner</h2><span class="sub">Findings still New</span></header><div class="body">${btHBars(owners)}</div></section>
+      <section class="card rcard"><header><h2>New findings per day</h2><span class="sub">hand-offs and reports raised</span></header><div class="rchartwrap">${rBars((d.opened||[]).map((v,i)=>({label:days[i],v,c:"#7A4FB5"})),{label:"Findings per day",short:v=>String(Math.round(v)),fmt:v=>String(Math.round(v))})}</div></section>
+      <section class="card rcard"><header><h2>Buyers already in the market</h2><span class="sub">Prospects scored A / B / C · ${by.new7||0} new from the Buyer Miner this week</span></header><div class="body">${btDonut([{l:"A — buys now and fits",v:by.A||0,c:"#2F8F5B"},{l:"B — buys, fit unclear",v:by.B||0,c:"#1F5FAD"},{l:"C — buys, poor fit",v:by.C||0,c:"#8A8478"}],"scored")}</div></section>
+    </div>
+    <div class="bt-grid2">
+      <section class="card bt-matt" id="bt-matt"><header><h2>Waiting on you</h2><span class="sub">${d.matt&&d.matt.length?(T.matt>d.matt.length?"top "+d.matt.length+" of "+T.matt:T.matt+" open"):""}</span></header>
+        <div class="body">${d.matt&&d.matt.length?`<ul class="bt-list">${d.matt.slice(0,S.btMore?40:8).map(x=>btItem(x)).join("")}</ul>${d.matt.length>8?`<button class="btn sm" data-btmore="1">${S.btMore?"Show fewer":"Show all "+d.matt.length}</button>`:""}`:`<div class="empty">Nothing is waiting on you.</div>`}</div></section>
+      <section class="card"><header><h2>Bot to bot hand-offs</h2><span class="sub">open, highest priority first</span></header>
+        <div class="body">${(d.openTop||[]).length?`<ul class="bt-list">${d.openTop.slice(0,10).map(x=>btItem(x,true)).join("")}</ul>`:`<div class="empty">No open hand-offs.</div>`}</div></section>
+    </div>
+    <h2 class="rsec">The bots${f!=="all"?` <span class="sub">— ${esc(f==="attn"?"needs attention":f)}</span>`:""}</h2>
+    <div class="bt-bots">${shown.length?shown.map(card).join(""):`<div class="empty">No bots here.</div>`}</div>
+    <div class="bt-grid3">
+      <section class="card"><header><h2>Shop machine queue</h2><span class="sub">Run Queue</span></header><div class="body">
+        <div class="bt-counts">${Object.entries(rq.counts||{}).map(([k,v])=>`<span class="pill s">${esc(k)} <b>${v}</b></span>`).join("")||`<span class="sub">empty</span>`}</div>
+        ${(rq.open||[]).length?`<ul class="bt-list">${rq.open.map(r=>`<li class="bt-item"><span class="pill ${/ready|loaded|running/i.test(r.status)?"g":/hold/i.test(r.status)?"o":"s"}">${esc(r.status||"—")}</span><div class="bt-itxt"><div class="bt-ih">${esc(r.job)}</div><div class="sub">${esc(r.machine)}${r.step?" · "+esc(r.step):""}</div><div class="sub mono">${esc(r.id)}</div></div></li>`).join("")}</ul>`:""}</div></section>
+      <section class="card"><header><h2>Purchase requests</h2><span class="sub">${pr.count||0} waiting on you · nobody buys without your OK</span></header><div class="body">
+        ${(pr.open||[]).length?`<ul class="bt-list">${pr.open.map(r=>`<li class="bt-item"><span class="pill o">${esc(r.status||"")}</span><div class="bt-itxt"><div class="bt-ih">${esc(r.item)}</div><div class="sub">${esc(r.cost)}${r.needed?" · needed by "+esc(r.needed):""}</div><div class="sub mono">${esc(r.id)} · ${esc(r.by)}</div></div></li>`).join("")}</ul>`:`<div class="empty">None waiting.</div>`}</div></section>
+      <section class="card"><header><h2>Marketing and decisions</h2></header><div class="body">
+        <div class="bt-mini"><div><b class="mono">${po.planned||0}</b><span>posts planned</span></div><div><b class="mono">${po.posted||0}</b><span>posted</span></div><div><b class="mono">${po.held||0}</b><span>held</span></div></div>
+        <div class="bt-mini"><div><b class="mono">${(d.decisions||{}).last7||0}</b><span>decisions this week</span></div><div><b class="mono">${(d.decisions||{}).total||0}</b><span>decisions on file</span></div><div><b class="mono">${btNum((d.tokensByDay||[]).slice(-1)[0]||0)}</b><span>tokens today</span></div></div>
+        <div class="sub" style="margin-top:8px">Roles and schedules come from the Bot Roster tab; change them there and this page follows on the next refresh.</div></div></section>
+    </div>
+  </div>`;
+}
+document.addEventListener("click",e=>{const t=e.target&&e.target.closest?e.target:null;if(!t)return;
+  const b=t.closest("[data-btf]");if(b&&S.route&&S.route.v==="bots"){const k=b.getAttribute("data-btf");if(k==="matt"){const m=document.getElementById("bt-matt");if(m)m.scrollIntoView({behavior:"smooth",block:"start"});return}S.btF=k;render();return}
+  const m=t.closest("[data-btmore]");if(m){S.btMore=!S.btMore;render()}});
+document.addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&e.target&&e.target.matches&&e.target.matches(".bt-tile[data-btf]")){e.preventDefault();e.target.click()}});
+
 /* ========== LIVE TRACKER ========== */
 function tracker(){
   let ps=openProjects();
@@ -11736,7 +11944,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-167";
+const APP_VERSION="2026.11.25-168";
 // the release check (which opens the page from a file) can reach these; the hosted site exposes nothing
 if(location.protocol==="file:")window.__sscTest={S,benchDue,benchChip,weekMonday,picRough,webcatStat};
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
@@ -16702,9 +16910,13 @@ async function pipeImportRows(rows){
   try{const d=await db.doc("settings/pipefeed").get();const ok=d&&(typeof d.exists==="function"?d.exists():d.exists);ex=ok&&d.data()?d.data():null}catch(e){}
   if(ex){S.pipeDone=Object.assign({},S.pipeDone||{},ex.done||{});
     if(Number(ex.lockUntil)>Date.now()&&ex.lockBy&&ex.lockBy!==PIPE.id){out.skipped+=rows.length;out.locked=true;return out}}
-  try{await setDoc("settings/pipefeed",{done:S.pipeDone||{},updatedAt:Date.now(),lockUntil:Date.now()+120000,lockBy:PIPE.id})}catch(e){}
+  S.pipeBad=Object.assign({},S.pipeBad||{},(ex&&ex.bad)||{});
+  try{await setDoc("settings/pipefeed",{done:S.pipeDone||{},bad:S.pipeBad||{},updatedAt:Date.now(),lockUntil:Date.now()+120000,lockBy:PIPE.id})}catch(e){}
   const done=Object.assign({},S.pipeDone||{});const newA={},newC={};let last=pipeCfg().last;
-  const mark=id=>{PIPE.seen.add(id);last=id};
+  const bad=Object.assign({},S.pipeBad||{});
+  const mark=id=>{PIPE.seen.add(id);last=id;delete bad[id]};
+  // a row the CRM can't read or apply is remembered with the day it last failed, so CRM Health tells it apart from a stall
+  const isBad=id=>{if(id)bad[id]=today()};
   const stLabel=st=>(SG[st]||{}).label||st;
   try{
   for(const r of rows){
@@ -16714,17 +16926,17 @@ async function pipeImportRows(rows){
     const now=Date.now();
     // lines are read first: a row whose lines can't be read is left for the agents to fix, never marked done
     const ol=(type==="quote"||r.updates)?pipeLines(r):[];
-    if(ol===null){out.bad++;continue}
+    if(ol===null){(out.bad++,isBad(id));continue}
     // --- setting: subject = the field, text = the value ---
     if(type==="setting"){const field=String(r.subject||"").trim();const val=pipeSettingValue(field,r.text);
-      if(val===undefined){out.bad++;continue}
+      if(val===undefined){(out.bad++,isBad(id));continue}
       const patch={[field]:val};if(field==="margin")patch.marginOverride=val>0;
       await push("settings/brand",patch);S.brand=Object.assign({},S.brand||{},patch);
       out.settings++;done[id]=1;mark(id);continue}
     // --- inventory: text = JSON {sku,item,qty,unit,unit_cost,vendor,ref,received,freight} — a receipt, item made if new ---
-    if(type==="inventory"){const o=pipeJSON(r.text);if(!o){out.bad++;continue}
+    if(type==="inventory"){const o=pipeJSON(r.text);if(!o){(out.bad++,isBad(id));continue}
       const sku=String(o.sku||"").trim(),nm=String(o.item||o.name||"").trim();const qty=Number(csvNum(o.qty))||0;
-      if(!sku&&!nm){out.bad++;continue}
+      if(!sku&&!nm){(out.bad++,isBad(id));continue}
       const lc=v=>String(v||"").trim().toLowerCase();
       let it=sku?live(S.items).find(x=>lc(x.sku)===lc(sku)):null;
       if(!it&&nm)it=live(S.items).find(x=>{const a=lc(x.name),b=lc(nm);return a&&b&&(a.indexOf(b)>=0||b.indexOf(a)>=0)});
@@ -16757,7 +16969,7 @@ async function pipeImportRows(rows){
         await push("items/"+it.id,Object.assign({onHand:nowQ,updatedAt:now},want<0?{needsCount:true}:{}));it.onHand=nowQ;
         recordHistory("item",it.id,[{f:"Stock",o:String(was),n:String(nowQ)+" (used"+(jn?" on work order "+jn:"")+" — agents' feed)"+(want<0?" — the count was "+Math.round(-want*100)/100+" short; needs a recount":"")}]);
         out.inventory++;done[id]=1;mark(id);continue}
-      if(ono<=0&&qty<=0){if(touched)out.inventory++;else out.bad++;done[id]=1;mark(id);continue}
+      if(ono<=0&&qty<=0){if(touched)out.inventory++;else (out.bad++,isBad(id));done[id]=1;mark(id);continue}
       if(ono>0&&qty<=0){const txid=uid("tx");const exp=/^\d{4}-\d{2}-\d{2}/.test(String(o.expected||""))?String(o.expected).slice(0,10):"";
         await setDoc("invtx/"+txid,{id:txid,itemId:it.id,type:"ordered",kind:"ordered",qty:ono,at:now,who:"AI",
           note:["Ordered",o.vendor?"from "+o.vendor:"",ref?"— "+ref:"",exp?"(expected "+exp+")":""].filter(Boolean).join(" "),jobId:"",cost:uc===""?"":Number(uc).toFixed(2),
@@ -16789,7 +17001,7 @@ async function pipeImportRows(rows){
     //     The email goes from a team member's own address (default: the sales rep on the project, else the bot's team record
     //     by "from"); a quote from anyone but the owner waits for Matt's OK exactly as it does for a person. Fix list item 14.
     if(type==="send"){const o=pipeJSON(r.text);const tgt=pipeFind(r.project||r.updates);
-      if(!o||!tgt){out.bad++;continue}
+      if(!o||!tgt){(out.bad++,isBad(id));continue}
       const p=tgt;const note=why=>{logEvent("project",p.id,"Agents — email not sent: "+why);out.blocked++;done[id]=1;mark(id)};
       if(noMail(p)){note("the project is marked as a test");continue}
       const kind=/^(proof|both|email)$/.test(String(o.kind||"").toLowerCase())?String(o.kind).toLowerCase():"quote";
@@ -16838,7 +17050,7 @@ async function pipeImportRows(rows){
       out.sends=(out.sends||0)+1;done[id]=1;mark(id);continue}
     // --- invoice: the accountant's QuickBooks invoice for a project ---
     if(type==="invoice"){const o=pipeJSON(r.text);const tgt=pipeFind(r.project||r.updates);
-      if(!o||!tgt){out.bad++;continue}
+      if(!o||!tgt){(out.bad++,isBad(id));continue}
       const inv=String(o.invoice_number||o.invoice||"").trim(),status=String(o.status||"").toLowerCase();
       const paid=!!(o.paid_date||status==="paid"),voided=status==="void"||status==="voided";
       const up={updatedAt:now};if(inv)up.invNum=inv;
@@ -16866,7 +17078,7 @@ async function pipeImportRows(rows){
       // picture: the agents found what the customer is after — text = JSON [{line:1, img:"https://..."}] (line = 1-based
       // position on the quote, or "code" / "desc" to find it). Only the picture changes; prices and quantities are left alone.
       if(type==="picture"){const p=pipeFind(r.project||r.updates);let arr=pipeJSON(r.text);if(arr&&!Array.isArray(arr))arr=[arr];
-        if(!p||!arr||!arr.length){out.bad++;continue}
+        if(!p||!arr||!arr.length){(out.bad++,isBad(id));continue}
         const L=orderedLines(p).map(o=>Object.assign({},o));const real=L.filter(o=>!isCharge(o));let n=0;
         arr.forEach(x=>{if(!x)return;const im=String(x.img||x.image||x.picture||"").trim();if(!/^https:\/\/\S+$/i.test(im)&&!/^data:image\//i.test(im))return;
           let t=null;const k=Number(x.line);
@@ -16878,7 +17090,7 @@ async function pipeImportRows(rows){
         else await note("project",p.id,"Agents sent pictures but none matched a quote line (or the links weren't https)."+more,"Agents — pictures");
         done[id]=1;mark(id);continue}
       if(type==="archive"){const ref=String(r.project||r.updates||"").trim();
-        if(ref){const p=pipeFind(ref);if(!p){out.bad++;continue}
+        if(ref){const p=pipeFind(ref);if(!p){(out.bad++,isBad(id));continue}
           const wos=jobsOf(p.id).filter(j=>!j.deleted);
           const why=wos.length?"it has "+wos.length+" work order"+(wos.length===1?"":"s"):(p.invNum||(p.billStatus&&p.billStatus!=="none"))?"it has been invoiced":"";
           if(!on){await sugg("project",p.id,"move this to the recycle bin"+(r.text?" — "+r.text:""));done[id]=1;mark(id);continue}
@@ -16887,7 +17099,7 @@ async function pipeImportRows(rows){
           await asAI(()=>recordHistory("project",p.id,[{f:"Deleted",o:"",n:"Moved to recycle bin by the agents"+(r.text?" — "+r.text:""),ev:1}]));
           out.stages++;done[id]=1;mark(id);continue}
         const a=r.account?live(S.accounts).find(x=>String(x.name||"").trim().toLowerCase()===String(r.account).trim().toLowerCase()):null;
-        if(!a){out.bad++;continue}
+        if(!a){(out.bad++,isBad(id));continue}
         const busy=live(S.projects).filter(p=>p.accountId===a.id).length;
         if(!on){await sugg("account",a.id,"move this account to the recycle bin"+(r.text?" — "+r.text:""));done[id]=1;mark(id);continue}
         if(busy){await note("account",a.id,"Agents tried to move this account to the recycle bin: blocked because it still has "+busy+" project"+(busy===1?"":"s")+"."+more,"Agents — blocked");out.blocked++;done[id]=1;mark(id);continue}
@@ -16896,7 +17108,7 @@ async function pipeImportRows(rows){
         await asAI(()=>recordHistory("account",a.id,[{f:"Deleted",o:"",n:"Moved to recycle bin by the agents"+(r.text?" — "+r.text:""),ev:1}]));
         out.stages++;done[id]=1;mark(id);continue}
       if(type==="stage"){const p=pipeFind(r.project||r.updates);const st=String(r.stage||"").trim().toLowerCase();
-        if(!p||(PATH.indexOf(st)<0&&st!=="lost")){out.bad++;continue}
+        if(!p||(PATH.indexOf(st)<0&&st!=="lost")){(out.bad++,isBad(id));continue}
         const lbl=stLabel(st),po=String(r.po||"").trim();
         if(!on){await sugg("project",p.id,"move this to "+lbl+(po?" (PO "+po+")":"")+(r.text?" — "+r.text:""));done[id]=1;mark(id);continue}
         if(po&&po!==String(p.po||"")){const old=p.po||"";await push("projects/"+p.id,{po,updatedAt:now});p.po=po;
@@ -16906,7 +17118,7 @@ async function pipeImportRows(rows){
           if(why){await note("project",p.id,"Agents tried to move this to "+lbl+": blocked because "+why+"."+(po?" PO "+po+" recorded.":"")+more,"Agents — blocked");out.blocked++}
           else{await note("project",p.id,"Agents moved this to "+lbl+"."+(po?" PO "+po+".":"")+more);out.stages++}}
         done[id]=1;mark(id);continue}
-      if(type==="workorder"||type==="work_order"){const p=pipeFind(r.project||r.updates);if(!p){out.bad++;continue}
+      if(type==="workorder"||type==="work_order"){const p=pipeFind(r.project||r.updates);if(!p){(out.bad++,isBad(id));continue}
         const due=/^\d{4}-\d{2}-\d{2}/.test(String(r.when||""))?String(r.when).slice(0,10):"";
         if(!on){await sugg("project",p.id,"create the work orders"+(due?" due "+due:"")+(r.text?" — "+r.text:""));done[id]=1;mark(id);continue}
         const res=await agentWO(p,due,r.text);
@@ -16915,10 +17127,10 @@ async function pipeImportRows(rows){
         else{await note("project",p.id,"Agents created work order"+(res.made.length===1?" ":"s ")+res.made.join(", ")+(due?" — due "+due:"")+"."+(r.text?"\nShop note: "+r.text:""));out.workorders+=res.made.length}
         done[id]=1;mark(id);continue}
       if(type==="file"){const o=pipeJSON(r.text);const url=o?String(o.url||"").trim():"";
-        if(!o||!/^https?:\/\/[^\s"'<>]+$/i.test(url)){out.bad++;continue}
+        if(!o||!/^https?:\/\/[^\s"'<>]+$/i.test(url)){(out.bad++,isBad(id));continue}
         const p=pipeFind(r.project||r.updates);let aid=p?p.accountId:"";
         if(!p&&(r.account||r.email)){const m=pipeMatch(r);if(m.acct)aid=m.acct.id}
-        if(!p&&!aid){out.bad++;continue}
+        if(!p&&!aid){(out.bad++,isBad(id));continue}
         const k0=String(o.kind||"other").trim().toLowerCase().replace(/[\s-]+/g,"_");const kind=AGENT_FILE[k0]?k0:"other";
         const appr=o.approved===true||/^(true|yes|y|1)$/i.test(String(o.approved==null?"":o.approved));
         const cat=kind==="proof"&&appr?"Signed proof":AGENT_FILE[kind];
@@ -16952,8 +17164,8 @@ async function pipeImportRows(rows){
           else if(!dup)lines.push("Proof filed — not marked as sent to the customer, so the revision stays at "+(Number(p.proofRev)||0)+".")}
         await note(rt,ri,lines.join("\n"),"Agents — file");
         done[id]=1;mark(id);continue}
-      if(type==="job"){const o=pipeJSON(r.text);if(!o){out.bad++;continue}
-        const js=agentJobs(r,o);if(!js.length){out.bad++;continue}
+      if(type==="job"){const o=pipeJSON(r.text);if(!o){(out.bad++,isBad(id));continue}
+        const js=agentJobs(r,o);if(!js.length){(out.bad++,isBad(id));continue}
         for(const j of js){const rt=j.projectId&&proj(j.projectId)?"project":"job",ri=rt==="project"?j.projectId:String(j.num);
           const what=[o.status?String(o.status).replace(/_/g," "):"",o.carrier?String(o.carrier):"",o.tracking?"tracking "+o.tracking:"",o.ship_date?"shipped "+o.ship_date:""].filter(Boolean).join(", ");
           if(!on){await sugg(rt,ri,"work order "+j.num+": "+what);continue}
@@ -16988,17 +17200,17 @@ async function pipeImportRows(rows){
         if(up.orderLines)logEvent("project",tgt.id,"Updated by Claude's sales agents — "+ol.length+" quote line"+(ol.length===1?"":"s")+", "+money2(pipeTotal(ol)));
         else if(!ol.length)logEvent("project",tgt.id,"Updated by Claude's sales agents");
         out.quotes++;done[id]=1;mark(id);continue}
-      out.bad++;continue}
+      (out.bad++,isBad(id));continue}
     // --- draft: the writer's email for a planned follow-up (stage 1/2/3) or a requested draft (stage = its kind) ---
-    if(type==="draft"){const tgt=pipeFind(r.project);if(!tgt){out.bad++;continue}
+    if(type==="draft"){const tgt=pipeFind(r.project);if(!tgt){(out.bad++,isBad(id));continue}
       const kind=String(r.stage||r.kind||"").trim().toLowerCase();const fn=/^(?:followup|follow-up|fu)?\s*([123])$/.exec(kind);
       const sentNow=String(r.source||"").trim().toLowerCase()==="sent";const when=(r.when||today()).slice(0,10);
-      if(fn){const fus=(tgt.followups||[]).map(f=>Object.assign({},f));const f=fus.find(x=>Number(x.n)===Number(fn[1]));if(!f){out.bad++;continue}
+      if(fn){const fus=(tgt.followups||[]).map(f=>Object.assign({},f));const f=fus.find(x=>Number(x.n)===Number(fn[1]));if(!f){(out.bad++,isBad(id));continue}
         if(f.status==="planned"||f.status==="drafted"){f.subject=r.subject||f.subject||"";f.body=r.text||f.body||"";f.draftedAt=now;f.status="drafted";
           if(sentNow){f.status="sent";f.sentAt=now;f.by="AI"}}
         await push("projects/"+tgt.id,{followups:fus,updatedAt:now});tgt.followups=fus;
         logEvent("project",tgt.id,"Follow-up "+f.n+(sentNow?" sent by the agents":" drafted by the writer"));
-      }else{if(!DRAFT_KINDS[kind]){out.bad++;continue}
+      }else{if(!DRAFT_KINDS[kind]){(out.bad++,isBad(id));continue}
         const ds=(tgt.drafts||[]).map(d=>Object.assign({},d));
         let d=ds.filter(x=>x.kind===kind&&x.status==="requested").sort((a,b)=>(b.requestedAt||0)-(a.requestedAt||0))[0];
         if(!d){d={id:uid("dr"),kind,status:"requested",requestedAt:now,by:"AI",subject:"",body:"",draftedAt:0,sentAt:0};ds.push(d)}
@@ -17007,7 +17219,7 @@ async function pipeImportRows(rows){
         logEvent("project",tgt.id,DRAFT_KINDS[kind]+(sentNow?" sent by the agents":" drafted by the writer"));}
       if(sentNow)await draftLogSent(tgt,r.subject,r.text,id,when);
       out.drafts++;done[id]=1;mark(id);continue}
-    if(!r.account&&!r.email){out.bad++;continue}
+    if(!r.account&&!r.email){(out.bad++,isBad(id));continue}
     const m=pipeMatch(r);
     let aid=m.acct?m.acct.id:(newA[String(r.account||"").toLowerCase()]||"");
     if(!aid){aid=uid("a");
@@ -17068,7 +17280,8 @@ async function pipeImportRows(rows){
     const fid=new Set();[S.activity,S.projects,S.accounts].forEach(mp=>[...mp.values()].forEach(x=>{if(x.feedId)fid.add(String(x.feedId))}));
     Object.keys(done).forEach(k=>{if(!/^INV-/i.test(k)&&fid.has(k))delete done[k]});
     S.pipeDone=done;
-    try{await setDoc("settings/pipefeed",{done,updatedAt:Date.now(),lockUntil:0,lockBy:""})}catch(e){}
+    Object.keys(done).forEach(k=>{delete bad[k]});S.pipeBad=bad;
+    try{await setDoc("settings/pipefeed",{done,bad,updatedAt:Date.now(),lockUntil:0,lockBy:""})}catch(e){}
     if(last)try{await push("settings/brand",{pipeLast:last})}catch(e){}
   }
   return out;
@@ -19145,7 +19358,7 @@ async function boot(){
   sub("accounts","accounts");sub("contacts","contacts");sub("projects","projects");
   sub("jobs","jobs",true);sub("files","files");sub("activity","activity");
   sub("events","events");sub("team","team");
-  sub("vendors","vendors");sub("items","items");sub("invtx","invtx");sub("notifications","notifications");sub("reminders","remarks");sub("access","access");dbLockWatch();secretsWatch();qbinvWatch();if(window.sscHosted)sub("signreq","signreq");
+  sub("vendors","vendors");sub("items","items");sub("invtx","invtx");sub("notifications","notifications");sub("reminders","remarks");sub("access","access");dbLockWatch();secretsWatch();qbinvWatch();botdashWatch();if(window.sscHosted)sub("signreq","signreq");
   syncSentLoad();
   db.doc("settings/prodtypes").onSnapshot(s=>{if(s&&s.exists&&s.data())S.prodtypes=s.data();if(!typing()&&!S.modal)render()},()=>{});
   db.doc("settings/pricelist").onSnapshot(s=>{if(s&&s.exists&&s.data())S.pricelist=s.data();if(!typing()&&!S.modal)render()},()=>{});

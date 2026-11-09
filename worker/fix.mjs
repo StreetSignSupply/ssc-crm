@@ -318,13 +318,28 @@ if (STEP === "export") {
         ["feed_rows_unapplied", String(health.unapplied), health.sample],
         ["oldest_unapplied_at", health.oldest, ageH == null ? "" : ageH + " h ago"],
         ["feed_rows_broken", String(health.broken), "rows the CRM could not read or apply (missing project/account, bad JSON, unknown type) — the posting bot fixes them with a corrected row; they never count as a stall. " + health.brokenSample],
-        ["worker_schedule", "see Actions > CRM worker", "every 30 min when enabled; paused 10/27 to 11/9"],
+        ["worker_schedule", "every 30 min (Actions > CRM worker)", "back on 2026-11-09; it was paused 10/27 to 11/9"],
       ];
       await write("CRM Health", rows, 5); step("CRM Health written: " + status + " (done " + health.doneCount + (health.doneErr ? ", read error: " + health.doneErr : "") + ")");
       if (!health.doneCount) { console.log("::warning::CRM Health: could not read settings/pipefeed (" + (health.doneErr || "empty") + ") so the unapplied count is not trustworthy; no alert raised"); }
       if (stalled && !prevAlert) { console.log("::error::CRM Health ALERT: " + health.unapplied + " Feed rows not applied, oldest " + ageH + " h (" + health.sample + "). This run fails on purpose so GitHub emails Matt once; later runs only warn."); await browser.close(); process.exit(1); }
       if (stalled) console.log("::warning::CRM Health still ALERT: " + health.unapplied + " unapplied, oldest " + ageH + " h");
     } catch (e) { console.log("::warning::CRM Health not written: " + String(e.message || e).slice(0, 160)); }
+    // Bot team dashboard (CRM > Reports > Bot team): a small summary of the bots' Log, Findings, Token Usage, Run Queue,
+    // Purchase Requests, buyers and marketing, saved as settings/botdash. Read-only on the sheet.
+    try {
+      const { buildBotDash } = await import("./botdash.mjs");
+      const R = { roster: "'Bot Roster'!A1:I60", log: "Log!A1:D", findings: "Findings!A1:J", tokens: "'Token Usage'!A1:H", health: "'CRM Health'!A1:C20",
+        runq: "'Run Queue'!A1:T", prs: "'Purchase Requests'!A1:K", prospects: "Prospects!A1:AK", posts: "'Marketing Posts'!A1:L", decisions: "Decisions!A1:D" };
+      const keys = Object.keys(R);
+      const got = await api("/values:batchGet?" + keys.map((k) => "ranges=" + encodeURIComponent(R[k])).join("&") + "&majorDimension=ROWS", "GET");
+      const tabs = {}; (got.valueRanges || []).forEach((vr, i) => { tabs[keys[i]] = vr.values || []; });
+      // the Log is long: only the last 14 days matter
+      if (tabs.log.length > 4000) tabs.log = [tabs.log[0]].concat(tabs.log.slice(-4000));
+      const dash = buildBotDash(tabs, Date.now());
+      await fs.doc("settings/botdash").set(JSON.parse(JSON.stringify(dash)));
+      step("Bot team dashboard: " + dash.totals.bots + " bots, " + dash.totals.open + " open items, " + dash.totals.matt + " for Matt");
+    } catch (e) { console.log("::warning::Bot team dashboard not written: " + String(e.message || e).slice(0, 160)); }
     const vinv = data.files.slice(1).filter((r) => r[5] === "vendor" && /invoice/i.test(r[3])).length, low = data.items.slice(1).filter((r) => r[9] === "yes").length;
     console.log("::notice::export: " + (data.files.length - 1) + " files (" + vinv + " vendor invoices), " + (data.items.length - 1) + " inventory items (" + low + " low), " + (data.acts.length - 1) + " activity rows, " + (data.evs.length - 1) + " calendar events");
     await browser.close(); process.exit(0);
