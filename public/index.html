@@ -11736,7 +11736,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-165";
+const APP_VERSION="2026.11.25-166";
 // the release check (which opens the page from a file) can reach these; the hosted site exposes nothing
 if(location.protocol==="file:")window.__sscTest={S,benchDue,benchChip,weekMonday,picRough,webcatStat};
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
@@ -17166,7 +17166,8 @@ async function syncSentLoad(){
   if(!db)return;
   try{const d=await db.doc("settings/syncsent").get();const ok=d&&(typeof d.exists==="function"?d.exists():d.exists);
     const data=ok&&d.data()?d.data():null;
-    if(data&&data.sent){const m={};Object.keys(data.sent).forEach(k=>{m[syncKeyDec(k)]=data.sent[k]});SYNC.sent=m}
+    const got=syncSentParse(data);
+    if(got){SYNC.sent=got;if(data&&!data.sentJson)syncSentSave(got)}   // an old-style copy (one field per record) is rewritten in the compact form once
     else{SYNC.sent=syncLS("sscSyncSent")||{};if(Object.keys(SYNC.sent).length)syncSentSave(SYNC.sent)}   // first computer on the new store seeds it
   }catch(e){}
 }
@@ -17174,15 +17175,23 @@ async function syncSentLoad(){
 // newer for each record. Run before delivering reminders, so one reminder goes out once a day from ANY copy, not once per copy.
 async function syncSentRefresh(){if(!db)return;
   try{const d=await db.doc("settings/syncsent").get();const ok=d&&(typeof d.exists==="function"?d.exists():d.exists);
-    const data=ok&&d.data()?d.data():null;if(!data||!data.sent)return;
+    const data=ok&&d.data()?d.data():null;const theirs=syncSentParse(data);if(!theirs)return;
     const cur=Object.assign({},syncSent());let changed=false;
-    Object.keys(data.sent).forEach(k=>{const key=syncKeyDec(k),v=data.sent[k];if(!v)return;const mine=cur[key];
+    Object.keys(theirs).forEach(key=>{const v=theirs[key];if(!v)return;const mine=cur[key];
       if(!mine||(Number(v.at)||0)>(Number(mine.at)||0)){cur[key]=v;changed=true}});
     if(changed){SYNC.sent=cur;syncLS("sscSyncSent",cur)}}catch(e){}}
 function syncSentSave(sent){SYNC.sent=sent;syncLS("sscSyncSent",sent);
   if(!db)return;clearTimeout(SYNC.sentTmr);
-  SYNC.sentTmr=setTimeout(()=>{try{const enc={};Object.keys(SYNC.sent||{}).forEach(k=>{enc[syncKeyEnc(k)]=SYNC.sent[k]});
-    setDoc("settings/syncsent",{sent:enc,updatedAt:Date.now()}).catch(()=>{})}catch(e){}},800)}
+  // One JSON string, not one field per record: a map of ~3000 records made the document exceed the database's index
+  // limit, the save failed silently, and every freshly opened copy of the CRM re-sent the day's reminders (Nov 8).
+  SYNC.sentTmr=setTimeout(()=>{try{const m=SYNC.sent||{};const ks=Object.keys(m);
+    if(ks.length>2500)ks.sort((x,y)=>(m[x].at||0)-(m[y].at||0)).slice(0,ks.length-2500).forEach(k=>delete m[k]);
+    setDoc("settings/syncsent",{sentJson:JSON.stringify(m),n:Object.keys(m).length,updatedAt:Date.now()}).catch(e=>{SYNC.sentErr=String(e&&e.message||e)})}catch(e){}},800)}
+// the shared sent-list, either form: the compact JSON string (current) or one field per record (older copies)
+function syncSentParse(data){if(!data)return null;
+  if(typeof data.sentJson==="string"){try{const m=JSON.parse(data.sentJson);return m&&typeof m==="object"?m:null}catch(e){return null}}
+  if(data.sent&&typeof data.sent==="object"){const m={};Object.keys(data.sent).forEach(k=>{m[syncKeyDec(k)]=data.sent[k]});return m}
+  return null}
 function syncCfg(){const b=S.brand||{};return {url:String(b.syncUrl||"").trim(),auto:b.syncAuto!==false}}
 function syncLS(k,v){try{if(v===undefined){const r=localStorage.getItem(k);return r?JSON.parse(r):null}
   localStorage.setItem(k,JSON.stringify(v))}catch(e){return null}}
@@ -17343,7 +17352,7 @@ function syncFire(key){
 }
 function syncMark(key,r){const sent=Object.assign({},syncSent());
   sent[key]={h:syncHash(r),lh:syncLinesHash(r),st:r.status,bs:r.bill_status||"",ty:r.type,pa:!!r.proof_approved,at:Date.now()};
-  const ks=Object.keys(sent);if(ks.length>3000)ks.sort((x,y)=>(sent[x].at||0)-(sent[y].at||0)).slice(0,ks.length-3000).forEach(k=>delete sent[k]);
+  const ks=Object.keys(sent);if(ks.length>2500)ks.sort((x,y)=>(sent[x].at||0)-(sent[y].at||0)).slice(0,ks.length-2500).forEach(k=>delete sent[k]);
   syncSentSave(sent)}
 function syncStat(o){const st=Object.assign({},syncLS("sscSyncStat")||{},o);st.queued=(syncLS("sscSyncQ")||[]).length;syncLS("sscSyncStat",st);
   const el=document.getElementById("sync-stat");if(el)el.innerHTML=syncStatHTML()}
