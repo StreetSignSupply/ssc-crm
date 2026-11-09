@@ -51,3 +51,19 @@ No CRM page is opened; everything goes through the Sheets and Drive REST APIs.
 25 SKUs: STOP / ONLY / numbers 0–9 at 12, 18 and 24 in, A–E letters at 12 in. CNC Bot QA → one per
 category to the Run Queue → Equipment Manager test cut → measured numbers on the Lessons row. Volume only
 after the first 25 pass.
+
+## As built (2026-11-09, Stencil Program Lead run)
+- `worker/stencil-gen.mjs` (sheet I/O, caps, second check, publishing) + `worker/stencil_core.py` (geometry: shapely,
+  DXF: ezdxf R12, proof: Pillow). Glyphs: `worker/stencil-glyphs/{C,D,P}.json` built by `build-glyphs.py` from the
+  stencil-source branch: Series C and D (embedded FHWA Standard Alphabets 2000 font, with its own advances) and the
+  elongated pavement alphabet P (SHS p10-1..10-7; counters drawn as white fills are subtracted; letter gap H/16 —
+  an assumption, CNC/Catalog to confirm).
+- NOMINAL comes from the number in the name (spec rule) unless column L is filled; LEGEND = the trailing capital
+  words of the name. Font/layout: C, D and P, one line or stacked by words, in the price-list blank orientation first;
+  the layout must use at least 60 % of the blank on each axis (otherwise the blank or the font is wrong → hold).
+- Ties: two horizontal ties per island at the island's mid-height (left and right through the stroke). If the tie
+  is wider than 25 % of that stroke the next layout is tried; if none passes → hold for Carla (spec rule).
+- Files go to the `stencil-files` branch (`stencils/<category>/<SKU>-<LEGEND>-<N>in-SHEET<WxH>.dxf|.png`); P/Q hold
+  GitHub links. Drive upload is not wired: the workflow's service account has no Drive scope or folder.
+- Holds are written to T as `gen hold YYYY-MM-DD: reason` (one per row, replaced on each run). Not built yet:
+  symbol rows (Carla's masters), multi-piece kits, per-letter sets, sheets over the 56 x 116 in bed.
