@@ -121,7 +121,7 @@ def parse_blank(s):
 
 def parse_name(name):
     """NOMINAL = the number in the name; LEGEND = the trailing all-caps words."""
-    m = re.match(r"\s*(\d+(?:\.\d+)?)\s*(?:\"|''|in\b|”)\s*(x\s*\d)?", name or "")
+    m = re.match(r"\s*(\d+(?:\.\d+)?)\s*(?:\"|''|”|inch(?:es)?\b|in\b)\s*(x\s*\d)?", name or "", re.I)
     if not m:
         return None, None, "no nominal size in the name"
     if m.group(2):
@@ -209,6 +209,7 @@ def build(job, out):
         res["reason"] = why; return res
     tie = float(job.get("tie") or (0.5 if nominal <= 24 else 0.75))
     blank = parse_blank(job.get("blank"))
+    ref = parse_blank(job.get("ref"))
     fits = []; tried = []; low = []; per_letter = False
     for font in ("C", "D", "P"):
         for lines in candidates(legend):
@@ -221,6 +222,9 @@ def build(job, out):
                 for rot, (sw, sh) in enumerate((blank, blank[::-1])):
                     if need[0] <= sw + TOL and need[1] <= sh + TOL:
                         fw, fh = need[0] / sw, need[1] / sh
+                        if ref:   # 1800 reference size = their legend W x H: closest legend wins, listed orientation first
+                            d = min(abs(ew - ref[0]) + abs(eh - ref[1]), abs(ew - ref[1]) + abs(eh - ref[0]))
+                            fits.append(((1 - rot) * 1000 - d, font, lines, letters, (sw, sh))); continue
                         if min(fw, fh) < MIN_FILL:
                             low.append(f"{font} {'/'.join(lines)} fills {fw:.0%} x {fh:.0%}"); continue
                         # the price-list orientation first; then the layout that uses the blank best
@@ -230,7 +234,7 @@ def build(job, out):
                 if font in ("C", "D"):
                     fits.append((1 / (sheet[0] * sheet[1]), font, lines, letters, sheet))
             tried.append(f"{font} {'/'.join(lines)} {ew:.1f}x{eh:.1f}")
-            if len(lines) == 1 and blank and font == "P":
+            if len(lines) == 1 and blank and font == "P" and not (need[0] <= max(blank) + TOL and need[1] <= max(blank) + TOL and min(need) <= min(blank) + TOL):
                 widest = max(g.bounds[2] - g.bounds[0] for g in letters)
                 if len(legend.replace(" ", "")) > 1 and widest + 2 * MARGIN <= min(blank) + TOL and eh + 2 * MARGIN <= max(blank) + TOL:
                     per_letter = True

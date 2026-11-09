@@ -46,7 +46,7 @@ async function main() {
   else values = (await api(`/values/${encodeURIComponent(TAB + "!A1:T3000")}`)).values || [];
   const rows = values.slice(2).map((v, i) => {
     const c = (k) => (v[k] ?? "").toString().trim();
-    return { row: i + 3, sku: c(0), name: c(2), category: c(3), blank: c(4), pieces: c(5), kind: c(8).toLowerCase(),
+    return { row: i + 3, sku: c(0), name: c(2), category: c(3), blank: c(4), pieces: c(5), ref: c(7), kind: c(8).toLowerCase(),
       master: c(10), L: c(11), M: c(12), N: c(13), O: c(14), P: c(15), R: c(17), status: c(18).toLowerCase(), notes: c(19) };
   }).filter((r) => r.sku);
   const passed = rows.filter((r) => ["qa pass", "test cut", "verified"].includes(r.status)).length;
@@ -57,7 +57,7 @@ async function main() {
   // text rows not built yet, plus text rows that failed QA (re-built after a generator fix; same file = still held)
   const todo = rows.filter((r) => r.kind === "text" && ["todo", "sourced", "", "qa fail"].includes(r.status) && !/gen skip/i.test(r.notes));
   const symbolsWaiting = rows.filter((r) => r.kind === "symbol" && r.master && ["todo", "sourced", "master ready"].includes(r.status)).length;
-  let jobs = todo.map((r) => ({ sku: r.sku, name: r.name, category: r.category, blank: r.blank, pieces: r.pieces,
+  let jobs = todo.map((r) => ({ sku: r.sku, name: r.name, category: r.category, blank: r.blank, pieces: r.pieces, ref: r.ref,
     nominal: r.L || undefined, tie: r.O || undefined }));
   if (LIMIT) jobs = jobs.slice(0, LIMIT);
 
@@ -73,8 +73,9 @@ async function main() {
     const r = bySku[x.sku];
     if (!x.ok) { held.push([r, x.reason]); continue; }
     if (r.status === "qa fail" && r.R && r.R === x.sha256) { held.push([r, "same file as the one that failed QA: the generator has not changed for this row"]); continue; }
-    if (r.M && !samePair(r.M, x.extents)) { held.push([r, `spec row extents ${r.M} vs built ${x.extents} (> 1/16 in)`]); continue; }
-    if (r.N && !samePair(r.N, x.sheet)) { held.push([r, `spec row sheet ${r.N} vs built ${x.sheet}`]); continue; }
+    const specRow = r.status !== "qa fail";   // a failed row's M/N came from the failed file, not the Catalog Bot
+    if (specRow && r.M && !samePair(r.M, x.extents)) { held.push([r, `spec row extents ${r.M} vs built ${x.extents} (> 1/16 in)`]); continue; }
+    if (specRow && r.N && !samePair(r.N, x.sheet)) { held.push([r, `spec row sheet ${r.N} vs built ${x.sheet}`]); continue; }
     const chk = JSON.parse(execFileSync("python3", [join(HERE, "stencil_core.py"), "check", join(OUT, "stencils", x.dxf), JSON.stringify(x)],
       { stdio: ["ignore", "pipe", "ignore"] }).toString());
     if (chk.problems.length) { held.push([r, `second check failed: ${chk.problems.join("; ")}`]); continue; }
