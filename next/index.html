@@ -11944,7 +11944,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-168";
+const APP_VERSION="2026.11.25-169";
 // the release check (which opens the page from a file) can reach these; the hosted site exposes nothing
 if(location.protocol==="file:")window.__sscTest={S,benchDue,benchChip,weekMonday,picRough,webcatStat};
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
@@ -17232,6 +17232,9 @@ async function pipeImportRows(rows){
         notes:r.notes||"",feedId:type==="account"?id:"",source:r.source||"Email",deleted:false,createdAt:now,updatedAt:now});
       logEvent("account",aid,"Account created by Claude's sales agents");newA[String(r.account||r.email).toLowerCase()]=aid;out.accounts++;}
     else if(m.acct&&!m.acct.phone&&r.phone){try{await push("accounts/"+aid,{phone:r.phone})}catch(e){}}
+    // an account row for an account the CRM already has makes no record to point back to: remember it as done,
+    // or it counts as "waiting" on CRM Health forever (8 such rows from Oct 26 kept the gauge on ALERT)
+    if(type==="account"&&m.acct)done[id]=1;
     let cid=m.contact?m.contact.id:"";
     const em=String(r.email||"").toLowerCase();
     if(!cid&&(r.contact||em)){
