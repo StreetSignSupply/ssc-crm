@@ -1,0 +1,860 @@
+Standard Alphabets
+For Traffic Control Devices                                    letter combination a different dimension was pre-
+                                                               scribed. In concept this approach is correct; how-
+Introduction                                                   ever, it makes this method useable with only the
+                                                               more sophisticated signmaking software pro-
+The Standard Alphabets for Traffic Control Devices             grams, because the myriad of unique spacing val-
+were prepared by the Federal Highway Adminis-                  ues can only be reproduced through the use of
+tration for signing and marking all streets, high-             kerning pairs. Typically, CAD software applica-
+ways, bike routes, trails and other by-ways open to            tions are not typographically sophisticated enough
+public travel.                                                 to handle kerning information. Unfortunately, this
+                                                               limits the use for the 1966 and 1977 alphabets.
+The alphabets were first adopted nationwide some
+time in the late 1940's and early 1950's after com-            This edition of the Standard Alphabets For Traffic
+pletion of studies by the California Department of             Control Devices contains a complete functional
+Transportation. A modified version of the Gothic               specification for designing standard highway al-
+style alphabet was adopted having an openness in               phabets. Much work has gone into updating the
+the rounded shaped characters. This modification               alphabets. Particular attention has been paid to
+provided better legibility and readability for traffic         make them adaptable to a broader range of equip-
+control devices. These alphabets contained dimen-              ment and software application tools in use within
+sions for each letter (A, B, C, etc.) and a table that         engineering departments and sign fabrication fa-
+permitted several sizes to be drawn mechanically               cilities in the transportation industry.
+to scale for upper case series A through F.
+                                                               Overview of the alphabet spacing
+In 1966, the Federal Highway Administration re-
+printed the Standard Alphabets For Traffic Control             Spacing for the 1966 and 1977 alphabets was de-
+Devices. This edition contained upper case series              veloped a long time before computers and plotters
+B, C, D, E, E Modified, Lower case E Modified and F            would be used to design and fabricate traffic con-
+(series A was deleted from this edition). These Al-            trol signs. Letter spacing in particular reflects this
+phabets were placed on 1/4 inch grids which elim-              because the method applied is better suited to man-
+inated the need for the previous tables of dimen-              ual layout when using die stamp equipment and
+sions. However, the 1966 edition did contain six               silk screen printing.
+tables for character widths and spacings for upper
+case letters and numerals. A simplified spacing                Generally, a variety of different space values are
+chart also was included for E Modified characters.             reserved for each letter of the alphabet. These
+In 1977, the Federal Highway Administration is-                space values are applied depending upon a partic-
+sued a metric edition of the 1966 Standard High-               ular letter to letter occurrence. This method is ac-
+way Alphabets in upper case Series B, C, D, E, E               ceptable when a sign is being manually laid out,
+Modified, F and Lower case E Modified. The 1977                letter by letter and measurements are being made
+edition also contained the design standards for                with a scale along a drawn baseline.
+alphabets, numerals and symbols to be placed on
+roadway pavements. These alphabets were placed                 In an attempt to simplify this system the FHWA
+on five millimeter grids for ease of use.                      implemented a procedure which converted the
+                                                               spacing values into a limited number of codes (see
+The 1977 edition also contained spacing charts for             Figure 1). While this has helped the situation, it
+all alphabets and numerals which specified exact               continues to have drawbacks because more than
+letter to letter distances to be used when construct-          one spacing value is required for each and every
+ing words or legends. Depending upon the letter to             letter of the alphabet.
+
+
+
+
+                                                         9-1
+        AA AB            Code 4
+                         .275
+
+
+
+
+                          Code 2
+                          .825
+                                                              1
+
+
+
+
+                                                              2
+                                                                TrueType refers to Microsoft's industry standard font
+                                                                format description and specification.
+                                                               PostScript refers to Adobe's industry standard font
+                                                                format description and specification.
+
+                                                              Updating The Standard Alphabets
+
+                                                              In this Edition, a new specification for using the
+                                                              Standard Alphabets For Traffic Control Devices is
+                                                              presented. The new specification will make the
+                                                              alphabets adaptable to current industry software
+                                                              requirements. It is important to note that every
+                                                              effort has been made to maintain the same proper-
+                                                              ties of the existing 1966 and 1977 Standard Alpha-
+                         Figure 1.                            bets. A uniform stroke width has been adopted for
+                                                              all letters and numerals. Following is the specific
+                                                              criteria that was used to prepare this edition of the
+Understanding Industry Specifications                         Standard Highway Alphabets For Traffic Control
+                                                              Devices.
+Current software industry specifications for
+TrueType 1 and PostScript2 format fonts assumes               Criteria
+that every character will be positioned within a
+
+
+
+
+                           Parking
+bounding box and the bounding box will be as-                 1.         Develop a method of spacing that will
+signed a fixed value (see Figure 2). Within the                          work for both English and metric measure.
+bounding box, each character will have some
+amount of "white space" to its left, right, top and           2.         Retain the letterforms basic shape, stroke
+bottom. This allows software to place bounding                           weight and proportion. Make slight
+boxes side by side, top to bottom, or line by line                       changes where necessary to ensure
+without needing to worry about the shape and size
+of the character or object (see Figure 3).
+
+
+          Bounding Box
+
+
+
+
+                            Space Value
+                                                       Figure 2.
+
+Line space is controlled by a separate function in                       consistency of stroke weight and optical
+most software and is normally added in an incre-                         balance from letter to letter.
+ment of measure specified by the user. What's im-
+portant to know about line space is a correctly de-           3.         Maintain overall existing spacing of Stan-
+signed font will have some amount of line space                          dard Alphabets to ensure an easy transi-
+built into it to prevent succeeding lines of charac-                     tion in the field as it relates to the design
+ters from crashing into one another.                                     and fabrication of new signs.
+
+
+
+
+                                                        9-2
+                  Alphabet
+                  Specification                                                                                 Line space
+
+
+
+
+                                                   Figure 3.
+
+
+4.      Develop spacing that will be proportion-               vertical stems that makes up their design. Also,
+        ally scalable and based upon a upper case              they can be thought of as rectangular in shape.
+        letter height of 4" (100 mm). This will erad-          Second; the letters C, G, O and Q are obviously
+        icate the need for complicated spacing                 round and third, the letters A, V, T, W, Y are trian-
+        charts and codes which are based upon                  gular in nature.
+        discreet letter heights.
+                                                               The goal in letter spacing is to develop an ideal
+5.      Standardize the inter-character spacing by             negative (white) space for each class of letter.
+        applying space to both the right and left              When these letters are then juxtaposed, the white
+        side of each letter. The objective is to cre-          space between them balances with the white
+        ate an industry standard specification that            within them to create an optically even (balanced)
+        will make the Standard Alphabets For Traf-             tone or flow. This produces optimum readability
+        fic Control Devices adaptable to a broad               and good legibility.
+        range of software applications commonly
+        used in engineering departments and sign               The spacing tables listed in the Series E(M) 1966
+        shops for standard highway sign design                 Standard Alphabet specification shows the dis-
+        and production.                                        tance from the uppercase H to other similar letters
+                                                               (B, D, E, F, H, I, K, L, M, N, P, R, U) in its class to be
+6.      Add drawings of lowercase letters to all               1.025" (at a letter height of 4"). In order to obtain a
+        Standard Alphabets.                                    proper left and right margin, or white space, it is
+                                                               necessary to first optically establish the "ideal"
+In order to proceed, first a departure from the code           stem to stem relationship. In this case a slight ad-
+based spacing system is necessary. A careful redis-            justment was made resulting in a value of 1.12".
+tribution of white space must be applied with em-              This measure is then divided in half and applied to
+phasis on maintaining the existing spacial rela-               every character that has a straight vertical stem.
+tionships of the 1966 and 1977 Alphabets.                      This will ensure that the distance between these
+                                                               letter combinations will remain consistent.
+For each letter there are basically three classes of
+relationships with respect to spacing. These                   The round letters are treated basically the same
+classes are determined largely by the simple geo-              way. The Series E(M) 1966 Standard Alphabet spec-
+metric form that best describes their shape. For               ification shows the distance from the uppercase O
+example; first, the letters B, D, E, F, H, I, K, L, M,         to other similar letters (C, G, O, Q) in its
+N, P, R and to a great extent U all share one com-             class to be .825" (at a letter height of 4"). To keep
+mon characteristic. They have one or more straight             the conversion simple and orderly the value is ad-
+
+
+
+
+                                                         9-3
+justed as previously discussed then divided. The
+result is a value of .4" of space which is applied to                       .560"
+
+
+
+
+                                                                                     D  3.242"     .400"
+
+
+
+
+               TURN
+the side of every letter having this round charac-
+teristic. With these two basic values established
+for the two most symmetrical letters in the alpha-
+bet space values can be built for the remainder of                                                 Figure 4.
+letters in these classes. For example, the letter D
+will receive a left margin of .560" because it is a
+vertical stem, while the right margin will receive a
+space of .4". The width of the letter is 3.242, there-
+fore the total value is (.560+3.242+.4) 4.2" (see
+Figure 4).
+
+
+
+
+               TURN
+        4"                                                                                           Series E(M)
+                                                                                                     2000 Edition
+
+
+
+
+                                                  15.368"
+                     3.122               4.362                   4.082                3.802
+
+
+
+
+        4"                                                                                           Series E(M)
+                                                                                                     1966 Edition
+
+
+
+
+                      2.94     .825       3.19      1.025           3.19     1.025     3.19
+                                                   15.385"
+
+
+                                                    Figure 5.
+
+
+
+By dissecting and distributing the space values as             very close length to those created using the 1966,
+described it is possible to redistribute the white             1977 Standard Alphabet specification (see Figure
+space and assign each character its own unique                 5). An additional advantage to using this method
+space value. The net result when the letters are set           of spacing is it provides a more even flow of black
+in succession will be of lines, or legends having a            to white shapes which helps increase readability.
+
+
+
+
+                                                         9-4
+         Hxo
+The Alphabets
+                                                               Alternate sizes are proportional (scalable) and can
+The spacing tables on the following pages show                 be obtained by simply enlarging or reducing the
+the actual width of each letter (in inches), along             upper case letter (along with its associated width
+with the space to the left and to the right of each            and space) to the desired dimension.
+letter. All dimensions are based upon an upper
+case letter height of 4" (100 mm). The lower case              All letters are laid out on a grid and spaced flush
+letter height is 2.9" from the baseline. The height            left to illustrate both upper case and lower case
+of the round (or loop) letter height is 3" (see Figure         letter height relationships, along with the correct
+6). Round or loop letters extend slightly below the            inter-character spacing. In order to illustrate these
+baseline and above the x-height of both upper and              aspects all alphabets are shown at a upper case
+lower case letters.                                            letter height of 2".
+
+
+
+
+                                     4"                                 2.9"                            3"
+
+
+
+
+                                                     Figure 6.
+
+
+
+
+                                                         9-5
+Standard Alphabets Spacing Chart
+                                                                                              Series B 2000
+Measurements based on four inch (4") upper case letter height
+
+
+  Character      Left (inch)    Width (inch) Right (inch)        Character     Left (inch)   Width (inch) Right (inch)
+       A             .120           2.161           .120             o            .200          1.481         .200
+       B             .440           1.721           .200             p            .320          1.481         .200
+       C             .320           1.721           .320             q            .200          1.481         .320
+       D             .440           1.721           .320             r            .320          1.040         .080
+       E             .440           1.521           .200             s            .120          1.280         .080
+       F             .440           1.521           .120             t             0            1.200          0
+       G             .320           1.721           .320             u            .280          1.441         .320
+       H             .440           1.721           .440             v            .080          1.721         .080
+       I             .440            .520           .440             w            .080          2.241         .080
+       J             .120           1.761           .440             x             0            1.841          0
+       K             .440           1.761           .200             y            .080          1.841         .080
+       L             .440           1.521           .120             z            .120          1.441         .120
+       M             .440           1.961           .440             1            .200          .840          .440
+       N             .440           1.721           .440             2            .200          1.721         .200
+       O             .320           1.841           .320             3            .120          1.721         .200
+       P             .440           1.721           .120             4            .200          1.961         .320
+       Q             .320           1.841           .320             5            .320          1.721         .200
+       R             .440           1.721           .200             6            .120          1.721         .320
+       S             .200           1.721           .200             7            .200          1.721         .320
+       T             .120           1.521           .120             8            .200          1.721         .200
+       U             .440           1.721           .440             9            .320          1.721         .200
+       V             .120           1.881           .120             0            .320          1.841         .320
+       W             .120           2.561           .120             &            .200          2.962         .120
+       X             .200           1.881           .200             !            .440          .520          .440
+       Y             .120           2.161           .120             "            .440          1.561         .440
+       Z             .200           1.721           .200             #            .320          2.521         .320
+       a             .120           1.481           .280             $            .200          1.721         .200
+       b             .320           1.481           .200             ¢            .320          1.761         .320
+       c             .200           1.481           .080             /             0            3.963          0
+       d             .200           1.481           .320           aster          .320          2.081         .320
+       e             .200           1.481           .120           period         .320          .560          .320
+       f             .120            .920           .080        comma / apos      .320          .600          .320
+       g             .200           1.441           .240           colon          .320          .560          .320
+       h             .320           1.441           .280             (            .320          1.200         .200
+       i             .320            .520           .320             )            .200          1.200         .320
+       j              0              .920           .320           hyphen         .120          1.240         .120
+       k             .320           1.601           .080             @            .320          4.000         .320
+       l             .320            .520           .320             =            .120          2.241         .120
+       m             .320           2.361           .280             +            .120          2.241         .120
+       n             .320           1.441           .280             ?            .200          2.081         .200
+
+           REFER TO FORWARD IN STANDARD ALPHABETS METRIC VERSION FOR NOTES ON APPLICATION OF SPACE VALUES
+ABCDE
+FGHI J
+  SERIES B 2000
+
+
+
+
+KLMNO
+PQRST
+UVWX
+  SERIES B 2000
+
+
+
+
+YZabcd
+eflmgnopqhijk
+     SERIES B 2000
+
+
+
+
+rstuvw
+xyz123
+45678
+  SERIES B 2000
+
+
+
+
+90&!"
+#$¢/
+*.@=+?
+   ,:()-
+   SERIES B 2000
+Standard Alphabets Spacing Chart
+                                                                                              Series C 2000
+Measurements based on four inch (4") upper case letter height
+
+
+  Character      Left (inch)    Width (inch) Right (inch)        Character     Left (inch)   Width (inch) Right (inch)
+       A             .120           2.561           .120             o            .240          2.041         .240
+       B             .440           2.241           .240             p            .360          2.041         .240
+       C             .360           2.241           .360             q            .240          2.041         .360
+       D             .440           2.241           .360             r            .360          1.321         .080
+       E             .440           2.041           .240             s            .160          1.681         .120
+       F             .440           2.041           .120             t            .040          1.441         .040
+       G             .360           2.241           .360             u            .320          2.041         .360
+       H             .440           2.241           .440             v            .080          2.361         .080
+       I             .440            .560           .440             w            .080          3.762         .080
+       J             .120           2.041           .440             x             0            2.601          0
+       K             .440           2.241           .240             y            .080          2.481         .080
+       L             .440           2.041           .120             z            .120          1.681         .120
+       M             .440           2.642           .440             1            .360          .840          .440
+       N             .440           2.241           .440             2            .240          2.241         .240
+       O             .360           2.361           .360             3            .240          2.241         .240
+       P             .440           2.241           .360             4            .120          2.481         .360
+       Q             .360           2.361           .360             5            .240          2.241         .240
+       R             .440           2.241           .240             6            .360          2.241         .360
+       S             .240           2.241           .240             7            .120          2.241         .360
+       T             .120           2.041           .120             8            .240          2.241         .240
+       U             .440           2.241           .440             9            .240          2.241         .240
+       V             .120           2.481           .120             0            .360          2.361         .360
+       W             .120           3.042           .120             &            .360          4.000          0
+       X             .120           2.361           .120             !            .440          .560          .440
+       Y             .120           2.561           .120             "            .440          1.721         .440
+       Z             .240           2.241           .240             #            .240          3.042         .240
+       a             .160           1.921           .320             $            .360          2.241         .360
+       b             .360           2.041           .240             ¢            .240          1.961         .120
+       c             .240           2.001           .120             /             0            4.083          0
+       d             .240           2.041           .360           aster          .320          2.081         .320
+       e             .240           2.041           .160           period         .160          .640          .160
+       f             .160           1.240           .080        comma / apos      .160          .640          .160
+       g             .240           2.041           .360           colon          .160          .640          .160
+       h             .360           2.041           .320             (            .360          1.200         .160
+       i             .360            .560           .360             )            .160          1.200         .360
+       j              0             1.160           .360           hyphen         .120          1.401         .120
+       k             .360           2.161           .080             @            .360          4.000         .360
+       l             .360            .560           .360             =            .120          2.601         .120
+       m             .360           3.362           .320             +            .120          2.601         .120
+       n             .360           2.041           .320             ?            .240          2.441         .240
+ABCD
+EFGH
+ SERIES C 2000
+
+
+
+
+IJKLM
+NOPQ
+RSTU
+ SERIES C 2000
+
+
+
+
+VWXY
+Zabc
+defgh
+  SERIES C 2000
+
+
+
+
+ijklm
+nopqr
+stuvw
+ SERIES C 2000
+
+
+
+
+xyz12
+3456
+7890
+ SERIES C 2000
+
+
+
+
+&!"#
+$¢/*
+.=+?
+ ,:()-@
+  SERIES C 2000
+Standard Alphabets Spacing Chart
+                                                                                              Series D 2000
+Measurements based on four inch (4") upper case letter height
+
+
+  Character      Left (inch)    Width (inch) Right (inch)        Character     Left (inch)   Width (inch) Right (inch)
+       A             .120           3.402           .120             o            .240          2.441         .240
+       B             .480           2.723           .200             p            .400          2.401         .240
+       C             .400           2.723           .400             q            .240          2.401         .400
+       D             .480           2.723           .400             r            .400          1.521         .080
+       E             .480           2.481           .200             s            .160          1.881         .120
+       F             .480           2.481           .120             t            .040          1.601         .040
+       G             .400           2.723           .400             u            .360          2.361         .400
+       H             .480           2.723           .480             v            .080          2.842         .080
+       I             .480            .640           .480             w            .080          4.523         .080
+       J             .120           2.561           .480             x             0            3.122          0
+       K             .480           2.802           .200             y            .080          3.002         .080
+       L             .480           2.481           .120             z            .120          2.001         .120
+       M             .480           3.122           .480             1            .400          1.000         .480
+       N             .480           2.723           .480             2            .400          2.723         .400
+       O             .400           2.842           .400             3            .720          2.723         .400
+       P             .480           2.723           .120             4            .080          3.002         .480
+       Q             .400           2.842           .400             5            .400          2.723         .400
+       R             .480           2.723           .200             6            .400          2.723         .400
+       S             .200           2.723           .200             7            .280          2.723         .280
+       T             .120           2.481           .120             8            .400          2.723         .400
+       U             .480           2.723           .480             9            .400          2.723         .400
+       V             .120           3.042           .120             0            .400          2.842         .400
+       W             .120           3.562           .120             &            .400          3.562          0
+       X             .200           2.723           .200             !            .480          .640          .480
+       Y             .120           3.442           .120             "            .160           .720         .160
+       Z             .200           2.723           .200             #            .240          3.402         .240
+       a             .200           2.281           .360             $            .200          2.723         .200
+       b             .400           2.401           .240             ¢            .400          2.441         .280
+       c             .240           2.361           .120             /             0            4.123          0
+       d             .240           2.401           .400           aster          .320          2.161         .320
+       e             .240           2.361           .160           period         .160          .720          .160
+       f             .160           1.441           .080        comma / apos      .160          .720          .160
+       g             .240           2.401           .400           colon          .160          .720          .160
+       h             .400           2.361           .360             (            .400          1.321         .160
+       i             .400            .640           .400             )            .160          1.321         .400
+       j              0             1.321           .400           hyphen         .120          1.401         .120
+       k             .400           2.561           .080             @            .400          4.003         .400
+       l             .400            .640           .400             =            .480          1.921         .480
+       m             .400           3.963           .360             +            .120          2.682         .120
+       n             .400           2.361           .360             ?            .280          2.601         .280
+ABC
+DEFG
+ SERIES D 2000
+
+
+
+
+HIJK
+LMN
+OPQ
+ SERIES D 2000
+
+
+
+
+RSTU
+VWX
+YZab
+ SERIES D 2000
+
+
+
+
+cdef
+ghijk
+lmno
+ SERIES D 2000
+
+
+
+
+pqrst
+uvw
+xyz1
+ SERIES D 2000
+
+
+
+
+234
+456
+789
+ SERIES D 2000
+
+
+
+
+0&!"
+#$/¢
+*.@=+?
+   ,:()-
+   SERIES D 2000
+Standard Alphabets Spacing Chart
+                                                                                              Series E 2000
+Measurements based on four inch (4") upper case letter height
+
+
+  Character      Left (inch)    Width (inch) Right (inch)        Character     Left (inch)   Width (inch) Right (inch)
+       A             .160           4.083           .160             o            .240          2.561         .240
+       B             .520           3.242           .280             p            .360          2.481         .240
+       C             .400           3.242           .400             q            .240          2.481         .360
+       D             .520           3.242           .400             r            .360          1.841         .080
+       E             .520           3.000           .280             s            .160          2.441         .120
+       F             .520           3.000           .160             t            .040          1.841         .040
+       G             .400           3.242           .400             u            .320          2.481         .360
+       H             .520           3.242           .520             v            .080          2.842         .080
+       I             .520            .720           .520             w            .080          3.842         .080
+       J             .160           3.042           .520             x             0            2.922          0
+       K             .520           3.322           .120             y            .080          3.082         .080
+       L             .520           3.000           .160             z            .120          2.561         .120
+       M             .520           3.762           .520             1            .400          1.200         .520
+       N             .520           3.242           .520             2            .280          3.242         .280
+       O             .400           3.362           .400             3            .280          3.242         .280
+       P             .520           3.242           .160             4            .160          3.762         .400
+       Q             .400           3.362           .400             5            .280          3.242         .280
+       R             .520           3.242           .280             6            .400          3.242         .400
+       S             .280           3.242           .280             7            .160          3.242         .400
+       T             .160           3.000           .160             8            .280          3.242         .280
+       U             .520           3.242           .520             9            .280          3.242         .280
+       V             .160           3.682           .160             0            .400          3.362         .400
+       W             .160           4.243           .160             &            .400          3.602          0
+       X             .280           3.482           .280             !            .520           .720         .520
+       Y             .160           4.083           .160             "            .520          2.041         .520
+       Z             .280           3.242           .280             #            .240          3.482         .240
+       a             .200           2.441           .320             $            .400          3.242         .400
+       b             .360           2.481           .240             ¢            .400          2.922         .280
+       c             .240           2.481           .120             /             0            4.203          0
+       d             .240           2.481           .360           aster          .320          2.201         .320
+       e             .240           2.481           .160           period         .160          .720          .160
+       f             .160           1.521           .080        comma / apos      .160          .720          .160
+       g             .240           2.481           .360           colon          .160          .720          .160
+       h             .360           2.481           .320             (            .400          1.321         .160
+       i             .360            .720           .360             )            .160          1.321         .400
+       j              0             1.200           .360           hyphen         .120          1.401         .120
+       k             .360           2.401           2.080            @            .400          4.000         .400
+       l             .360            .720           .360             =            .120          2.601         .120
+       m             .360           4.163           .320             +            .120          2.601         .120
+       n             .360           2.481           .320             ?            .280          2.682         .280
+
+           REFER TO FORWARD IN STANDARD ALPHABETS METRIC VERSION FOR NOTES ON APPLICATION OF SPACE VALUES
+ABC
+DEF
+ SERIES E 2000
+
+
+
+
+GHIJ
+KLM
+NOP
+ SERIES E 2000
+
+
+
+
+QRS
+TUV
+WXY
+ SERIES E 2000
+
+
+
+
+Zabc
+defgh
+ijklm
+  SERIES E 2000
+
+
+
+
+nopq
+rstuv
+wxyz
+  SERIES E 2000
+
+
+
+
+1234
+567
+890
+ SERIES E 2000
+
+
+
+
+&!"#
+$/¢SERIES E 2000
+
+
+
+
+*.@=+?
+   ,:()-
+Standard Alphabets Spacing Chart
+                                                                               Series E Modified 2000
+Measurements based on four inch (4") upper case letter height
+
+
+  Character      Left (inch)    Width (inch) Right (inch)        Character      Left (inch)   Width (inch) Right (inch)
+       A             .160           4.043           .160             o             .440          2.722         .440
+       B             .560           3.242           .320             p             .800          2.642         .440
+       C             .400           3.242           .320             q             .440          2.642         .800
+       D             .560           3.242           .400             r             .800          2.000         .160
+       E             .560           2.962           .280             s             .360          2.642         .440
+       F             .560           2.962           .280             t             .360          2.081         .480
+       G             .400           3.242           .400             u             .800          2.642         .800
+       H             .560           3.242           .560             v             .360          3.082         .360
+       I             .560            .800           .560             w             .360          4.083         .360
+       J             .160           3.042           .560             x             .440          3.202         .440
+       K             .560           3.282           .080             y             .360          3.402         .360
+       L             .560           2.962           .080             z             .480          2.722         .480
+       M             .560           3.722           .560             1             .480          1.200         .560
+       N             .560           3.242           .560             2             .440          3.242         .440
+       O             .400           3.362           .400             3             .120          3.242         .400
+       P             .560           3.242           .160             4             .120          3.722         .560
+       Q             .400           3.362           .400             5             .440          3.242         .440
+       R             .560           3.242           .280             6             .400          3.242         .400
+       S             .440           3.242           .440             7             .240          3.242         .400
+       T             .160           2.962           .160             8             .400          3.242         .400
+       U             .560           3.242           .560             9             .400          3.242         .400
+       V             .160           3.682           .160             0             .400          3.362         .400
+       W             .160           4.243           .160             &             .400          3.602         .400
+       X             .280           3.482           .280             !             .560          .800          .560
+       Y             .160           4.043           .160             "             .560          2.281         .560
+       Z             .280           3.242           .280             #             .400          3.522         .400
+       a             .440           2.642           .800             $             .440          3.242         .440
+       b             .800           2.642           .440             ¢             .400          2.682         .280
+       c             .440           2.642           .440             /              0            4.283          0
+       d             .440           2.642           .800           aster           .320          2.241         .320
+       e             .440           2.642           .440           period          .160          .800          .160
+       f             .400           1.681           .440        comma / apos       .160          .800          .160
+       g             .440           2.642           .800           colon           .160          .800          .160
+       h             .800           2.642           .800             (             .400          1.521         .160
+       i             .800            .800           .800             )             .160          1.521         .400
+       j             .080           1.481           .800           hyphen          .120          1.401         .120
+       k             .800           2.642           .440             @             .400          4.043         .400
+       l             .800            .800           .800             =             .120          2.601         .120
+       m             .800           4.403           .800             +             .120          2.601         .120
+       n             .800           2.642           .800             ?             .280          2.762         .280
+
+           REFER TO FORWARD IN STANDARD ALPHABETS METRIC VERSION FOR NOTES ON APPLICATION OF SPACE VALUES
+ABC
+DEF
+ SERIES EM 2000
+
+
+
+
+GHI
+JKL
+MNO
+ SERIES EM 2000
+
+
+
+
+PQR
+STU
+VWX
+ SERIES EM 2000
+
+
+
+
+YZa
+bcd
+efg
+ SERIES EM 2000
+
+
+
+
+hijk
+lmn
+opq
+ SERIES EM 2000
+
+
+
+
+rstu
+vwx
+yz1
+ SERIES EM 2000
+
+
+
+
+234
+567
+890
+ SERIES EM 2000
+
+
+
+
+&!"#
+$/¢SERIES EM 2000
+
+
+
+
+*.@=+?
+   ,:()-
+Standard Alphabets Spacing Chart
+                                                                                              Series F 2000
+Measurements based on four inch (4") upper case letter height
+
+
+  Character      Left (inch)    Width (inch) Right (inch)        Character     Left (inch)   Width (inch) Right (inch)
+       A             .160           4.563           .160             o            .320          3.202         .320
+       B             .560           3.762           .400             p            .480          3.162         .320
+       C             .400           3.762           .280             q            .320          3.162         .480
+       D             .560           3.762           .400             r            .480          2.000         .120
+       E             .560           3.242           .400             s            .280          2.922         .280
+       F             .560           3.242           .400             t            .120          1.921         .160
+       G             .400           3.762           .400             u            .480          2.962         .480
+       H             .560           3.762           .560             v            .080          3.362         .080
+       I             .560            .760           .560             w            .080          4.603         .080
+       J             .160           3.322           .560             x            .080          3.522         .080
+       K             .560           3.762           .160             y            .080          3.682         .080
+       L             .560           3.442           .160             z            .200          3.042         .200
+       M             .560           4.323           .560             1            .560          1.321         .560
+       N             .560           3.762           .560             2            .400          3.762         .400
+       O             .400           4.203           .400             3            .400          3.762         .400
+       P             .560           3.762           .400             4            .160          4.083         .560
+       Q             .560           4.203           .400             5            .400          3.762         .400
+       R             .560           3.762           .400             6            .400          3.762         .400
+       S             .400           3.762           .400             7            .160          3.762         .160
+       T             .160           3.442           .160             8            .400          3.762         .400
+       U             .560           3.762           .560             9            .400          3.762         .400
+       V             .160           4.203           .160             0            .400          3.882         .400
+       W             .160           4.683           .160             &            .560          4.603         .160
+       X             .160           4.083           .160             !            .560           .760         .560
+       Y             .160           4.563           .160             "            .560          2.000         .560
+       Z             .280           3.762           .280             #            .080          3.522         .080
+       a             .320           3.042           .480             $            .400          3.762         .400
+       b             .480           3.162           .320             ¢            .320          3.000         .200
+       c             .320           2.802           .200             /             0            4.283          0
+       d             .320           3.162           .480           aster          .280          2.241         .280
+       e             .320           3.202           .320           period         .280           .760         .280
+       f             .120           1.721           .120        comma / apos      .280           .760         .280
+       g             .320           3.000           .480           colon          .280           .760         .280
+       h             .480           2.962           .480             (            .400          1.361         .120
+       i             .480            .760           .480             )            .120          1.361         .400
+       j             .040           1.240           .480           hyphen         .160          1.401         .160
+       k             .480           2.802           .120             @            .400          4.000         .400
+       l             .480            .760           .480             =            .160          2.601         .160
+       m             .480           4.723           .480             +            .160          2.601         .160
+       n             .480           2.962           .480             ?            .400          3.362         .400
+
+           REFER TO FORWARD IN STANDARD ALPHABETS METRIC VERSION FOR NOTES ON APPLICATION OF SPACE VALUES
+ABC
+DEF
+ SERIES F 2000
+
+
+
+
+GHI
+JKL
+MN
+ SERIES F 2000
+
+
+
+
+OPQ
+RST
+UVW
+ SERIES F 2000
+
+
+
+
+XYZ
+abc
+defg
+  SERIES F 2000
+
+
+
+
+hijkl
+mno
+pqrs
+ SERIES F 2000
+
+
+
+
+tuv
+wxy
+z12
+ SERIES F 2000
+
+
+
+
+345
+678
+90&
+ SERIES F 2000
+
+
+
+
+!"#$
+¢/*.
+  SERIES F 2000
+
+
+
+
+,=+?
+ :()-@
+
