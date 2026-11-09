@@ -59,13 +59,13 @@ glyphs = []
 for pg in range(1, 8):
     svg = (ROOT / f'svg/Pavement-p{pg}.svg').read_text()
     for m in re.finditer(r'<path fill-rule="evenodd" fill="rgb\(11[^"]*"[^>]* d="([^"]+)"', svg):
-        rings = [[(x, -y) for x, y in r] for r in svg_rings(m.group(1))]  # svg y is down
+        rings = svg_rings(m.group(1))  # pdftocairo wraps these paths in a y-flip matrix: raw y already points up
         ys = [y for r in rings for _, y in r]
         if max(ys) - min(ys) < 100: continue
         glyphs.append((pg, min(x for r in rings for x, _ in r), rings))
     # some counters (O, P, ...) are drawn as a separate white fill on top of the black letter
     for m in re.finditer(r'<path fill-rule="[^"]*" fill="rgb\(100%, 100%, 100%\)"[^>]* d="([^"]+)"', svg):
-        for hole in [[(x, -y) for x, y in r] for r in svg_rings(m.group(1))]:
+        for hole in svg_rings(m.group(1)):
             hx = [x for x, _ in hole]; hy = [y for _, y in hole]
             for g in glyphs:
                 if g[0] != pg: continue
@@ -81,6 +81,9 @@ for ch, (_, _, rings) in zip(PAV_ORDER, glyphs):
     rs = [clean([((x - x0) / H, (y - y0) / H) for x, y in r]) for r in rings]
     w = max(x for r in rs for x, _ in r)
     P[ch] = {"adv": round(w, 4), "rings": rs}
+# U on p10-4 is only 0.84 of the letter height as extracted (the rest is not a filled path); leave it out
+# rather than ship a short U. Legends with U fall back to Series C/D or hold.
+P.pop('U', None)
 json.dump({"name": "FHWA SHS pavement-marking alphabet (elongated)", "source": "FHWA SHS Pavement Markings p10-1..10-7",
            "capHeight": 1, "letterGap": 0.0625, "wordSpace": 0.3, "glyphs": P},
           open(OUT / 'P.json', 'w'), separators=(',', ':'))
