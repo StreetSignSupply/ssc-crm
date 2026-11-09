@@ -289,15 +289,16 @@ if (STEP === "export") {
       const feed = await api("/values/" + encodeURIComponent("Feed!A1:AA5000") + "?majorDimension=ROWS", "GET");
       const fv = feed.values || []; const hdr = fv[0] || []; const iId = hdr.indexOf("row_id"), iAt = hdr.indexOf("at"), iType = hdr.indexOf("type");
       const health = await page.evaluate(async (rows) => {
-        const T = window.__T, S = T.S; let done = {};
+        const T = window.__T, S = T.S; let done = {}, bad = {};
         let doneErr = "";
-        try { const d = await T.getDb().doc("settings/pipefeed").get(); const ok = d && (typeof d.exists === "function" ? d.exists() : d.exists); done = (ok && d.data() && d.data().done) || {}; } catch (e) { doneErr = String(e && e.message || e).slice(0, 120); }
+        try { const d = await T.getDb().doc("settings/pipefeed").get(); const ok = d && (typeof d.exists === "function" ? d.exists() : d.exists); const dd = (ok && d.data()) || {}; done = dd.done || {}; bad = dd.bad || {}; } catch (e) { doneErr = String(e && e.message || e).slice(0, 120); }
         if (!Object.keys(done).length && S.pipeDone) done = S.pipeDone;
         const ids = new Set(); const addF = (m) => { for (const x of m.values()) if (x && x.feedId) ids.add(String(x.feedId)); };
         addF(S.activity); addF(S.projects); addF(S.accounts);
-        const un = rows.filter((r) => r.id && !done[r.id] && !ids.has(r.id));
+        const broken = rows.filter((r) => r.id && bad[r.id] && !done[r.id] && !ids.has(r.id));
+        const un = rows.filter((r) => r.id && !done[r.id] && !ids.has(r.id) && !bad[r.id]);
         const cfg = (T.pipeCfg || (() => ({})))(); const b = S.brand || {};
-        return { unapplied: un.length, oldest: un.length ? un.map((r) => r.at).filter(Boolean).sort()[0] || "" : "", sample: un.slice(0, 5).map((r) => r.id).join(", "), auto: cfg.auto === true, last: cfg.last || "", url: !!cfg.url, build: T.APP_VERSION || "", agentCtl: b.agentCtl !== false, doneCount: Object.keys(done).length, doneErr };
+        return { unapplied: un.length, oldest: un.length ? un.map((r) => r.at).filter(Boolean).sort()[0] || "" : "", sample: un.slice(0, 5).map((r) => r.id).join(", "), auto: cfg.auto === true, last: cfg.last || "", url: !!cfg.url, build: T.APP_VERSION || "", agentCtl: b.agentCtl !== false, doneCount: Object.keys(done).length, doneErr, broken: broken.length, brokenSample: broken.slice(0, 8).map((r) => r.id).join(", ") };
       }, fv.slice(1).filter((r) => r[iId]).map((r) => ({ id: String(r[iId]).trim(), at: String(r[iAt] || ""), type: String(r[iType] || "") })));
       // age of the oldest unapplied row, from its "at" (agents write Mountain time) — fall back to "unknown"
       let ageH = null; if (health.oldest) { const m = health.oldest.match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/); if (m) ageH = Math.round((Date.now() - (Date.UTC(+m[1], m[2] - 1, +m[3], +m[4], +m[5]) + 7 * 3600000)) / 36000) / 100; }
@@ -316,6 +317,7 @@ if (STEP === "export") {
         ["feed_rows_total", String(fv.length - 1), "rows on the Feed tab"],
         ["feed_rows_unapplied", String(health.unapplied), health.sample],
         ["oldest_unapplied_at", health.oldest, ageH == null ? "" : ageH + " h ago"],
+        ["feed_rows_broken", String(health.broken), "rows the CRM could not read or apply (missing project/account, bad JSON, unknown type) — the posting bot fixes them with a corrected row; they never count as a stall. " + health.brokenSample],
         ["worker_schedule", "see Actions > CRM worker", "every 30 min when enabled; paused 10/27 to 11/9"],
       ];
       await write("CRM Health", rows, 5); step("CRM Health written: " + status + " (done " + health.doneCount + (health.doneErr ? ", read error: " + health.doneErr : "") + ")");

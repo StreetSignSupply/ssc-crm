@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-168 (broken feed rows are told apart from waiting ones)
+- The pipeline import now remembers the rows it could not read or apply (`bad`, with the day they last failed) in the same place as the rows it finished. The CRM Health tab reports them as a separate count: a broken row is the agents' to fix and never makes the feed look stalled. First run found 683 rows from Oct 26 to Nov 8 that have failed every import since they were posted — listed for the CRM bot.
+
 ## 2026.11.25-167 (the feed can't go quiet unnoticed)
 - **The cloud worker always brings the Feed in.** Settings → Connections → "Bring the feed in by itself" now only governs people's copies of the CRM; the worker (crm-worker.yml) imports regardless. On Nov 8 we found that switch off and the worker paused since Oct 27 — twelve days of agent rows (archives, stage changes, lost marks) sat on the Feed with nothing to say so.
 - **CRM Health tab (worker only).** The twice-hourly export now also writes a small "CRM Health" tab on the SSS Pipeline sheet: feed switch state, last feed row, how many Feed rows the CRM has not applied and the age of the oldest, live build. If the oldest unapplied row is over two hours old, or the switch is off with the worker not running, the row says ALERT, and the first run that sees a new alert fails on purpose so GitHub emails Matt. Every bot reads this tab first (it is tiny), so a stalled feed is a HIGH finding within the hour instead of a surprise.
