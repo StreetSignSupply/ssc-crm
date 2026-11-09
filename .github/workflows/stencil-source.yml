@@ -1,0 +1,29 @@
+# Fetches the FHWA Standard Highway Signs "Pavement Markings" chapter and the Standard Alphabets (public domain,
+# US government work) and turns their pages into SVG so the stencil generator's letter and number shapes can be
+# traced from the official drawings. Run by hand; the files come back as a workflow artifact.
+name: Stencil source (FHWA drawings)
+on:
+  workflow_dispatch: {}
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download the FHWA PDFs
+        run: |
+          mkdir -p src svg
+          curl -fsSL -o src/Pavement.pdf https://mutcd.fhwa.dot.gov/SHSe/Pavement.pdf
+          curl -fsSL -o src/Alphabets.pdf https://mutcd.fhwa.dot.gov/SHSe/Alphabets.pdf
+          ls -la src
+      - name: Pages to SVG and text
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils >/dev/null
+          for f in src/*.pdf; do b=$(basename "$f" .pdf); n=$(pdfinfo "$f" | awk '/^Pages:/{print $2}'); echo "$b: $n pages"
+            pdftotext -layout "$f" "svg/$b.txt"
+            for i in $(seq 1 "$n"); do pdftocairo -svg -f "$i" -l "$i" "$f" "svg/$b-p$i.svg"; done; done
+          ls svg | head -50
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fhwa-stencil-source
+          path: |
+            src/
+            svg/
