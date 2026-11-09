@@ -1,0 +1,30 @@
+{
+ "row": 765,
+ "sku": "SSS-WRD-012-46",
+ "name": "12\" ONLY Stencil",
+ "category": "Other / wording",
+ "ok": true,
+ "legend": "ONLY",
+ "font": "fhwa-series-c",
+ "font_why": "default for parking-lot legends (no reference size)",
+ "nominal_in": 12,
+ "extents_in": [
+  33.221,
+  12.405
+ ],
+ "sheet_in": [
+  37.25,
+  16.5
+ ],
+ "tie_in": 0.5,
+ "sha256": "fdc2b1c864ea9c462152f211352a69f49884a0ffbff4fc0a450784c9c5b3081c",
+ "checks": {
+  "one_piece": true,
+  "margin_ok": true,
+  "closed_paths": true,
+  "islands": 1
+ },
+ "notes": [
+  "sheet 37.25 x 16.5 vs price-list blank 46 x 18"
+ ]
+}

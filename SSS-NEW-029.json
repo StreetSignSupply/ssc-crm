@@ -1,0 +1,28 @@
+{
+ "row": 1816,
+ "sku": "SSS-NEW-029",
+ "name": "18\" ONLY Stencil",
+ "category": "Other / wording",
+ "ok": true,
+ "legend": "ONLY",
+ "font": "fhwa-series-c",
+ "font_why": "default for parking-lot legends (no reference size)",
+ "nominal_in": 18,
+ "extents_in": [
+  49.832,
+  18.615
+ ],
+ "sheet_in": [
+  54,
+  22.75
+ ],
+ "tie_in": 0.5,
+ "sha256": "14ea156b40a3a5847e33913228df23d309c06e3cf1ecf2220e0e5b514d356ca0",
+ "checks": {
+  "one_piece": true,
+  "margin_ok": true,
+  "closed_paths": true,
+  "islands": 1
+ },
+ "notes": []
+}

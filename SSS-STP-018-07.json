@@ -1,0 +1,30 @@
+{
+ "row": 1520,
+ "sku": "SSS-STP-018-07",
+ "name": "18\" STOP Stencil",
+ "category": "Stop / traffic",
+ "ok": true,
+ "legend": "STOP",
+ "font": "fhwa-series-c",
+ "font_why": "default for parking-lot legends (no reference size)",
+ "nominal_in": 18,
+ "extents_in": [
+  47.238,
+  18.631
+ ],
+ "sheet_in": [
+  51.25,
+  22.75
+ ],
+ "tie_in": 0.5,
+ "sha256": "d65fcab48af41e8a25466617a938c010dfaf7d7bd7565c861186bc5ddfcf36e8",
+ "checks": {
+  "one_piece": true,
+  "margin_ok": true,
+  "closed_paths": true,
+  "islands": 2
+ },
+ "notes": [
+  "sheet 51.25 x 22.75 vs price-list blank 60 x 24"
+ ]
+}
