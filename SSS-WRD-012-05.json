@@ -1,0 +1,30 @@
+{
+ "row": 723,
+ "sku": "SSS-WRD-012-05",
+ "name": "12\" AMBULANCE Stencil",
+ "category": "Other / wording",
+ "ok": true,
+ "legend": "AMBULANCE",
+ "font": "fhwa-series-c",
+ "font_why": "default for parking-lot legends (no reference size)",
+ "nominal_in": 12,
+ "extents_in": [
+  78.273,
+  12.419
+ ],
+ "sheet_in": [
+  82.5,
+  16.5
+ ],
+ "tie_in": 0.5,
+ "sha256": "ce5e9bdd35ba37486b1777acafa26562504d87b9a3292d13c5049624a448eb73",
+ "checks": {
+  "one_piece": true,
+  "margin_ok": true,
+  "closed_paths": true,
+  "islands": 4
+ },
+ "notes": [
+  "sheet 82.5 x 16.5 vs price-list blank 99 x 18"
+ ]
+}

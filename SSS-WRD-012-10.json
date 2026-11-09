@@ -1,0 +1,30 @@
+{
+ "row": 728,
+ "sku": "SSS-WRD-012-10",
+ "name": "12\" CAR Stencil",
+ "category": "Other / wording",
+ "ok": true,
+ "legend": "CAR",
+ "font": "fhwa-series-c",
+ "font_why": "default for parking-lot legends (no reference size)",
+ "nominal_in": 12,
+ "extents_in": [
+  24.167,
+  12.419
+ ],
+ "sheet_in": [
+  28.25,
+  16.5
+ ],
+ "tie_in": 0.5,
+ "sha256": "73a52c8a2604f30de6513e15e18669f70ffff44135b429064c9e2815ec432206",
+ "checks": {
+  "one_piece": true,
+  "margin_ok": true,
+  "closed_paths": true,
+  "islands": 2
+ },
+ "notes": [
+  "sheet 28.25 x 16.5 vs price-list blank 37 x 18"
+ ]
+}

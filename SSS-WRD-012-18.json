@@ -1,0 +1,30 @@
+{
+ "row": 737,
+ "sku": "SSS-WRD-012-18",
+ "name": "12\" DOCK Stencil",
+ "category": "Other / wording",
+ "ok": true,
+ "legend": "DOCK",
+ "font": "fhwa-series-c",
+ "font_why": "default for parking-lot legends (no reference size)",
+ "nominal_in": 12,
+ "extents_in": [
+  34.148,
+  12.419
+ ],
+ "sheet_in": [
+  38.25,
+  16.5
+ ],
+ "tie_in": 0.5,
+ "sha256": "09e406b532e330fb993835ce02204369b300c31533dc9a7e52ccb53c6edbfc6d",
+ "checks": {
+  "one_piece": true,
+  "margin_ok": true,
+  "closed_paths": true,
+  "islands": 2
+ },
+ "notes": [
+  "sheet 38.25 x 16.5 vs price-list blank 45 x 18"
+ ]
+}

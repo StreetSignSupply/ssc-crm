@@ -1,0 +1,30 @@
+{
+ "row": 733,
+ "sku": "SSS-WRD-012-14",
+ "name": "12\" CHECK-OUT Stencil",
+ "category": "Other / wording",
+ "ok": true,
+ "legend": "CHECK-OUT",
+ "font": "fhwa-series-c",
+ "font_why": "default for parking-lot legends (no reference size)",
+ "nominal_in": 12,
+ "extents_in": [
+  76.336,
+  12.419
+ ],
+ "sheet_in": [
+  80.5,
+  16.5
+ ],
+ "tie_in": 0.5,
+ "sha256": "8da2188f0186591117fc8ff876302a917e7a87213e75d2ae4d7be85149294304",
+ "checks": {
+  "one_piece": true,
+  "margin_ok": true,
+  "closed_paths": true,
+  "islands": 1
+ },
+ "notes": [
+  "sheet 80.5 x 16.5 vs price-list blank 99 x 18"
+ ]
+}

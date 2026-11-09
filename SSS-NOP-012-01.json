@@ -1,0 +1,30 @@
+{
+ "row": 581,
+ "sku": "SSS-NOP-012-01",
+ "name": "12\" NO PARKING Stencil",
+ "category": "No parking",
+ "ok": true,
+ "legend": "NO PARKING",
+ "font": "fhwa-series-c",
+ "font_why": "default for parking-lot legends (no reference size)",
+ "nominal_in": 12,
+ "extents_in": [
+  77.599,
+  12.419
+ ],
+ "sheet_in": [
+  81.75,
+  16.5
+ ],
+ "tie_in": 0.5,
+ "sha256": "e94849c37cfbda2841e028fb89e31c2e53b7c433c88b2418532c39ad286e5eff",
+ "checks": {
+  "one_piece": true,
+  "margin_ok": true,
+  "closed_paths": true,
+  "islands": 4
+ },
+ "notes": [
+  "sheet 81.75 x 16.5 vs price-list blank 99 x 18"
+ ]
+}

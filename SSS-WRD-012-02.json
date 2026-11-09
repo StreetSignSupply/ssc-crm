@@ -1,0 +1,30 @@
+{
+ "row": 720,
+ "sku": "SSS-WRD-012-02",
+ "name": "12 Inch OFFICE Stencil",
+ "category": "Other / wording",
+ "ok": true,
+ "legend": "OFFICE",
+ "font": "fhwa-series-c",
+ "font_why": "default for parking-lot legends (no reference size)",
+ "nominal_in": 12,
+ "extents_in": [
+  44.168,
+  12.419
+ ],
+ "sheet_in": [
+  48.25,
+  16.5
+ ],
+ "tie_in": 0.5,
+ "sha256": "d2d80e7b7274f51087140063367ba66d9ac4729cd92bddf9ad4ce826f3d7b352",
+ "checks": {
+  "one_piece": true,
+  "margin_ok": true,
+  "closed_paths": true,
+  "islands": 1
+ },
+ "notes": [
+  "sheet 48.25 x 16.5 vs price-list blank 57 x 18"
+ ]
+}

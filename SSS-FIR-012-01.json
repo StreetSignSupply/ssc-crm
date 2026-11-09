@@ -1,0 +1,30 @@
+{
+ "row": 401,
+ "sku": "SSS-FIR-012-01",
+ "name": "12\" FIRE LANE Stencil",
+ "category": "Fire lane",
+ "ok": true,
+ "legend": "FIRE LANE",
+ "font": "fhwa-series-c",
+ "font_why": "default for parking-lot legends (no reference size)",
+ "nominal_in": 12,
+ "extents_in": [
+  65.22,
+  12
+ ],
+ "sheet_in": [
+  69.25,
+  16
+ ],
+ "tie_in": 0.5,
+ "sha256": "98f9776e56de9c857b7e3d4a1ee90ee25d2afb7fd5d3b8b445edfa7aecbcf9bc",
+ "checks": {
+  "one_piece": true,
+  "margin_ok": true,
+  "closed_paths": true,
+  "islands": 2
+ },
+ "notes": [
+  "sheet 69.25 x 16 vs price-list blank 86 x 18"
+ ]
+}

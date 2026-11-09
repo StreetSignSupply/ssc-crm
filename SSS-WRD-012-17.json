@@ -1,0 +1,30 @@
+{
+ "row": 736,
+ "sku": "SSS-WRD-012-17",
+ "name": "12\" DELIVERY Stencil",
+ "category": "Other / wording",
+ "ok": true,
+ "legend": "DELIVERY",
+ "font": "fhwa-series-c",
+ "font_why": "default for parking-lot legends (no reference size)",
+ "nominal_in": 12,
+ "extents_in": [
+  61.221,
+  12
+ ],
+ "sheet_in": [
+  65.25,
+  16
+ ],
+ "tie_in": 0.5,
+ "sha256": "b00765be9aecc55cf0e5310a42ea01fa6fef982f1751e8e05dc6c925dd54c636",
+ "checks": {
+  "one_piece": true,
+  "margin_ok": true,
+  "closed_paths": true,
+  "islands": 2
+ },
+ "notes": [
+  "sheet 65.25 x 16 vs price-list blank 80 x 18"
+ ]
+}

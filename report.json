@@ -1,0 +1,752 @@
+[
+ {
+  "row": 765,
+  "sku": "SSS-WRD-012-46",
+  "name": "12\" ONLY Stencil",
+  "category": "Other / wording",
+  "ok": true,
+  "legend": "ONLY",
+  "font": "fhwa-series-c",
+  "font_why": "default for parking-lot legends (no reference size)",
+  "nominal_in": 12,
+  "extents_in": [
+   33.221,
+   12.405
+  ],
+  "sheet_in": [
+   37.25,
+   16.5
+  ],
+  "tie_in": 0.5,
+  "sha256": "fdc2b1c864ea9c462152f211352a69f49884a0ffbff4fc0a450784c9c5b3081c",
+  "checks": {
+   "one_piece": true,
+   "margin_ok": true,
+   "closed_paths": true,
+   "islands": 1
+  },
+  "notes": [
+   "sheet 37.25 x 16.5 vs price-list blank 46 x 18"
+  ]
+ },
+ {
+  "row": 1486,
+  "sku": "SSS-STP-012-09",
+  "name": "12\" STOP Stencil",
+  "category": "Stop / traffic",
+  "ok": true,
+  "legend": "STOP",
+  "font": "fhwa-series-c",
+  "font_why": "default for parking-lot legends (no reference size)",
+  "nominal_in": 12,
+  "extents_in": [
+   31.492,
+   12.421
+  ],
+  "sheet_in": [
+   35.5,
+   16.5
+  ],
+  "tie_in": 0.5,
+  "sha256": "76468e0190d6508716cee448018d349258f4312253e0bd34535d061ef8187dd0",
+  "checks": {
+   "one_piece": true,
+   "margin_ok": true,
+   "closed_paths": true,
+   "islands": 2
+  },
+  "notes": [
+   "sheet 35.5 x 16.5 vs price-list blank 44 x 18"
+  ]
+ },
+ {
+  "row": 1520,
+  "sku": "SSS-STP-018-07",
+  "name": "18\" STOP Stencil",
+  "category": "Stop / traffic",
+  "ok": true,
+  "legend": "STOP",
+  "font": "fhwa-series-c",
+  "font_why": "default for parking-lot legends (no reference size)",
+  "nominal_in": 18,
+  "extents_in": [
+   47.238,
+   18.631
+  ],
+  "sheet_in": [
+   51.25,
+   22.75
+  ],
+  "tie_in": 0.5,
+  "sha256": "d65fcab48af41e8a25466617a938c010dfaf7d7bd7565c861186bc5ddfcf36e8",
+  "checks": {
+   "one_piece": true,
+   "margin_ok": true,
+   "closed_paths": true,
+   "islands": 2
+  },
+  "notes": [
+   "sheet 51.25 x 22.75 vs price-list blank 60 x 24"
+  ]
+ },
+ {
+  "row": 1816,
+  "sku": "SSS-NEW-029",
+  "name": "18\" ONLY Stencil",
+  "category": "Other / wording",
+  "ok": true,
+  "legend": "ONLY",
+  "font": "fhwa-series-c",
+  "font_why": "default for parking-lot legends (no reference size)",
+  "nominal_in": 18,
+  "extents_in": [
+   49.832,
+   18.615
+  ],
+  "sheet_in": [
+   54,
+   22.75
+  ],
+  "tie_in": 0.5,
+  "sha256": "14ea156b40a3a5847e33913228df23d309c06e3cf1ecf2220e0e5b514d356ca0",
+  "checks": {
+   "one_piece": true,
+   "margin_ok": true,
+   "closed_paths": true,
+   "islands": 1
+  },
+  "notes": []
+ },
+ {
+  "row": 922,
+  "sku": "SSS-WRD-024-35",
+  "name": "24\" ONLY Stencil",
+  "category": "Other / wording",
+  "ok": true,
+  "legend": "ONLY",
+  "font": "fhwa-series-c",
+  "font_why": "default for parking-lot legends (no reference size)",
+  "nominal_in": 24,
+  "extents_in": [
+   66.443,
+   24.826
+  ],
+  "sheet_in": [
+   70.5,
+   29
+  ],
+  "tie_in": 0.5,
+  "sha256": "1aaa02a2ba1999fdad1a81115ace03ccedc086380e47a34d870fa39a1fc57697",
+  "checks": {
+   "one_piece": true,
+   "margin_ok": true,
+   "closed_paths": true,
+   "islands": 1
+  },
+  "notes": [
+   "sheet 70.5 x 29 vs price-list blank 62 x 30"
+  ]
+ },
+ {
+  "row": 1538,
+  "sku": "SSS-STP-024-16",
+  "name": "24\" STOP Stencil",
+  "category": "Stop / traffic",
+  "ok": true,
+  "legend": "STOP",
+  "font": "fhwa-series-c",
+  "font_why": "default for parking-lot legends (no reference size)",
+  "nominal_in": 24,
+  "extents_in": [
+   62.984,
+   24.841
+  ],
+  "sheet_in": [
+   67,
+   29
+  ],
+  "tie_in": 0.5,
+  "sha256": "69234f039c12ba9cb6b213e2e88d213ea1aac0f1e9c354cb99b21490aaa16332",
+  "checks": {
+   "one_piece": true,
+   "margin_ok": true,
+   "closed_paths": true,
+   "islands": 2
+  },
+  "notes": [
+   "sheet 67 x 29 vs price-list blank 60 x 30"
+  ]
+ },
+ {
+  "row": 6,
+  "sku": "SSS-STP-012-05",
+  "name": "12\" X-ING Stencil",
+  "category": "Stop / traffic",
+  "ok": true,
+  "legend": "X-ING",
+  "font": "fhwa-series-c",
+  "font_why": "closest width to the reference size",
+  "nominal_in": 12,
+  "extents_in": [
+   37.262,
+   12.419
+  ],
+  "sheet_in": [
+   41.5,
+   16.5
+  ],
+  "tie_in": 0.5,
+  "sha256": "ab02426b586981e799a129f02540f1b7f37cb7e96247e2596b5ae4da75ab97b8",
+  "checks": {
+   "one_piece": true,
+   "margin_ok": true,
+   "closed_paths": true,
+   "islands": 0
+  },
+  "notes": [
+   "sheet 41.5 x 16.5 vs price-list blank 45 x 12",
+   "legend 37.26 wide vs reference 38",
+   "reference 38 x 12"
+  ]
+ },
+ {
+  "row": 401,
+  "sku": "SSS-FIR-012-01",
+  "name": "12\" FIRE LANE Stencil",
+  "category": "Fire lane",
+  "ok": true,
+  "legend": "FIRE LANE",
+  "font": "fhwa-series-c",
+  "font_why": "default for parking-lot legends (no reference size)",
+  "nominal_in": 12,
+  "extents_in": [
+   65.22,
+   12
+  ],
+  "sheet_in": [
+   69.25,
+   16
+  ],
+  "tie_in": 0.5,
+  "sha256": "98f9776e56de9c857b7e3d4a1ee90ee25d2afb7fd5d3b8b445edfa7aecbcf9bc",
+  "checks": {
+   "one_piece": true,
+   "margin_ok": true,
+   "closed_paths": true,
+   "islands": 2
+  },
+  "notes": [
+   "sheet 69.25 x 16 vs price-list blank 86 x 18"
+  ]
+ },
+ {
+  "row": 581,
+  "sku": "SSS-NOP-012-01",
+  "name": "12\" NO PARKING Stencil",
+  "category": "No parking",
+  "ok": true,
+  "legend": "NO PARKING",
+  "font": "fhwa-series-c",
+  "font_why": "default for parking-lot legends (no reference size)",
+  "nominal_in": 12,
+  "extents_in": [
+   77.599,
+   12.419
+  ],
+  "sheet_in": [
+   81.75,
+   16.5
+  ],
+  "tie_in": 0.5,
+  "sha256": "e94849c37cfbda2841e028fb89e31c2e53b7c433c88b2418532c39ad286e5eff",
+  "checks": {
+   "one_piece": true,
+   "margin_ok": true,
+   "closed_paths": true,
+   "islands": 4
+  },
+  "notes": [
+   "sheet 81.75 x 16.5 vs price-list blank 99 x 18"
+  ]
+ },
+ {
+  "row": 720,
+  "sku": "SSS-WRD-012-02",
+  "name": "12 Inch OFFICE Stencil",
+  "category": "Other / wording",
+  "ok": true,
+  "legend": "OFFICE",
+  "font": "fhwa-series-c",
+  "font_why": "default for parking-lot legends (no reference size)",
+  "nominal_in": 12,
+  "extents_in": [
+   44.168,
+   12.419
+  ],
+  "sheet_in": [
+   48.25,
+   16.5
+  ],
+  "tie_in": 0.5,
+  "sha256": "d2d80e7b7274f51087140063367ba66d9ac4729cd92bddf9ad4ce826f3d7b352",
+  "checks": {
+   "one_piece": true,
+   "margin_ok": true,
+   "closed_paths": true,
+   "islands": 1
+  },
+  "notes": [
+   "sheet 48.25 x 16.5 vs price-list blank 57 x 18"
+  ]
+ },
+ {
+  "row": 722,
+  "sku": "SSS-WRD-012-04",
+  "name": "12\" AHEAD Stencil",
+  "category": "Other / wording",
+  "ok": true,
+  "legend": "AHEAD",
+  "font": "fhwa-series-c",
+  "font_why": "default for parking-lot legends (no reference size)",
+  "nominal_in": 12,
+  "extents_in": [
+   41.894,
+   12
+  ],
+  "sheet_in": [
+   46,
+   16
+  ],
+  "tie_in": 0.5,
+  "sha256": "d99bf005fa9297ec248a8f014c6438f2db22a37e907ebc649003fd1b2ebc03c3",
+  "checks": {
+   "one_piece": true,
+   "margin_ok": true,
+   "closed_paths": true,
+   "islands": 3
+  },
+  "notes": [
+   "sheet 46 x 16 vs price-list blank 58 x 18"
+  ]
+ },
+ {
+  "row": 723,
+  "sku": "SSS-WRD-012-05",
+  "name": "12\" AMBULANCE Stencil",
+  "category": "Other / wording",
+  "ok": true,
+  "legend": "AMBULANCE",
+  "font": "fhwa-series-c",
+  "font_why": "default for parking-lot legends (no reference size)",
+  "nominal_in": 12,
+  "extents_in": [
+   78.273,
+   12.419
+  ],
+  "sheet_in": [
+   82.5,
+   16.5
+  ],
+  "tie_in": 0.5,
+  "sha256": "ce5e9bdd35ba37486b1777acafa26562504d87b9a3292d13c5049624a448eb73",
+  "checks": {
+   "one_piece": true,
+   "margin_ok": true,
+   "closed_paths": true,
+   "islands": 4
+  },
+  "notes": [
+   "sheet 82.5 x 16.5 vs price-list blank 99 x 18"
+  ]
+ },
+ {
+  "row": 724,
+  "sku": "SSS-WRD-012-06",
+  "name": "12\" ATM Stencil",
+  "category": "Other / wording",
+  "ok": true,
+  "legend": "ATM",
+  "font": "fhwa-series-c",
+  "font_why": "default for parking-lot legends (no reference size)",
+  "nominal_in": 12,
+  "extents_in": [
+   24.041,
+   12
+  ],
+  "sheet_in": [
+   28.25,
+   16
+  ],
+  "tie_in": 0.5,
+  "sha256": "69a86d19098248c4c9d7c62bcd34a80c4b95b0ac91ecc25d7af920314b4b287a",
+  "checks": {
+   "one_piece": true,
+   "margin_ok": true,
+   "closed_paths": true,
+   "islands": 1
+  },
+  "notes": [
+   "sheet 28.25 x 16 vs price-list blank 37 x 18"
+  ]
+ },
+ {
+  "row": 725,
+  "sku": "SSS-WRD-012-07",
+  "name": "12\" BICYCLES Stencil",
+  "category": "Other / wording",
+  "ok": true,
+  "legend": "BICYCLES",
+  "font": "fhwa-series-c",
+  "font_why": "default for parking-lot legends (no reference size)",
+  "nominal_in": 12,
+  "extents_in": [
+   61.094,
+   12.421
+  ],
+  "sheet_in": [
+   65.25,
+   16.5
+  ],
+  "tie_in": 0.5,
+  "sha256": "4971c2d5a560e05b2d42e22cda31d683903dec0a5ecb33574b1d72bbf3a9bea9",
+  "checks": {
+   "one_piece": true,
+   "margin_ok": true,
+   "closed_paths": true,
+   "islands": 2
+  },
+  "notes": [
+   "sheet 65.25 x 16.5 vs price-list blank 83 x 18"
+  ]
+ },
+ {
+  "row": 726,
+  "sku": "SSS-WRD-012-08",
+  "name": "12\" BIKE Stencil",
+  "category": "Other / wording",
+  "ok": true,
+  "legend": "BIKE",
+  "font": "fhwa-series-c",
+  "font_why": "default for parking-lot legends (no reference size)",
+  "nominal_in": 12,
+  "extents_in": [
+   27.83,
+   12
+  ],
+  "sheet_in": [
+   32,
+   16
+  ],
+  "tie_in": 0.5,
+  "sha256": "751503298c6483d01d3d3d66303d6d3c627c0381261ad5454c9688d9c7656a66",
+  "checks": {
+   "one_piece": true,
+   "margin_ok": true,
+   "closed_paths": true,
+   "islands": 2
+  },
+  "notes": [
+   "sheet 32 x 16 vs price-list blank 38 x 18"
+  ]
+ },
+ {
+  "row": 727,
+  "sku": "SSS-WRD-012-09",
+  "name": "12\" BUS Stencil",
+  "category": "Other / wording",
+  "ok": true,
+  "legend": "BUS",
+  "font": "fhwa-series-c",
+  "font_why": "default for parking-lot legends (no reference size)",
+  "nominal_in": 12,
+  "extents_in": [
+   24.167,
+   12.421
+  ],
+  "sheet_in": [
+   28.25,
+   16.5
+  ],
+  "tie_in": 0.5,
+  "sha256": "bc969e1baa4125803bbde55fcde9da69c417a69eaea9d055add0d305c863c2be",
+  "checks": {
+   "one_piece": true,
+   "margin_ok": true,
+   "closed_paths": true,
+   "islands": 2
+  },
+  "notes": [
+   "sheet 28.25 x 16.5 vs price-list blank 34 x 18"
+  ]
+ },
+ {
+  "row": 728,
+  "sku": "SSS-WRD-012-10",
+  "name": "12\" CAR Stencil",
+  "category": "Other / wording",
+  "ok": true,
+  "legend": "CAR",
+  "font": "fhwa-series-c",
+  "font_why": "default for parking-lot legends (no reference size)",
+  "nominal_in": 12,
+  "extents_in": [
+   24.167,
+   12.419
+  ],
+  "sheet_in": [
+   28.25,
+   16.5
+  ],
+  "tie_in": 0.5,
+  "sha256": "73a52c8a2604f30de6513e15e18669f70ffff44135b429064c9e2815ec432206",
+  "checks": {
+   "one_piece": true,
+   "margin_ok": true,
+   "closed_paths": true,
+   "islands": 2
+  },
+  "notes": [
+   "sheet 28.25 x 16.5 vs price-list blank 37 x 18"
+  ]
+ },
+ {
+  "row": 729,
+  "sku": "SSS-WRD-012-11",
+  "name": "12\" CAR WASH Stencil",
+  "category": "Other / wording",
+  "ok": true,
+  "legend": "CAR WASH",
+  "font": "fhwa-series-c",
+  "font_why": "default for parking-lot legends (no reference size)",
+  "nominal_in": 12,
+  "extents_in": [
+   63.998,
+   12.421
+  ],
+  "sheet_in": [
+   68,
+   16.5
+  ],
+  "tie_in": 0.5,
+  "sha256": "2847c6123160b59908b2927d0c5228cd3eabf86d5b9bc9d43d391257cdb8a9fa",
+  "checks": {
+   "one_piece": true,
+   "margin_ok": true,
+   "closed_paths": true,
+   "islands": 3
+  },
+  "notes": [
+   "sheet 68 x 16.5 vs price-list blank 96 x 18"
+  ]
+ },
+ {
+  "row": 730,
+  "sku": "SSS-WRD-012-12",
+  "name": "12\" CARPOOL Stencil",
+  "category": "Other / wording",
+  "ok": true,
+  "legend": "CARPOOL",
+  "font": "fhwa-series-c",
+  "font_why": "default for parking-lot legends (no reference size)",
+  "nominal_in": 12,
+  "extents_in": [
+   59.071,
+   12.419
+  ],
+  "sheet_in": [
+   63.25,
+   16.5
+  ],
+  "tie_in": 0.5,
+  "sha256": "65ef29e4f072386a99b967fb151e147ad901663a04c461b4994ca4ebf18cc9ce",
+  "checks": {
+   "one_piece": true,
+   "margin_ok": true,
+   "closed_paths": true,
+   "islands": 5
+  },
+  "notes": [
+   "sheet 63.25 x 16.5 vs price-list blank 76 x 18"
+  ]
+ },
+ {
+  "row": 731,
+  "sku": "SSS-WRD-012-01",
+  "name": "12\" CHARGING Stencil",
+  "category": "Other / wording",
+  "ok": true,
+  "legend": "CHARGING",
+  "font": "fhwa-series-c",
+  "font_why": "default for parking-lot legends (no reference size)",
+  "nominal_in": 12,
+  "extents_in": [
+   64.42,
+   12.42
+  ],
+  "sheet_in": [
+   68.5,
+   16.5
+  ],
+  "tie_in": 0.5,
+  "sha256": "46816eaa990a82192f59ebcf1c2dffc77a754897d1b9bac3bf2805d1cb00cb8c",
+  "checks": {
+   "one_piece": true,
+   "margin_ok": true,
+   "closed_paths": true,
+   "islands": 2
+  },
+  "notes": [
+   "sheet 68.5 x 16.5 vs price-list blank 88 x 18"
+  ]
+ },
+ {
+  "row": 732,
+  "sku": "SSS-WRD-012-13",
+  "name": "12\" CHECK-IN Stencil",
+  "category": "Other / wording",
+  "ok": true,
+  "legend": "CHECK-IN",
+  "font": "fhwa-series-c",
+  "font_why": "default for parking-lot legends (no reference size)",
+  "nominal_in": 12,
+  "extents_in": [
+   63.62,
+   12.419
+  ],
+  "sheet_in": [
+   67.75,
+   16.5
+  ],
+  "tie_in": 0.5,
+  "sha256": "dcd20ac364bcd195873f52da146587c921ee72e74286c979274593b9d5fd680e",
+  "checks": {
+   "one_piece": true,
+   "margin_ok": true,
+   "closed_paths": true,
+   "islands": 0
+  },
+  "notes": [
+   "sheet 67.75 x 16.5 vs price-list blank 79 x 18"
+  ]
+ },
+ {
+  "row": 733,
+  "sku": "SSS-WRD-012-14",
+  "name": "12\" CHECK-OUT Stencil",
+  "category": "Other / wording",
+  "ok": true,
+  "legend": "CHECK-OUT",
+  "font": "fhwa-series-c",
+  "font_why": "default for parking-lot legends (no reference size)",
+  "nominal_in": 12,
+  "extents_in": [
+   76.336,
+   12.419
+  ],
+  "sheet_in": [
+   80.5,
+   16.5
+  ],
+  "tie_in": 0.5,
+  "sha256": "8da2188f0186591117fc8ff876302a917e7a87213e75d2ae4d7be85149294304",
+  "checks": {
+   "one_piece": true,
+   "margin_ok": true,
+   "closed_paths": true,
+   "islands": 1
+  },
+  "notes": [
+   "sheet 80.5 x 16.5 vs price-list blank 99 x 18"
+  ]
+ },
+ {
+  "row": 736,
+  "sku": "SSS-WRD-012-17",
+  "name": "12\" DELIVERY Stencil",
+  "category": "Other / wording",
+  "ok": true,
+  "legend": "DELIVERY",
+  "font": "fhwa-series-c",
+  "font_why": "default for parking-lot legends (no reference size)",
+  "nominal_in": 12,
+  "extents_in": [
+   61.221,
+   12
+  ],
+  "sheet_in": [
+   65.25,
+   16
+  ],
+  "tie_in": 0.5,
+  "sha256": "b00765be9aecc55cf0e5310a42ea01fa6fef982f1751e8e05dc6c925dd54c636",
+  "checks": {
+   "one_piece": true,
+   "margin_ok": true,
+   "closed_paths": true,
+   "islands": 2
+  },
+  "notes": [
+   "sheet 65.25 x 16 vs price-list blank 80 x 18"
+  ]
+ },
+ {
+  "row": 737,
+  "sku": "SSS-WRD-012-18",
+  "name": "12\" DOCK Stencil",
+  "category": "Other / wording",
+  "ok": true,
+  "legend": "DOCK",
+  "font": "fhwa-series-c",
+  "font_why": "default for parking-lot legends (no reference size)",
+  "nominal_in": 12,
+  "extents_in": [
+   34.148,
+   12.419
+  ],
+  "sheet_in": [
+   38.25,
+   16.5
+  ],
+  "tie_in": 0.5,
+  "sha256": "09e406b532e330fb993835ce02204369b300c31533dc9a7e52ccb53c6edbfc6d",
+  "checks": {
+   "one_piece": true,
+   "margin_ok": true,
+   "closed_paths": true,
+   "islands": 2
+  },
+  "notes": [
+   "sheet 38.25 x 16.5 vs price-list blank 45 x 18"
+  ]
+ },
+ {
+  "row": 738,
+  "sku": "SSS-WRD-012-19",
+  "name": "12\" DOCTOR Stencil",
+  "category": "Other / wording",
+  "ok": true,
+  "legend": "DOCTOR",
+  "font": "fhwa-series-c",
+  "font_why": "default for parking-lot legends (no reference size)",
+  "nominal_in": 12,
+  "extents_in": [
+   50.19,
+   12.419
+  ],
+  "sheet_in": [
+   54.25,
+   16.5
+  ],
+  "tie_in": 0.5,
+  "sha256": "0b458141ce8510713f573157a5af4d87b47e51ed3c14e084839f221d577f3a7c",
+  "checks": {
+   "one_piece": true,
+   "margin_ok": true,
+   "closed_paths": true,
+   "islands": 4
+  },
+  "notes": [
+   "sheet 54.25 x 16.5 vs price-list blank 64 x 18"
+  ]
+ }
+]

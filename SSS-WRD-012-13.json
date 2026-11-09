@@ -1,0 +1,30 @@
+{
+ "row": 732,
+ "sku": "SSS-WRD-012-13",
+ "name": "12\" CHECK-IN Stencil",
+ "category": "Other / wording",
+ "ok": true,
+ "legend": "CHECK-IN",
+ "font": "fhwa-series-c",
+ "font_why": "default for parking-lot legends (no reference size)",
+ "nominal_in": 12,
+ "extents_in": [
+  63.62,
+  12.419
+ ],
+ "sheet_in": [
+  67.75,
+  16.5
+ ],
+ "tie_in": 0.5,
+ "sha256": "dcd20ac364bcd195873f52da146587c921ee72e74286c979274593b9d5fd680e",
+ "checks": {
+  "one_piece": true,
+  "margin_ok": true,
+  "closed_paths": true,
+  "islands": 0
+ },
+ "notes": [
+  "sheet 67.75 x 16.5 vs price-list blank 79 x 18"
+ ]
+}

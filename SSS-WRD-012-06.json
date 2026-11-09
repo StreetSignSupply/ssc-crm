@@ -1,0 +1,30 @@
+{
+ "row": 724,
+ "sku": "SSS-WRD-012-06",
+ "name": "12\" ATM Stencil",
+ "category": "Other / wording",
+ "ok": true,
+ "legend": "ATM",
+ "font": "fhwa-series-c",
+ "font_why": "default for parking-lot legends (no reference size)",
+ "nominal_in": 12,
+ "extents_in": [
+  24.041,
+  12
+ ],
+ "sheet_in": [
+  28.25,
+  16
+ ],
+ "tie_in": 0.5,
+ "sha256": "69a86d19098248c4c9d7c62bcd34a80c4b95b0ac91ecc25d7af920314b4b287a",
+ "checks": {
+  "one_piece": true,
+  "margin_ok": true,
+  "closed_paths": true,
+  "islands": 1
+ },
+ "notes": [
+  "sheet 28.25 x 16 vs price-list blank 37 x 18"
+ ]
+}

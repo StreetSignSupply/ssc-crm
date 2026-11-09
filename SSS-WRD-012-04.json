@@ -1,0 +1,30 @@
+{
+ "row": 722,
+ "sku": "SSS-WRD-012-04",
+ "name": "12\" AHEAD Stencil",
+ "category": "Other / wording",
+ "ok": true,
+ "legend": "AHEAD",
+ "font": "fhwa-series-c",
+ "font_why": "default for parking-lot legends (no reference size)",
+ "nominal_in": 12,
+ "extents_in": [
+  41.894,
+  12
+ ],
+ "sheet_in": [
+  46,
+  16
+ ],
+ "tie_in": 0.5,
+ "sha256": "d99bf005fa9297ec248a8f014c6438f2db22a37e907ebc649003fd1b2ebc03c3",
+ "checks": {
+  "one_piece": true,
+  "margin_ok": true,
+  "closed_paths": true,
+  "islands": 3
+ },
+ "notes": [
+  "sheet 46 x 16 vs price-list blank 58 x 18"
+ ]
+}

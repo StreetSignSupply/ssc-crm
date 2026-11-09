@@ -1,0 +1,30 @@
+{
+ "row": 731,
+ "sku": "SSS-WRD-012-01",
+ "name": "12\" CHARGING Stencil",
+ "category": "Other / wording",
+ "ok": true,
+ "legend": "CHARGING",
+ "font": "fhwa-series-c",
+ "font_why": "default for parking-lot legends (no reference size)",
+ "nominal_in": 12,
+ "extents_in": [
+  64.42,
+  12.42
+ ],
+ "sheet_in": [
+  68.5,
+  16.5
+ ],
+ "tie_in": 0.5,
+ "sha256": "46816eaa990a82192f59ebcf1c2dffc77a754897d1b9bac3bf2805d1cb00cb8c",
+ "checks": {
+  "one_piece": true,
+  "margin_ok": true,
+  "closed_paths": true,
+  "islands": 2
+ },
+ "notes": [
+  "sheet 68.5 x 16.5 vs price-list blank 88 x 18"
+ ]
+}

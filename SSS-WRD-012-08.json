@@ -1,0 +1,30 @@
+{
+ "row": 726,
+ "sku": "SSS-WRD-012-08",
+ "name": "12\" BIKE Stencil",
+ "category": "Other / wording",
+ "ok": true,
+ "legend": "BIKE",
+ "font": "fhwa-series-c",
+ "font_why": "default for parking-lot legends (no reference size)",
+ "nominal_in": 12,
+ "extents_in": [
+  27.83,
+  12
+ ],
+ "sheet_in": [
+  32,
+  16
+ ],
+ "tie_in": 0.5,
+ "sha256": "751503298c6483d01d3d3d66303d6d3c627c0381261ad5454c9688d9c7656a66",
+ "checks": {
+  "one_piece": true,
+  "margin_ok": true,
+  "closed_paths": true,
+  "islands": 2
+ },
+ "notes": [
+  "sheet 32 x 16 vs price-list blank 38 x 18"
+ ]
+}
