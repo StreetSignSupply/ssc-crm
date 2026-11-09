@@ -11736,7 +11736,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-166";
+const APP_VERSION="2026.11.25-167";
 // the release check (which opens the page from a file) can reach these; the hosted site exposes nothing
 if(location.protocol==="file:")window.__sscTest={S,benchDue,benchChip,weekMonday,picRough,webcatStat};
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
@@ -17088,7 +17088,9 @@ function pipeSummary(o){const parts=[];if(o.locked)return "another copy of the C
 function pipeAny(o){return !!(o.accounts||o.contacts||o.activity||o.quotes||o.invoices||o.inventory||o.settings||o.drafts||o.stages||o.workorders||o.files||o.jobs||o.blocked||o.suggested||o.bad)}
 async function pipeFetch(auto){
   const cfg=pipeCfg();if(!cfg.url)return auto?0:toast("Put the published sheet link in Settings → Sales pipeline feed first.");
-  if(auto&&!cfg.auto)return 0;
+  // the cloud worker (crm-worker.yml) always brings the feed in: the Settings switch only governs people's copies.
+  // Nov 8: the switch was off and the worker paused, so nothing from the Feed landed for 12 days and nobody saw it.
+  if(auto&&!cfg.auto&&!window.sscImporter)return 0;
   if(PIPE.busy)return auto?0:toast("The feed is already being brought in — give it a moment.");
   PIPE.busy=true;
   try{
