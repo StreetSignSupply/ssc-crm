@@ -1,9 +1,11 @@
 # Fetches the FHWA Standard Highway Signs "Pavement Markings" chapter and the Standard Alphabets (public domain,
 # US government work) and turns their pages into SVG so the stencil generator's letter and number shapes can be
-# traced from the official drawings. Run by hand; the files come back as a workflow artifact.
+# traced from the official drawings. Run by hand; the files land on a new stencil-source-<run id> branch.
 name: Stencil source (FHWA drawings)
 on:
   workflow_dispatch: {}
+permissions:
+  contents: write
 jobs:
   fetch:
     runs-on: ubuntu-latest
@@ -21,9 +23,12 @@ jobs:
             pdftotext -layout "$f" "svg/$b.txt"
             for i in $(seq 1 "$n"); do pdftocairo -svg -f "$i" -l "$i" "$f" "svg/$b-p$i.svg"; done; done
           ls svg | head -50
-      - uses: actions/upload-artifact@v4
-        with:
-          name: fhwa-stencil-source
-          path: |
-            src/
-            svg/
+      - name: Save to a new stencil-source branch (never main, no force push)
+        run: |
+          B="stencil-source-${{ github.run_id }}"
+          git init -q out && cd out && git checkout -q -b "$B"
+          cp -r ../src ../svg .
+          git config user.name "CRM bot" && git config user.email "crm-bot@streetsignsupply.com"
+          git add -A && git commit -q -m "FHWA SHS Pavement Markings + Standard Alphabets (public domain), pages as SVG"
+          git push -q "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" "$B"
+          echo "branch: $B" >> "$GITHUB_STEP_SUMMARY"
