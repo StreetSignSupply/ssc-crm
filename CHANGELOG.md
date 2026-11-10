@@ -1,5 +1,10 @@
 # What changed
 
+## 2026.11.25-170 (each reminder once a day, never for archived or paid work; every broken Feed row listed with its reason)
+- **One reminder, once a day.** Two open copies of the CRM each sent the same nine reminders a minute apart (Nov 9 16:08, CRM Bot F-20261109-1645-CRM3). Now one copy claims the day's sending for 20 minutes and checks the claim is still its own before it sends, a pass that is already running can't start a second one, and each reminder is marked sent before it goes out (a failed send still queues and retries).
+- **No reminders for archived, lost, deleted or paid projects.** Before sending, the project is read fresh from the database, so a copy opened before the project was archived can't chase it (Sky Mountain HOA, Red Rock and Southern Utah Sealcoating did on Nov 9). A project whose QuickBooks invoice has nothing owing (from the QuickBooks copy) counts as paid even when the CRM still says "invoiced" (P-2008, invoice 1004). A proof reminder stops once the project is in production or billed.
+- **Feed Broken tab.** The export writes every Feed row the CRM refused, with who posted it (row_id prefix), what it points at and why it was refused (project not found or already deleted, bad JSON, account not found, ...), every 30 minutes. The import now saves the reason with each refused row; rows refused before this build get a worked-out reason.
+
 ## 2026.11.25-169 (an account row for an account we already have is done)
 - A Feed `account` row whose account is already in the CRM (matched by name, phone or email domain) made no new record, so nothing pointed back to it and CRM Health counted it as waiting forever: eight such rows from Oct 26 kept the gauge on ALERT after the feed was otherwise caught up. They are now remembered as done.
 - Bot team: a bot's runs also come from its Token Usage rows and the Findings it raises (Hunter logs on Bob's sheet, Marketing writes no Log rows), and a problem flag comes only from its latest run.

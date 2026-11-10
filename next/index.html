@@ -11944,7 +11944,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-169";
+const APP_VERSION="2026.11.25-170";
 // the release check (which opens the page from a file) can reach these; the hosted site exposes nothing
 if(location.protocol==="file:")window.__sscTest={S,benchDue,benchChip,weekMonday,picRough,webcatStat};
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
@@ -16916,7 +16916,7 @@ async function pipeImportRows(rows){
   const bad=Object.assign({},S.pipeBad||{});
   const mark=id=>{PIPE.seen.add(id);last=id;delete bad[id]};
   // a row the CRM can't read or apply is remembered with the day it last failed, so CRM Health tells it apart from a stall
-  const isBad=id=>{if(id)bad[id]=today()};
+  const isBad=(id,why)=>{if(id)bad[id]=today()+(why?" | "+why:"")};   // date | why, so the Feed Broken tab tells each bot what to fix
   const stLabel=st=>(SG[st]||{}).label||st;
   try{
   for(const r of rows){
@@ -16926,17 +16926,17 @@ async function pipeImportRows(rows){
     const now=Date.now();
     // lines are read first: a row whose lines can't be read is left for the agents to fix, never marked done
     const ol=(type==="quote"||r.updates)?pipeLines(r):[];
-    if(ol===null){(out.bad++,isBad(id));continue}
+    if(ol===null){(out.bad++,isBad(id,"lines are not valid JSON"));continue}
     // --- setting: subject = the field, text = the value ---
     if(type==="setting"){const field=String(r.subject||"").trim();const val=pipeSettingValue(field,r.text);
-      if(val===undefined){(out.bad++,isBad(id));continue}
+      if(val===undefined){(out.bad++,isBad(id,"setting value not allowed"));continue}
       const patch={[field]:val};if(field==="margin")patch.marginOverride=val>0;
       await push("settings/brand",patch);S.brand=Object.assign({},S.brand||{},patch);
       out.settings++;done[id]=1;mark(id);continue}
     // --- inventory: text = JSON {sku,item,qty,unit,unit_cost,vendor,ref,received,freight} — a receipt, item made if new ---
-    if(type==="inventory"){const o=pipeJSON(r.text);if(!o){(out.bad++,isBad(id));continue}
+    if(type==="inventory"){const o=pipeJSON(r.text);if(!o){(out.bad++,isBad(id,"text is not valid JSON or is missing fields"));continue}
       const sku=String(o.sku||"").trim(),nm=String(o.item||o.name||"").trim();const qty=Number(csvNum(o.qty))||0;
-      if(!sku&&!nm){(out.bad++,isBad(id));continue}
+      if(!sku&&!nm){(out.bad++,isBad(id,"inventory row has no SKU or name"));continue}
       const lc=v=>String(v||"").trim().toLowerCase();
       let it=sku?live(S.items).find(x=>lc(x.sku)===lc(sku)):null;
       if(!it&&nm)it=live(S.items).find(x=>{const a=lc(x.name),b=lc(nm);return a&&b&&(a.indexOf(b)>=0||b.indexOf(a)>=0)});
@@ -16969,7 +16969,7 @@ async function pipeImportRows(rows){
         await push("items/"+it.id,Object.assign({onHand:nowQ,updatedAt:now},want<0?{needsCount:true}:{}));it.onHand=nowQ;
         recordHistory("item",it.id,[{f:"Stock",o:String(was),n:String(nowQ)+" (used"+(jn?" on work order "+jn:"")+" — agents' feed)"+(want<0?" — the count was "+Math.round(-want*100)/100+" short; needs a recount":"")}]);
         out.inventory++;done[id]=1;mark(id);continue}
-      if(ono<=0&&qty<=0){if(touched)out.inventory++;else (out.bad++,isBad(id));done[id]=1;mark(id);continue}
+      if(ono<=0&&qty<=0){if(touched)out.inventory++;else (out.bad++,isBad(id,"inventory row changes nothing"));done[id]=1;mark(id);continue}
       if(ono>0&&qty<=0){const txid=uid("tx");const exp=/^\d{4}-\d{2}-\d{2}/.test(String(o.expected||""))?String(o.expected).slice(0,10):"";
         await setDoc("invtx/"+txid,{id:txid,itemId:it.id,type:"ordered",kind:"ordered",qty:ono,at:now,who:"AI",
           note:["Ordered",o.vendor?"from "+o.vendor:"",ref?"— "+ref:"",exp?"(expected "+exp+")":""].filter(Boolean).join(" "),jobId:"",cost:uc===""?"":Number(uc).toFixed(2),
@@ -17001,7 +17001,7 @@ async function pipeImportRows(rows){
     //     The email goes from a team member's own address (default: the sales rep on the project, else the bot's team record
     //     by "from"); a quote from anyone but the owner waits for Matt's OK exactly as it does for a person. Fix list item 14.
     if(type==="send"){const o=pipeJSON(r.text);const tgt=pipeFind(r.project||r.updates);
-      if(!o||!tgt){(out.bad++,isBad(id));continue}
+      if(!o||!tgt){(out.bad++,isBad(id,!o?"text is not valid JSON":"project or account not found (or already deleted)"));continue}
       const p=tgt;const note=why=>{logEvent("project",p.id,"Agents — email not sent: "+why);out.blocked++;done[id]=1;mark(id)};
       if(noMail(p)){note("the project is marked as a test");continue}
       const kind=/^(proof|both|email)$/.test(String(o.kind||"").toLowerCase())?String(o.kind).toLowerCase():"quote";
@@ -17050,7 +17050,7 @@ async function pipeImportRows(rows){
       out.sends=(out.sends||0)+1;done[id]=1;mark(id);continue}
     // --- invoice: the accountant's QuickBooks invoice for a project ---
     if(type==="invoice"){const o=pipeJSON(r.text);const tgt=pipeFind(r.project||r.updates);
-      if(!o||!tgt){(out.bad++,isBad(id));continue}
+      if(!o||!tgt){(out.bad++,isBad(id,!o?"text is not valid JSON":"project or account not found (or already deleted)"));continue}
       const inv=String(o.invoice_number||o.invoice||"").trim(),status=String(o.status||"").toLowerCase();
       const paid=!!(o.paid_date||status==="paid"),voided=status==="void"||status==="voided";
       const up={updatedAt:now};if(inv)up.invNum=inv;
@@ -17078,7 +17078,7 @@ async function pipeImportRows(rows){
       // picture: the agents found what the customer is after — text = JSON [{line:1, img:"https://..."}] (line = 1-based
       // position on the quote, or "code" / "desc" to find it). Only the picture changes; prices and quantities are left alone.
       if(type==="picture"){const p=pipeFind(r.project||r.updates);let arr=pipeJSON(r.text);if(arr&&!Array.isArray(arr))arr=[arr];
-        if(!p||!arr||!arr.length){(out.bad++,isBad(id));continue}
+        if(!p||!arr||!arr.length){(out.bad++,isBad(id,"project not found (wrong number, or already deleted)"));continue}
         const L=orderedLines(p).map(o=>Object.assign({},o));const real=L.filter(o=>!isCharge(o));let n=0;
         arr.forEach(x=>{if(!x)return;const im=String(x.img||x.image||x.picture||"").trim();if(!/^https:\/\/\S+$/i.test(im)&&!/^data:image\//i.test(im))return;
           let t=null;const k=Number(x.line);
@@ -17090,7 +17090,7 @@ async function pipeImportRows(rows){
         else await note("project",p.id,"Agents sent pictures but none matched a quote line (or the links weren't https)."+more,"Agents — pictures");
         done[id]=1;mark(id);continue}
       if(type==="archive"){const ref=String(r.project||r.updates||"").trim();
-        if(ref){const p=pipeFind(ref);if(!p){(out.bad++,isBad(id));continue}
+        if(ref){const p=pipeFind(ref);if(!p){(out.bad++,isBad(id,"project not found (wrong number, or already deleted)"));continue}
           const wos=jobsOf(p.id).filter(j=>!j.deleted);
           const why=wos.length?"it has "+wos.length+" work order"+(wos.length===1?"":"s"):(p.invNum||(p.billStatus&&p.billStatus!=="none"))?"it has been invoiced":"";
           if(!on){await sugg("project",p.id,"move this to the recycle bin"+(r.text?" — "+r.text:""));done[id]=1;mark(id);continue}
@@ -17099,7 +17099,7 @@ async function pipeImportRows(rows){
           await asAI(()=>recordHistory("project",p.id,[{f:"Deleted",o:"",n:"Moved to recycle bin by the agents"+(r.text?" — "+r.text:""),ev:1}]));
           out.stages++;done[id]=1;mark(id);continue}
         const a=r.account?live(S.accounts).find(x=>String(x.name||"").trim().toLowerCase()===String(r.account).trim().toLowerCase()):null;
-        if(!a){(out.bad++,isBad(id));continue}
+        if(!a){(out.bad++,isBad(id,"account not found (name must match the CRM exactly)"));continue}
         const busy=live(S.projects).filter(p=>p.accountId===a.id).length;
         if(!on){await sugg("account",a.id,"move this account to the recycle bin"+(r.text?" — "+r.text:""));done[id]=1;mark(id);continue}
         if(busy){await note("account",a.id,"Agents tried to move this account to the recycle bin: blocked because it still has "+busy+" project"+(busy===1?"":"s")+"."+more,"Agents — blocked");out.blocked++;done[id]=1;mark(id);continue}
@@ -17108,7 +17108,7 @@ async function pipeImportRows(rows){
         await asAI(()=>recordHistory("account",a.id,[{f:"Deleted",o:"",n:"Moved to recycle bin by the agents"+(r.text?" — "+r.text:""),ev:1}]));
         out.stages++;done[id]=1;mark(id);continue}
       if(type==="stage"){const p=pipeFind(r.project||r.updates);const st=String(r.stage||"").trim().toLowerCase();
-        if(!p||(PATH.indexOf(st)<0&&st!=="lost")){(out.bad++,isBad(id));continue}
+        if(!p||(PATH.indexOf(st)<0&&st!=="lost")){(out.bad++,isBad(id,"project not found (wrong number, or already deleted)"));continue}
         const lbl=stLabel(st),po=String(r.po||"").trim();
         if(!on){await sugg("project",p.id,"move this to "+lbl+(po?" (PO "+po+")":"")+(r.text?" — "+r.text:""));done[id]=1;mark(id);continue}
         if(po&&po!==String(p.po||"")){const old=p.po||"";await push("projects/"+p.id,{po,updatedAt:now});p.po=po;
@@ -17118,7 +17118,7 @@ async function pipeImportRows(rows){
           if(why){await note("project",p.id,"Agents tried to move this to "+lbl+": blocked because "+why+"."+(po?" PO "+po+" recorded.":"")+more,"Agents — blocked");out.blocked++}
           else{await note("project",p.id,"Agents moved this to "+lbl+"."+(po?" PO "+po+".":"")+more);out.stages++}}
         done[id]=1;mark(id);continue}
-      if(type==="workorder"||type==="work_order"){const p=pipeFind(r.project||r.updates);if(!p){(out.bad++,isBad(id));continue}
+      if(type==="workorder"||type==="work_order"){const p=pipeFind(r.project||r.updates);if(!p){(out.bad++,isBad(id,"project not found (wrong number, or already deleted)"));continue}
         const due=/^\d{4}-\d{2}-\d{2}/.test(String(r.when||""))?String(r.when).slice(0,10):"";
         if(!on){await sugg("project",p.id,"create the work orders"+(due?" due "+due:"")+(r.text?" — "+r.text:""));done[id]=1;mark(id);continue}
         const res=await agentWO(p,due,r.text);
@@ -17127,10 +17127,10 @@ async function pipeImportRows(rows){
         else{await note("project",p.id,"Agents created work order"+(res.made.length===1?" ":"s ")+res.made.join(", ")+(due?" — due "+due:"")+"."+(r.text?"\nShop note: "+r.text:""));out.workorders+=res.made.length}
         done[id]=1;mark(id);continue}
       if(type==="file"){const o=pipeJSON(r.text);const url=o?String(o.url||"").trim():"";
-        if(!o||!/^https?:\/\/[^\s"'<>]+$/i.test(url)){(out.bad++,isBad(id));continue}
+        if(!o||!/^https?:\/\/[^\s"'<>]+$/i.test(url)){(out.bad++,isBad(id,"text is not valid JSON or is missing fields"));continue}
         const p=pipeFind(r.project||r.updates);let aid=p?p.accountId:"";
         if(!p&&(r.account||r.email)){const m=pipeMatch(r);if(m.acct)aid=m.acct.id}
-        if(!p&&!aid){(out.bad++,isBad(id));continue}
+        if(!p&&!aid){(out.bad++,isBad(id,"file row names no project or account"));continue}
         const k0=String(o.kind||"other").trim().toLowerCase().replace(/[\s-]+/g,"_");const kind=AGENT_FILE[k0]?k0:"other";
         const appr=o.approved===true||/^(true|yes|y|1)$/i.test(String(o.approved==null?"":o.approved));
         const cat=kind==="proof"&&appr?"Signed proof":AGENT_FILE[kind];
@@ -17164,8 +17164,8 @@ async function pipeImportRows(rows){
           else if(!dup)lines.push("Proof filed — not marked as sent to the customer, so the revision stays at "+(Number(p.proofRev)||0)+".")}
         await note(rt,ri,lines.join("\n"),"Agents — file");
         done[id]=1;mark(id);continue}
-      if(type==="job"){const o=pipeJSON(r.text);if(!o){(out.bad++,isBad(id));continue}
-        const js=agentJobs(r,o);if(!js.length){(out.bad++,isBad(id));continue}
+      if(type==="job"){const o=pipeJSON(r.text);if(!o){(out.bad++,isBad(id,"text is not valid JSON or is missing fields"));continue}
+        const js=agentJobs(r,o);if(!js.length){(out.bad++,isBad(id,"job rows missing"));continue}
         for(const j of js){const rt=j.projectId&&proj(j.projectId)?"project":"job",ri=rt==="project"?j.projectId:String(j.num);
           const what=[o.status?String(o.status).replace(/_/g," "):"",o.carrier?String(o.carrier):"",o.tracking?"tracking "+o.tracking:"",o.ship_date?"shipped "+o.ship_date:""].filter(Boolean).join(", ");
           if(!on){await sugg(rt,ri,"work order "+j.num+": "+what);continue}
@@ -17200,17 +17200,17 @@ async function pipeImportRows(rows){
         if(up.orderLines)logEvent("project",tgt.id,"Updated by Claude's sales agents — "+ol.length+" quote line"+(ol.length===1?"":"s")+", "+money2(pipeTotal(ol)));
         else if(!ol.length)logEvent("project",tgt.id,"Updated by Claude's sales agents");
         out.quotes++;done[id]=1;mark(id);continue}
-      (out.bad++,isBad(id));continue}
+      (out.bad++,isBad(id,"unknown row type"));continue}
     // --- draft: the writer's email for a planned follow-up (stage 1/2/3) or a requested draft (stage = its kind) ---
-    if(type==="draft"){const tgt=pipeFind(r.project);if(!tgt){(out.bad++,isBad(id));continue}
+    if(type==="draft"){const tgt=pipeFind(r.project);if(!tgt){(out.bad++,isBad(id,"project not found (wrong number, or already deleted)"));continue}
       const kind=String(r.stage||r.kind||"").trim().toLowerCase();const fn=/^(?:followup|follow-up|fu)?\s*([123])$/.exec(kind);
       const sentNow=String(r.source||"").trim().toLowerCase()==="sent";const when=(r.when||today()).slice(0,10);
-      if(fn){const fus=(tgt.followups||[]).map(f=>Object.assign({},f));const f=fus.find(x=>Number(x.n)===Number(fn[1]));if(!f){(out.bad++,isBad(id));continue}
+      if(fn){const fus=(tgt.followups||[]).map(f=>Object.assign({},f));const f=fus.find(x=>Number(x.n)===Number(fn[1]));if(!f){(out.bad++,isBad(id,"follow-up number not on that project"));continue}
         if(f.status==="planned"||f.status==="drafted"){f.subject=r.subject||f.subject||"";f.body=r.text||f.body||"";f.draftedAt=now;f.status="drafted";
           if(sentNow){f.status="sent";f.sentAt=now;f.by="AI"}}
         await push("projects/"+tgt.id,{followups:fus,updatedAt:now});tgt.followups=fus;
         logEvent("project",tgt.id,"Follow-up "+f.n+(sentNow?" sent by the agents":" drafted by the writer"));
-      }else{if(!DRAFT_KINDS[kind]){(out.bad++,isBad(id));continue}
+      }else{if(!DRAFT_KINDS[kind]){(out.bad++,isBad(id,"unknown draft kind"));continue}
         const ds=(tgt.drafts||[]).map(d=>Object.assign({},d));
         let d=ds.filter(x=>x.kind===kind&&x.status==="requested").sort((a,b)=>(b.requestedAt||0)-(a.requestedAt||0))[0];
         if(!d){d={id:uid("dr"),kind,status:"requested",requestedAt:now,by:"AI",subject:"",body:"",draftedAt:0,sentAt:0};ds.push(d)}
@@ -17219,7 +17219,7 @@ async function pipeImportRows(rows){
         logEvent("project",tgt.id,DRAFT_KINDS[kind]+(sentNow?" sent by the agents":" drafted by the writer"));}
       if(sentNow)await draftLogSent(tgt,r.subject,r.text,id,when);
       out.drafts++;done[id]=1;mark(id);continue}
-    if(!r.account&&!r.email){(out.bad++,isBad(id));continue}
+    if(!r.account&&!r.email){(out.bad++,isBad(id,"no account name or email"));continue}
     const m=pipeMatch(r);
     let aid=m.acct?m.acct.id:(newA[String(r.account||"").toLowerCase()]||"");
     if(!aid){aid=uid("a");
@@ -17641,7 +17641,7 @@ async function syncAll(){
   try{for(const p of live(S.projects).filter(followOpen)){for(const f of p.followups){
       if(await syncPost("followup/"+p.id+":"+f.n,{event:"backfill",sent_at:new Date().toISOString(),crm_version:APP_VERSION,record:followSyncRec(p,f)},url))extra++;
       await new Promise(r=>setTimeout(r,250))}}
-    extra+=remDeliver(url,true);
+    extra+=await remDeliver(url,true);
     for(const p of live(S.projects)){for(const d of (p.drafts||[]).filter(x=>x.status==="requested")){
       if(await syncPost("draft_request/"+d.id,{event:"backfill",sent_at:new Date().toISOString(),crm_version:APP_VERSION,record:draftReqRec(p,d)},url))extra++;
       await new Promise(r=>setTimeout(r,250))}}
@@ -17797,30 +17797,36 @@ function remScopeOf(t){return t&&t.remScope?t.remScope:"own"}
 function remOwner(){return live(S.team).find(t=>teamRole(t)==="owner"&&String(t.name||"").trim())||null}
 function remTo(r){const t=r&&r.rep?S.team.get(r.rep):null;return t&&!t.deleted?t:remOwner()}
 function remEmailOf(t){return (t&&(t.remEmail||t.email))||""}
+// paid in QuickBooks: the invoice copy (settings/qbinv) has this project's invoice with nothing left owing.
+// The CRM's own bill status can lag QuickBooks (P-2008 stayed "invoiced" after invoice 1004 was paid), so either one counts.
+function remPaid(p){if(!p)return false;if(billState(p)==="paid")return true;const n=String(p.invNum||"").replace(/^#/,"").trim();if(!n)return false;
+  const q=(qbRows()||[]).find(x=>String(x.doc).replace(/^#/,"").trim()===n);return !!(q&&qbNum(q.total)>0&&qbNum(q.balance)<=0)}
+// a project the customer has moved past: closed, lost, paid, or already in production (a proof can't still be waiting then)
+function remDone(p){return !p||p.deleted||isClosed(p)||remPaid(p)}
 // every reminder the data supports right now, with the record it points at and who it belongs to
 function remAll(){
   const out=[];const now=Date.now(),t=today();const H=3600000;
   const ps=real(live(S.projects));
   const repOf=p=>{const r=repFor(p);return r?r.id:""};
   // quote follow-up due (feature 1)
-  ps.forEach(p=>followDueOf(p).forEach(f=>out.push({id:"followup:"+p.id+":"+f.n,type:"followup",due:f.due,route:"project/"+p.id,rep:repOf(p),acct:p.accountId,
-    text:"Follow-up "+f.n+" on "+(p.quote||"P-"+p.num)+" — "+accName(p.accountId)+(f.status==="drafted"?" (drafted, ready to send)":" (waiting for the draft)")})));
+  ps.forEach(p=>{if(remDone(p))return;followDueOf(p).forEach(f=>out.push({id:"followup:"+p.id+":"+f.n,type:"followup",due:f.due,route:"project/"+p.id,rep:repOf(p),acct:p.accountId,
+    text:"Follow-up "+f.n+" on "+(p.quote||"P-"+p.num)+" — "+accName(p.accountId)+(f.status==="drafted"?" (drafted, ready to send)":" (waiting for the draft)")}))});
   // proof sent, not approved in 48 hours
-  ps.forEach(p=>{if(isClosed(p)||!p.proofAt||now-p.proofAt<48*H)return;
+  ps.forEach(p=>{if(remDone(p)||!p.proofAt||now-p.proofAt<48*H||PATH.indexOf(p.stage)>=PATH.indexOf("production")||billState(p)!=="none")return;
     if(filesOf("project",p.id).some(f=>f.cat==="Signed proof")||jobsOf(p.id).some(j=>j.gates&&j.gates.proof))return;
     out.push({id:"proof:"+p.id+":"+(p.proofRev||1),type:"proof",due:isoDay(p.proofAt+48*H),route:"project/"+p.id,rep:repOf(p),acct:p.accountId,
       text:"Proof on P-"+p.num+" "+accName(p.accountId)+" not approved — sent "+daysSince(p.proofAt)+" day"+(daysSince(p.proofAt)===1?"":"s")+" ago"})});
   // PO in, no work order after a day
-  ps.forEach(p=>{if(isClosed(p)||!String(p.po||"").trim()||jobsOf(p.id).length)return;
+  ps.forEach(p=>{if(remDone(p)||!String(p.po||"").trim()||jobsOf(p.id).length)return;
     const since=stageAt(p,"won")||Number(p.updatedAt)||Number(p.createdAt)||0;if(!since||now-since<24*H)return;
     out.push({id:"po:"+p.id,type:"po",due:isoDay(since+24*H),route:"project/"+p.id,rep:repOf(p),acct:p.accountId,text:"PO "+p.po+" on P-"+p.num+" "+accName(p.accountId)+" — no work order yet"})});
   // shipped with nothing to track
   live(S.jobs).filter(realJob).forEach(j=>{if(j.status!=="shipped")return;const p=S.projects.get(j.projectId);if(!p||p.deleted||isClosed(p))return;
-    const sh=j.ship||{};if(/will call|pick/i.test(sh.method||"")||String(sh.tracking||"").trim())return;
+    if(remPaid(p))return;const sh=j.ship||{};if(/will call|pick/i.test(sh.method||"")||String(sh.tracking||"").trim())return;
     out.push({id:"tracking:"+j.num,type:"tracking",due:isoDay(shipAt(j)||now),route:"job/"+j.num,rep:repOf(p),acct:j.accountId||p.accountId,
       text:"Work order "+j.num+" shipped with no tracking — "+accName(j.accountId||p.accountId)})});
   // invoice past terms
-  ps.forEach(p=>{if(isClosed(p)||billState(p)!=="invoiced"||!isPastTerms(p))return;
+  ps.forEach(p=>{if(remDone(p)||billState(p)!=="invoiced"||!isPastTerms(p))return;
     out.push({id:"terms:"+p.id,type:"terms",due:payDueDate(p)||t,route:"project/"+p.id,rep:repOf(p),acct:p.accountId,
       text:"Invoice "+(p.invNum||"on P-"+p.num)+" past terms — "+money(billedValue(p))+", "+accName(p.accountId)})});
   // a customer past their usual reorder gap (three wins or more; 1.3 × their average gap)
@@ -17856,10 +17862,18 @@ function remSyncRec(t,r){
     to_email:remEmailOf(t),to_phone:t.phone||"",team:t.initials||"",team_name:t.name||"",kind:r.type,kind_label:remLabel(r.type),text:r.text,
     record:r.route,url:(location.origin||"")+(location.pathname||"")+"#/"+r.route,due:r.due||"",channel:cfg.channel||"email",mode:cfg.mode||"digest",
     snoozed_until:m.snoozedUntil||"",customer:accName(r.acct),project_number:p&&p.num?"P-"+p.num:"",deleted:false}}
-function remDeliver(url,force){
+function remDeliver(url,force){return remDeliverAsync(url,force)}
+async function remDeliverAsync(url,force){
   if(window.sscWorker)return 0;   // background jobs open their own copy of the CRM — only people's copies send reminders
   const u=String(url||syncCfg().url||"").trim();if(!/^https:\/\//i.test(u))return 0;
-  const all=remAll();const sent=syncSent();const td=today();let n=0;
+  if(REM.busy)return 0;REM.busy=true;
+  try{
+  const td=today();
+  // only one open copy of the CRM sends today's reminders: it claims the day for 20 minutes, then checks the claim is still its own.
+  // Two copies open at once each sent the same nine reminders a minute apart (Nov 9 16:08) — the claim stops that.
+  if(!force&&db&&!(await remClaim(td)))return 0;
+  await syncSentRefresh();
+  const all=remAll();const sent=syncSent();let n=0;const todo=[];
   // each reminder is emailed or texted to ONE person: the rep it belongs to, or the owner when it has none.
   // (Everyone still sees what's in their scope in the bell.)
   const reach=t=>t&&!t.deleted&&String(t.name||"").trim()&&(remEmailOf(t)||t.phone);
@@ -17873,11 +17887,28 @@ function remDeliver(url,force){
       // one row per reminder on the sheet (not one per team member), sent at most once a day from any computer
       const key="reminder/"+r.id;const prev=sent[key]||sent["reminder/"+t.id+":"+r.id];
       if(!force&&prev&&isoDay(prev.at)===td)return;
-      const rec=remSyncRec(t,r);
-      if(force){syncPost(key,{event:"backfill",sent_at:new Date().toISOString(),crm_version:APP_VERSION,record:rec},u);n++}
-      else{syncPost(key,{event:"due",sent_at:new Date().toISOString(),crm_version:APP_VERSION,record:rec},u);n++}})});
+      todo.push({key,t,r})})});
+  for(const x of todo){
+    // read the project fresh from the database: a copy opened before it was archived or paid must not chase it
+    const pid=/^project\//.test(x.r.route)?x.r.route.slice(8):"";
+    if(pid&&db&&!force){try{const d=await db.doc("projects/"+pid).get();const ok=d&&(typeof d.exists==="function"?d.exists():d.exists);
+      const fresh=ok&&d.data?d.data():null;if(!fresh||remDone(Object.assign({},S.projects.get(pid)||{},fresh)))continue}catch(e){}}
+    const rec=remSyncRec(x.t,x.r);
+    // marked sent BEFORE it goes, so a second pass while Google is still answering can't send it again (a failed send is queued and retried)
+    syncMark(x.key,rec);
+    syncPost(x.key,{event:force?"backfill":"due",sent_at:new Date().toISOString(),crm_version:APP_VERSION,record:rec},u);n++}
   return n;
+  }finally{REM.busy=false}
 }
+const REM={busy:false,copy:Math.random().toString(36).slice(2,10)};
+async function remClaim(day){
+  const read=async()=>{try{const d=await db.doc("settings/remclaim").get();const ok=d&&(typeof d.exists==="function"?d.exists():d.exists);return ok&&d.data?d.data():null}catch(e){return null}};
+  const c=await read();const now=Date.now();
+  if(c&&c.day===day&&c.copy!==REM.copy&&now-(Number(c.at)||0)<20*60000)return false;
+  try{await setDoc("settings/remclaim",{day,copy:REM.copy,at:now,by:me()||"",build:APP_VERSION})}catch(e){return false}
+  await new Promise(r=>setTimeout(r,1500));
+  const c2=await read();return !c2||c2.copy===REM.copy}
+
 // on load and every 15 minutes: deliver what's due, and redraw the bell when the count moved
 /* The database lock: the owner turns it on here; a job running every 10 minutes does it, then waits for this
    page to confirm it still reads and writes (and puts the old rules back by itself if nothing confirms in 20 min). */
@@ -17942,7 +17973,7 @@ async function accessSync(force){if(ACCESS_BUSY||!db||!S.ready||!S.team||!S.team
   return {n,gone,total:Object.keys(accessWanted()).length}}
 function remTick(){try{if(!db||!S.ready||!S.brandLoaded)return;
     // another copy of the CRM may have sent today's reminders already: read the shared sent-list first, then deliver
-    syncSentRefresh().then(()=>{try{remDeliver()}catch(e){}});accessSync().catch(()=>{});
+    remDeliver().catch(()=>{});accessSync().catch(()=>{});
     const n=remMine().length;if(S._remN!==n){S._remN=n;if(!typing()&&!S.modal)render()}}catch(e){}}
 function bellBtn(){
   if(!S.viewerTeam)return "";

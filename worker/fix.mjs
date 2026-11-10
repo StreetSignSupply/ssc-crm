@@ -287,9 +287,9 @@ if (STEP === "export") {
     // CRM Health: is the agents' feed actually landing? (Nov 8: the switch was off and the worker paused for 12 days, unnoticed.)
     try {
       const feed = await api("/values/" + encodeURIComponent("Feed!A1:AA5000") + "?majorDimension=ROWS", "GET");
-      const fv = feed.values || []; const hdr = fv[0] || []; const iId = hdr.indexOf("row_id"), iAt = hdr.indexOf("at"), iType = hdr.indexOf("type");
+      const fv = feed.values || []; const hdr = fv[0] || []; const iId = hdr.indexOf("row_id"), iAt = hdr.indexOf("at") >= 0 ? hdr.indexOf("at") : hdr.indexOf("when"), iType = hdr.indexOf("type");
       const health = await page.evaluate(async (rows) => {
-        const T = window.__T, S = T.S; let done = {}, bad = {};
+        const T = window.__T, S = T.S; let done = {}, bad = {}; const ref2 = (r) => r.project || r.updates || r.account || r.email || "";
         let doneErr = "";
         try { const d = await T.getDb().doc("settings/pipefeed").get(); const ok = d && (typeof d.exists === "function" ? d.exists() : d.exists); const dd = (ok && d.data()) || {}; done = dd.done || {}; bad = dd.bad || {}; } catch (e) { doneErr = String(e && e.message || e).slice(0, 120); }
         if (!Object.keys(done).length && S.pipeDone) done = S.pipeDone;
@@ -298,8 +298,18 @@ if (STEP === "export") {
         const broken = rows.filter((r) => r.id && bad[r.id] && !done[r.id] && !ids.has(r.id));
         const un = rows.filter((r) => r.id && !done[r.id] && !ids.has(r.id) && !bad[r.id]);
         const cfg = (T.pipeCfg || (() => ({})))(); const b = S.brand || {};
-        return { unapplied: un.length, oldest: un.length ? un.map((r) => r.at).filter(Boolean).sort()[0] || "" : "", sample: un.slice(0, 5).map((r) => r.id).join(", "), auto: cfg.auto === true, last: cfg.last || "", url: !!cfg.url, build: T.APP_VERSION || "", agentCtl: b.agentCtl !== false, doneCount: Object.keys(done).length, doneErr, broken: broken.length, brokenSample: broken.slice(0, 8).map((r) => r.id).join(", ") };
-      }, fv.slice(1).filter((r) => r[iId]).map((r) => ({ id: String(r[iId]).trim(), at: String(r[iAt] || ""), type: String(r[iType] || "") })));
+        return { unapplied: un.length, oldest: un.length ? un.map((r) => r.at).filter(Boolean).sort()[0] || "" : "", sample: un.slice(0, 5).map((r) => r.id).join(", "), auto: cfg.auto === true, last: cfg.last || "", url: !!cfg.url, build: T.APP_VERSION || "", agentCtl: b.agentCtl !== false, doneCount: Object.keys(done).length, doneErr, broken: broken.length, brokenSample: broken.slice(0, 8).map((r) => r.id).join(", "),
+          // every broken row with its reason, for the Feed Broken tab (rows marked before build 170 have no reason saved: work it out)
+          brokenRows: broken.map((r) => { const v = String(bad[r.id] || ""); let why = v.indexOf(" | ") > 0 ? v.split(" | ").slice(1).join(" | ") : "";
+            if (!why) { const ref = r.project || r.updates; const find = T.pipeFind || (() => null);
+              if (ref && !find(ref)) { const anyP = [...S.projects.values()].find((p) => p && (p.feedId === ref || String(p.num || "") === String(ref).toUpperCase().replace(/^P-?/, "") || String(p.quote || "").toUpperCase() === String(ref).toUpperCase())); why = anyP && anyP.deleted ? "project already deleted (in the recycle bin)" : "project not found (wrong number)"; }
+              else if (r.text && /^[\[{]/.test(r.text.trim()) && !(T.pipeJSON || (() => 1))(r.text)) why = "text is not valid JSON";
+              else if (!ref && !r.account && !r.email) why = "names no project, account or email";
+              else why = "rejected before reasons were saved (build 169 or older): check type and fields"; }
+            return [r.id, r.at, r.type, (String(r.id).match(/^[A-Za-z0-9]+(?=[-_])/) || [""])[0], ref2(r), why, v.slice(0, 10)]; }) };
+      }, fv.slice(1).filter((r) => r[iId]).map((r) => ({ id: String(r[iId]).trim(), at: String(r[iAt] || ""), type: String(r[iType] || ""),
+        project: String(r[hdr.indexOf("project")] || "").trim(), updates: String(r[hdr.indexOf("updates")] || "").trim(), account: String(r[hdr.indexOf("account")] || "").trim(),
+        email: String(r[hdr.indexOf("email")] || "").trim(), text: String(r[hdr.indexOf("text")] || "") })));
       // age of the oldest unapplied row, from its "at" (agents write Mountain time) — fall back to "unknown"
       let ageH = null; if (health.oldest) { const m = health.oldest.match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/); if (m) ageH = Math.round((Date.now() - (Date.UTC(+m[1], m[2] - 1, +m[3], +m[4], +m[5]) + 7 * 3600000)) / 36000) / 100; }
       const stalled = health.doneCount > 0 && health.unapplied > 0 && ageH != null && ageH > 2;
@@ -317,10 +327,15 @@ if (STEP === "export") {
         ["feed_rows_total", String(fv.length - 1), "rows on the Feed tab"],
         ["feed_rows_unapplied", String(health.unapplied), health.sample],
         ["oldest_unapplied_at", health.oldest, ageH == null ? "" : ageH + " h ago"],
-        ["feed_rows_broken", String(health.broken), "rows the CRM could not read or apply (missing project/account, bad JSON, unknown type) — the posting bot fixes them with a corrected row; they never count as a stall. " + health.brokenSample],
+        ["feed_rows_broken", String(health.broken), "rows the CRM could not read or apply (missing project/account, bad JSON, unknown type) — the posting bot fixes them with a corrected row; they never count as a stall. " + health.brokenSample + " — every one, with the reason, on the Feed Broken tab"],
         ["worker_schedule", "every 30 min (Actions > CRM worker)", "back on 2026-11-09; it was paused 10/27 to 11/9"],
       ];
-      await write("CRM Health", rows, 5); step("CRM Health written: " + status + " (done " + health.doneCount + (health.doneErr ? ", read error: " + health.doneErr : "") + ")");
+      await write("CRM Health", rows, 5);
+      // Feed Broken: one line per broken Feed row — who posted it (row_id prefix), what it points at and why it was refused.
+      // The posting bot reposts a corrected row with a NEW row_id, or posts a Findings line saying the old row is obsolete.
+      try {
+        const fb = [["row_id", "posted_at", "type", "poster_prefix", "points_at", "why_refused", "refused_on", "Written by the CRM export every 30 min. Your bot's rows: fix by posting a corrected Feed row with a NEW row_id (never edit the old one), or say it is obsolete in Findings. Rows disappear from here once fixed or superseded."]].concat(health.brokenRows || []);
+        await write("Feed Broken", fb, 9); step("Feed Broken written: " + ((health.brokenRows || []).length) + " rows"); } catch (e) { console.log("::warning::Feed Broken not written: " + String(e.message || e).slice(0, 160)); } step("CRM Health written: " + status + " (done " + health.doneCount + (health.doneErr ? ", read error: " + health.doneErr : "") + ")");
       if (!health.doneCount) { console.log("::warning::CRM Health: could not read settings/pipefeed (" + (health.doneErr || "empty") + ") so the unapplied count is not trustworthy; no alert raised"); }
       if (stalled && !prevAlert) { console.log("::error::CRM Health ALERT: " + health.unapplied + " Feed rows not applied, oldest " + ageH + " h (" + health.sample + "). This run fails on purpose so GitHub emails Matt once; later runs only warn."); await browser.close(); process.exit(1); }
       if (stalled) console.log("::warning::CRM Health still ALERT: " + health.unapplied + " unapplied, oldest " + ageH + " h");

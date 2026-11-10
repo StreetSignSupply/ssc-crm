@@ -10,4 +10,4 @@ isTestRec acctKey acctStage
 vendorLookalikes isVendorAcct nameWords
 vendorMaybes
  acctDomains
- pipeCfg APP_VERSION
+ pipeCfg APP_VERSION pipeFind pipeJSON

@@ -40,6 +40,7 @@ jobs:
           npx playwright install --with-deps chromium > /tmp/pw.log 2>&1 || { tail -3 /tmp/pw.log; exit 1; }
           node measure.mjs
           node smoke.mjs next/index.html
+          node rem-check.mjs
       - name: Release it
         if: github.event.inputs.rollback == ''
         run: |
