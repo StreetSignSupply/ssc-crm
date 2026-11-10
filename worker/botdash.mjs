@@ -53,7 +53,10 @@ export function buildBotDash(tabs, now = Date.now()) {
   const tokRows = rowsOf(tabs.tokens).map((r) => ({ t: mtTime(r.at), agent: r.bot, action: [r.routine, r.outcome].filter(Boolean).join(": "), detail: r.notes || "", tok: true })).filter((r) => r.t && r.t <= now + 3600000);
   const per = {}; roster.forEach((b) => { per[b.name] = { runs: [], last: null }; });
   // a problem only counts when the bot's latest entry reports it (an old error that was fixed later doesn't keep the flag up)
-  const errRe = /\b(failed|error|errors|out of usage|usage limit|rate limit|could not|couldn't|not linked|no chrome|stalled)\b/i;
+  // the bot's OWN run failing, judged from the start of its summary line ("27B: no Chrome, exited", "run failed: ..."); a bot that reports
+  // other bots' problems (Mechanic "stopped: 27B no Chrome"), counts fixes ("2 repeat errors") or describes a failure it already fixed is not flagged
+  const errRe = /^.{0,40}\b(failed|error|errors|out of usage|usage limit|rate limit|could not|couldn't|not linked|no chrome|stalled|exited)\b/i;
+  const hardRe = /\b(out of usage|usage limit|rate limit|run failed|exited)\b/i;
   log.forEach((r) => { const b = botOfLog(r.agent); if (!b) return; const p = per[b.name]; p.runs.push(r.t); if (!p.last || r.t >= p.last.t) p.last = r; });
   tokRows.forEach((r) => { const b = botOfLog(r.agent); if (!b) return; const p = per[b.name];
     if (p.runs.some((t) => Math.abs(t - r.t) < 20 * 60000)) return;            // the same run already has a Log row
@@ -63,7 +66,7 @@ export function buildBotDash(tabs, now = Date.now()) {
     if (p.runs.some((x) => Math.abs(x - t) < 30 * 60000)) return;
     p.runs.push(t); if (!p.last || t > p.last.t) p.last = { t, agent: r.agent, action: "Posted a finding: " + short(r.headline, 150), detail: "" }; });
   roster.forEach((b) => { const p = per[b.name]; const l = p.last;
-    p.errs = l && now - l.t < DAY && errRe.test((l.action || "") + " " + (l.detail || "")) && !/nothing new|0 errors?|no errors?/i.test(l.action || "") ? 1 : 0; });
+    p.errs = l && now - l.t < DAY && (errRe.test(String(l.action || "").replace(/\b\d+\s+(\w+\s+)?(errors?|failed|failures?)\b/gi, "")) || hardRe.test(String(l.action || "").replace(/stopped:.*$/i, ""))) && !/nothing new|0 errors?|no errors?/i.test(l.action || "") ? 1 : 0; });
 
   // ---- findings ----
   const fRows = rowsOf(tabs.findings).filter((r) => r.finding_id);

@@ -16,3 +16,13 @@ t(/if\(!force&&db&&!\(await remClaim\(td\)\)\)return 0/.test(html), "delivery cl
 t(/syncMark\(x\.key,rec\);\s*syncPost\(/.test(html), "a reminder is marked sent before it is posted");
 t(/db\.doc\("projects\/"\+pid\)\.get\(\)/.test(html), "delivery re-reads the project fresh");
 console.log("::notice::rem-check passed");
+// Bot team "problem logged": only the bot's own failed run counts, not a report about others or a count of fixed errors
+{ const { buildBotDash } = await import("../worker/botdash.mjs");
+  const at = (h) => new Date(Date.now() - 7 * 3600000 - h * 3600000).toISOString().slice(0, 16).replace("T", " ");
+  const d = buildBotDash({ roster: [["bot", "platform", "team", "responsibilities", "schedule", "log_names", "owner_keys", "stale_after_hours"],
+      ["Mechanic", "Claude", "Office", "x", "Daily", "mechanic", "Mechanic", "26"], ["Librarian", "Claude", "Office", "x", "Weekly", "librarian", "Librarian", ""],
+      ["27B", "Claude", "Office", "x", "Daily", "27b", "27B", "26"]],
+    log: [["at", "agent", "action", "detail"], [at(2), "Mechanic", "7 checks; fixed: worker; stopped: CRM feed gauge ALERT, 27B no Chrome", ""],
+      [at(3), "Librarian", "promoted 6 lessons, 2 repeat errors, 8 briefs", ""], [at(1), "Agent 27B", "27B: no Chrome, exited", ""]], findings: [], tokens: [], health: [] });
+  const st = Object.fromEntries(d.bots.map((b) => [b.name, b.state]));
+  t(st.Mechanic === "ok" && st.Librarian === "ok" && st["27B"] === "warn", "problem flags: " + JSON.stringify(st)); console.log("::notice::bot problem flags check passed"); }
