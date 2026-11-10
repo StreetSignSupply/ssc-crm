@@ -46,10 +46,11 @@ def glyph_geom(font, ch):
     return geom.buffer(0), g["adv"]
 
 
-def set_line(font, text, min_gap=0.0):
+def set_line(font, text, min_gap=0.0, extra=0.0):
     """Lay one line at cap height 1.0; returns (list of per-letter geoms, missing chars).
     min_gap (cap units): the material web left between two neighbouring letters is never thinner than this
-    (the tie width), so tight FHWA pairs such as LT / AV are opened up just enough."""
+    (the tie width), so tight FHWA pairs such as LT / AV are opened up just enough.
+    extra (cap units): tracking added after every character (letter spacing opened to match a reference width)."""
     f = FONTS[font]; x = 0.0; parts = []; missing = []
     for i, ch in enumerate(text):
         if ch == " ":
@@ -64,15 +65,15 @@ def set_line(font, text, min_gap=0.0):
             if d < min_gap:
                 g = affinity.translate(g, min_gap - d + 1e-4, 0); x += min_gap - d + 1e-4
         parts.append(g)
-        x += adv + (f["letterGap"] if font == "P" else 0)  # P glyphs are drawn from x=0: add the gap rule
+        x += adv + (f["letterGap"] if font == "P" else 0) + extra  # P glyphs are drawn from x=0: add the gap rule
     return parts, missing
 
 
-def layout(font, lines, nominal, tie=0.0):
+def layout(font, lines, nominal, tie=0.0, extra=0.0):
     """lines: list of strings, stacked with a 0.5 cap line gap, centred. Returns list of letter geoms (inches)."""
     rows = []
     for ln in lines:
-        parts, missing = set_line(font, ln, (tie + 1 / 32) / nominal)
+        parts, missing = set_line(font, ln, (tie + 1 / 32) / nominal, extra)
         if missing:
             return None, missing
         rows.append(parts)
@@ -255,22 +256,34 @@ def build(job, out):
             if letters is None:
                 tried.append(f"{font}: no glyph for {''.join(sorted(set(missing)))}"); break
             b = bounds(letters); ew, eh = b[2] - b[0], b[3] - b[1]
+            track = 0.0
+            if ref and len(lines) == 1 and font != "P":
+                # 1800's legend is wider than the FHWA spacing gives: open the letter spacing evenly to their width
+                # (never tighter than FHWA, at most 1/2 cap height per gap) so the stencil matches their size
+                refw = ref[0] if abs(eh - ref[1]) <= abs(eh - ref[0]) else ref[1]
+                gaps = len(lines[0]) - 1
+                if gaps > 0 and refw - ew > 0.25 and (refw - ew) / gaps / nominal <= 0.5:
+                    for _ in range(3):   # the min-gap rule can move letters too: converge on the reference width
+                        track += (refw - ew) / gaps / nominal
+                        letters, _ = layout(font, lines, nominal, tie, track)
+                        b = bounds(letters); ew, eh = b[2] - b[0], b[3] - b[1]
+                        if abs(refw - ew) <= 1 / 32: break
             need = (ew + 2 * MARGIN, eh + 2 * MARGIN)
             if blank:
                 for rot, (sw, sh) in enumerate((blank, blank[::-1])):
-                    if need[0] <= sw + TOL and need[1] <= sh + TOL:
+                    if need[0] <= sw + 1e-6 and need[1] <= sh + 1e-6:   # 2.00 in margin is a floor (ALP-100-03 came out 1.99)
                         fw, fh = need[0] / sw, need[1] / sh
                         if ref:   # 1800 reference size = their legend W x H: closest legend wins, listed orientation first
                             d = min(abs(ew - ref[0]) + abs(eh - ref[1]), abs(ew - ref[1]) + abs(eh - ref[0]))
-                            fits.append(((1 - rot) * 1000 - d, font, lines, letters, (sw, sh))); continue
+                            fits.append(((1 - rot) * 1000 - d, font, lines, letters, (sw, sh), track)); continue
                         if min(fw, fh) < MIN_FILL:
                             low.append(f"{font} {'/'.join(lines)} fills {fw:.0%} x {fh:.0%}"); continue
                         # the price-list orientation first; then the layout that uses the blank best
-                        fits.append(((1 - rot) + fw * fh, font, lines, letters, (sw, sh)))
+                        fits.append(((1 - rot) + fw * fh, font, lines, letters, (sw, sh), track))
             else:
                 sheet = (math.ceil(need[0]), math.ceil(need[1]))
                 if font in ("C", "D"):
-                    fits.append((1 / (sheet[0] * sheet[1]), font, lines, letters, sheet))
+                    fits.append((1 / (sheet[0] * sheet[1]), font, lines, letters, sheet, track))
             tried.append(f"{font} {'/'.join(lines)} {ew:.1f}x{eh:.1f}")
             if len(lines) == 1 and blank and font == "P" and not (need[0] <= max(blank) + TOL and need[1] <= max(blank) + TOL and min(need) <= min(blank) + TOL):
                 widest = max(g.bounds[2] - g.bounds[0] for g in letters)
@@ -294,7 +307,7 @@ def build(job, out):
         return res
     fits.sort(key=lambda f: -f[0])
     problem = None
-    for _, font, lines, letters0, sheet in fits:     # best fill first; first one whose ties pass the 25 % rule
+    for _, font, lines, letters0, sheet, track in fits:     # best fill first; first one whose ties pass the 25 % rule
         if not (min(sheet) <= BED[0] and max(sheet) <= BED[1]):
             problem = problem or f"sheet {fmt(sheet[0])} x {fmt(sheet[1])} is over the 56 x 116 in bed: needs a multi-piece split"
             continue
@@ -320,8 +333,18 @@ def build(job, out):
     dxf = folder / f"{base}.dxf"; png = folder / f"{base}.png"
     to_dxf(dxf, geom, sheet)
     to_png(png, geom, sheet, nominal, ext, sku, legend, font, tie)
+    lay = " / ".join(lines)
+    if track: lay += f", letter spacing opened {fmt(track * nominal)} in per gap to the 1800 width"
+    if ref and (abs(ew - ref[0]) > 0.25 or abs(eh - ref[1]) > 0.25):
+        others = []
+        for o in "CDP":
+            if o == font: continue
+            L2, _ = layout(o, lines, nominal, tie)
+            if L2 is not None:
+                b2 = bounds(L2); others.append(f"{FONT_LABEL[o][5:]} {fmt(b2[2] - b2[0])} x {fmt(b2[3] - b2[1])}")
+        lay += f"; ref 1800 {fmt(ref[0])} x {fmt(ref[1])} vs ours {fmt(ew)} x {fmt(eh)} ({FONT_LABEL[font][5:]} at this cap height; " + ", ".join(others) + ")"
     res.update(ok=True, nominal=fmt(nominal), extents=f"{fmt(ew)} x {fmt(eh)}", sheet=f"{fmt(sheet[0])} x {fmt(sheet[1])}",
-               tie=str(tie), font=FONT_LABEL[font], layout=" / ".join(lines), islands=len(strokes) // 2,
+               tie=str(tie), font=FONT_LABEL[font], layout=lay, islands=len(strokes) // 2,
                narrowest_web=round(web, 3) if web is not None else None,
                min_stroke_at_tie=min(strokes) if strokes else None,
                dxf=str(dxf.relative_to(out)), png=str(png.relative_to(out)),

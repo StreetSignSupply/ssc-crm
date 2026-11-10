@@ -109,3 +109,8 @@ Today's 1:17 PM run held all 1,044 text rows. The three fixes that moved the mos
 Still held by design: ties over 25 % of the stroke (268 rows, Matt's tie-rule decision, Findings CJ1), multi-piece
 blanks (78), sheets over the bed (58), names with no capital legend (140, mostly symbols filed as text), line / art
 size-pair names (144).
+- **1800 width.** With a reference size in H, Series C/D legends on one line get their letter spacing opened evenly
+  (never tighter than FHWA, at most 1/2 cap height per gap) until the width matches 1800's; the note says by how much
+  and what the other series would give (18" FIRE LANE: C 101.46 -> 109.98 vs ref 110; D would be 120.85).
+- **Margin is a floor.** The blank must hold extents + 2 x 2.00 in exactly; the old 1/16 in tolerance let the 100 in
+  G onto a 20 in blank with 1.99 in (CNC fail on SSS-ALP-100-03). Such rows now hold as 'sheet too small'.
