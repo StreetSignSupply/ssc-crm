@@ -11944,7 +11944,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-170";
+const APP_VERSION="2026.11.25-171";
 // the release check (which opens the page from a file) can reach these; the hosted site exposes nothing
 if(location.protocol==="file:")window.__sscTest={S,benchDue,benchChip,weekMonday,picRough,webcatStat};
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
@@ -17090,7 +17090,11 @@ async function pipeImportRows(rows){
         else await note("project",p.id,"Agents sent pictures but none matched a quote line (or the links weren't https)."+more,"Agents — pictures");
         done[id]=1;mark(id);continue}
       if(type==="archive"){const ref=String(r.project||r.updates||"").trim();
-        if(ref){const p=pipeFind(ref);if(!p){(out.bad++,isBad(id,"project not found (wrong number, or already deleted)"));continue}
+        if(ref){const p=pipeFind(ref);
+          // already in the recycle bin: the row asked for exactly what is true, so it is done, not broken (P-2025 and five more, Nov 9)
+          if(!p){const u=String(ref).trim().toUpperCase(),n=u.replace(/^P-?/,"");
+            if([...S.projects.values()].some(x=>x&&x.deleted&&(x.feedId===String(ref).trim()||(/^\d+$/.test(n)&&String(x.num||"")===n)||(x.quote&&String(x.quote).toUpperCase()===u)))){done[id]=1;mark(id);continue}
+            (out.bad++,isBad(id,"project not found (wrong number)"));continue}
           const wos=jobsOf(p.id).filter(j=>!j.deleted);
           const why=wos.length?"it has "+wos.length+" work order"+(wos.length===1?"":"s"):(p.invNum||(p.billStatus&&p.billStatus!=="none"))?"it has been invoiced":"";
           if(!on){await sugg("project",p.id,"move this to the recycle bin"+(r.text?" — "+r.text:""));done[id]=1;mark(id);continue}
@@ -17099,7 +17103,8 @@ async function pipeImportRows(rows){
           await asAI(()=>recordHistory("project",p.id,[{f:"Deleted",o:"",n:"Moved to recycle bin by the agents"+(r.text?" — "+r.text:""),ev:1}]));
           out.stages++;done[id]=1;mark(id);continue}
         const a=r.account?live(S.accounts).find(x=>String(x.name||"").trim().toLowerCase()===String(r.account).trim().toLowerCase()):null;
-        if(!a){(out.bad++,isBad(id,"account not found (name must match the CRM exactly)"));continue}
+        if(!a){if([...S.accounts.values()].some(x=>x&&x.deleted&&String(x.name||"").trim().toLowerCase()===String(r.account).trim().toLowerCase())){done[id]=1;mark(id);continue}
+          (out.bad++,isBad(id,"account not found (name must match the CRM exactly)"));continue}
         const busy=live(S.projects).filter(p=>p.accountId===a.id).length;
         if(!on){await sugg("account",a.id,"move this account to the recycle bin"+(r.text?" — "+r.text:""));done[id]=1;mark(id);continue}
         if(busy){await note("account",a.id,"Agents tried to move this account to the recycle bin: blocked because it still has "+busy+" project"+(busy===1?"":"s")+"."+more,"Agents — blocked");out.blocked++;done[id]=1;mark(id);continue}
