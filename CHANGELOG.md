@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-171 (an archive row for something already in the recycle bin is done)
+- A Feed `archive` row whose project or account is already in the recycle bin now counts as done instead of broken. The six starter quotes (P-2025, 2026, 2031, 2035, 2038, 2041) were already in the recycle bin; the CRM Orders export just hadn't shown it, and their archive rows sat on the broken list along with P-2027, P-2030, P-2036 and the Oct 26 account archives.
+
 ## 2026.11.25-170 (each reminder once a day, never for archived or paid work; every broken Feed row listed with its reason)
 - **One reminder, once a day.** Two open copies of the CRM each sent the same nine reminders a minute apart (Nov 9 16:08, CRM Bot F-20261109-1645-CRM3). Now one copy claims the day's sending for 20 minutes and checks the claim is still its own before it sends, a pass that is already running can't start a second one, and each reminder is marked sent before it goes out (a failed send still queues and retries).
 - **No reminders for archived, lost, deleted or paid projects.** Before sending, the project is read fresh from the database, so a copy opened before the project was archived can't chase it (Sky Mountain HOA, Red Rock and Southern Utah Sealcoating did on Nov 9). A project whose QuickBooks invoice has nothing owing (from the QuickBooks copy) counts as paid even when the CRM still says "invoiced" (P-2008, invoice 1004). A proof reminder stops once the project is in production or billed.
