@@ -344,7 +344,7 @@ if (STEP === "export") {
     // Purchase Requests, buyers and marketing, saved as settings/botdash. Read-only on the sheet.
     try {
       const { buildBotDash } = await import("./botdash.mjs");
-      const R = { roster: "'Bot Roster'!A1:I60", log: "Log!A1:D", findings: "Findings!A1:J", tokens: "'Token Usage'!A1:H", health: "'CRM Health'!A1:C20",
+      const R = { roster: "'Bot Roster'!A1:J60", log: "Log!A1:D", findings: "Findings!A1:J", tokens: "'Token Usage'!A1:H", health: "'CRM Health'!A1:C20",
         runq: "'Run Queue'!A1:T", prs: "'Purchase Requests'!A1:K", prospects: "Prospects!A1:AK", posts: "'Marketing Posts'!A1:L", decisions: "Decisions!A1:D" };
       const keys = Object.keys(R);
       const got = await api("/values:batchGet?" + keys.map((k) => "ranges=" + encodeURIComponent(R[k])).join("&") + "&majorDimension=ROWS", "GET");
