@@ -81,9 +81,16 @@ for ch, (_, _, rings) in zip(PAV_ORDER, glyphs):
     rs = [clean([((x - x0) / H, (y - y0) / H) for x, y in r]) for r in rings]
     w = max(x for r in rs for x, _ in r)
     P[ch] = {"adv": round(w, 4), "rings": rs}
-# U on p10-4 is only 0.84 of the letter height as extracted (the rest is not a filled path); leave it out
-# rather than ship a short U. Legends with U fall back to Series C/D or hold.
-P.pop('U', None)
+# U on p10-4 is drawn only 0.84 of the letter height (the page itself shows it 21 squares tall against 25 for
+# S, Q, T, R; the legs above the bowl are straight verticals). Finish the two legs up to the full height so
+# the U is the same cap height as every other letter (2026-11-10, Stencil Program Lead).
+if 'U' in P:
+    u = P['U']; top = max(y for r in u['rings'] for _, y in r)
+    if top < 0.99:
+        for r in u['rings']:
+            for p in r:
+                if p[1] > top - 0.02: p[1] = 1.0
+        u['rings'] = [clean([tuple(p) for p in r]) for r in u['rings']]
 json.dump({"name": "FHWA SHS pavement-marking alphabet (elongated)", "source": "FHWA SHS Pavement Markings p10-1..10-7",
            "capHeight": 1, "letterGap": 0.0625, "wordSpace": 0.3, "glyphs": P},
           open(OUT / 'P.json', 'w'), separators=(',', ':'))

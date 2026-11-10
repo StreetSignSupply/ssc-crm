@@ -76,16 +76,21 @@ async function main() {
     const specRow = r.status !== "qa fail";   // a failed row's M/N came from the failed file, not the Catalog Bot
     if (specRow && r.M && !samePair(r.M, x.extents)) { held.push([r, `spec row extents ${r.M} vs built ${x.extents} (> 1/16 in)`]); continue; }
     if (specRow && r.N && !samePair(r.N, x.sheet)) { held.push([r, `spec row sheet ${r.N} vs built ${x.sheet}`]); continue; }
-    const chk = JSON.parse(execFileSync("python3", [join(HERE, "stencil_core.py"), "check", join(OUT, "stencils", x.dxf), JSON.stringify(x)],
-      { stdio: ["ignore", "pipe", "ignore"] }).toString());
-    if (chk.problems.length) { held.push([r, `second check failed: ${chk.problems.join("; ")}`]); continue; }
-    x.check = chk;
+    // second check: every DXF read back (a letter set has one per letter, each with its own extents)
+    const problems = [];
+    for (const f of x.files || [x]) {
+      const chk = JSON.parse(execFileSync("python3", [join(HERE, "stencil_core.py"), "check", join(OUT, "stencils", f.dxf), JSON.stringify(f)],
+        { stdio: ["ignore", "pipe", "ignore"] }).toString());
+      f.check = chk;
+      for (const p of chk.problems) problems.push((f.ch ? f.ch + ": " : "") + p);
+    }
+    if (problems.length) { held.push([r, `second check failed: ${problems.join("; ")}`]); continue; }
     if (good.length < cap) good.push([r, x]);
   }
   say(`built ${good.length}, held ${held.length}, already past todo ${rows.filter((r) => r.kind === "text").length - todo.length}, symbol rows with a master waiting ${symbolsWaiting} (symbol path not in this version)`);
 
   // ---- publish the files (stencil-files branch; fetch + rebase, never force)
-  const url = (p) => `https://github.com/${REPO}/blob/${BRANCH}/stencils/${p.split("/").map(encodeURIComponent).join("/")}`;
+  const url = (p, kind = "blob") => `https://github.com/${REPO}/${kind}/${BRANCH}/stencils/${p.split("/").map(encodeURIComponent).join("/")}`;
   if (!DRY && good.length) {
     const git = (...a) => execFileSync("git", ["-C", OUT, ...a], { stdio: "inherit" });
     writeFileSync(join(OUT, "README.md"), "Generated stencil files (worker/stencil-gen.mjs). One folder per category; DXF = cut file, PNG = proof.\n" +
@@ -101,8 +106,10 @@ async function main() {
   // ---- write the rows
   const data = [];
   for (const [r, x] of good) {
-    data.push({ range: `${TAB}!L${r.row}:S${r.row}`, values: [[x.nominal, x.extents, x.sheet, x.tie, url(x.dxf), url(x.png), x.sha256, "generated"]] });
-    const note = `gen ${TODAY}: ${x.font}, ${x.layout}${x.islands ? `, ${x.islands} island(s) x 2 ties` : ""}`;
+    // a letter set: P = the folder holding one DXF per letter, Q = the combined proof, R = sha256 over all the DXFs in letter order
+    data.push({ range: `${TAB}!L${r.row}:S${r.row}`, values: [[x.nominal, x.extents, x.sheet, x.tie, x.set ? url(x.folder, "tree") : url(x.dxf), url(x.png), x.sha256, "generated"]] });
+    const note = `gen ${TODAY}: ${x.font}, ${x.layout}${x.islands ? `, ${x.islands} island(s) x 2 ties` : ""}` +
+      (x.set ? `; sheets ${x.files.map((f) => `${f.ch} ${f.extents}`).join(", ")}` : "");
     data.push({ range: `${TAB}!T${r.row}`, values: [[mergeNote(r.notes, note)]] });
   }
   for (const [r, why] of held) {

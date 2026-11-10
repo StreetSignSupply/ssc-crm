@@ -16,7 +16,7 @@ from shapely.geometry import Polygon, MultiPolygon, box, LineString
 from shapely.ops import unary_union
 from shapely import affinity
 
-GEN_VERSION = "stencil-gen 1.0 (2026-11-09)"
+GEN_VERSION = "stencil-gen 1.1 (2026-11-10)"
 MARGIN = 2.0
 BED = (56.0, 116.0)          # 5 x 10 ft Biesse bed less the 2 in machine margin each side
 TOL = 1 / 16
@@ -165,6 +165,10 @@ def parse_name(name):
     if "," in rest or re.search(r"\b(Numbers|Letters|Alphabet|Kit|Set)\b", rest, re.I):
         return float(m.group(1)), None, "legend unclear (a set of letters/numbers, not one legend)"
     rest = re.sub(r"\bStencils?\b.*$", " ", rest, flags=re.I)
+    # filler the price list puts after the legend: '96" California DOT TURN Wording', '4" GUEST Curb and Standard',
+    # '4" FIRE LANE Professional Curb', '48" 7Brew "ENTER"'
+    rest = re.sub(r"\b(Wording|Professional Curb|Curb and Standard|Curb|Word|Legend|Pavement|Marking)\b", " ", rest, flags=re.I)
+    rest = re.sub(r"[\"“”]", " ", rest)
     toks = rest.split()
     run = []
     for t in reversed(toks):
@@ -272,6 +276,11 @@ def build(job, out):
                 widest = max(g.bounds[2] - g.bounds[0] for g in letters)
                 if len(legend.replace(" ", "")) > 1 and widest + 2 * MARGIN <= min(blank) + TOL and eh + 2 * MARGIN <= max(blank) + TOL:
                     per_letter = True
+    if not fits and blank and len(legend.replace(" ", "")) > 1:
+        # one letter per sheet (the 96 in DOT words: the price-list blank holds one letter, the painter sets the word)
+        s = build_set(job, out, nominal, legend, tie, blank)
+        if s is not None:
+            return s
     if not fits:
         if low and not per_letter:
             res["reason"] = (f"no FHWA font matches the blank: '{legend}' at {fmt(nominal)} in leaves the blank "
@@ -318,6 +327,94 @@ def build(job, out):
                dxf=str(dxf.relative_to(out)), png=str(png.relative_to(out)),
                sha256=hashlib.sha256(dxf.read_bytes()).hexdigest())
     return res
+
+
+def out_folder(out, job):
+    slug = re.sub(r"[^a-z0-9]+", "-", (job.get("category") or "other").lower()).strip("-") or "other"
+    folder = Path(out) / slug; folder.mkdir(parents=True, exist_ok=True)
+    return folder
+
+
+def build_set(job, out, nominal, legend, tie, blank):
+    """Letter set: the blank holds one letter of the legend; one DXF + proof per distinct letter, every letter
+    upright on its own sheet (the price-list blank, listed orientation first), 2.00 in margin, ties as usual.
+    Returns a result dict, or None when no FHWA font puts every letter on the blank."""
+    chars = []
+    for ch in legend.replace(" ", ""):
+        if ch not in chars: chars.append(ch)
+    # only when the blank is a one-letter blank: its long side is the letter height plus margins (not a word's
+    # width) and its short side holds one letter, not several
+    if max(blank) > (nominal + 2 * MARGIN) * 1.2 + TOL or max(blank) < 3 * min(blank):
+        return None
+    order = ("P", "D", "C") if nominal >= 48 else ("C", "D", "P")
+    for font in order:
+        sheets = []; problem = None
+        whole, missing = layout(font, [legend], nominal, tie)     # the word as the painter sets it = 1800's size
+        if whole is None: continue
+        wb = bounds(whole); word = (wb[2] - wb[0], wb[3] - wb[1])
+        widest = max(g.bounds[2] - g.bounds[0] for g in whole)
+        if min(blank) > 1.6 * (widest + 2 * MARGIN): continue
+        for ch in chars:
+            letters, missing = layout(font, [ch], nominal, tie)
+            if letters is None: problem = f"{font}: no glyph for {ch}"; break
+            b = bounds(letters); ew, eh = b[2] - b[0], b[3] - b[1]
+            need = (ew + 2 * MARGIN, eh + 2 * MARGIN)
+            sheet = next(((sw, sh) for sw, sh in (blank, blank[::-1]) if need[0] <= sw + TOL and need[1] <= sh + TOL), None)
+            if sheet is None: problem = f"{font}: '{ch}' {ew:.1f} x {eh:.1f} does not fit the blank"; break
+            if not (min(sheet) <= BED[0] and max(sheet) <= BED[1]): problem = f"sheet {fmt(sheet[0])} x {fmt(sheet[1])} is over the bed"; break
+            tied, strokes, p = add_ties(letters, tie)
+            if p: problem = p; break
+            geom = polys_only(unary_union(tied))
+            web = narrowest_web(geom)
+            if web is not None and web < tie - 1 / 64: problem = f"narrowest web {web:.3f} in under the tie width"; break
+            sheets.append((ch, geom, sheet, strokes, web))
+        if problem is None and sheets:
+            break
+    else:
+        return None
+    folder = out_folder(out, job)
+    leg = re.sub(r"[^A-Z0-9]+", "-", legend.upper()).strip("-")
+    sw, sh = sheets[0][2]
+    base = f"{job['sku']}-{leg}-SET-{fmt(nominal)}in-SHEET{fmt(sw)}x{fmt(sh)}"
+    sub = folder / base; sub.mkdir(parents=True, exist_ok=True)
+    files = []; h = hashlib.sha256(); widest = 0.0; tallest = 0.0; islands = 0; webs = []; min_stroke = None
+    for ch, geom, sheet, strokes, web in sheets:
+        b = geom.bounds; ew, eh = b[2] - b[0], b[3] - b[1]
+        geom = affinity.translate(geom, (sheet[0] - ew) / 2 - b[0], (sheet[1] - eh) / 2 - b[1])
+        ext = geom.bounds
+        dxf = sub / f"{base}-{ch}.dxf"; png = sub / f"{base}-{ch}.png"
+        to_dxf(dxf, geom, sheet)
+        to_png(png, geom, sheet, nominal, ext, job["sku"], f"{legend} / letter {ch}", font, tie)
+        data = dxf.read_bytes(); h.update(data)
+        files.append({"ch": ch, "dxf": str(dxf.relative_to(out)), "png": str(png.relative_to(out)),
+                      "extents": f"{fmt(ew)} x {fmt(eh)}", "sheet": f"{fmt(sheet[0])} x {fmt(sheet[1])}",
+                      "sha256": hashlib.sha256(data).hexdigest()})
+        widest = max(widest, ew); tallest = max(tallest, eh); islands += len(strokes) // 2
+        if web is not None: webs.append(web)
+        if strokes: min_stroke = min(strokes) if min_stroke is None else min(min_stroke, min(strokes))
+    proof = sub / f"{base}.png"
+    set_proof(proof, [(sub / f"{base}-{ch}.png") for ch, *_ in sheets], f"{job['sku']}  {legend}: {len(chars)} sheets, one letter each")
+    return {"sku": job["sku"], "ok": True, "set": True, "nominal": fmt(nominal), "extents": f"{fmt(word[0])} x {fmt(word[1])}",
+            "sheet": f"{fmt(sw)} x {fmt(sh)}", "tie": str(tie), "font": FONT_LABEL[font],
+            "layout": f"letter set {''.join(chars)}: {len(chars)} sheet(s) for '{legend}' ({len(legend.replace(' ', ''))} letters), each letter upright on its own blank; extents = the whole word as set ({fmt(word[0])} x {fmt(word[1])}), widest letter {fmt(widest)}",
+            "islands": islands, "narrowest_web": round(min(webs), 3) if webs else None, "min_stroke_at_tie": min_stroke,
+            "dxf": files[0]["dxf"], "png": str(proof.relative_to(out)), "folder": str(sub.relative_to(out)), "files": files,
+            "sha256": h.hexdigest()}
+
+
+def set_proof(path, pngs, title):
+    """One proof for a letter set: the per-letter proofs side by side."""
+    from PIL import Image, ImageDraw
+    ims = [Image.open(p) for p in pngs]
+    H = max(im.height for im in ims); W = sum(im.width for im in ims) + 10 * (len(ims) - 1)
+    scale = min(1.0, 2400 / W)
+    out = Image.new("RGB", (int(W * scale), int(H * scale) + 30), "white")
+    x = 0
+    for im in ims:
+        r = im.resize((int(im.width * scale), int(im.height * scale)))
+        out.paste(r, (int(x), 30)); x += (im.width + 10) * scale
+    ImageDraw.Draw(out).text((10, 8), title, fill="black")
+    out.save(path)
 
 
 def check(dxf_path, expect):

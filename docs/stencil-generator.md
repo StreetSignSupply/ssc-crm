@@ -90,3 +90,22 @@ Those 25 rows were marked 'qa fail' and the generator was replaced:
   each run; if the file comes out identical it stays held. Not built yet: symbol rows (Carla's masters), multi-piece
   kits, per-letter sets, sheets over the 56 x 116 in bed.
 - Daily at 1:17 PM Mountain (schedule) and on demand; cap 300/day until CNC Bot has passed 25, then 600.
+
+## 2026-11-10 (Stencil Program Lead) — letter sets, the pavement U, legend filler
+Today's 1:17 PM run held all 1,044 text rows. The three fixes that moved the most:
+- **Letter sets.** The 96 in and up DOT words (and Caltrans 8 ft wording) are sold one letter per sheet: the
+  price-list blank (20 x 104, 24 x 104, 20 x 110 ...) holds one letter, the painter sets the word. `build_set` now
+  builds one DXF + proof per distinct letter when the blank is a one-letter blank (long side = cap height + margins
+  within 20 %, long side >= 3 x short side, short side holds one letter), every letter upright, 2.00 in margin, ties
+  as usual. Row: P = the folder on `stencil-files` (`.../<SKU>-<LEGEND>-SET-<N>in-SHEET<WxH>/`), Q = one combined
+  proof, R = sha256 over all the DXFs in letter order, M = the whole word as set (what 1800 lists as the size), N = the
+  per-letter blank; T lists each sheet's extents. Blanks that are not one-letter blanks (30 x 30 for a 24 in three-word
+  legend, 40 x 54 for 44 in LANE) still hold: the Catalog Bot has to confirm those blanks.
+- **Pavement alphabet U.** FHWA SHS page 10-4 draws the U 21 grid squares tall against 25 for every other letter; the
+  legs above the bowl are straight verticals, so `build-glyphs.py` finishes the two legs to full cap height instead of
+  dropping the letter. BUS / TURN / THRU / HUMP / RUNAWAY ... now build in the elongated alphabet.
+- **Legend parsing.** 'Wording', 'Professional Curb', 'Curb and Standard' and quotation marks after the legend are
+  filler (96" California DOT TURN Wording, 4" GUEST Curb and Standard, 48" 7Brew "ENTER").
+Still held by design: ties over 25 % of the stroke (268 rows, Matt's tie-rule decision, Findings CJ1), multi-piece
+blanks (78), sheets over the bed (58), names with no capital legend (140, mostly symbols filed as text), line / art
+size-pair names (144).
