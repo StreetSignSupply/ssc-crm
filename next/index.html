@@ -1183,6 +1183,42 @@ details.dd[open] > summary{border-color:var(--ink3)}
 .bt-grid2>.card,.bt-grid3>.card{margin:0;min-width:0}
 @media (max-width:1180px){.bt-grid3{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:900px){.bt-grid2,.bt-grid3{grid-template-columns:minmax(0,1fr)}}
+/* org chart (Reports → Org chart): Matt on top, three departments, people then bots, and the flows that tie them together */
+.org-top{display:flex;justify-content:center;position:relative;padding-bottom:26px}
+.org-top::after{content:"";position:absolute;left:50%;bottom:0;width:2px;height:26px;background:var(--line)}
+.org-depts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;position:relative;padding-top:26px}
+.org-depts::before{content:"";position:absolute;top:0;left:calc(100%/6);right:calc(100%/6);height:2px;background:var(--line)}
+.org-dept{position:relative;min-width:0;background:var(--card2);border:1px solid var(--line2);border-radius:var(--r2);padding:0 12px 12px;border-top:4px solid var(--dc,var(--line))}
+.org-dept::before{content:"";position:absolute;top:-30px;left:50%;width:2px;height:26px;background:var(--line)}
+.org-dh{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:12px 2px 8px}
+.org-dh h2{margin:0;font-size:16px;font-weight:800;color:color-mix(in srgb,var(--dc,var(--ink)) 55%,var(--ink))}
+.org-dh .sub{font-size:12px}
+.org-sec{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);margin:10px 2px 6px}
+.org-card{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0 0 8px;box-shadow:var(--sh);color:inherit;font:inherit;cursor:pointer;min-width:0}
+.org-card:hover{border-color:var(--ink3)}.org-card:focus-visible{outline:2px solid var(--dc,var(--ink));outline-offset:2px}
+.org-card.person{border-left:4px solid var(--dc,var(--ink))}
+.org-card.owner{max-width:440px;border-left:0;border-top:4px solid var(--ink);padding:14px 18px;cursor:default}
+.org-row{display:flex;align-items:center;gap:10px;min-width:0}
+.org-av{width:34px;height:34px;border-radius:50%;flex:0 0 auto;display:grid;place-items:center;font-weight:800;font-size:13px;color:#fff;background:color-mix(in srgb,var(--dc,#444) 70%,#000)}
+.org-av.own{background:var(--ink);color:var(--card)}
+.org-av.bot{background:var(--card2);color:var(--ink2);border:1px solid var(--line)}
+.org-nm{font-weight:800;font-size:14px;line-height:1.2;overflow-wrap:anywhere}
+.org-role{font-size:12.5px;color:var(--ink2);line-height:1.4;margin-top:6px}
+.org-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;align-items:center}
+.org-tag{font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;background:var(--card2);border:1px solid var(--line2);color:var(--ink2)}
+.org-to{font-size:11.5px;color:var(--ink2);margin-top:6px}.org-to b{color:var(--ink)}
+.org-st{margin-left:auto;display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:var(--ink3);white-space:nowrap}
+.org-flows{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:18px}
+.org-flows>.card{margin:0;min-width:0}
+.org-lane{display:flex;flex-wrap:wrap;align-items:center;gap:6px 4px}
+.org-step{display:inline-flex;flex-direction:column;padding:6px 10px;border-radius:8px;background:var(--card2);border:1px solid var(--line);font-size:12.5px;font-weight:700;max-width:100%}
+.org-step span{font-size:11px;font-weight:500;color:var(--ink2)}
+.org-step.person{border-color:var(--ink3);background:var(--card)}
+.org-arr{color:var(--ink3);font-weight:800;padding:0 2px}
+.org-legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--ink2);margin:6px 0 14px}
+.org-legend span{display:inline-flex;align-items:center;gap:6px}
+@media (max-width:1000px){.org-depts{grid-template-columns:minmax(0,1fr)}.org-depts::before,.org-dept::before{display:none}.org-flows{grid-template-columns:minmax(0,1fr)}}
+@media print{.org-card{box-shadow:none;break-inside:avoid}.org-dept{break-inside:avoid}}
 .bt-bots{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
 .bt-bots>.card{margin:0;min-width:0;border-top:4px solid var(--line)}
 .bt-bot.ok{border-top-color:var(--green)}.bt-bot.late{border-top-color:var(--red)}.bt-bot.warn{border-top-color:var(--orange)}
@@ -1855,6 +1891,7 @@ const WQ=new Map();
 /* ========== utils ========== */
 const $=s=>document.querySelector(s);
 const ICO={
+  org:'<rect x="9" y="3" width="6" height="4.5" rx="1"/><rect x="3" y="16.5" width="6" height="4.5" rx="1"/><rect x="15" y="16.5" width="6" height="4.5" rx="1"/><path d="M12 7.5v4.5M6 16.5V12h12v4.5"/>',
   globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
   pin:'<path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
   mobile:'<rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/>',
@@ -10552,7 +10589,7 @@ const NAVG=[
   {id:"sales",label:"Sales",icon:"project",pages:[["mybook","contact","Dashboard"],["accounts","account","Accounts"],["contacts","contact","Contacts"],["projects","project","Projects"],["tasks","task","Tasks"]]},
   {id:"shop",label:"Production",icon:"job",pages:[["jobs","job","Work orders"],["tracker","chart","Tracker"],["calendar","calendar","Calendar"],["files","file","Files"]]},
   {id:"stock",label:"Inventory",icon:"inventory",pages:[["inventory","inventory","Inventory"],["stencils","inventory","Stencils","sub"],["purchasing","inventory","Purchase orders","sub"],["vendors","vendor","Vendors"]]},
-  {id:"money",label:"Reports",icon:"chart",pages:[["reports","chart","Reports"],["bots","contact","Bot team"],["commissions","money","Commissions"]]},
+  {id:"money",label:"Reports",icon:"chart",pages:[["reports","chart","Reports"],["bots","contact","Bot team"],["org","org","Org chart"],["commissions","money","Commissions"]]},
   {id:"admin",label:"Admin",icon:"history",pages:[["new","history","What's new"],["archive","archive","Archive"],["bin","archive","Recycle bin"],["audit","history","Change history"],["settings","history","Settings"]]}];
 /* ===== who can do what =====
    Each person on the team has an access level. Owner: everything. Office: everything but Settings.
@@ -10686,6 +10723,7 @@ function body(){
     case "bin":return binView();
     case "commissions":return commissionsView();
     case "bots":return botsView();
+    case "org":return orgView();
     default:return home();
   }
 }
@@ -10702,7 +10740,9 @@ document.addEventListener("change",e=>{const t=e.target;if(!t||!t.dataset)return
    Token Usage, Run Queue, Purchase Requests, Prospects and Bot Roster tabs down to settings/botdash every 30 minutes;
    this page only draws it. Owner and office only. */
 function botdashWatch(){try{db.doc("settings/botdash").onSnapshot(sn=>{const d=sn&&sn.exists?(typeof sn.data==="function"?sn.data():sn.data):null;S.botdash=d||null;
-  if(S.route&&S.route.v==="bots"&&!typing()&&!S.modal)render()},()=>{})}catch(e){}}
+  if(S.route&&S.route.v==="bots"&&!typing()&&!S.modal)render()},()=>{})}catch(e){}
+  try{db.doc("settings/orgchart").onSnapshot(sn=>{const d=sn&&sn.exists?(typeof sn.data==="function"?sn.data():sn.data):null;S.orgchart=d||null;
+    if(S.route&&S.route.v==="org"&&!typing()&&!S.modal)render()},()=>{})}catch(e){}}
 function btAgo(ms){if(!ms)return "never";const m=Math.round((Date.now()-ms)/60000);if(m<1)return "just now";if(m<60)return m+" min ago";const h=Math.round(m/60);if(h<36)return h+" h ago";return Math.round(h/24)+" days ago"}
 function btNum(n){n=Number(n)||0;return n>=1e6?(n/1e6).toFixed(1)+"M":n>=1e4?Math.round(n/1e3)+"k":n>=1e3?(n/1e3).toFixed(1)+"k":String(n)}
 const BT_STATE={ok:["Running","g"],warn:["Problem logged","o"],late:["Late","r"],idle:["No schedule","s"],unknown:["Not seen yet","s"]};
@@ -10723,6 +10763,60 @@ function btTile(label,val,sub,tone,go){return `<div class="bt-tile${tone?" "+ton
 function btItem(f,showOwner){const age=f.t?btAgo(f.t):"";
   return `<li class="bt-item"><span class="pill ${BT_PRIO[f.prio]||"s"}">${esc(f.prio||"")}</span><div class="bt-itxt"><div class="bt-ih">${esc(f.headline)}</div>
     ${f.action?`<div class="sub">${esc(f.action)}</div>`:""}<div class="sub mono">${esc(f.id)}${showOwner&&f.owner?" · for "+esc(f.owner):""}${f.from?" · from "+esc(f.from):""}${age?" · "+esc(age):""}</div></div></li>`}
+/* ---------- Org chart: who does what and how the work moves between them ----------
+   People and bots come from the Bot Roster tab (via settings/botdash): team, responsibilities, schedule and
+   hands_to (who each one passes work to). People are roster rows with platform "Person". Edit the sheet, not this code. */
+const ORG_TEAMS=[["Sales","#1F5FAD","Finds buyers, sells and quotes"],["Shop","#C77A1A","Buys materials, designs and makes the product"],["Office","#2F8F5B","CRM, books and keeping the team running"]];
+// the main ways work moves through the company; a step shows only when that person or bot is on the roster
+const ORG_FLOWS=[
+  ["Finding and winning customers",[["Buyer Miner","finds organizations already buying"],["Hunter (Lead Bot)","verifies and finds leads"],["Bob Danforth","emails and follows up"],["Brodie Tuck","works the account and quotes"],["Matt Jackson","prices outside the floors, contracts"]]],
+  ["Public bids",[["Hunter (Lead Bot)","finds the bid"],["Bid Bot","go / no-go and the bid packet"],["Matt Jackson","approves and submits"]]],
+  ["Stencils, from spec to cut",[["Stencil Catalog Bot","SKU list and spec"],["Stencil Program Lead","generates the files"],["Carla Jackson","art and symbol masters"],["CNC Bot","QA and test cuts"],["Equipment Manager","runs the machines"],["Matt Jackson","loads material, physical steps"]]],
+  ["Buying and the books",[["Josh Smith","stock, quotes, receiving"],["Accountant","invoices, A/R and A/P"],["QuickBooks Hands (27B)","QuickBooks screen work"],["Matt Jackson","payments over $250"]]],
+  ["Customer records",[["Bre","accounts and contacts"],["Bob Danforth","logs every touch"],["CRM Bot","audits the CRM hourly"]]],
+  ["Keeping the team running",[["Mechanic","restarts what stopped"],["Model Guard","keeps Claude tasks on a model"],["Librarian","turns lessons into rules"],["CRM Bot","relays hand-offs every hour"]]]];
+function orgInit(n){const w=String(n||"").replace(/\(.*?\)/g,"").trim().split(/\s+/).filter(Boolean);return ((w[0]||"?")[0]+(w.length>1?w[w.length-1][0]:"")).toUpperCase()}
+function orgView(){
+  const d=S.orgchart||S.botdash;
+  if(!d||!d.bots)return `<div class="pad"><section class="card"><header><h2>Org chart</h2></header><div class="body"><div class="empty"><b>No team data yet</b>
+    The cloud export builds this from the SSS Pipeline sheet's Bot Roster tab every 30 minutes.</div></div></section></div>`;
+  const people=(d.people||[]);const bots=d.bots||[];
+  const owner=people.find(p=>/owner/i.test(p.team))||{name:"Matt Jackson",team:"Owner",resp:"Owner and president. Final say on money over $250, prices, contracts, payments and anything that can't be undone."};
+  const byName={};people.concat(bots).forEach(x=>{byName[x.name]=x});
+  const showCost=can("cost");
+  const toLine=x=>(x.handsTo||[]).length?`<div class="org-to">Hands work to <b>${x.handsTo.map(esc).join(", ")}</b></div>`:"";
+  const pCard=p=>`<button class="org-card person" data-go="${showCost?"bots":"org"}"><div class="org-row"><span class="org-av" aria-hidden="true">${esc(orgInit(p.name))}</span>
+      <div style="min-width:0"><div class="org-nm">${esc(p.name)}</div><div class="org-tags"><span class="org-tag">Person</span>${p.schedule?`<span class="org-tag">${esc(p.schedule)}</span>`:""}</div></div></div>
+      <div class="org-role">${esc(p.resp||"")}</div>${toLine(p)}</button>`;
+  const bCard=b=>{const st=BT_STATE[b.state]||["",""];const col=b.state==="ok"?"var(--green)":b.state==="late"?"var(--red)":b.state==="warn"?"var(--orange)":"var(--ink3)";
+    return `<button class="org-card" data-go="${showCost?"bots":"org"}" title="${esc(b.name)}: ${esc(st[0])}"><div class="org-row"><span class="org-av bot" aria-hidden="true">${esc(orgInit(b.name))}</span>
+      <div style="min-width:0"><div class="org-nm">${esc(b.name)}</div><div class="org-tags"><span class="org-tag">${esc(b.platform||"Bot")}</span><span class="org-tag">${esc(b.schedule||"")}</span></div></div>
+      <span class="org-st"><span class="bt-dot" style="background:${col}" aria-hidden="true"></span>${esc(st[0])}</span></div>
+      <div class="org-role">${esc(b.resp||"")}</div>${toLine(b)}</button>`};
+  const known=ORG_TEAMS.map(t=>t[0]);
+  const extra=[...new Set(bots.concat(people).map(x=>x.team).filter(t=>t&&known.indexOf(t)<0&&!/owner/i.test(t)))];
+  const teams=ORG_TEAMS.concat(extra.map(t=>[t,"#6F6B64",""]));
+  const dept=([t,c,blurb])=>{const ps=people.filter(p=>p.team===t),bs=bots.filter(b=>b.team===t);
+    return `<section class="org-dept" style="--dc:${c}"><div class="org-dh"><h2>${esc(t)}</h2><span class="sub">${ps.length?ps.length+" "+(ps.length===1?"person":"people")+" · ":""}${bs.length} bot${bs.length===1?"":"s"}</span></div>
+      ${blurb?`<div class="sub" style="font-size:12.5px;margin:-4px 2px 4px">${esc(blurb)}</div>`:""}
+      ${ps.length?`<div class="org-sec">People</div>${ps.map(pCard).join("")}`:""}
+      ${bs.filter(b=>b.platform!=="Claude").length?`<div class="org-sec">Grok bots</div>${bs.filter(b=>b.platform!=="Claude").map(bCard).join("")}`:""}
+      ${bs.filter(b=>b.platform==="Claude").length?`<div class="org-sec">Claude bots</div>${bs.filter(b=>b.platform==="Claude").map(bCard).join("")}`:""}</section>`};
+  const flow=([title,steps])=>{const st=steps.filter(([n])=>byName[n]||n===owner.name);if(st.length<2)return "";
+    return `<section class="card"><header><h2>${esc(title)}</h2></header><div class="body"><div class="org-lane">${st.map(([n,what],i)=>`${i?`<span class="org-arr" aria-hidden="true">→</span>`:""}<span class="org-step${(byName[n]&&!byName[n].platform)||n===owner.name?" person":""}">${esc(n)}<span>${esc(what)}</span></span>`).join("")}</div></div></section>`};
+  return `<div class="pad bt">
+    <div class="bt-head"><div><h1 class="bt-h1">Org chart</h1><div class="sub">${people.length} people · ${bots.length} bots · from the Bot Roster tab, updated ${esc(btAgo(d.at))}</div></div>
+      ${showCost?`<button class="btn" data-go="bots">${ic("contact",15)} Bot team details</button>`:""}</div>
+    <div class="org-legend"><span><span class="org-av" style="width:16px;height:16px;font-size:0" aria-hidden="true"></span>Person</span><span><span class="org-av bot" style="width:16px;height:16px;font-size:0" aria-hidden="true"></span>Bot</span>
+      <span><span class="bt-dot" style="background:var(--green)"></span>Running</span><span><span class="bt-dot" style="background:var(--orange)"></span>Problem logged</span><span><span class="bt-dot" style="background:var(--red)"></span>Late</span><span><span class="bt-dot" style="background:var(--ink3)"></span>No schedule</span></div>
+    <div class="org-top"><div class="org-card owner"><div class="org-row"><span class="org-av own" style="width:44px;height:44px;font-size:15px" aria-hidden="true">${esc(orgInit(owner.name))}</span>
+      <div><div class="org-nm" style="font-size:17px">${esc(owner.name)}</div><div class="sub">Owner</div></div></div><div class="org-role">${esc(owner.resp||"")}</div></div></div>
+    <div class="org-depts">${teams.map(dept).join("")}</div>
+    <h2 class="rsec" style="margin-top:22px">How work moves</h2>
+    <div class="sub" style="margin:-4px 0 10px">Each bot decides Tier 1 work itself, sets a default and a deadline for Tier 2, and only Tier 3 (money over $250, prices, payments, contracts, deletes, unattended machines) waits for Matt.</div>
+    <div class="org-flows">${ORG_FLOWS.map(flow).join("")}</div>
+  </div>`;
+}
 function botsView(){
   if(!can("cost"))return `<div class="pad"><div class="empty"><b>The bot team page is for the owner and the office</b></div></div>`;
   const d=S.botdash;
@@ -11944,7 +12038,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-171";
+const APP_VERSION="2026.11.25-172";
 // the release check (which opens the page from a file) can reach these; the hosted site exposes nothing
 if(location.protocol==="file:")window.__sscTest={S,benchDue,benchChip,weekMonday,picRough,webcatStat};
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}

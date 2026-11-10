@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-172 (Org chart)
+- **Reports → Org chart**, for everyone on the team. Matt at the top, then Sales, Shop and Office, each with its people and its Grok and Claude bots: what each one does, its schedule, whether it's running, late or logged a problem, and who it hands work to. Below it, "How work moves": the main chains from finding a buyer to a quote, bids, stencils from spec to cut, buying and the books, customer records, and the bots that keep the rest running, plus the Tier 1 / 2 / 3 rule for what waits on Matt.
+- It's built from the Bot Roster tab: people are rows with platform `Person`, and the new `hands_to` column says who each one passes work to. The export saves a names-and-roles copy as `settings/orgchart` that sales and shop logins can read (database rules updated); people never count as bots on the Bot team page.
+
 ## 2026.11.25-171 (an archive row for something already in the recycle bin is done)
 - A Feed `archive` row whose project or account is already in the recycle bin now counts as done instead of broken. The six starter quotes (P-2025, 2026, 2031, 2035, 2038, 2041) were already in the recycle bin; the CRM Orders export just hadn't shown it, and their archive rows sat on the broken list along with P-2027, P-2030, P-2036 and the Oct 26 account archives.
 

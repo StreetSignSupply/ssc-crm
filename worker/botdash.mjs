@@ -36,7 +36,11 @@ export function buildBotDash(tabs, now = Date.now()) {
     name: r.bot, platform: r.platform || "", team: r.team || "", resp: r.responsibilities || "", schedule: r.schedule || "",
     logKeys: splitKeys(r.log_names).map((k) => k.toLowerCase()), ownerKeys: splitKeys(r.owner_keys),
     staleH: Number(r.stale_after_hours) || 0, notes: r.notes || "",
+    handsTo: splitKeys(r.hands_to), person: /^person$/i.test(String(r.platform || "").trim()),
   }));
+  // people (platform "Person": Matt, Bre, Brodie) are on the roster for the org chart; they are not bots, so no runs or late flags
+  const people = roster.filter((b) => b.person).map((b) => ({ name: b.name, team: b.team, resp: b.resp, schedule: b.schedule, notes: b.notes, handsTo: b.handsTo }));
+  const botsOnly = roster.filter((b) => !b.person);
   const botOfLog = (agent) => { const a = String(agent || "").toLowerCase(); if (!a || /crm sync/.test(a)) return null;
     return roster.find((b) => b.logKeys.some((k) => a.indexOf(k) >= 0)) || null; };
   const ownerOf = (text) => { const m = String(text || "").match(/^\s*([A-Za-z0-9 ()'.\-]{2,40}?)\s*:/); if (!m) return null; const p = m[1].trim().toLowerCase();
@@ -84,7 +88,7 @@ export function buildBotDash(tabs, now = Date.now()) {
 
   // ---- bots ----
   const weekday = (() => { const d = new Date(now - 7 * 3600000).getUTCDay(); return d >= 1 && d <= 5; })();
-  const bots = roster.map((b) => {
+  const bots = botsOnly.map((b) => {
     const p = per[b.name]; const last = p.last; const ageH = last ? (now - last.t) / 3600000 : null;
     const runs = days.map((d) => p.runs.filter((t) => mtDay(t) === d).length);
     let state = "ok", why = "";
@@ -93,7 +97,7 @@ export function buildBotDash(tabs, now = Date.now()) {
     if (p.errs && state === "ok") { state = "warn"; why = "its last run reported a problem"; }
     if (/no schedule|on demand/i.test(b.schedule) && state === "ok") state = "idle";
     const mine = open.filter((f) => f.owner === b.name);
-    return { name: b.name, platform: b.platform, team: b.team, resp: b.resp, schedule: b.schedule, notes: b.notes, state, why,
+    return { name: b.name, platform: b.platform, team: b.team, resp: b.resp, schedule: b.schedule, notes: b.notes, state, why, handsTo: b.handsTo,
       lastAt: last ? last.t : 0, lastAction: last ? short(last.action, 200) : "", lastDetail: last ? short(last.detail, 420) : "",
       runs24: p.runs.filter((t) => now - t < DAY).length, runs7: p.runs.filter((t) => now - t < 7 * DAY).length, runs,
       openCount: mine.length, openHigh: mine.filter((f) => f.prio === "HIGH").length,
@@ -129,7 +133,7 @@ export function buildBotDash(tabs, now = Date.now()) {
     warn: bots.filter((b) => b.state === "warn").length, idle: bots.filter((b) => b.state === "idle" || b.state === "unknown").length,
     runs24: bots.reduce((t, b) => t + b.runs24, 0), runs7: bots.reduce((t, b) => t + b.runs7, 0), open: open.length,
     openHigh: open.filter((f) => f.prio === "HIGH").length, matt: matt.length, tokens7: tokTot };
-  return { v: 1, at: now, days, totals, health, bots, matt: matt.slice(0, 40),
+  return { v: 1, at: now, days, totals, health, bots, people, matt: matt.slice(0, 40),
     openTop: open.filter((f) => f.owner !== "Matt").slice(0, 30), byOwner, opened,
     tokensByDay: days.slice(-7).map((d) => tokDay[d] || 0),
     runQueue: { counts: rqStat, open: rqOpen }, purchases: { open: prOpen.slice(0, 15), count: prOpen.length },

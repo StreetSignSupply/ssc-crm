@@ -13,8 +13,11 @@ const now = Date.now(), day = 86400000;
 // the Bot team page: a small made-up team built the same way the export job builds it
 const BDT = (() => { const t = (h, m) => { const d = new Date(Date.now() - 7 * 3600000 - (h * 60 + (m || 0)) * 60000); return d.toISOString().slice(0, 16).replace("T", " "); };
   return buildBotDash({
-    roster: [["bot", "platform", "team", "responsibilities", "schedule", "log_names", "owner_keys", "stale_after_hours", "notes"],
-      ["Bob Danforth", "Grok", "Sales", "Sales email rep: first touches and follow-ups from his own account, replies and bounces", "Every 30 min, weekdays", "bob", "Bob", "2", "Sends from his own account"],
+    roster: [["bot", "platform", "team", "responsibilities", "schedule", "log_names", "owner_keys", "stale_after_hours", "notes", "hands_to"],
+      ["Matt Jackson", "Person", "Owner", "Owner and president", "", "", "", "", "", ""],
+      ["Bre", "Person", "Office", "Adds accounts and contacts in the CRM", "Weekdays", "", "Bre", "", "", "CRM Bot"],
+      ["Brodie Tuck", "Person", "Sales", "Sales rep: his accounts and quotes", "Weekdays", "", "Brodie", "", "", "Matt Jackson"],
+      ["Bob Danforth", "Grok", "Sales", "Sales email rep: first touches and follow-ups from his own account, replies and bounces", "Every 30 min, weekdays", "bob", "Bob", "2", "Sends from his own account", "Brodie Tuck; CRM Bot"],
       ["Hunter (Lead Bot)", "Grok", "Sales", "Finds leads and bids, dedupes Prospects", "Hourly", "hunter;lead bot", "Hunter;Lead Bot", "3", ""],
       ["Josh Smith", "Grok", "Shop", "Materials and purchasing", "Every 30 min, weekdays", "josh", "Josh", "2", ""],
       ["CNC Bot", "Grok", "Shop", "CNC questions and stencil QA", "On demand (no schedule yet)", "cnc", "CNC", "", "Needs a routine"],
@@ -94,7 +97,7 @@ const D = {
     ["a".repeat(48)]: { token: "a".repeat(48), kind: "quote", projectId: "p3", status: "sent", createdAt: now - day, expiresAt: now + 29 * day, contactEmail: "ana@example.com", contactName: "Ana Ridge" } },
   events: {}, history: {}, invtx: {}, notifications: {}, reminders: {}, access: { "u1": { role: "owner", teamId: "t1" }, "owner@example.com": { role: "owner", teamId: "t1" } } };
 const ROUTES = ["home", "mybook", "accounts", "account/a1", "contacts", "contact/c1", "projects", "project/p1", "project/p2", "jobs", "job/1001", "tracker", "calendar",
-  "files", "purchasing", "inventory", "item/i1", "stencils", "vendors", "vendor/v1", "reports", "audit", "archive", "bin", "settings", "new", "commissions", "bots"];
+  "files", "purchasing", "inventory", "item/i1", "stencils", "vendors", "vendor/v1", "reports", "audit", "archive", "bin", "settings", "new", "commissions", "bots", "org"];
 const browser = await chromium.launch(); const pg = await browser.newPage({ viewport: { width: 1400, height: 900 } });
 const errs = [];
 pg.on("pageerror", (e) => errs.push(String(e.message || e).slice(0, 160)));
@@ -613,6 +616,16 @@ await pg.setViewportSize({ width: 1400, height: 900 });
         return (de.scrollWidth > de.clientWidth + 1 || (m && m.scrollWidth > m.clientWidth + 1) ? "page " : "") + inner.map((e) => String(e.className || e.tagName).slice(0, 30)).slice(0, 2).join(","); });
       if (o) wide.push(w + " " + rt + ": " + o); } }
   if (wide.length) bad.push("pages that scroll sideways: " + wide.slice(0, 5).join("; "));
+  await pg.setViewportSize({ width: 1400, height: 900 }); }
+// the org chart: Matt on top, three departments, people kept apart from the bots (5 bots, not 8), hand-offs shown, fits a laptop and a phone
+{ for (const w of [1366, 390]) { await pg.setViewportSize({ width: w, height: 860 }); await pg.evaluate(() => { location.hash = "#/org"; }); await pg.waitForTimeout(500);
+    const r = await pg.evaluate(() => { const m = document.querySelector(".main"); const de = document.documentElement;
+      return { t: m ? m.innerText : "", depts: document.querySelectorAll(".main .org-dept").length, bots: document.querySelectorAll(".main .org-card:not(.person):not(.owner)").length,
+        people: document.querySelectorAll(".main .org-card.person").length, wide: de.scrollWidth > de.clientWidth + 1 || (m && m.scrollWidth > m.clientWidth + 1) }; });
+    if (!/Org chart/.test(r.t) || !/Matt Jackson/.test(r.t) || r.depts < 3) bad.push("org chart at " + w + ": missing title, owner or departments (" + r.depts + ")");
+    if (r.bots !== 5 || r.people !== 2) bad.push("org chart at " + w + ": should show 5 bots and 2 people under Matt, shows " + r.bots + " and " + r.people);
+    if (!/Hands work to Brodie Tuck, CRM Bot/.test(r.t) || !/How work moves/.test(r.t)) bad.push("org chart at " + w + ": hand-offs or the work flows are missing");
+    if (r.wide) bad.push("org chart scrolls sideways at " + w); }
   await pg.setViewportSize({ width: 1400, height: 900 }); }
 const ver = await pg.evaluate(() => { const m = document.documentElement.innerHTML.match(/APP_VERSION="([^"]+)"/); return m ? m[1] : ""; });
 await browser.close(); fs.unlinkSync(PAGE);

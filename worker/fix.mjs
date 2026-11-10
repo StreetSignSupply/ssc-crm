@@ -353,6 +353,9 @@ if (STEP === "export") {
       if (tabs.log.length > 4000) tabs.log = [tabs.log[0]].concat(tabs.log.slice(-4000));
       const dash = buildBotDash(tabs, Date.now());
       await fs.doc("settings/botdash").set(JSON.parse(JSON.stringify(dash)));
+      // the org chart is for everyone on the team (sales and shop can't read botdash): names, roles and run state only
+      await fs.doc("settings/orgchart").set(JSON.parse(JSON.stringify({ at: dash.at, people: dash.people || [],
+        bots: (dash.bots || []).map((b) => ({ name: b.name, platform: b.platform, team: b.team, resp: b.resp, schedule: b.schedule, state: b.state, handsTo: b.handsTo || [] })) })));
       step("Bot team dashboard: " + dash.totals.bots + " bots, " + dash.totals.open + " open items, " + dash.totals.matt + " for Matt");
     } catch (e) { console.log("::warning::Bot team dashboard not written: " + String(e.message || e).slice(0, 160)); }
     const vinv = data.files.slice(1).filter((r) => r[5] === "vendor" && /invoice/i.test(r[3])).length, low = data.items.slice(1).filter((r) => r[9] === "yes").length;

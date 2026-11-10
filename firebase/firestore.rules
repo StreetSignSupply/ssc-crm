@@ -52,9 +52,9 @@ service cloud.firestore {
     // the record of what's been sent to the sheet is kept up by every copy of the CRM; the lock switch is the owner's
     match /settings/{id} {
       // everyone on the team reads only what the CRM pages need; the rest (secrets, QuickBooks, mail settings, the lock) office and owners
-      allow read: if isOffice() || (member() && (id in ["brand", "costsheet", "pricelist", "prodtypes", "signlib", "syncsent", "pipefeed"] || id.matches("^webcat_.*")));
+      allow read: if isOffice() || (member() && (id in ["brand", "costsheet", "pricelist", "prodtypes", "signlib", "syncsent", "pipefeed", "orgchart", "remclaim"] || id.matches("^webcat_.*")));
       // the sign-picture library: anyone but the shop can set a picture (only the byCode list changes)
-      allow write: if id == "syncsent" ? member() : (id == "signlib" ? (member() && !isShop() && (resource == null || changed().hasOnly(["byCode"]))) : (id == "dbLock" ? isOwner()
+      allow write: if (id == "syncsent" || id == "remclaim") ? member() : (id == "signlib" ? (member() && !isShop() && (resource == null || changed().hasOnly(["byCode"]))) : (id == "dbLock" ? isOwner()
                     : isOffice() && !(id != "secrets" && request.resource.data.get("shopToken", "") != "")));
     }
     // change history is add-only: every entry already there stays exactly as it was, new ones go on the end.
