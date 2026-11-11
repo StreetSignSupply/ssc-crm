@@ -114,3 +114,21 @@ size-pair names (144).
   and what the other series would give (18" FIRE LANE: C 101.46 -> 109.98 vs ref 110; D would be 120.85).
 - **Margin is a floor.** The blank must hold extents + 2 x 2.00 in exactly; the old 1/16 in tolerance let the 100 in
   G onto a 20 in blank with 1.99 in (CNC fail on SSS-ALP-100-03). Such rows now hold as 'sheet too small'.
+
+## 2026-11-11 (Stencil Program Lead) — the 1800 tiebreak (Matt, Decision D-20261110-19)
+Matt 2026-11-10 23:24: "what ever is closest to 1800 stencils". Every spec question (tie width and count, sheet,
+letter spacing, legend width and height, piece count) is answered by the matching 1800stencil product within 1/4 in;
+where their listing shows no number the standing spec stays. Our file is still drawn from the FHWA drawing.
+- **The 25 %-of-stroke tie hold is gone.** Ties are the standing 1/2 in (3/4 in over 24 in) unless column O carries
+  the 1800 number. The note in T gives the thinnest stroke at a tie when the tie is over 25 % of it. 241 held rows
+  released.
+- **`ref_fit`.** An axis that is off the 1800 size (column H) by more than 1/4 in but no more than 1 % + 1/2 in
+  (round-letter overshoot, a hair of width) is scaled to their number, and a legend that overflows the blank's room
+  by up to 1/4 in is brought inside it (SSS-ALP-100-03: G 16.02 x 100.46 -> 16 x 100 on the 20 x 107 sheet, 2.00 in
+  margins). The note says what was scaled.
+- **Letter sets and the 1800 width.** The word "as set" (column M) is opened to 1800's width; the note tells the
+  painter how much further apart to set the letter sheets (SSS-STP-100-10 SCHOOL: 127.76 -> 145 in, 3.45 in per gap).
+  The letter DXFs do not change, so a 'qa fail' set is rebuilt when its extents change even if the sha256 is the same.
+- **Sanity hold (not the 25 % rule).** A layout whose stroke is thinner than the tie itself (6 in elongated pavement
+  letters squeezed onto a blank) is not built; the row waits for the 1800 size in column H.
+- Notes always state the tie and, with H filled, whether the legend matches 1800 within 1/4 in.

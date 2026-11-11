@@ -72,7 +72,7 @@ async function main() {
   for (const x of res) {
     const r = bySku[x.sku];
     if (!x.ok) { held.push([r, x.reason]); continue; }
-    if (r.status === "qa fail" && r.R && r.R === x.sha256) { held.push([r, "same file as the one that failed QA: the generator has not changed for this row"]); continue; }
+    if (r.status === "qa fail" && r.R && r.R === x.sha256 && (!r.M || samePair(r.M, x.extents))) { held.push([r, "same file as the one that failed QA: the generator has not changed for this row"]); continue; }
     const specRow = r.status !== "qa fail";   // a failed row's M/N came from the failed file, not the Catalog Bot
     if (specRow && r.M && !samePair(r.M, x.extents)) { held.push([r, `spec row extents ${r.M} vs built ${x.extents} (> 1/16 in)`]); continue; }
     if (specRow && r.N && !samePair(r.N, x.sheet)) { held.push([r, `spec row sheet ${r.N} vs built ${x.sheet}`]); continue; }

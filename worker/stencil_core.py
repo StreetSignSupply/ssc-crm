@@ -6,8 +6,9 @@ stdout: JSON list of results {sku, ok, reason?, nominal, extents, sheet, tie, fo
 
 Spec: Drive stencil-spec-rule.md (Matt 2026-11-08) — NOMINAL = number in the name = cap height;
 EXTENTS = painted legend W x H; SHEET = the price-list blank (must hold EXTENTS + 2 x 2.00 in);
-ties 1/2 in (NOMINAL <= 24) or 3/4 in (> 24), >= 2 per island, on straight segments, never wider
-than 25 % of the stroke (else HOLD for Carla); DXF inches, origin = sheet bottom-left, one layer
+ties 1/2 in (NOMINAL <= 24) or 3/4 in (> 24), >= 2 per island. Matt 2026-11-10 (D-20261110-19): whatever
+is closest to the matching 1800stencil product wins every spec question (size, sheet, spacing, tie) within
+1/4 in; the old "tie <= 25 % of the stroke" hold is gone. DXF inches, origin = sheet bottom-left, one layer
 CUT, closed paths only. Glyphs: worker/stencil-glyphs (FHWA public-domain drawings only).
 """
 import hashlib, json, math, re, sys
@@ -16,7 +17,8 @@ from shapely.geometry import Polygon, MultiPolygon, box, LineString
 from shapely.ops import unary_union
 from shapely import affinity
 
-GEN_VERSION = "stencil-gen 1.1 (2026-11-10)"
+GEN_VERSION = "stencil-gen 1.2 (2026-11-11)"
+SNAP = 0.25              # 1800 tiebreak: our number is brought to theirs when it is within reach (see ref_fit)
 MARGIN = 2.0
 BED = (56.0, 116.0)          # 5 x 10 ft Biesse bed less the 2 in machine margin each side
 TOL = 1 / 16
@@ -90,6 +92,34 @@ def layout(font, lines, nominal, tie=0.0, extra=0.0):
     return out, []
 
 
+def ref_pair(ew, eh, ref):
+    """1800 lists legend W x H in either order: return (ref_w, ref_h) the way our legend lies."""
+    if abs(ew - ref[0]) + abs(eh - ref[1]) <= abs(ew - ref[1]) + abs(eh - ref[0]):
+        return ref[0], ref[1]
+    return ref[1], ref[0]
+
+
+def ref_fit(letters, ref, room=None):
+    """1800 tiebreak (D-20261110-19): the FHWA drawing sets the shape, 1800's listing sets the numbers.
+    An axis that is off their size by more than 1/4 in but no more than 1 % + 1/2 in (round-letter overshoot,
+    a hair of width) is scaled to their number; an axis that overflows the blank's room by up to 1/4 in is
+    brought inside it. Returns (letters, note)."""
+    b = bounds(letters); ew, eh = b[2] - b[0], b[3] - b[1]
+    fx = fy = 1.0; why = []
+    if ref:
+        rw, rh = ref_pair(ew, eh, ref)
+        if SNAP < abs(ew - rw) <= 0.01 * rw + 0.5: fx = rw / ew
+        if SNAP < abs(eh - rh) <= 0.01 * rh + 0.5: fy = rh / eh
+    if room:
+        if 0 < ew * fx - room[0] <= SNAP: fx = room[0] / ew
+        if 0 < eh * fy - room[1] <= SNAP: fy = room[1] / eh
+    if fx == 1.0 and fy == 1.0:
+        return letters, ""
+    cx, cy = (b[0] + b[2]) / 2, (b[1] + b[3]) / 2
+    out = [affinity.scale(g, fx, fy, origin=(cx, cy)) for g in letters]
+    return out, f"legend scaled {fx:.4f} x {fy:.4f} from the FHWA drawing ({fmt(ew)} x {fmt(eh)}) to the 1800 size / sheet"
+
+
 def bounds(geoms):
     u = unary_union(geoms); return u.bounds
 
@@ -121,8 +151,8 @@ def add_ties(letters, tie):
                     mid = Point((x0 + x1) / 2, cy)
                     stroke = 2 * mid.distance(P.boundary)
                     report.append(round(stroke, 3))
-                    if tie > 0.25 * stroke + 1e-9:
-                        return None, report, f"stroke {stroke:.2f} in at an island; a {tie} in tie is over 25% of it (spec: HOLD for Carla)"
+                    # Matt 2026-11-10 (Decision D-20261110-19): the tie is the 1800 number, else the standing
+                    # 1/2 in (3/4 in over 24 in), even when it is more than 25 % of the stroke. No hold.
                     # band from the island's centre (empty) out past the stroke: clean on slanted legs too
                     band = box(x0 - 3 * tie, cy - tie / 2, cx, cy + tie / 2) if side < 0 else \
                         box(cx, cy - tie / 2, x1 + 3 * tie, cy + tie / 2)
@@ -268,22 +298,32 @@ def build(job, out):
                         letters, _ = layout(font, lines, nominal, tie, track)
                         b = bounds(letters); ew, eh = b[2] - b[0], b[3] - b[1]
                         if abs(refw - ew) <= 1 / 32: break
-            need = (ew + 2 * MARGIN, eh + 2 * MARGIN)
+            base_letters = letters
             if blank:
                 for rot, (sw, sh) in enumerate((blank, blank[::-1])):
+                    # 1800 tiebreak: bring a near-miss to their size, and a hair of overflow onto their sheet
+                    letters, fitnote = ref_fit(base_letters, ref, (sw - 2 * MARGIN, sh - 2 * MARGIN))
+                    b = bounds(letters); ew, eh = b[2] - b[0], b[3] - b[1]
+                    need = (ew + 2 * MARGIN, eh + 2 * MARGIN)
                     if need[0] <= sw + 1e-6 and need[1] <= sh + 1e-6:   # 2.00 in margin is a floor (ALP-100-03 came out 1.99)
                         fw, fh = need[0] / sw, need[1] / sh
                         if ref:   # 1800 reference size = their legend W x H: closest legend wins, listed orientation first
                             d = min(abs(ew - ref[0]) + abs(eh - ref[1]), abs(ew - ref[1]) + abs(eh - ref[0]))
-                            fits.append(((1 - rot) * 1000 - d, font, lines, letters, (sw, sh), track)); continue
+                            fits.append(((1 - rot) * 1000 - d, font, lines, letters, (sw, sh), track, fitnote)); continue
                         if min(fw, fh) < MIN_FILL:
                             low.append(f"{font} {'/'.join(lines)} fills {fw:.0%} x {fh:.0%}"); continue
                         # the price-list orientation first; then the layout that uses the blank best
-                        fits.append(((1 - rot) + fw * fh, font, lines, letters, (sw, sh), track))
+                        fits.append(((1 - rot) + fw * fh, font, lines, letters, (sw, sh), track, fitnote))
+                letters = base_letters
+                b = bounds(letters); ew, eh = b[2] - b[0], b[3] - b[1]
+                need = (ew + 2 * MARGIN, eh + 2 * MARGIN)
             else:
+                letters, fitnote = ref_fit(base_letters, ref)
+                b = bounds(letters); ew, eh = b[2] - b[0], b[3] - b[1]
+                need = (ew + 2 * MARGIN, eh + 2 * MARGIN)
                 sheet = (math.ceil(need[0]), math.ceil(need[1]))
                 if font in ("C", "D"):
-                    fits.append((1 / (sheet[0] * sheet[1]), font, lines, letters, sheet, track))
+                    fits.append((1 / (sheet[0] * sheet[1]), font, lines, letters, sheet, track, fitnote))
             tried.append(f"{font} {'/'.join(lines)} {ew:.1f}x{eh:.1f}")
             if len(lines) == 1 and blank and font == "P" and not (need[0] <= max(blank) + TOL and need[1] <= max(blank) + TOL and min(need) <= min(blank) + TOL):
                 widest = max(g.bounds[2] - g.bounds[0] for g in letters)
@@ -291,7 +331,7 @@ def build(job, out):
                     per_letter = True
     if not fits and blank and len(legend.replace(" ", "")) > 1:
         # one letter per sheet (the 96 in DOT words: the price-list blank holds one letter, the painter sets the word)
-        s = build_set(job, out, nominal, legend, tie, blank)
+        s = build_set(job, out, nominal, legend, tie, blank, ref)
         if s is not None:
             return s
     if not fits:
@@ -307,13 +347,19 @@ def build(job, out):
         return res
     fits.sort(key=lambda f: -f[0])
     problem = None
-    for _, font, lines, letters0, sheet, track in fits:     # best fill first; first one whose ties pass the 25 % rule
+    for _, font, lines, letters0, sheet, track, fitnote in fits:     # closest to 1800 / best fill first
         if not (min(sheet) <= BED[0] and max(sheet) <= BED[1]):
             problem = problem or f"sheet {fmt(sheet[0])} x {fmt(sheet[1])} is over the 56 x 116 in bed: needs a multi-piece split"
             continue
         letters, strokes, p = add_ties(letters0, tie)
         if p:
             problem = problem if problem and "stroke" in problem else p
+            continue
+        if strokes and min(strokes) < tie:
+            # not the old 25 % rule: a stroke thinner than the tie itself means the alphabet was squeezed to fit a
+            # blank it was never meant for (6 in elongated pavement letters); the 1800 size (column H) settles it
+            problem = problem or (f"no FHWA font matches the blank: '{legend}' at {fmt(nominal)} in only fits blank {job.get('blank')} "
+                                  f"in an alphabet whose stroke ({min(strokes):.2f} in) is thinner than the {tie} in tie; needs the 1800 size in column H")
             continue
         geom = polys_only(unary_union(letters))
         web = narrowest_web(geom)
@@ -335,6 +381,11 @@ def build(job, out):
     to_png(png, geom, sheet, nominal, ext, sku, legend, font, tie)
     lay = " / ".join(lines)
     if track: lay += f", letter spacing opened {fmt(track * nominal)} in per gap to the 1800 width"
+    if fitnote: lay += f", {fitnote}"
+    if ref and abs(ew - ref_pair(ew, eh, ref)[0]) <= 0.25 and abs(eh - ref_pair(ew, eh, ref)[1]) <= 0.25:
+        lay += f"; matches 1800 {fmt(ref[0])} x {fmt(ref[1])} within 1/4 in"
+    lay += f"; tie {fmt(tie)} in" + (" (1800 listing shows no tie width: standing spec, D-20261110-19)" if not job.get("tie") else " (column O)")
+    if strokes and tie > 0.25 * min(strokes): lay += f", thinnest stroke at a tie {fmt(min(strokes))} in"
     if ref and (abs(ew - ref[0]) > 0.25 or abs(eh - ref[1]) > 0.25):
         others = []
         for o in "CDP":
@@ -358,7 +409,7 @@ def out_folder(out, job):
     return folder
 
 
-def build_set(job, out, nominal, legend, tie, blank):
+def build_set(job, out, nominal, legend, tie, blank, ref=None):
     """Letter set: the blank holds one letter of the legend; one DXF + proof per distinct letter, every letter
     upright on its own sheet (the price-list blank, listed orientation first), 2.00 in margin, ties as usual.
     Returns a result dict, or None when no FHWA font puts every letter on the blank."""
@@ -374,7 +425,20 @@ def build_set(job, out, nominal, legend, tie, blank):
         sheets = []; problem = None
         whole, missing = layout(font, [legend], nominal, tie)     # the word as the painter sets it = 1800's size
         if whole is None: continue
-        wb = bounds(whole); word = (wb[2] - wb[0], wb[3] - wb[1])
+        wb = bounds(whole); word = (wb[2] - wb[0], wb[3] - wb[1]); spacing = ""
+        gaps = len(legend.replace(" ", "")) - 1
+        if ref and gaps > 0:
+            # 1800 lists the word as the painter sets it: open the spacing between the letter sheets to their width
+            refw = ref_pair(word[0], word[1], ref)[0]
+            track = 0.0
+            if refw - word[0] > 0.25 and (refw - word[0]) / gaps / nominal <= 0.5:
+                for _ in range(3):
+                    track += (refw - word[0]) / gaps / nominal
+                    w2, _ = layout(font, [legend], nominal, tie, track)
+                    wb = bounds(w2); word = (wb[2] - wb[0], wb[3] - wb[1])
+                    if abs(refw - word[0]) <= 1 / 32: break
+                spacing = (f"; set the letters {fmt(track * nominal)} in further apart than the FHWA spacing "
+                           f"to make 1800's {fmt(refw)} in word width")
         widest = max(g.bounds[2] - g.bounds[0] for g in whole)
         if min(blank) > 1.6 * (widest + 2 * MARGIN): continue
         for ch in chars:
@@ -419,7 +483,7 @@ def build_set(job, out, nominal, legend, tie, blank):
     set_proof(proof, [(sub / f"{base}-{ch}.png") for ch, *_ in sheets], f"{job['sku']}  {legend}: {len(chars)} sheets, one letter each")
     return {"sku": job["sku"], "ok": True, "set": True, "nominal": fmt(nominal), "extents": f"{fmt(word[0])} x {fmt(word[1])}",
             "sheet": f"{fmt(sw)} x {fmt(sh)}", "tie": str(tie), "font": FONT_LABEL[font],
-            "layout": f"letter set {''.join(chars)}: {len(chars)} sheet(s) for '{legend}' ({len(legend.replace(' ', ''))} letters), each letter upright on its own blank; extents = the whole word as set ({fmt(word[0])} x {fmt(word[1])}), widest letter {fmt(widest)}",
+            "layout": f"letter set {''.join(chars)}: {len(chars)} sheet(s) for '{legend}' ({len(legend.replace(' ', ''))} letters), each letter upright on its own blank; extents = the whole word as set ({fmt(word[0])} x {fmt(word[1])}), widest letter {fmt(widest)}{spacing}; tie {fmt(tie)} in",
             "islands": islands, "narrowest_web": round(min(webs), 3) if webs else None, "min_stroke_at_tie": min_stroke,
             "dxf": files[0]["dxf"], "png": str(proof.relative_to(out)), "folder": str(sub.relative_to(out)), "files": files,
             "sha256": h.hexdigest()}
