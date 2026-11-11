@@ -58,7 +58,7 @@ async function main() {
   const todo = rows.filter((r) => r.kind === "text" && ["todo", "sourced", "", "qa fail"].includes(r.status) && !/gen skip/i.test(r.notes));
   const symbolsWaiting = rows.filter((r) => r.kind === "symbol" && r.master && ["todo", "sourced", "master ready"].includes(r.status)).length;
   let jobs = todo.map((r) => ({ sku: r.sku, name: r.name, category: r.category, blank: r.blank, pieces: r.pieces, ref: r.ref,
-    nominal: r.L || undefined, tie: r.O || undefined }));
+    nominal: r.L || undefined, tie: r.O || undefined, legend: legendFromNotes(r.notes) }));
   if (LIMIT) jobs = jobs.slice(0, LIMIT);
 
   // ---- build
@@ -131,6 +131,15 @@ async function main() {
     held: held.map(([r, why]) => ({ row: r.row, sku: r.sku, why })) }, null, 1));
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, "## Stencil generator\n\n" + summary.map((s) => "- " + s).join("\n") + "\n");
   console.log(`STENCIL_GEN_RESULT ${JSON.stringify({ generated: good.length, held: held.length, cap, passed })}`);
+}
+
+// the Catalog Bot writes "legend: CAMPUS SHUTTLES (from ...)" in T when the name has no capital-letter legend
+function legendFromNotes(notes) {
+  for (const p of (notes || "").split(" | ")) {
+    const m = p.match(/^legend:\s*([A-Z0-9][A-Z0-9 &\/'\-.!]*?)\s*(\(|$)/);
+    if (m) return m[1];
+  }
+  return undefined;
 }
 
 // one "gen ..." segment per row: replace the previous one, keep everyone else's notes
