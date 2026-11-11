@@ -284,6 +284,72 @@ if (STEP === "export") {
     await write("CRM Inventory", data.items, 17); step("CRM Inventory written");
     await write("CRM Activity", data.acts, 12); step("CRM Activity written");
     await write("CRM Calendar", data.evs, 12); step("CRM Calendar written");
+    // CRM Live: the true state of the database right now (the CRM Orders tab is an event log and can show an archived
+    // quote as live). One row per live project and work order, then counts and a FLAGS list of what looks out of place.
+    try {
+      const liveRows = await page.evaluate(() => {
+        const T = window.__T, S = T.S, day = 864e5, now = Date.now();
+        const iso = (t) => t ? new Date(t).toISOString().slice(0, 10) : ""; const N = (x) => Math.round((Number(x) || 0) * 100) / 100;
+        const qb = (S.qbinv && Array.isArray(S.qbinv.rows)) ? S.qbinv.rows : []; const num = (v) => Number(String(v == null ? "" : v).replace(/[$,\s]/g, "")) || 0;
+        const qbOf = (p) => { const n = String(p.invNum || "").replace(/^#/, "").trim(); return n ? qb.find((x) => String(x.doc).replace(/^#/, "").trim() === n) : null; };
+        const acc = (id) => S.accounts.get(id) || {}; const out = [["section", "number", "quote", "account", "name", "stage_or_status", "value", "bill_status", "invoice", "qb_balance", "rep", "created", "updated", "work_orders", "due_or_ship", "flags"]];
+        const flags = []; const F = (who, what) => flags.push([who, what]);
+        const projs = T.live(S.projects), jobs = T.live(S.jobs);
+        projs.sort((a, b) => (a.num || 0) - (b.num || 0)).forEach((p) => {
+          const a = acc(p.accountId), js = T.jobsOf(p.id), q = qbOf(p), rep = T.repFor(p), val = N(T.projValue(p)), st = p.stage || "inquiry", bs = T.billState(p), fl = [];
+          const test = (T.isTestRec && T.isTestRec(p)) || /\btest\b|^zz /i.test((a.name || "") + " " + (p.name || ""));
+          if (test) fl.push("test record");
+          if (a.deleted) fl.push("account is in the recycle bin");
+          if (q && num(q.total) > 0 && num(q.balance) <= 0 && ["closed"].indexOf(st) < 0) fl.push("paid in QuickBooks (inv " + p.invNum + ") but stage is " + st);
+          if (q && num(q.balance) <= 0 && num(q.total) > 0 && bs !== "paid") fl.push("QuickBooks says paid, CRM bill status " + bs);
+          if (q && Math.abs(num(q.total) - val) > 1 && val > 0 && Math.abs(num(q.total) - val * 1.0675) > Math.max(2, val * 0.02)) fl.push("CRM value " + val + " vs QuickBooks invoice total " + num(q.total));
+          if (bs !== "none" && p.invNum && !q && qb.length) fl.push("invoice " + p.invNum + " not found in QuickBooks copy");
+          if (["won", "production", "shipped"].indexOf(st) >= 0 && !js.length) fl.push("stage " + st + " with no work order");
+          if (["won", "production"].indexOf(st) >= 0 && val === 0) fl.push("stage " + st + " with $0 value");
+          if (["lead", "inquiry"].indexOf(st) >= 0 && val > 0 && p.quote) fl.push("lead/inquiry carrying a quote of " + val);
+          if (st === "quoted" && now - (p.updatedAt || p.createdAt || now) > 14 * day) fl.push("quoted, untouched " + Math.round((now - (p.updatedAt || p.createdAt)) / day) + " days");
+          if (["lead", "inquiry"].indexOf(st) >= 0 && now - (p.updatedAt || p.createdAt || now) > 21 * day) fl.push(st + ", untouched " + Math.round((now - (p.updatedAt || p.createdAt)) / day) + " days");
+          if (!rep) fl.push("no rep");
+          if (!(p.contacts || []).length && !T.contactsOf(p.accountId).length) fl.push("no contact on project or account");
+          out.push(["project", "P-" + (p.num || ""), p.quote || "", a.name || "", p.name || "", st, val, bs, p.invNum || "", q ? num(q.balance) : "", rep ? (rep.name || rep.initials || "") : "",
+            iso(p.createdAt), iso(p.updatedAt), js.map((j) => j.num + ":" + (j.status || "new")).join(", "), p.due || "", fl.join("; ")]);
+          fl.forEach((x) => F("P-" + (p.num || "") + " " + (a.name || ""), x));
+        });
+        jobs.sort((a, b) => (a.num || 0) - (b.num || 0)).forEach((j) => {
+          const p = j.projectId ? S.projects.get(j.projectId) : null, a = acc(j.accountId || (p && p.accountId)), fl = [], st = j.status || "new";
+          const due = j.due || j.shipBy || j.shipDate || (p && p.due) || ""; const dd = due ? Date.parse(due) : 0;
+          if (p && p.deleted) fl.push("its project is in the recycle bin");
+          if (!p) fl.push("no project");
+          if (dd && ["shipped", "closed", "done", "picked_up"].indexOf(st) < 0) { const left = Math.ceil((dd - now) / day); if (left <= 2) fl.push(left < 0 ? "ship date passed " + (-left) + " days ago, status " + st : "ships in " + left + " day(s), status " + st); }
+          if (st === "new" && now - (j.createdAt || now) > 14 * day) fl.push("status new for " + Math.round((now - j.createdAt) / day) + " days");
+          if (["production", "in_production"].indexOf(st) >= 0 && now - (j.updatedAt || j.createdAt || now) > 10 * day) fl.push("in production, untouched " + Math.round((now - (j.updatedAt || j.createdAt)) / day) + " days");
+          out.push(["work_order", String(j.num), p ? "P-" + (p.num || "") : "", a.name || "", j.desc || (p ? p.name : "") || "", st, "", "", "", "", "", iso(j.createdAt), iso(j.updatedAt), "", due, fl.join("; ")]);
+          fl.forEach((x) => F("WO " + j.num + " " + (a.name || ""), x));
+        });
+        // reminders the CRM would send today
+        let rem = []; try { rem = T.remAll() || []; } catch (e) {}
+        rem.slice(0, 60).forEach((r) => out.push(["reminder_due", "", "", "", String(r.text || r.title || r.label || "").slice(0, 160), String(r.kind || r.type || ""), "", "", "", "", "", "", "", "", "", ""]));
+        // accounts and contacts
+        const accs = T.live(S.accounts), cons = T.live(S.contacts); const byAcc = {}; cons.forEach((c) => { byAcc[c.accountId] = (byAcc[c.accountId] || 0) + 1; });
+        const hasProj = {}; [...S.projects.values()].forEach((p) => { if (p && !p.deleted) hasProj[p.accountId] = 1; });
+        const hasAct = {}; T.live(S.activity).forEach((x) => { if (x.recType === "account") hasAct[x.recId] = 1; else if (x.recType === "project") { const p = S.projects.get(x.recId); if (p) hasAct[p.accountId] = 1; } else if (x.recType === "contact") { const c = S.contacts.get(x.recId); if (c) hasAct[c.accountId] = 1; } });
+        const key = (n) => String(n || "").toLowerCase().replace(/[^a-z0-9]/g, ""); const nm = {}; accs.forEach((a) => { const k = key(a.name); (nm[k] = nm[k] || []).push(a.name); });
+        const dupN = Object.values(nm).filter((v) => v.length > 1); const em = {}; cons.forEach((c) => { const e = String(c.email || "").trim().toLowerCase(); if (e) (em[e] = em[e] || []).push(c.name || e); });
+        const dupE = Object.entries(em).filter(([, v]) => v.length > 1);
+        const noCon = accs.filter((a) => !byAcc[a.id]); const never = accs.filter((a) => !hasAct[a.id] && !hasProj[a.id]); const tests = accs.filter((a) => /\btest\b|^zz /i.test(a.name || ""));
+        const C = (k, v, note) => out.push(["count", k, "", "", note || "", String(v), "", "", "", "", "", "", "", "", "", ""]);
+        C("projects_live", projs.length); C("projects_in_recycle_bin", [...S.projects.values()].filter((p) => p && p.deleted).length); C("work_orders_live", jobs.length);
+        C("accounts_live", accs.length); C("accounts_in_recycle_bin", [...S.accounts.values()].filter((a) => a && a.deleted).length); C("contacts_live", cons.length);
+        C("accounts_with_no_contact", noCon.length); C("accounts_with_no_activity_and_no_project", never.length, "never contacted as far as the CRM knows");
+        C("duplicate_account_names", dupN.length, dupN.slice(0, 25).map((v) => v[0]).join(" | ")); C("duplicate_contact_emails", dupE.length, dupE.slice(0, 25).map(([e]) => e).join(" | "));
+        C("test_accounts_live", tests.length, tests.map((a) => a.name).join(" | ")); C("reminders_due_now", rem.length);
+        C("activity_rows", T.live(S.activity).length); C("team_members", T.live(S.team).length, T.live(S.team).map((t) => (t.name || "") + " <" + (t.email || "") + "> " + (t.role || "")).join(" | "));
+        recentAcc: { const d3 = now - 3 * day; accs.filter((a) => (a.createdAt || 0) > d3).forEach((a) => out.push(["account_new_3d", "", "", a.name || "", "", (byAcc[a.id] || 0) + " contacts", "", "", "", "", "", iso(a.createdAt), iso(a.updatedAt), "", "", hasAct[a.id] ? "" : "no activity logged"])); }
+        flags.forEach(([who, what]) => out.push(["FLAG", who, "", "", what, "", "", "", "", "", "", "", "", "", "", ""]));
+        return out;
+      });
+      await write("CRM Live", liveRows, 17); step("CRM Live written: " + liveRows.length + " rows");
+    } catch (e) { console.log("::warning::CRM Live not written: " + String(e && e.message || e).slice(0, 200)); }
     // CRM Health: is the agents' feed actually landing? (Nov 8: the switch was off and the worker paused for 12 days, unnoticed.)
     try {
       const feed = await api("/values/" + encodeURIComponent("Feed!A1:AA5000") + "?majorDimension=ROWS", "GET");
