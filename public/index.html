@@ -12060,7 +12060,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-177";
+const APP_VERSION="2026.11.25-178";
 // the release check (which opens the page from a file) can reach these; the hosted site exposes nothing
 if(location.protocol==="file:")window.__sscTest={S,benchDue,benchChip,weekMonday,picRough,webcatStat};
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
@@ -18187,10 +18187,37 @@ function mailFill(txt,ctx){const p=ctx.pid?proj(ctx.pid):null,c=ctx.contact||nul
     tracking_part:tr?"\n\nTracking: "+tr:"",carrier_part:car?" by "+car:"",sign_line:ctx.signUrl?"You can review and approve it online here — it takes a minute:\n"+ctx.signUrl+"\n\n":""};
   return String(txt||"").replace(/\{(\w+)\}/g,(m,k)=>v[k]!=null?v[k]:m)}
 function composeFiles(pid){if(!pid)return [];return projFiles(pid).filter(f=>f.url&&!f.link&&!f.deleted&&/^https:/.test(f.url))}
-function composeModal(o){o=o||{};const p=o.pid?proj(o.pid):null;const aid=o.aid||(p&&p.accountId)||"";
+// the quote PDF that matches the quote as it is right now (newest first)
+function currentQuotePdf(p){if(!p)return null;const h=quoteHash(p);
+  return live(S.files).filter(x=>x.projectId===p.id&&x.gen==="quote"&&x.qhash===h&&!x.deleted&&x.url&&/pdf/i.test((x.type||"")+(x.name||""))).sort((a,b)=>(b.at||0)-(a.at||0))[0]||null}
+// make the quote PDF now, file it to the project, and hand back the file (the page preview shows briefly and closes)
+async function makeQuotePdfNow(pid){if(!assets)return null;toast("Making a fresh quote PDF to attach…");S._docPending=null;
+  try{await makeDoc(pid,"quote");let d=null;for(let i=0;i<60&&!d;i++){await new Promise(r=>setTimeout(r,500));if(S._docPending&&S._docPending.pid===pid)d=S._docPending}
+    if(!d)return null;closeModal();await (d.filing||docToFiles(d));
+    for(let i=0;i<20;i++){const f=currentQuotePdf(proj(pid));if(f)return f;await new Promise(r=>setTimeout(r,400))}}catch(e){}
+  return null}
+function quoteMailOpts(o){if(!o||!o.pid||o._pdfOk)return false;const r=o.signId?(S.signreq||new Map()).get(o.signId):null;
+  return o.kind==="quote"||o.tpl==="quote"||(!!r&&r.kind!=="proof")}
+async function prepQuoteMail(o){const p=proj(o.pid);let f=currentQuotePdf(p);
+  if(!f&&p&&orderedLines(p).some(l=>Number(l.qty)>0))f=await makeQuotePdfNow(p.id);
+  if(!f)toast("The quote PDF couldn't be made — make it with Documents → Quote, then open the email again.");
+  // a signing link made before the quote last changed would show the customer the old lines: make a fresh one
+  const r=o.signId?(S.signreq||new Map()).get(o.signId):null;
+  if(r&&p&&r.kind!=="proof"&&r.status==="sent"&&!r.deleted){const old=r.qhash||((S.files.get(r.fileId)||{}).qhash)||"";
+    if(old!==quoteHash(p)){let arts=[];try{arts=proofArt(p).concat(proofLineArts(p)).filter(x=>x&&x.url)}catch(e){}
+      const ct=(p.contacts||[]).map(x=>S.contacts.get(x)).concat(contactsOf(p.accountId)).find(c=>c&&c.email&&c.email===r.contactEmail)||null;
+      const nt=signToken();const rec=signRec(p,r.kind,f,ct,arts,nt);
+      try{await setDoc("signreq/"+nt,rec);await setDoc("signreq/"+r.token,Object.assign({},r,{status:"replaced",replacedBy:signUrl(nt)})).catch(()=>{});
+        if(o.body)o.body=String(o.body).split(signUrl(r.token)).join(signUrl(nt));
+        o=Object.assign({},o,{signId:nt,signUrl:signUrl(nt)});logEvent("project",p.id,"Quote changed since its approval link was made — a fresh link with the current quote was made for this email")}
+      catch(e){toast("Couldn't refresh the approval link — use Get it signed for a new one.")}}}
+  const keep=(o.attach||[]).filter(id=>{const x=S.files.get(id);return !(x&&x.gen==="quote")});
+  composeModal(Object.assign({},o,{_pdfOk:true,_qpdf:f?f.id:"",attach:f?[f.id].concat(keep):keep}))}
+function composeModal(o){o=o||{};if(quoteMailOpts(o)){prepQuoteMail(o);return}
+  const p=o.pid?proj(o.pid):null;const aid=o.aid||(p&&p.accountId)||"";
   const people=(p?((p.contacts||[]).map(x=>S.contacts.get(x)).filter(c=>c&&!c.deleted)):[]).concat(aid?contactsOf(aid):[]).filter((c,i,a)=>c.email&&a.findIndex(x=>x.id===c.id)===i);
   const c0=o.contactId?S.contacts.get(o.contactId):(o.to?people.find(c=>c.email===o.to):null)||(p?followContact(p):people[0])||null;
-  S._cmp={pid:o.pid||"",aid,contact:c0,signUrl:o.signUrl||"",signId:o.signId||"",kind:o.kind||"",draft:o.draft||null,follow:o.follow||null,tplUsed:o.tpl||""};
+  S._cmp={pid:o.pid||"",aid,contact:c0,signUrl:o.signUrl||"",signId:o.signId||"",qpdf:o._qpdf||"",kind:o.kind||"",draft:o.draft||null,follow:o.follow||null,tplUsed:o.tpl||""};
   const tpls=mailTemplates();const t0=o.tpl?tpls.find(t=>t.id===o.tpl):null;
   const subj=o.subject!=null?o.subject:t0?mailFill(t0.subject,S._cmp):"";const body=o.body!=null?o.body:t0?mailFill(t0.body,S._cmp):"";
   const files=composeFiles(o.pid);const pre=new Set(o.attach||[]);
@@ -18207,7 +18234,7 @@ function composeModal(o){o=o||{};const p=o.pid?proj(o.pid):null;const aid=o.aid|
     <div class="fld full"><div class="k">Message</div><textarea id="cm-body" style="min-height:220px">${esc(body)}</textarea></div>
     ${mySig()?`<div class="fld full"><div class="k">Your Gmail signature — added below the message when it's sent</div><iframe sandbox title="Your Gmail signature" srcdoc="${esc('<base target="_blank"><body style="margin:8px;font:13px Arial,sans-serif">'+mySig()+'</body>')}" style="width:100%;height:130px;border:1px solid var(--line2);border-radius:8px;background:#fff"></iframe></div>`:""}
     ${files.length?`<div class="fld full"><div class="k">Attach from this project${sendOn?"":" (attachments go only when the CRM sends it)"}</div>
-      <div style="display:flex;flex-direction:column;gap:4px;max-height:160px;overflow:auto">${files.slice(0,25).map(f=>`<label style="display:flex;gap:8px;align-items:center;justify-content:flex-start;font-size:13.5px;text-align:left;font-weight:500"><input type="checkbox" data-cmatt="${esc(f.id)}" ${pre.has(f.id)?"checked":""} ${sendOn?"":"disabled"} style="width:18px;height:18px;flex:0 0 auto;margin:0"> <span style="flex:0 1 auto">${esc(f.name)}</span> <span class="sub">${esc(f.cat||"")}${f._src&&f._src!=="Project"?" · "+esc(f._src):""}</span></label>`).join("")}</div></div>`:""}
+      <div style="display:flex;flex-direction:column;gap:4px;max-height:160px;overflow:auto">${files.filter(f=>!(o._qpdf&&f.gen==="quote"&&f.id!==o._qpdf)).sort((a,b)=>(b.id===o._qpdf)-(a.id===o._qpdf)).slice(0,25).map(f=>`<label style="display:flex;gap:8px;align-items:center;justify-content:flex-start;font-size:13.5px;text-align:left;font-weight:500"><input type="checkbox" data-cmatt="${esc(f.id)}" ${pre.has(f.id)||f.id===o._qpdf?"checked":""} ${sendOn&&f.id!==o._qpdf?"":"disabled"} style="width:18px;height:18px;flex:0 0 auto;margin:0"> <span style="flex:0 1 auto">${esc(f.name)}${f.id===o._qpdf?' <b style="color:var(--ok,#2E844A)">· always attached (current quote)</b>':""}</span> <span class="sub">${esc(f.cat||"")}${f._src&&f._src!=="Project"?" · "+esc(f._src):""}</span></label>`).join("")}</div></div>`:""}
     <div class="fld full sub">${noMail(p)?`<b>This project is marked dry run / internal</b> — the CRM won't email anyone outside from it.`
       :mailSendOn()&&!from?`Sending from the CRM needs your own @streetsignsupply.com address on your team record — <b>Open in my email</b> works meanwhile.`
       :sendOn?`Sends from <b>${esc(from||"—")}</b> through Gmail within about a minute${myAccess()!=="owner"&&p?" — a quote waits for Matt's OK first":""}, and it's logged on ${p?"the project":"the account"}. Replies come to that inbox.`
@@ -18374,7 +18401,10 @@ async function composeGo(send){const C=S._cmp||{};const to=$("#cm-to").value.spl
   // each attachment carries where it came from (the CRM-made quote PDF says gen "quote"), not just its name
   const atts=[...document.querySelectorAll("[data-cmatt]:checked")].map(e=>S.files.get(e.dataset.cmatt)).filter(Boolean).map(f=>({name:f.name,url:f.url,type:f.type||"",fileId:f.id,gen:f.gen||"",cat:f.cat||"",qhash:f.qhash||""}));
   // a quote going to the customer needs the owner's OK on that exact quote and those exact people (owners send their own)
-  const quoteOut=isQuoteMail(C,atts);if(quoteOut&&pq&&quoteFileStale(pq,atts))return toast("The quote PDF attached is older than the quote — make a new one (Documents → Quote) and attach that.");
+  const quoteOut=isQuoteMail(C,atts);
+  if(quoteOut&&pq&&(quoteFileStale(pq,atts)||!atts.some(a=>a.gen==="quote"))){toast("The quote changed — attaching a fresh quote PDF. Check it, then press Send again.");
+    prepQuoteMail({pid:C.pid,to:$("#cm-to").value,cc:$("#cm-cc").value,subject,body,signId:C.signId,signUrl:C.signUrl,kind:C.kind||"quote",tpl:C.tplUsed,
+      attach:atts.filter(a=>a.gen!=="quote").map(a=>a.fileId),title:"Email the quote"});return}
   const needOk=quoteOut&&myAccess()!=="owner"&&!(await quoteOkFor(pq,to,cc,atts));
   if(needOk&&!send)return toast("This quote needs Matt's OK first — press Send and it goes out the moment he approves it.");
   // every approval link in the email must still be live (P-2032 got a link that had been cancelled the day before)
@@ -18437,13 +18467,14 @@ function signModal(pid,fid){const p=proj(pid);if(!p)return;const docs=signDocs(p
       ${hasQ&&hasA?`<option value="both" ${def==="both"?"selected":""}>Quote + proof — one signature for both</option>`:""}
       ${hasQ?`<option value="quote" ${def==="quote"?"selected":""}>The quote only — items and prices</option>`:""}
       <option value="proof" ${def==="proof"?"selected":""}>The proof only — artwork</option></select></div>`})()}
-    <div class="fld full"><div class="k">Document to go with it</div><select id="sg-doc"><option value="">— none, just what's on the page —</option>${docs.map(f=>`<option value="${esc(f.id)}" ${d0&&f.id===d0.id?"selected":""}>${esc(f.name)} — ${esc(f.cat||"file")}</option>`).join("")}</select></div>
+    <div class="fld full"><div class="k">Document to go with it <span class="sub">(a quote always goes with its current quote PDF, made fresh if the quote changed)</span></div><select id="sg-doc"><option value="">— none, just what's on the page —</option>${docs.map(f=>`<option value="${esc(f.id)}" ${d0&&f.id===d0.id?"selected":""}>${esc(f.name)} — ${esc(f.cat||"file")}</option>`).join("")}</select></div>
     <div class="fld full"><div class="k">Who signs</div><select id="sg-who">${people.map(x=>`<option value="${esc(x.id)}" ${c&&c.id===x.id?"selected":""}>${esc(x.name)} — ${esc(x.email)}</option>`).join("")||`<option value="">(no contact with an email — add one first)</option>`}</select></div>
     <div class="fld full sub">They get a private link (good for 30 days). The page shows the ${"items, pictures and prices"} — or for a proof, every artwork picture to check — and they type their name, sign and approve, or ask for changes. Next you'll see the email with the link in it.</div></div>`,
     `<button class="btn" data-close="1">Cancel</button><button class="btn p" id="sg-go">Make the link</button>`));
   $("#sg-go").onclick=async()=>{const kind=$("#sg-kind").value;let f=S.files.get($("#sg-doc").value)||null;const ct=S.contacts.get($("#sg-who").value)||null;
     if(kind!=="proof"&&!orderedLines(p).some(l=>Number(l.qty)>0)){toast("The quote has no lines yet.");return}
     // a quote always goes with its PDF: if none was picked, the quote PDF is made now, saved to Files and attached
+    if(kind!=="proof"&&f&&isQuoteFile(f)&&f.cat!=="Signed quote")f=currentQuotePdf(p);
     if(kind!=="proof"&&!f&&assets){toast("Making the quote PDF to attach…");S._docPending=null;
       try{await makeDoc(p.id,"quote");let d=null;for(let i=0;i<60&&!d;i++){await new Promise(r=>setTimeout(r,500));if(S._docPending&&S._docPending.pid===p.id)d=S._docPending}
         if(d){closeModal();await (d.filing||docToFiles(d));await new Promise(r=>setTimeout(r,800));
@@ -18491,7 +18522,7 @@ function signRec(p,kind,f,ct,arts,tok){const b=S.brand||{};const now=Date.now();
     repName:rep2.name||"",repPhone:rep2.phone?fmtPhone(rep2.phone):"",repEmail:rep2.email||"",
     customer:a.name||accName(p.accountId),customerOrg:org,contactName:ct?ct.name:"",contactEmail:ct?ct.email:"",
     total:withQ?money2(sub):"",subtotal:withQ?Math.round(sub*100)/100:0,lines,arts:artList,noArt,
-    shipBy:p.due||"",pdfUrl:f?f.url:"",pdfName:f?f.name:"",pdfKind:f?(/proof|artwork/i.test(f.cat||"")?"proof":"quote"):"",fileId:f?f.id:"",
+    shipBy:p.due||"",qhash:kind==="proof"?"":quoteHash(p),pdfUrl:f?f.url:"",pdfName:f?f.name:"",pdfKind:f?(/proof|artwork/i.test(f.cat||"")?"proof":"quote"):"",fileId:f?f.id:"",
     status:"sent",createdAt:now,expiresAt:now+30*864e5,createdBy:meName(),createdById:meId(),signedName:"",signedAt:0,deleted:false}}
 function signCard(p){const rs=signReqsFor(p.id);if(!rs.length)return "";
   return `<section class="card flush"><header><h2>Signatures</h2><span class="n">${rs.length}</span><span class="sp"><button class="btn sm" data-signreq="${esc(p.id)}">Get it signed</button></span></header>
