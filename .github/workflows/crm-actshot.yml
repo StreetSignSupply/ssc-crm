@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       old: { description: "commit of the older release", default: "89cc106" }
-permissions: { contents: read }
+permissions: { contents: write }
 jobs:
   shot:
     runs-on: ubuntu-latest
@@ -20,6 +20,10 @@ jobs:
           npx playwright install --with-deps chromium > /tmp/pw.log 2>&1 || { tail -3 /tmp/pw.log; exit 1; }
           git show ${{ inputs.old }}:public/index.html > /tmp/old.html
           node actshot.mjs /tmp/old.html old || true
-          node actshot.mjs ../next/index.html now || true
-      - uses: actions/upload-artifact@v4
-        with: { name: actshots, path: "tests/*.png" }
+          node actshot.mjs next/index.html now || true
+      - name: Save the pictures on the "shots" branch
+        run: |
+          mkdir -p /tmp/s && cp tests/*.png /tmp/s/ && git fetch -q origin shots || true
+          git checkout -q --orphan shots-new && git rm -rfq . && cp /tmp/s/*.png . && git add *.png
+          git config user.name "Street Sign Supply agents"; git config user.email matt@streetsignsupply.com
+          git commit -qm "Activity card screenshots" && git push -qf origin HEAD:shots
