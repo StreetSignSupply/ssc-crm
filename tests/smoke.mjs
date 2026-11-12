@@ -487,19 +487,20 @@ await pg.setViewportSize({ width: 1400, height: 900 });
   const still = await pg.evaluate(() => !!document.getElementById("binsure"));
   if (!still) bad.push("emptying the bin doesn't need DELETE typed first");
   await pg.evaluate(() => { const c = document.querySelector(".mbox [data-close]"); if (c) c.click(); }); await pg.waitForTimeout(350); }
-// the Activity card: one bar — plain tabs to filter on the left, one "+ Add" menu on the right — and a message logged twice shows once
+// the Activity card: the coloured Log call / Log email / Note / Task buttons, coloured filters (Tasks always there),
+// and a message logged twice shows once (Matt 2026-11-12: the Nov 5 look, Salesforce-style icons)
 { await pg.evaluate(() => { location.hash = "#/account/a1"; }); await pg.waitForTimeout(600);
   const ac = await pg.evaluate(() => { const c = document.querySelector(".actcard"); if (!c) return null;
-    return { tabs: [...c.querySelectorAll(".segf [data-actf]")].map((b) => b.innerText.replace(/\s+/g, " ").trim()), add: c.querySelectorAll(".addm [data-log]").length, row4: c.querySelectorAll(".actrow4").length,
+    return { tabs: [...c.querySelectorAll(".actfil [data-actf]")].map((b) => b.innerText.replace(/\s+/g, " ").trim()), row4: c.querySelectorAll(".actrow4 [data-log]").length,
       emails: [...c.querySelectorAll("ul.act > li")].filter((li) => /here is the quote/.test(li.innerText)).length }; });
   if (!ac) bad.push("the account has no Activity card");
-  else { if (ac.add !== 4) bad.push("the Activity card's + Add menu doesn't offer call, email, note and task");
-    if (ac.row4) bad.push("the Activity card still has the old row of add buttons that look like the filters");
-    if (!ac.tabs.some((t) => /^Emails 1$/.test(t))) bad.push("the Activity tabs don't count an email logged twice once (" + ac.tabs.join(", ") + ")");
+  else { if (ac.row4 !== 4) bad.push("the Activity card doesn't have the four coloured Log call / Log email / Note / Task buttons");
+    if (!ac.tabs.some((t) => /^Tasks \d+$/.test(t))) bad.push("the Activity filters have no Tasks (" + ac.tabs.join(", ") + ")");
+    if (!ac.tabs.some((t) => /^Emails 1$/.test(t))) bad.push("the Activity filters don't count an email logged twice once (" + ac.tabs.join(", ") + ")");
     if (ac.emails !== 1) bad.push("an email logged twice shows twice in Activity"); }
-  await pg.evaluate(() => { const b = document.querySelector('.actcard .segf [data-actf="email"]'); if (b) b.click(); }); await pg.waitForTimeout(400);
+  await pg.evaluate(() => { const b = document.querySelector('.actcard .actfil [data-actf="email"]'); if (b) b.click(); }); await pg.waitForTimeout(400);
   const only = await pg.evaluate(() => [...document.querySelectorAll(".actcard ul.act > li")].length);
-  if (only !== 1) bad.push("the Emails tab doesn't show only emails (" + only + ")"); }
+  if (only !== 1) bad.push("the Emails filter doesn't show only emails (" + only + ")"); }
 // aluminum by the pound and commissions: the project shows its aluminum buy and the rep's commission; the pages render
 { await pg.evaluate(() => { location.hash = "#/project/p1"; }); await pg.waitForTimeout(700);
   const t = await pg.evaluate(() => (document.querySelector(".main") || {}).innerText || "");
