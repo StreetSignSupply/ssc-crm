@@ -18,7 +18,7 @@ from shapely.geometry import Polygon, MultiPolygon, box, LineString
 from shapely.ops import unary_union
 from shapely import affinity
 
-GEN_VERSION = "stencil-gen 1.2 (2026-11-11)"
+GEN_VERSION = "stencil-gen 1.3 (2026-11-12)"
 SNAP = 0.25              # 1800 tiebreak: our number is brought to theirs when it is within reach (see ref_fit)
 MARGIN = 2.0
 BED = (56.0, 116.0)          # 5 x 10 ft Biesse bed less the 2 in machine margin each side
@@ -27,6 +27,20 @@ MIN_FILL = 0.6           # legend + margins must use >= 60 % of the blank on eac
 HERE = Path(__file__).parent
 FONTS = {k: json.loads((HERE / f"stencil-glyphs/{k}.json").read_text()) for k in ("C", "D", "P")}
 FONT_LABEL = {"C": "FHWA Series C", "D": "FHWA Series D", "P": "FHWA pavement (elongated)"}
+# Series B, E, Em, F (SHS Standard Alphabets 2000, polys outer/holes, x from the glyph's left edge, lsb + w + rsb = adv):
+# same ring format as C and D with the left side bearing added, so every series lays out the same way.
+# 1800's widths (column H) are matched by picking the series whose width is closest (Matt 2026-11-12, D-20261110-19).
+EXTRA = ("B", "E", "Em", "F")
+for _k in EXTRA:
+    _d = json.loads((HERE / f"stencil-glyphs/fhwa-series-{_k.lower()}.json").read_text()); _g = {}
+    for _ch, _v in _d["glyphs"].items():
+        _rings = []
+        for _p in _v["polys"]:
+            for _r in [_p["outer"], *_p.get("holes", [])]:
+                _rings.append([[x + _v["lsb"], y] for x, y in _r])
+        _g[_ch] = {"rings": _rings, "adv": _v["adv"]}
+    FONTS[_k] = {"glyphs": _g, "letterGap": 0}
+    FONT_LABEL[_k] = f"FHWA Series {_k}"
 
 
 def polys_only(g):
@@ -72,7 +86,7 @@ def set_line(font, text, min_gap=0.0, extra=0.0):
     return parts, missing
 
 
-def layout(font, lines, nominal, tie=0.0, extra=0.0):
+def layout(font, lines, nominal, tie=0.0, extra=0.0, pitch=1.5):
     """lines: list of strings, stacked with a 0.5 cap line gap, centred. Returns list of letter geoms (inches)."""
     rows = []
     for ln in lines:
@@ -88,7 +102,7 @@ def layout(font, lines, nominal, tie=0.0, extra=0.0):
         u = unary_union(parts); dx = (maxw - w) / 2 - u.bounds[0]
         for p in parts:
             out.append(affinity.translate(p, dx, y))
-        y -= 1.5
+        y -= pitch
     out = [affinity.scale(p, nominal, nominal, origin=(0, 0)) for p in out]
     return out, []
 
@@ -110,7 +124,7 @@ def ref_fit(letters, ref, room=None):
     if ref:
         rw, rh = ref_pair(ew, eh, ref)
         if SNAP < abs(ew - rw) <= 0.01 * rw + 0.5: fx = rw / ew
-        if SNAP < abs(eh - rh) <= 0.01 * rh + 0.5: fy = rh / eh
+        if SNAP < abs(eh - rh) <= 0.04 * rh + 0.5: fy = rh / eh
     if room:
         if 0 < ew * fx - room[0] <= SNAP: fx = room[0] / ew
         if 0 < eh * fy - room[1] <= SNAP: fy = room[1] / eh
@@ -125,7 +139,7 @@ def bounds(geoms):
     u = unary_union(geoms); return u.bounds
 
 
-def add_ties(letters, tie):
+def add_ties(letters, tie, frac=0.5):
     """Cut ties (material bridges) so every island is held from both sides.
     Horizontal ties at each hole's mid-height, to the left and to the right, through the stroke.
     The tie band runs past the stroke on both sides (so a slanted leg is cut clean and the bridge is the full
@@ -140,7 +154,7 @@ def add_ties(letters, tie):
         for P in polys:
             for hole in P.interiors:
                 h = Polygon(hole); hb = h.bounds
-                cx, cy = (hb[0] + hb[2]) / 2, (hb[1] + hb[3]) / 2
+                cx, cy = (hb[0] + hb[2]) / 2, hb[1] + frac * (hb[3] - hb[1])
                 for side in (-1, 1):
                     hit = P.intersection(LineString([(cx, cy), (cx + side * 1e4, cy)]))
                     segs = [hit] if hit.geom_type == "LineString" else list(getattr(hit, "geoms", []))
@@ -203,9 +217,12 @@ def parse_name(name):
     rest = re.sub(r"[\"“”]", " ", rest)
     toks = rest.split()
     run = []
-    for t in reversed(toks):
+    for i in range(len(toks) - 1, -1, -1):
+        t = toks[i]
         if re.fullmatch(r"[A-Z0-9][A-Z0-9&/'\-\.!]*", t) and t not in ("DOT", "-", "ISA", "ADA"):
             run.insert(0, t)
+        elif t == "-" and run and i > 0 and re.fullmatch(r"[A-Z0-9][A-Z0-9&/'\-\.!]*", toks[i - 1]) and toks[i - 1] not in ("DOT", "ISA", "ADA"):
+            run.insert(0, t)   # '4" FIRE LANE - NO PARKING': the dash is part of the legend
         else:
             break
     legend = " ".join(run).strip(" -")
@@ -273,6 +290,10 @@ def to_png(path, geom, sheet, nominal, ext, sku, legend, font, tie):
 
 def build(job, out):
     sku = job["sku"]; res = {"sku": sku, "ok": False}
+    if (job.get("kind") or "") == "kit":
+        if not kit_eligible(job):
+            res["reason"] = "kit: novelty shape, digit-pair set or sheet not taller than the letter: not a plain letter-per-sheet kit"; return res
+        return build_kit(job, out)
     if str(job.get("pieces") or "1").strip() not in ("", "1"):
         res["reason"] = f"{job.get('pieces')} pieces: multi-piece split not built yet"; return res
     nominal, legend, why = parse_name(job.get("name", ""))
@@ -287,14 +308,20 @@ def build(job, out):
     blank = parse_blank(job.get("blank"))
     ref = parse_blank(job.get("ref"))
     fits = []; tried = []; low = []; per_letter = False
-    for font in ("C", "D", "P"):
+    for font in (("C", "D", "P") + (EXTRA if ref else ())):
         for lines in candidates(legend):
-            letters, missing = layout(font, lines, nominal, tie)
+            pitch = 1.5
+            if ref and len(lines) == 2:
+                # two stacked lines: 1800's height settles the line spacing (cap + gap), never under the tie plus 1/32 in
+                pr = min(ref) / nominal - 1
+                if 1.0 + (tie + 1 / 32) / nominal <= pr <= 2.0: pitch = pr
+            letters, missing = layout(font, lines, nominal, tie, pitch=pitch)
             if letters is None:
                 tried.append(f"{font}: no glyph for {''.join(sorted(set(missing)))}"); break
             b = bounds(letters); ew, eh = b[2] - b[0], b[3] - b[1]
             track = 0.0
-            if ref and len(lines) == 1 and font != "P":
+            sx_note = ""; sx = 1.0
+            if ref and len(lines) == 1:
                 # 1800's legend is wider than the FHWA spacing gives: open the letter spacing evenly to their width
                 # (never tighter than FHWA, at most 1/2 cap height per gap) so the stencil matches their size
                 refw = ref[0] if abs(eh - ref[1]) <= abs(eh - ref[0]) else ref[1]
@@ -302,9 +329,19 @@ def build(job, out):
                 if gaps > 0 and refw - ew > 0.25 and (refw - ew) / gaps / nominal <= 0.5:
                     for _ in range(3):   # the min-gap rule can move letters too: converge on the reference width
                         track += (refw - ew) / gaps / nominal
-                        letters, _ = layout(font, lines, nominal, tie, track)
+                        letters, _ = layout(font, lines, nominal, tie, track, pitch)
                         b = bounds(letters); ew, eh = b[2] - b[0], b[3] - b[1]
                         if abs(refw - ew) <= 1 / 32: break
+            if ref and len(lines) == 1:
+                # still off 1800's width (a series narrower or wider than any FHWA series holds at this cap height):
+                # condense / widen the legend evenly, at most 0.65x..1.5x, and say so on the row (D-20261110-19)
+                refw = ref[0] if abs(eh - ref[1]) <= abs(eh - ref[0]) else ref[1]
+                if abs(ew - refw) > 0.25 and 0.65 <= refw / ew <= 1.5:
+                    sx = refw / ew
+                    b0 = bounds(letters)
+                    letters = [affinity.scale(g, sx, 1.0, origin=(b0[0], 0)) for g in letters]
+                    b = bounds(letters); ew, eh = b[2] - b[0], b[3] - b[1]
+                    sx_note = f"legend {'condensed' if sx < 1 else 'widened'} to {sx:.2f}x of the {FONT_LABEL[font]} width to make 1800's {fmt(refw)} in"
             base_letters = letters
             if blank:
                 for rot, (sw, sh) in enumerate((blank, blank[::-1])):
@@ -316,7 +353,7 @@ def build(job, out):
                         fw, fh = need[0] / sw, need[1] / sh
                         if ref:   # 1800 reference size = their legend W x H: closest legend wins, listed orientation first
                             d = min(abs(ew - ref[0]) + abs(eh - ref[1]), abs(ew - ref[1]) + abs(eh - ref[0]))
-                            fits.append(((1 - rot) * 1000 - d, font, lines, letters, (sw, sh), track, fitnote)); continue
+                            fits.append(((1 - rot) * 1000 - 10 * d - 100 * track - 100 * abs(sx - 1), font, lines, letters, (sw, sh), track, (fitnote + "; " + sx_note) if sx_note and fitnote else (fitnote or sx_note))); continue
                         if min(fw, fh) < MIN_FILL:
                             low.append(f"{font} {'/'.join(lines)} fills {fw:.0%} x {fh:.0%}"); continue
                         # the price-list orientation first; then the layout that uses the blank best
@@ -329,7 +366,7 @@ def build(job, out):
                 b = bounds(letters); ew, eh = b[2] - b[0], b[3] - b[1]
                 need = (ew + 2 * MARGIN, eh + 2 * MARGIN)
                 sheet = (math.ceil(need[0]), math.ceil(need[1]))
-                if font in ("C", "D"):
+                if font in ("C", "D") + (EXTRA if ref else ()):
                     fits.append((1 / (sheet[0] * sheet[1]), font, lines, letters, sheet, track, fitnote))
             tried.append(f"{font} {'/'.join(lines)} {ew:.1f}x{eh:.1f}")
             if len(lines) == 1 and blank and font == "P" and not (need[0] <= max(blank) + TOL and need[1] <= max(blank) + TOL and min(need) <= min(blank) + TOL):
@@ -496,6 +533,125 @@ def build_set(job, out, nominal, legend, tie, blank, ref=None):
             "sha256": h.hexdigest()}
 
 
+KIT_SKIP = re.compile(r"(2|3)[- ]?Digit|Interlocking|FedEx|Track|Football|Amazon|Domino|Kroger|Double|Railroad|Hopscotch|Star\b|Circle|Square|Hexagon|Triangle|Bee|Set\b|Individual Letter|Single Number|Dallas DOT|Playground", re.I)
+
+
+def kit_chars(name):
+    n = name or ""
+    if re.search(r"(Alphabet\s*(and|&)\s*Number|Mega Kit)", n, re.I): return "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    if re.search(r"Alphabet", n, re.I): return "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    if re.search(r"Number", n, re.I): return "0123456789"
+    return None
+
+
+def kit_eligible(job):
+    """Alphabet / number kits: one DXF per letter or digit, each upright on its own 1800 material sheet (Matt 2026-11-12:
+    1800's material size and side spacing, 1 in each side so the pieces butt together). Not the novelty shapes,
+    2/3-digit sets or sets whose sheet is not taller than the letter."""
+    name = job.get("name", "")
+    if KIT_SKIP.search(name) or kit_chars(name) is None: return False
+    nominal, _, _ = parse_name(name)
+    blank = parse_blank(job.get("blank"))
+    if not nominal or not blank: return False
+    try: pcs = int(str(job.get("pieces") or "1").strip())
+    except ValueError: return False
+    return pcs >= 10 and max(blank) >= nominal + 2 * MARGIN - TOL and min(blank) <= max(blank) / 1.4
+
+
+def build_kit(job, out):
+    res = {"sku": job["sku"], "ok": False}
+    name = job.get("name", "")
+    nominal, _, _ = parse_name(name)
+    if job.get("nominal"):
+        try: nominal = float(re.sub(r"[^\d.]", "", str(job["nominal"])))
+        except ValueError: pass
+    tie = float(job.get("tie") or (0.5 if nominal <= 24 else 0.75))
+    blank = parse_blank(job.get("blank")); W, H = blank if blank[1] >= blank[0] else blank[::-1]
+    chars = kit_chars(name)
+    refstr = job.get("ref") or ""
+    mm = re.search(r"([\d.]+)\s*x\s*([\d.]+)", refstr)
+    pr = (float(mm.group(1)), float(mm.group(2))) if mm else None
+    lw = None
+    m = re.match(r"\s*([\d.]+)\s*typical", refstr)
+    if m: lw = float(m.group(1))
+    elif pr: lw = min(pr)
+    SIDE = 1.0
+    allowed = min(lw, W - 2 * SIDE) if lw else W - 2 * SIDE
+    if H - nominal < 2 * MARGIN - TOL: res["reason"] = f"sheet {fmt(W)} x {fmt(H)} leaves under 2.00 in top and bottom for {fmt(nominal)} in letters"; return res
+    if allowed <= 0: res["reason"] = "kit sheet too narrow"; return res
+    # series choice: the one whose widest letter (W / M / 0) is nearest 1800's letter width. With 1800's letter width
+    # known: within 0.75x (condensed) .. 1.25x (widened). Without it (number kits): the widest series that still
+    # fits the sheet's room, condensed no more than 0.75x.
+    best = None
+    for font in ("B", "C", "D", "E", "P"):
+        ws = []
+        for ch in "WM0":
+            L, _ = layout(font, [ch], nominal, tie)
+            if L is None: ws = []; break
+            b = bounds(L); ws.append(b[2] - b[0])
+        if not ws: continue
+        wmax = max(ws); s = allowed / wmax
+        if lw:
+            if not (0.75 <= s <= 1.6): continue
+            cost = abs(math.log(s))
+        else:
+            if s < 0.75: continue
+            cost = abs(math.log(min(s, 1.0))) if s >= 1.0 else abs(math.log(s)) + 0.05
+        if best is None or cost < best[0]: best = (cost, font, s)
+    if best is None:
+        res["reason"] = f"no FHWA series puts every letter within 1800's {fmt(allowed)} in letter width at {fmt(nominal)} in (condense limit 0.75)"; return res
+    font = best[1]; sheets = []; condensed = []
+    for ch in chars:
+        letters, missing = layout(font, [ch], nominal, tie)
+        if letters is None: res["reason"] = f"{font}: no glyph for {ch}"; return res
+        b = bounds(letters); ew, eh = b[2] - b[0], b[3] - b[1]
+        if ew > allowed + 1e-6:
+            sx = allowed / ew; letters = [affinity.scale(g, sx, 1.0, origin=(b[0], 0)) for g in letters]; condensed.append(f"{ch} {sx:.2f}x")
+            b = bounds(letters); ew, eh = b[2] - b[0], b[3] - b[1]
+        room_h = H - 2 * MARGIN
+        if eh > room_h + 1e-6 and eh <= room_h * 1.10:   # round-letter overshoot: bring the whole letter inside the 2.00 in top/bottom margin
+            sc_ = room_h / eh; b0 = bounds(letters)
+            letters = [affinity.scale(g, sc_, sc_, origin=((b0[0] + b0[2]) / 2, (b0[1] + b0[3]) / 2)) for g in letters]
+            b = bounds(letters); ew, eh = b[2] - b[0], b[3] - b[1]
+        if ew + 2 * SIDE > W + TOL or eh + 2 * MARGIN > H + TOL: res["reason"] = f"{ch} {ew:.1f} x {eh:.1f} does not fit sheet {fmt(W)} x {fmt(H)}"; return res
+        why = None
+        for frac in (0.5, 0.4, 0.6, 0.3, 0.7, 0.25, 0.75):   # tie height inside each counter: first spot that leaves every web >= the tie
+            tied, strokes, p = add_ties(letters, tie, frac)
+            if p: why = p + f" ({ch})"; continue
+            if strokes and min(strokes) < tie: why = f"stroke {min(strokes):.2f} in thinner than the {tie} in tie ({ch})"; continue
+            geom = polys_only(unary_union(tied)); web = narrowest_web(geom)
+            if web is not None and web < tie - 1 / 64: why = f"narrowest web {web:.3f} in under the tie width ({ch})"; continue
+            why = None; break
+        if why: res["reason"] = why; return res
+        sheets.append((ch, geom, (W, H), strokes, web))
+    folder = out_folder(out, job)
+    base = f"{job['sku']}-KIT-{fmt(nominal)}in-SHEET{fmt(W)}x{fmt(H)}"
+    sub = folder / base; sub.mkdir(parents=True, exist_ok=True)
+    files = []; h = hashlib.sha256(); widest = 0.0; tallest = 0.0; islands = 0; webs = []; min_stroke = None; pngs = []
+    for ch, geom, sheet, strokes, web in sheets:
+        b = geom.bounds; ew, eh = b[2] - b[0], b[3] - b[1]
+        geom = affinity.translate(geom, (sheet[0] - ew) / 2 - b[0], (sheet[1] - eh) / 2 - b[1]); ext = geom.bounds
+        dxf = sub / f"{base}-{ch}.dxf"; png = sub / f"{base}-{ch}.png"
+        to_dxf(dxf, geom, sheet); to_png(png, geom, sheet, nominal, ext, job["sku"], f"{name} / piece {ch}", font, tie); pngs.append(png)
+        data = dxf.read_bytes(); h.update(data)
+        files.append({"ch": ch, "dxf": str(dxf.relative_to(out)), "png": str(png.relative_to(out)), "extents": f"{fmt(ew)} x {fmt(eh)}",
+                      "sheet": f"{fmt(sheet[0])} x {fmt(sheet[1])}", "side_margin": SIDE, "sha256": hashlib.sha256(data).hexdigest()})
+        widest = max(widest, ew); tallest = max(tallest, eh); islands += len(strokes) // 2
+        if web is not None: webs.append(web)
+        if strokes: min_stroke = min(strokes) if min_stroke is None else min(min_stroke, min(strokes))
+    proof = sub / f"{base}.png"
+    set_proof(proof, pngs, f"{job['sku']}  {name}: {len(chars)} pieces, one per sheet {fmt(W)} x {fmt(H)}")
+    lay = (f"kit {chars}: {len(chars)} piece(s), one {fmt(W)} x {fmt(H)} in sheet each (1800 material size), {FONT_LABEL[font]}, "
+           f"widest piece {fmt(widest)} x {fmt(tallest)} in vs 1800 letter {fmt(lw) if lw else 'n/a'} wide; {fmt(SIDE)} in each side so the pieces butt for even spacing "
+           f"(1800 tiebreak beats the 2.00 in side margin for kit letters, Matt 11/12); top/bottom margin >= 2.00" +
+           (f"; condensed to fit the width: {', '.join(condensed)} (marked on the proof)" if condensed else "") + f"; tie {fmt(tie)} in" +
+           ("" if job.get("tie") else " (standing spec)") + f"; the {int(job.get('pieces') or 0) - len(chars)} spacer / end pieces are plain blank sheets (no legend)")
+    return {"sku": job["sku"], "ok": True, "set": True, "kit": True, "nominal": fmt(nominal), "extents": f"{fmt(widest)} x {fmt(tallest)}",
+            "sheet": f"{fmt(W)} x {fmt(H)}", "tie": str(tie), "font": FONT_LABEL[font], "layout": lay,
+            "islands": islands, "narrowest_web": round(min(webs), 3) if webs else None, "min_stroke_at_tie": min_stroke,
+            "dxf": files[0]["dxf"], "png": str(proof.relative_to(out)), "folder": str(sub.relative_to(out)), "files": files, "sha256": h.hexdigest()}
+
+
 def set_proof(path, pngs, title):
     """One proof for a letter set: the per-letter proofs side by side."""
     from PIL import Image, ImageDraw
@@ -529,8 +685,9 @@ def check(dxf_path, expect):
     ew, eh = [float(v) for v in expect["extents"].split(" x ")]
     mw, mh = max(xs) - min(xs), max(ys) - min(ys)
     if abs(mw - ew) > TOL or abs(mh - eh) > TOL: problems.append(f"extents {mw:.3f} x {mh:.3f} vs row {ew} x {eh}")
-    for m in (min(xs), min(ys), sw - max(xs), sh - max(ys)):
-        if m < MARGIN - TOL: problems.append(f"margin {m:.3f} < 2.00")
+    side = float(expect.get("side_margin", MARGIN))
+    for m, need in ((min(xs), side), (min(ys), MARGIN), (sw - max(xs), side), (sh - max(ys), MARGIN)):
+        if m < need - TOL: problems.append(f"margin {m:.3f} < {need:.2f}")
     out_ok = False
     if len(outside) != 1: problems.append(f"OUTSIDE cut: {len(outside)} paths, need exactly 1")
     else:

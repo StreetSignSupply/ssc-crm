@@ -49,6 +49,14 @@ async function main() {
     return { row: i + 3, sku: c(0), name: c(2), category: c(3), blank: c(4), pieces: c(5), ref: c(7), kind: c(8).toLowerCase(),
       master: c(10), L: c(11), M: c(12), N: c(13), O: c(14), P: c(15), R: c(17), status: c(18).toLowerCase(), notes: c(19) };
   }).filter((r) => r.sku);
+  // CNC Bot sometimes leaves S = 'generated' and only writes 'qa fail YYYY-MM-DD' in T (lesson L-20261110: the note alone does
+  // nothing downstream): a 'generated' row whose newest qa-fail note is not older than its newest gen note is a qa fail.
+  for (const r of rows) {
+    if (r.status !== "generated") continue;
+    const q = [...r.notes.matchAll(/qa fail (\d{4}-\d\d-\d\d)/gi)].map((m) => m[1]).sort().pop();
+    const g = [...r.notes.matchAll(/(?:^| \| )gen (\d{4}-\d\d-\d\d):/g)].map((m) => m[1]).sort().pop();
+    if (q && (!g || q >= g) && !/\bgen \d{4}-\d\d-\d\d: .*after qa fail/.test(r.notes)) r.status = "qa fail";
+  }
   const passed = rows.filter((r) => ["qa pass", "test cut", "verified"].includes(r.status)).length;
   const cap = Number(process.env.GEN_CAP || (passed >= 25 ? 600 : 300));
   const byKind = {}; for (const r of rows) byKind[r.kind] = (byKind[r.kind] || 0) + 1;
@@ -59,9 +67,9 @@ async function main() {
   // every published DXF gets the OUTSIDE cut; those rows go back to 'generated' for a fresh CNC Bot QA.
   const REBUILD = process.env.REBUILD === "1";
   const states = REBUILD ? ["todo", "sourced", "", "qa fail", "generated", "qa pass", "test cut"] : ["todo", "sourced", "", "qa fail"];
-  const todo = rows.filter((r) => r.kind === "text" && states.includes(r.status) && !/gen skip/i.test(r.notes));
+  const todo = rows.filter((r) => (r.kind === "text" || r.kind === "kit") && r.category !== "Stencil Material" && states.includes(r.status) && !/gen skip/i.test(r.notes));
   const symbolsWaiting = rows.filter((r) => r.kind === "symbol" && r.master && ["todo", "sourced", "master ready"].includes(r.status)).length;
-  let jobs = todo.map((r) => ({ sku: r.sku, name: r.name, category: r.category, blank: r.blank, pieces: r.pieces, ref: r.ref,
+  let jobs = todo.map((r) => ({ kind: r.kind, sku: r.sku, name: r.name, category: r.category, blank: r.blank, pieces: r.pieces, ref: r.ref,
     nominal: r.L || undefined, tie: r.O || undefined, legend: legendFromNotes(r.notes) }));
   if (LIMIT) jobs = jobs.slice(0, LIMIT);
 
