@@ -50,6 +50,15 @@ jobs:
           DRY_RUN: ${{ inputs.dry_run || '0' }}
           REBUILD: ${{ inputs.rebuild || '0' }}
         run: node worker/stencil-gen.mjs
+      - name: Send the generated files to the CRM (public/cut, stencil-cuts.json)
+        if: ${{ inputs.dry_run != '1' }}
+        run: |
+          python3 worker/stencil-crm-sync.py "${{ github.workspace }}/stencil-out" "${{ github.workspace }}"
+          git add public/cut public/cut-archive public/stencil-cuts.json
+          if ! git diff --cached --quiet; then
+            git commit -q -m "CRM stencil cut files: sync from the generator"
+            for i in 1 2 3; do git pull -q --rebase origin main && git push -q origin HEAD:main && break; sleep 5; done
+          fi
       - name: Keep the run report
         if: always()
         uses: actions/upload-artifact@v4
