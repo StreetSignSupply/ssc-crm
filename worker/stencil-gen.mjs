@@ -125,8 +125,12 @@ async function main() {
     if (merged !== r.notes) data.push({ range: `${TAB}!T${r.row}`, values: [[merged]] });
   }
   if (!DRY && data.length) {
-    for (let i = 0; i < data.length; i += 400)
-      await api("/values:batchUpdate", "POST", { valueInputOption: "RAW", data: data.slice(i, i + 400) });
+    for (let i = 0; i < data.length; i += 100) {   // 100 ranges a call (400 broke the connection on the 445-row rebuild)
+      for (let t = 1; ; t++) {
+        try { await api("/values:batchUpdate", "POST", { valueInputOption: "RAW", data: data.slice(i, i + 100) }); break; }
+        catch (e) { if (t === 3) throw e; await new Promise((ok) => setTimeout(ok, 3000 * t)); }
+      }
+    }
   }
 
   // ---- summary
