@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-173 (Activity: the colored Log call / Log email / Note / Task buttons and colored filters are back)
+- **Activity card, every page (projects, accounts, contacts).** Release 148 (Nov 5) swapped the colored buttons row for a plain "+ Add" menu and the colored type filters for plain tabs that only showed when there were two kinds. Matt (Nov 12): "the icons and the Tasks are gone from the activity area ... these had color icons." Back as before: on a project the Actions bar with **Log call, Log email, Note, Task** (each with its colored icon), on other pages the same four buttons; under it the colored filters (Tasks first, then Calls, Emails, Meetings, Notes, Other) with their icons and counts, shown whenever there is anything logged.
+- A note whose text carries raw picture data (an agent pasted the quote-line pictures as code) now shows one short line, "(4 pictures attached — see the quote lines)", instead of the code.
+
 ## 2026.11.25-172 (Org chart)
 - **Reports → Org chart**, for everyone on the team. Matt at the top, then Sales, Shop and Office, each with its people and its Grok and Claude bots: what each one does, its schedule, whether it's running, late or logged a problem, and who it hands work to. Below it, "How work moves": the main chains from finding a buyer to a quote, bids, stencils from spec to cut, buying and the books, customer records, and the bots that keep the rest running, plus the Tier 1 / 2 / 3 rule for what waits on Matt.
 - It's built from the Bot Roster tab: people are rows with platform `Person`, and the new `hands_to` column says who each one passes work to. The export saves a names-and-roles copy as `settings/orgchart` that sales and shop logins can read (database rules updated); people never count as bots on the Bot team page.
