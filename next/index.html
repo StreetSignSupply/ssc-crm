@@ -572,6 +572,14 @@ td.mono[style*="text-align:right"],th[style*="text-align:right"]{white-space:now
 :root[data-theme="dark"] .ty-log{--tb:#2E3238;--tf:#CBD1D8;--te:#3E444C}
 .btn.tyb{background:var(--tb)!important;color:var(--tf)!important;border-color:var(--te)!important;font-weight:700}
 .btn.tyb .ic{color:var(--tf)!important}
+.segf .tyt{color:var(--tf)!important}
+.segf .tyt .ic{color:var(--tf)!important;margin-right:4px;vertical-align:-2px}
+.segf .tyt.on{color:var(--tf)!important;border-bottom-color:var(--tf)!important;background:var(--tb)!important}
+.segf .tyt .n{background:var(--tb)!important;color:var(--tf)!important}
+.addm .dd-m .tyt{color:var(--tf)!important;font-weight:600}
+.addm .dd-m .tyt .ic{color:var(--tf)!important}
+.addm .dd-m .tyt:hover{background:var(--tb)!important}
+
 .btn.tyb:hover{filter:brightness(.97);border-color:var(--tf)!important}
 .btn.tyb.on{background:var(--tf)!important;color:var(--card)!important;border-color:var(--tf)!important}
 .btn.tyb.on .ic{color:var(--card)!important}
@@ -12281,15 +12289,16 @@ function actButtons(kind,id){
 // the "+ Add" menu: log a call or an email, write a note, give someone a task
 function actAddMenu(kind,id){const k=esc(kind),i=esc(String(id));
   return `<details class="dd addm"><summary class="btn sm p" aria-label="Add to the activity">+ Add</summary><div class="dd-m">
-    <button data-log="${k}:${i}:call">${ic("call",14)}Log a call</button><button data-log="${k}:${i}:email">${ic("email",14)}Log an email</button>
-    <button data-log="${k}:${i}:note">${ic("note",14)}Write a note</button><button data-log="${k}:${i}:task">${ic("task",14)}Give someone a task</button></div></details>`}
+    <button class="tyt ty-call" data-log="${k}:${i}:call">${ic("call",14)}Log a call</button><button class="tyt ty-email" data-log="${k}:${i}:email">${ic("email",14)}Log an email</button>
+    <button class="tyt ty-note" data-log="${k}:${i}:note">${ic("note",14)}Write a note</button><button class="tyt ty-task" data-log="${k}:${i}:task">${ic("task",14)}Give someone a task</button></div></details>`}
 const ATAB={call:"Calls",email:"Emails",meeting:"Meetings",note:"Notes",task:"Tasks",log:"Other"};
 function actTabs(items){const counts={};items.forEach(x=>{const k=actKind(x);counts[k]=(counts[k]||0)+1});
-  const keys=["task","email","call","meeting","note","log"].filter(k=>counts[k]);
+  // Matt 2026-11-12: one bar (no second row of buttons), but each tab keeps its colour and icon, and Tasks is always there
+  const keys=["task","email","call","meeting","note","log"].filter(k=>k==="task"||counts[k]);
   if(S.actFilter&&!counts[S.actFilter])S.actFilter="";
   return `<div class="segf" role="tablist" aria-label="Show">
     <button role="tab" aria-selected="${!S.actFilter}" class="${!S.actFilter?"on":""}" data-actf="">All <span class="n">${items.length}</span></button>
-    ${keys.length>1?keys.map(k=>`<button role="tab" aria-selected="${S.actFilter===k}" class="${S.actFilter===k?"on":""}" data-actf="${k}">${esc(ATAB[k]||ATYPE[k].l)} <span class="n">${counts[k]}</span></button>`).join(""):""}</div>`}
+    ${keys.map(k=>`<button role="tab" aria-selected="${S.actFilter===k}" class="tyt ty-${k}${S.actFilter===k?" on":""}" data-actf="${k}">${ic(ATYPE[k].i,14)}${esc(ATAB[k]||ATYPE[k].l)} <span class="n">${counts[k]||0}</span></button>`).join("")}</div>`}
 // the same message logged twice (sent from the CRM and picked up from Gmail, or a double save) shows once
 function actDedupe(list){const seen=new Map();const out=[];
   list.forEach(x=>{const k=actKind(x);if(k==="task"){out.push(x);return}
@@ -12301,9 +12310,8 @@ function actDedupe(list){const seen=new Map();const out=[];
   return out}
 function actFilterBar(items){
   const counts={};items.forEach(x=>{const k=actKind(x);counts[k]=(counts[k]||0)+1});
-  const keys=["task","call","email","meeting","note","log"].filter(k=>counts[k]);
-  if(!keys.length)return "";
-  if(S.actFilter&&!counts[S.actFilter])S.actFilter="";
+  const keys=["call","email","meeting","note","task","log"].filter(k=>counts[k]);
+  if(keys.length<2)return "";
   return `<div class="actfil">
     <button class="btn sm ${!S.actFilter?"p":""}" data-actf="">All ${items.length}</button>
     ${keys.map(k=>`<button class="btn sm tyb ty-${k}${S.actFilter===k?" on":""}" data-actf="${k}"
@@ -13158,9 +13166,8 @@ function activityCard(kind,id){
   if(S.actFilter)a=a.filter(x=>actKind(x)===S.actFilter);
   return `<section class="card flush actcard"><header><h2>Activity</h2><span class="n">${all.length}</span>
     <span class="sub">Calls, emails, meetings, dated notes and tasks${kind==="project"?" — including its work orders":""}. Open tasks stay on top.</span></header>
-    ${kind==="project"?actionBar([{l:"Log",html:actButtons("project",id)}]):`<div class="actrowwrap">${actButtons(kind,id)}</div>`}
-    ${followUpBar(kind,id)?`<div style="padding:0 15px 2px">${followUpBar(kind,id)}</div>`:""}
-    ${actFilterBar(all)}
+    <div class="segbar">${actTabs(all)}${actAddMenu(kind,id)}</div>
+    ${followUpBar(kind,id)?`<div style="padding:8px 15px 2px">${followUpBar(kind,id)}</div>`:""}
     ${a.length?`<ul class="act">${a.slice(0,50).map(activityRow).join("")}</ul>`
     :`<div class="empty">Nothing logged yet.</div>`}</section>`;
 }

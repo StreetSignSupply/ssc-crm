@@ -1,7 +1,7 @@
 # What changed
 
-## 2026.11.25-173 (Activity: the colored Log call / Log email / Note / Task buttons and colored filters are back)
-- **Activity card, every page (projects, accounts, contacts).** Release 148 (Nov 5) swapped the colored buttons row for a plain "+ Add" menu and the colored type filters for plain tabs that only showed when there were two kinds. Matt (Nov 12): "the icons and the Tasks are gone from the activity area ... these had color icons." Back as before: on a project the Actions bar with **Log call, Log email, Note, Task** (each with its colored icon), on other pages the same four buttons; under it the colored filters (Tasks first, then Calls, Emails, Meetings, Notes, Other) with their icons and counts, shown whenever there is anything logged.
+## 2026.11.25-173 (Activity: colours and icons back on the one bar; Tasks always there)
+- **Activity card, every page.** Matt (Nov 12): "the icons and the Tasks are gone from the activity area ... these had color icons." Since release 150 the card has one bar (tabs on the left, "+ Add" on the right) so the add buttons no longer look like the filters (Matt, Nov 5); the tabs had lost their colours and icons and only showed kinds that already had entries. Now each tab has its own colour and icon (Tasks amber, Emails teal, Calls blue, Meetings purple, Notes gold, Other grey) with its count, **Tasks is always shown** (with 0 when there are none), and the "+ Add" menu items (call, email, note, task) carry the same colours and icons.
 - A note whose text carries raw picture data (an agent pasted the quote-line pictures as code) now shows one short line, "(4 pictures attached — see the quote lines)", instead of the code.
 
 ## 2026.11.25-172 (Org chart)
