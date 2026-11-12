@@ -12060,7 +12060,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-175";
+const APP_VERSION="2026.11.25-176";
 // the release check (which opens the page from a file) can reach these; the hosted site exposes nothing
 if(location.protocol==="file:")window.__sscTest={S,benchDue,benchChip,weekMonday,picRough,webcatStat};
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
@@ -12607,12 +12607,13 @@ function projectRec0(id){
         <span class="n">${la.length}</span>
         <span class="sub">The picture on each quote line — what goes on the proof for the customer to approve.</span>
         <span class="sp"><button class="btn sm p" data-proof="${esc(id)}">Make the proof for approval</button></span></header>
-        <div class="fgal fold2">${la.map(x=>{const o=x._line;const web=/^https:/i.test(x.url);
+        <div class="fgal fold2">${(S._signPics=[],"")}${la.map(x=>{const o=x._line;
           const spec=[o.qty?o.qty+" pcs":"",String(o.code||"").split("|")[0],o.size?sizeLabel(o.size):"",custMaterial(o.grade)].filter(Boolean).join(" · ");
           const fname=(x.name||"sign").replace(/[^A-Za-z0-9]+/g,"-").slice(0,40)+(/^data:image\/svg/i.test(x.url)?".svg":".png");
-          return `<div class="ftile"><div class="th" style="background:#fff">${web?`<a href="${esc(x.url)}" target="_blank" rel="noopener" style="display:contents">`:""}<img src="${esc(x.url)}" alt="${esc(x.name)}" loading="lazy" style="object-fit:contain">${web?"</a>":""}</div>
+          const pi=S._signPics.push({url:x.url,name:x.name||"Sign",spec,fname})-1;
+          return `<div class="ftile"><div class="th" style="background:#fff;cursor:zoom-in" data-view="pic:${pi}" title="View ${esc(x.name)} full size"><img src="${esc(x.url)}" alt="${esc(x.name)}" loading="lazy" style="object-fit:contain"></div>
             <div class="meta"><b class="nm" title="${esc(x.name)}">${esc(x.name)}</b><span class="sub">${esc(spec)}</span></div>
-            <div class="row">${web?`<a class="btn sm" href="${esc(x.url)}" target="_blank" rel="noopener" style="text-decoration:none">View</a>`:""}
+            <div class="row"><button class="btn sm" data-view="pic:${pi}">View</button>
               <a class="btn sm" href="${esc(x.url)}" download="${esc(fname)}" style="text-decoration:none">Save</a></div></div>`}).join("")}
           ${missing.map(({o,ix})=>`<div class="ftile"><div class="th" style="background:#fff;flex-direction:column;gap:4px"><span class="sub" style="color:#5B636D">No picture yet</span></div>
             <div class="meta"><b class="nm" title="${esc(o.desc||o.code||"")}">${esc(o.desc||signName(o)||o.code||"Item")}</b><span class="sub">${esc([o.qty?o.qty+" pcs":"",o.size?sizeLabel(o.size):""].filter(Boolean).join(" · "))}</span></div>
@@ -15097,6 +15098,10 @@ function fileSiblings(fid){
   return ids.indexOf(fid)>=0?ids:[fid];
 }
 function viewFile(fid){
+  // a quote line's sign picture (often made by the agents, so it isn't a stored file): same full-screen viewer
+  if(/^pic:\d+$/.test(String(fid))){if(!(S._signPics||[])[+String(fid).slice(4)]){toast("That picture isn't on the page any more.");return}
+    if(!S.viewerFile){try{history.pushState(Object.assign({},history.state||{},{sscViewer:1}),"")}catch(e){}}
+    S.viewerFile=fid;render();return}
   const f=crmFile(fid);
   if(!f){toast("That file isn't in the list any more — reload the page.");return}
   if(f.deleted){toast("That file is in the recycle bin.");return}
@@ -15117,8 +15122,23 @@ window.addEventListener("popstate",()=>{
     // something typed: the first Back warns (like Escape), the second closes
     if(modalDirty()&&!S.discardArmed){S.discardArmed=true;try{history.pushState(Object.assign({},history.state||{},{sscModal:1}),"")}catch(e){}toast("Press Back again to discard what you typed.");return}
     S.discardArmed=false;closeModal(true)}});
+function picViewerHTML(fid){const all=S._signPics||[];const i=+String(fid).slice(4);const x=all[i];if(!x)return "";
+  return `<div class="viewer" id="viewer">
+    <header>
+      <span class="oi sm oi-file">${ic("file",14)}</span><b>${esc(x.name)}</b>
+      <span class="pill">Sign picture</span>
+      <span class="sub" style="color:#9BA1A7">${esc(x.spec||"")}${all.length>1?` · ${i+1} of ${all.length}`:""}</span>
+      <span class="sp">
+        <a class="btn sm" href="${esc(x.url)}" download="${esc(x.fname||"sign.png")}" style="text-decoration:none">Save a copy</a>
+        <button class="btn sm" data-closeview="1">Close</button></span>
+    </header>
+    <div class="stage"><img src="${esc(x.url)}" alt="${esc(x.name)}" style="background:#fff;padding:12px"></div>
+    ${all.length>1?`<button class="nav prev" data-view="pic:${(i-1+all.length)%all.length}">‹</button>
+      <button class="nav next" data-view="pic:${(i+1)%all.length}">›</button>`:""}
+  </div>`}
 function viewerHTML(){
   const fid=S.viewerFile;if(!fid)return "";
+  if(/^pic:\d+$/.test(String(fid)))return picViewerHTML(fid);
   const f=crmFile(fid);if(!f||f.deleted)return "";
   const sibs=fileSiblings(fid),i=Math.max(0,sibs.indexOf(fid));
   const isImg=(f.type||"").indexOf("image/")===0;
