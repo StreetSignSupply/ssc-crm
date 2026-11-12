@@ -205,13 +205,9 @@ a{color:var(--blue);text-underline-offset:2px}
 /* ========= object marks ========= */
 .ic{flex:0 0 auto;vertical-align:-2px}
 .btn .ic{margin-right:5px;vertical-align:-3px}
-.actico{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;
-  flex:0 0 auto;color:#fff;margin-top:1px;position:relative;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.30),inset 0 -2px 0 rgba(0,0,0,.18),
-    0 0 0 1px rgba(0,0,0,.32),0 2px 4px rgba(0,0,0,.28)}
-.actico::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
-  background:linear-gradient(180deg,rgba(255,255,255,.20) 0%,rgba(255,255,255,0) 48%,rgba(0,0,0,.16) 100%)}
-.actico .ic{stroke-width:2.1;position:relative;z-index:1;filter:drop-shadow(0 1px 0 rgba(0,0,0,.3))}
+.actico{width:32px;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+  flex:0 0 auto;color:#fff;margin-top:1px;position:relative}
+.actico .ic{stroke-width:2.2;width:18px;height:18px}
 /* Record-type tiles: one deep colour each, the same in light and dark, lit from the top. */
 .oi{--t1:#5B636C;--t2:#4A515A;
   width:30px;height:30px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;
@@ -557,15 +553,15 @@ td.mono[style*="text-align:right"],th[style*="text-align:right"]{white-space:now
 .btn[data-email]{--cb:#1F6F78}
 .c-call{--cb:#255CA3}.c-email{--cb:#1F6F78}.c-note{--cb:#4F5964}.c-task{--cb:#A94E07}
 /* activity types each have their own colour — the buttons, the filter chips and the tags match */
-.ty-call{--tb:#E3EDFA;--tf:#1D4E8F;--te:#C3D6F1}
-.ty-email{--tb:#DFF1F2;--tf:#145A62;--te:#B8DEE1}
+.ty-call{--tb:#E4F4E8;--tf:#1E6B36;--te:#BFE3C9}
+.ty-email{--tb:#E3EDFA;--tf:#0B4F94;--te:#C3D6F1}
 .ty-meeting{--tb:#EFE4F7;--tf:#5A2C75;--te:#DCC6EA}
 .ty-note{--tb:#FFF3C7;--tf:#6E5200;--te:#EFD98A}
 .ty-task{--tb:#FCEEDD;--tf:#8F4405;--te:#F2D2AE}
 .ty-log{--tb:#ECEEF1;--tf:#3A424B;--te:#D5DAE0}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .ty-call{--tb:#1C2F48;--tf:#9CC4F2;--te:#294468}:root:not([data-theme="light"]) .ty-email{--tb:#143538;--tf:#8FD6DC;--te:#1C4A4E}:root:not([data-theme="light"]) .ty-meeting{--tb:#33223F;--tf:#D7B6EE;--te:#48305A}:root:not([data-theme="light"]) .ty-note{--tb:#3E3410;--tf:#F2D46B;--te:#5A4A14}:root:not([data-theme="light"]) .ty-task{--tb:#3F2A12;--tf:#F2B46E;--te:#5A3A14}:root:not([data-theme="light"]) .ty-log{--tb:#2E3238;--tf:#CBD1D8;--te:#3E444C}}
-:root[data-theme="dark"] .ty-call{--tb:#1C2F48;--tf:#9CC4F2;--te:#294468}
-:root[data-theme="dark"] .ty-email{--tb:#143538;--tf:#8FD6DC;--te:#1C4A4E}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .ty-call{--tb:#173B24;--tf:#8FD7A4;--te:#22502F}:root:not([data-theme="light"]) .ty-email{--tb:#1C2F48;--tf:#9CC4F2;--te:#294468}:root:not([data-theme="light"]) .ty-meeting{--tb:#33223F;--tf:#D7B6EE;--te:#48305A}:root:not([data-theme="light"]) .ty-note{--tb:#3E3410;--tf:#F2D46B;--te:#5A4A14}:root:not([data-theme="light"]) .ty-task{--tb:#3F2A12;--tf:#F2B46E;--te:#5A3A14}:root:not([data-theme="light"]) .ty-log{--tb:#2E3238;--tf:#CBD1D8;--te:#3E444C}}
+:root[data-theme="dark"] .ty-call{--tb:#173B24;--tf:#8FD7A4;--te:#22502F}
+:root[data-theme="dark"] .ty-email{--tb:#1C2F48;--tf:#9CC4F2;--te:#294468}
 :root[data-theme="dark"] .ty-meeting{--tb:#33223F;--tf:#D7B6EE;--te:#48305A}
 :root[data-theme="dark"] .ty-note{--tb:#3E3410;--tf:#F2D46B;--te:#5A4A14}
 :root[data-theme="dark"] .ty-task{--tb:#3F2A12;--tf:#F2B46E;--te:#5A3A14}
@@ -1854,7 +1850,7 @@ const ROUTE=R_BLANK.stock.concat(R_METHOD.film).concat(R_FINAL);
 const SHIPM=["UPS / FedEx","Freight","Will call","Local delivery"];
 const ACCT_TYPE=["Government agency","Contractor","Reseller","Retail","Vendor"];
 const TERMS=["Due on receipt","Card at checkout","Net 30","Net 45","Net 60","Prepay"];
-const FILECAT=["Artwork proof","Cut file","Production file","Signed proof","Signed work order","Artwork","Purchase order","Quote","Signed quote","Invoice","Packing slip / BOL","Photo","Spec sheet","Tax certificate","Other"];
+const FILECAT=["Customer request (RFQ / RFP / email)","Artwork proof","Cut file","Production file","Signed proof","Signed work order","Artwork","Purchase order","Quote","Signed quote","Invoice","Packing slip / BOL","Photo","Spec sheet","Tax certificate","Other"];
 const ROLES=["Buyer / purchasing","Accounts payable","Engineer","Public works","Field contact","Other"];
 const SRC=["Website","Phone","Email","Agency PO","Bid","Walk-in","Referral"];
 const LBL={
@@ -5244,7 +5240,8 @@ const LOSTWHY=[
 // the paperwork a project should end up with, shown on its Files tab: what's there, what's missing, what looks misfiled
 function docChecklist(p,all){if(!p)return "";const fl=(all||projFiles(p.id)).filter(f=>!f.deleted);
   const has=re=>fl.filter(f=>re.test(f.cat||""));const quoted=orderedLines(p).length>0;const won=SO(p.stage)>=SO("won");
-  const items=[["Quote PDF",has(/^Quote$/).length,quoted],["PO or signed quote",has(/^(Purchase order|Signed quote)$/).length,won],
+  // Matt 2026-11-12: every quote carries what the customer asked for (their RFQ / RFP / request email) in its files
+  const items=[["Customer request (RFQ / RFP / email)",has(/^(Customer request|RFP \/ bid documents)/).length,quoted],["Quote PDF",has(/^Quote$/).length,quoted],["PO or signed quote",has(/^(Purchase order|Signed quote)$/).length,won],
     ["Signed proof",has(/^Signed proof$/).length,jobsOf(p.id).some(j=>j.needsProof)],
     ["Signed work order",jobsOf(p.id).filter(j=>j.status==="shipped").every(j=>filesOf("job",String(j.num)).some(f=>f.cat==="Signed work order"))&&jobsOf(p.id).some(j=>j.status==="shipped")?1:0,jobsOf(p.id).some(j=>j.status==="shipped")],
     ["Invoice",has(/^Invoice$/).length,billState(p)!=="none"]].filter(x=>x[2]);
@@ -12020,11 +12017,11 @@ function projectList(){
 }
 
 const ATYPE={
-  call:{l:"Call",c:"b",i:"call",bg:"#255CA3"},
-  email:{l:"Email",c:"t",i:"email",bg:"#1F6F78"},
-  meeting:{l:"Meeting",c:"v",i:"meeting",bg:"#7A3E9D"},
-  note:{l:"Note",c:"y",i:"note",bg:"#9A7300"},
-  task:{l:"Task",c:"o",i:"task",bg:"#A94E07"},
+  call:{l:"Call",c:"g",i:"call",bg:"#2E844A"},
+  email:{l:"Email",c:"b",i:"email",bg:"#0B5CAB"},
+  meeting:{l:"Meeting",c:"v",i:"meeting",bg:"#7526C4"},
+  note:{l:"Note",c:"y",i:"note",bg:"#8C6A00"},
+  task:{l:"Task",c:"o",i:"task",bg:"#B85B04"},
   log:{l:"Log",c:"s",i:"clock",bg:"var(--ink3)"}
 };
 // a task's due date and (optional) time: sort key, label and lateness
@@ -12046,7 +12043,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-173";
+const APP_VERSION="2026.11.25-174";
 // the release check (which opens the page from a file) can reach these; the hosted site exposes nothing
 if(location.protocol==="file:")window.__sscTest={S,benchDue,benchChip,weekMonday,picRough,webcatStat};
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
@@ -12310,12 +12307,13 @@ function actDedupe(list){const seen=new Map();const out=[];
   return out}
 function actFilterBar(items){
   const counts={};items.forEach(x=>{const k=actKind(x);counts[k]=(counts[k]||0)+1});
-  const keys=["call","email","meeting","note","task","log"].filter(k=>counts[k]);
-  if(keys.length<2)return "";
+  // Matt 2026-11-12: the coloured filters are always there, and Tasks always shows (0 when none)
+  const keys=["task","call","email","meeting","note","log"].filter(k=>k==="task"||counts[k]);
+  if(S.actFilter&&!counts[S.actFilter])S.actFilter="";
   return `<div class="actfil">
     <button class="btn sm ${!S.actFilter?"p":""}" data-actf="">All ${items.length}</button>
     ${keys.map(k=>`<button class="btn sm tyb ty-${k}${S.actFilter===k?" on":""}" data-actf="${k}"
-      title="Show only ${esc(ATYPE[k].l.toLowerCase())}s">${ic(ATYPE[k].i,14)}${esc(ATYPE[k].l)} <span class="n">${counts[k]}</span></button>`).join("")}</div>`;
+      title="Show only ${esc(ATYPE[k].l.toLowerCase())}s">${ic(ATYPE[k].i,14)}${esc(ATAB[k]||ATYPE[k].l)} <span class="n">${counts[k]||0}</span></button>`).join("")}</div>`;
 }
 
 function projectRec(id){return withAlum(proj(id),()=>projectRec0(id))}
@@ -13166,8 +13164,9 @@ function activityCard(kind,id){
   if(S.actFilter)a=a.filter(x=>actKind(x)===S.actFilter);
   return `<section class="card flush actcard"><header><h2>Activity</h2><span class="n">${all.length}</span>
     <span class="sub">Calls, emails, meetings, dated notes and tasks${kind==="project"?" — including its work orders":""}. Open tasks stay on top.</span></header>
-    <div class="segbar">${actTabs(all)}${actAddMenu(kind,id)}</div>
-    ${followUpBar(kind,id)?`<div style="padding:8px 15px 2px">${followUpBar(kind,id)}</div>`:""}
+    ${kind==="project"?actionBar([{l:"Log",html:actButtons("project",id)}]):`<div class="actrowwrap">${actButtons(kind,id)}</div>`}
+    ${followUpBar(kind,id)?`<div style="padding:0 15px 2px">${followUpBar(kind,id)}</div>`:""}
+    ${actFilterBar(all)}
     ${a.length?`<ul class="act">${a.slice(0,50).map(activityRow).join("")}</ul>`
     :`<div class="empty">Nothing logged yet.</div>`}</section>`;
 }
@@ -16964,7 +16963,7 @@ async function agentWO(p,due,note){
   }
   return {made,why:made.length?"":"the work order didn't save"};
 }
-const AGENT_FILE={signed_quote:"Signed quote",po:"Purchase order",artwork:"Artwork",proof:"Artwork proof",photo:"Photo",production:"Production file",cut_file:"Cut file",
+const AGENT_FILE={rfq:"Customer request (RFQ / RFP / email)",request:"Customer request (RFQ / RFP / email)",signed_quote:"Signed quote",po:"Purchase order",artwork:"Artwork",proof:"Artwork proof",photo:"Photo",production:"Production file",cut_file:"Cut file",
   rfp:"RFP / bid documents",bid_form:"Bid form (filled)",addendum:"Bid addendum",w9:"W-9",certificate:"Certificate (insurance / tax)",
   registration:"Vendor registration",contract:"Contract",other:"Other"};
 function agentMime(name,url){if(/(drive|docs)\.google\.com/i.test(String(url||"")))return "";   // a Drive page, not the file itself
