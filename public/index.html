@@ -572,6 +572,14 @@ td.mono[style*="text-align:right"],th[style*="text-align:right"]{white-space:now
 :root[data-theme="dark"] .ty-log{--tb:#2E3238;--tf:#CBD1D8;--te:#3E444C}
 .btn.tyb{background:var(--tb)!important;color:var(--tf)!important;border-color:var(--te)!important;font-weight:700}
 .btn.tyb .ic{color:var(--tf)!important}
+.segf .tyt{color:var(--tf)!important}
+.segf .tyt .ic{color:var(--tf)!important;margin-right:4px;vertical-align:-2px}
+.segf .tyt.on{color:var(--tf)!important;border-bottom-color:var(--tf)!important;background:var(--tb)!important}
+.segf .tyt .n{background:var(--tb)!important;color:var(--tf)!important}
+.addm .dd-m .tyt{color:var(--tf)!important;font-weight:600}
+.addm .dd-m .tyt .ic{color:var(--tf)!important}
+.addm .dd-m .tyt:hover{background:var(--tb)!important}
+
 .btn.tyb:hover{filter:brightness(.97);border-color:var(--tf)!important}
 .btn.tyb.on{background:var(--tf)!important;color:var(--card)!important;border-color:var(--tf)!important}
 .btn.tyb.on .ic{color:var(--card)!important}
@@ -12038,7 +12046,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-172";
+const APP_VERSION="2026.11.25-173";
 // the release check (which opens the page from a file) can reach these; the hosted site exposes nothing
 if(location.protocol==="file:")window.__sscTest={S,benchDue,benchChip,weekMonday,picRough,webcatStat};
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
@@ -12223,6 +12231,10 @@ function actEditModal(id){const x=S.activity.get(id);if(!x||!actCanEdit(x))retur
   $("#ae-go").onclick=async()=>{const subj=$("#ae-subj").value.trim(),text=$("#ae-text").value;closeModal();
     await push("activity/"+id,{subject:subj,text,editedAt:Date.now(),editedBy:me(),updatedAt:Date.now()});
     if(x.recType&&x.recId)recordHistory(x.recType,x.recId,[{f:"Activity",o:String(x.text||"").slice(0,120),n:"Edited: "+String(text).slice(0,120),ev:1}]);toast("Saved")}}
+// a note whose text carries raw picture data (data:image/...;base64) shows a short line instead of the code
+function actShowText(t){t=String(t||"");if(!/data:image\/[a-z]+;base64,/i.test(t))return t;
+  const n=(t.match(/data:image\//gi)||[]).length;const lead=t.split(/[\[{]/)[0].trim();
+  return (lead?lead+" ":"")+`(${n} picture${n===1?"":"s"} attached — see the quote lines)`}
 function activityRow(x){
   const k=actKind(x),t=ATYPE[k]||ATYPE.note;
   const c=x.contactId?S.contacts.get(x.contactId):null;
@@ -12243,7 +12255,7 @@ function activityRow(x){
       ${x.subject?`<div class="asub">${esc(x.subject)}</div>`:""}
       ${(function(){const long=String(x.text||"").length>160||String(x.text||"").split("\n").length>2;const fold=long&&(k==="email"||String(x.text||"").length>320);
         const open=!!((S._actOpen||{})[x.id]);
-        return `<div class="m ${k==="task"&&x.done?"done":""}${fold&&!open?" clamp":""}${open?" full":""}"${fold?` data-actexp="${esc(x.id)}" title="${open?"":"Click to read it all"}"`:""}>${esc(x.text||"")}</div>
+        return `<div class="m ${k==="task"&&x.done?"done":""}${fold&&!open?" clamp":""}${open?" full":""}"${fold?` data-actexp="${esc(x.id)}" title="${open?"":"Click to read it all"}"`:""}>${esc(actShowText(x.text))}</div>
           ${fold?`<button class="lnk actmore" data-actexp="${esc(x.id)}">${open?"Show less ▴":k==="email"?"Read the whole email ▾":"Show all ▾"}</button>`:""}`})()}
       ${x.pre?`<div class="sub" style="font-style:italic">sent from the CRM, details come from the mail log</div>`:""}
       ${k==="task"?(function(){
@@ -12277,15 +12289,16 @@ function actButtons(kind,id){
 // the "+ Add" menu: log a call or an email, write a note, give someone a task
 function actAddMenu(kind,id){const k=esc(kind),i=esc(String(id));
   return `<details class="dd addm"><summary class="btn sm p" aria-label="Add to the activity">+ Add</summary><div class="dd-m">
-    <button data-log="${k}:${i}:call">${ic("call",14)}Log a call</button><button data-log="${k}:${i}:email">${ic("email",14)}Log an email</button>
-    <button data-log="${k}:${i}:note">${ic("note",14)}Write a note</button><button data-log="${k}:${i}:task">${ic("task",14)}Give someone a task</button></div></details>`}
+    <button class="tyt ty-call" data-log="${k}:${i}:call">${ic("call",14)}Log a call</button><button class="tyt ty-email" data-log="${k}:${i}:email">${ic("email",14)}Log an email</button>
+    <button class="tyt ty-note" data-log="${k}:${i}:note">${ic("note",14)}Write a note</button><button class="tyt ty-task" data-log="${k}:${i}:task">${ic("task",14)}Give someone a task</button></div></details>`}
 const ATAB={call:"Calls",email:"Emails",meeting:"Meetings",note:"Notes",task:"Tasks",log:"Other"};
 function actTabs(items){const counts={};items.forEach(x=>{const k=actKind(x);counts[k]=(counts[k]||0)+1});
-  const keys=["task","email","call","meeting","note","log"].filter(k=>counts[k]);
+  // Matt 2026-11-12: one bar (no second row of buttons), but each tab keeps its colour and icon, and Tasks is always there
+  const keys=["task","email","call","meeting","note","log"].filter(k=>k==="task"||counts[k]);
   if(S.actFilter&&!counts[S.actFilter])S.actFilter="";
   return `<div class="segf" role="tablist" aria-label="Show">
     <button role="tab" aria-selected="${!S.actFilter}" class="${!S.actFilter?"on":""}" data-actf="">All <span class="n">${items.length}</span></button>
-    ${keys.length>1?keys.map(k=>`<button role="tab" aria-selected="${S.actFilter===k}" class="${S.actFilter===k?"on":""}" data-actf="${k}">${esc(ATAB[k]||ATYPE[k].l)} <span class="n">${counts[k]}</span></button>`).join(""):""}</div>`}
+    ${keys.map(k=>`<button role="tab" aria-selected="${S.actFilter===k}" class="tyt ty-${k}${S.actFilter===k?" on":""}" data-actf="${k}">${ic(ATYPE[k].i,14)}${esc(ATAB[k]||ATYPE[k].l)} <span class="n">${counts[k]||0}</span></button>`).join("")}</div>`}
 // the same message logged twice (sent from the CRM and picked up from Gmail, or a double save) shows once
 function actDedupe(list){const seen=new Map();const out=[];
   list.forEach(x=>{const k=actKind(x);if(k==="task"){out.push(x);return}
