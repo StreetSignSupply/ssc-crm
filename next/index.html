@@ -2481,6 +2481,9 @@ function repFor(p){
   if(a&&a.repId){const t=S.team.get(a.repId);if(t&&!t.deleted)return t}
   return null;
 }
+// Matt (Nov 12): the rep assigned to the project (or, if none, to its account) sends their own quotes — no owner OK
+function isAssignedRep(p,t){const r=p?repFor(p):null;return !!(r&&t&&r.id===t.id)}
+function quoteNeedsOk(p){return myAccess()!=="owner"&&!isAssignedRep(p,S.viewerTeam||S.team.get(meId()))}
 function repOfAccount(a){const t=a&&a.repId?S.team.get(a.repId):null;return t&&!t.deleted?t:null}
 function repChip(t,inherited){
   if(!t)return `<span class="pill r">Unassigned</span>`;
@@ -2525,6 +2528,7 @@ function reviewQuotes(){if(!S.files||!S.projects)return [];const out=[];
     const latest=(fresh[0]||pdfs.sort((a,b)=>(b.at||0)-(a.at||0))[0]);
     const maker=latest.byId?S.team.get(latest.byId):null;
     if(maker?teamRole(maker)==="owner":(latest.who&&live(S.team).some(t=>teamRole(t)==="owner"&&(t.name===latest.who||t.initials===latest.who))))continue;
+    if(maker&&isAssignedRep(p,maker))continue;   // the assigned rep's own quote: theirs to send, not Matt's to review
     const ap=p.quoteApproval;if(ap&&ap.v===2&&ap.hash===cur)continue;
     const rj=p.quoteRejected;if(rj&&rj.review&&rj.hash===cur)continue;
     const rd=p.quoteReviewed;if(rd&&rd.hash===cur)continue;   // looked at, not sending: off the list until the quote changes
@@ -12060,7 +12064,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-178";
+const APP_VERSION="2026.11.25-179";
 // the release check (which opens the page from a file) can reach these; the hosted site exposes nothing
 if(location.protocol==="file:")window.__sscTest={S,benchDue,benchChip,weekMonday,picRough,webcatStat};
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
@@ -17179,7 +17183,7 @@ async function pipeImportRows(rows){
       if(signUrlS&&body.indexOf(signUrlS)<0)body=body.replace(/\n\nThanks,/,"\n\nYou can review and approve it online here — it takes a minute:\n"+signUrlS+"\n\nThanks,");
       if(signUrlS&&body.indexOf(signUrlS)<0)body+="\n\nYou can review and approve it online here:\n"+signUrlS;
       const atts=f?[{name:f.name,url:f.url,type:f.type||"",fileId:f.id,gen:f.gen||"",cat:f.cat||"",qhash:f.qhash||""}]:[];
-      const quoteOut=withQ;const needOk=quoteOut&&w.access!=="owner";
+      const quoteOut=withQ;const needOk=quoteOut&&w.access!=="owner"&&!isAssignedRep(p,w);
       const xid=uid("ac"),mid=uid("ml");
       await setDoc("activity/"+xid,{id:xid,recType:"project",recId:String(p.id),kind:"note",type:"email",direction:"out",subject,text:body+(atts.length?"\n\n📎 "+atts.map(a=>a.name).join(", "):""),
         contactId:ct?ct.id:"",whoId:w.id,who:w.name||"AI",when:today(),due:"",backOn:"",noBack:true,at:now,done:true,deleted:false,mailId:mid,sendState:needOk?"approval":"queued",to:to.join(", "),feedId:id,
@@ -18237,7 +18241,7 @@ function composeModal(o){o=o||{};if(quoteMailOpts(o)){prepQuoteMail(o);return}
       <div style="display:flex;flex-direction:column;gap:4px;max-height:160px;overflow:auto">${files.filter(f=>!(o._qpdf&&f.gen==="quote"&&f.id!==o._qpdf)).sort((a,b)=>(b.id===o._qpdf)-(a.id===o._qpdf)).slice(0,25).map(f=>`<label style="display:flex;gap:8px;align-items:center;justify-content:flex-start;font-size:13.5px;text-align:left;font-weight:500"><input type="checkbox" data-cmatt="${esc(f.id)}" ${pre.has(f.id)||f.id===o._qpdf?"checked":""} ${sendOn&&f.id!==o._qpdf?"":"disabled"} style="width:18px;height:18px;flex:0 0 auto;margin:0"> <span style="flex:0 1 auto">${esc(f.name)}${f.id===o._qpdf?' <b style="color:var(--ok,#2E844A)">· always attached (current quote)</b>':""}</span> <span class="sub">${esc(f.cat||"")}${f._src&&f._src!=="Project"?" · "+esc(f._src):""}</span></label>`).join("")}</div></div>`:""}
     <div class="fld full sub">${noMail(p)?`<b>This project is marked dry run / internal</b> — the CRM won't email anyone outside from it.`
       :mailSendOn()&&!from?`Sending from the CRM needs your own @streetsignsupply.com address on your team record — <b>Open in my email</b> works meanwhile.`
-      :sendOn?`Sends from <b>${esc(from||"—")}</b> through Gmail within about a minute${myAccess()!=="owner"&&p?" — a quote waits for Matt's OK first":""}, and it's logged on ${p?"the project":"the account"}. Replies come to that inbox.`
+      :sendOn?`Sends from <b>${esc(from||"—")}</b> through Gmail within about a minute${p&&quoteNeedsOk(p)?" — a quote waits for Matt's OK first (only the rep assigned to the project sends quotes without it)":""}, and it's logged on ${p?"the project":"the account"}. Replies come to that inbox.`
       :window.sscHosted?`Sending from the CRM isn't switched on yet — <b>Open in my email</b> opens it in your own email with this text, and it's logged here.`
       :`This copy can't send email — <b>Open in my email</b> opens it in your own email with this text, and it's logged here.`}</div>
     ${can("settings")||myAccess()==="office"?`<div class="fld full"><button type="button" class="lnk" id="cm-savetpl">Save this as a template…</button></div>`:""}</div>`,
@@ -18405,7 +18409,7 @@ async function composeGo(send){const C=S._cmp||{};const to=$("#cm-to").value.spl
   if(quoteOut&&pq&&(quoteFileStale(pq,atts)||!atts.some(a=>a.gen==="quote"))){toast("The quote changed — attaching a fresh quote PDF. Check it, then press Send again.");
     prepQuoteMail({pid:C.pid,to:$("#cm-to").value,cc:$("#cm-cc").value,subject,body,signId:C.signId,signUrl:C.signUrl,kind:C.kind||"quote",tpl:C.tplUsed,
       attach:atts.filter(a=>a.gen!=="quote").map(a=>a.fileId),title:"Email the quote"});return}
-  const needOk=quoteOut&&myAccess()!=="owner"&&!(await quoteOkFor(pq,to,cc,atts));
+  const needOk=quoteOut&&quoteNeedsOk(pq)&&!(await quoteOkFor(pq,to,cc,atts));
   if(needOk&&!send)return toast("This quote needs Matt's OK first — press Send and it goes out the moment he approves it.");
   // every approval link in the email must still be live (P-2032 got a link that had been cancelled the day before)
   const sl=await freshenSignLinks(C,body);if(sl.stop)return toast(sl.stop);body=sl.body;const signId=sl.signId;
@@ -18839,7 +18843,7 @@ function bind(){
     {const x=t.closest("[data-signfile]");if(x){signFile(x.dataset.signfile);return}}
     {const x=t.closest("[data-signcopy]");if(x){const r0=(S.signreq||new Map()).get(x.dataset.signcopy)||{};const p0=proj(r0.projectId);
       // a quote's signing link is the quote itself: copying it to send yourself needs the owner's OK on this quote too
-      if(r0.kind!=="proof"&&myAccess()!=="owner"&&p0&&!(p0.quoteApproval&&p0.quoteApproval.v===2&&p0.quoteApproval.hash===quoteHash(p0)))return toast("This quote needs Matt's OK first — use Email it again and it goes out once he approves.");
+      if(r0.kind!=="proof"&&p0&&quoteNeedsOk(p0)&&!(p0.quoteApproval&&p0.quoteApproval.v===2&&p0.quoteApproval.hash===quoteHash(p0)))return toast("This quote needs Matt's OK first — use Email it again and it goes out once he approves.");
       const u=signUrl(x.dataset.signcopy);try{navigator.clipboard.writeText(u);toast("Link copied")}catch(e2){prompt("Copy the link",u)}return}}
     {const x=t.closest("[data-signmail]");if(x){const r=(S.signreq||new Map()).get(x.dataset.signmail);if(r)composeModal({pid:r.projectId,to:r.contactEmail,tpl:r.kind==="proof"?"proof":"quote",signUrl:signUrl(r.token),signId:r.token,attach:r.fileId?[r.fileId]:[],title:"Email the signature link"});return}}
     {const x=t.closest("[data-signcancel]");if(x){const r=(S.signreq||new Map()).get(x.dataset.signcancel);if(r)askConfirm("Cancel this signature link?","<p style=\"margin:0\">The link stops working. You can make a new one any time.</p>","Cancel the link",true,async()=>{await setDoc("signreq/"+r.token,Object.assign({},r,{status:"cancelled"}));render()});return}}

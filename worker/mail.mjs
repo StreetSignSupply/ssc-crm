@@ -178,6 +178,9 @@ async function mailCheck(d, m, from, to, cc) {
   const stale = m.quote.hash !== cur || (m.attachments || []).some((x) => x && x.gen === "quote" && x.qhash !== cur);
   if (stale) return "the quote changed after its PDF was made — make a new quote PDF and send it again";
   if (isOwnerT(writer)) return "send";
+  // Matt (Nov 12): the rep assigned to the project (or, if the project has none, to its account) sends their own quotes
+  const repId = String((p && p.repId) || (acc && acc.repId) || "");
+  if (writer && repId && writer.id === repId) return "send";
   // the attachments' actual contents (SHA-256 of the bytes), kept on the email so Matt approves exactly these files
   const shas = await attShas(m);
   if (typeof shas === "string") return shas;

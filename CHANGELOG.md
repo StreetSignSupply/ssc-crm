@@ -1,5 +1,10 @@
 # What changed
 
+## 2026.11.25-179 (The assigned rep sends their own quotes — no owner OK)
+- Matt (Nov 12): "when a rep that is assigned and sending out a quote it does not need my approval." A quote sent by **the rep assigned to the project** (or, if the project has no rep, the account's rep) now goes straight out, from the email window, Get it signed, Email it again and Copy link alike, and the mail worker sends it without holding it. Their quotes no longer show up in Matt's quote review list. Quotes held "waiting for Matt's OK" from an assigned rep go out on the mail worker's next run.
+- Still checked for everyone: the quote PDF must match the quote (made fresh automatically, release 178), test projects never email out, and price floors when the quote is made.
+- Someone who is **not** the project's rep (and not an owner) still needs Matt's OK, so a quote can't go out under someone else's account by mistake.
+
 ## 2026.11.25-178 (Quotes can't get stuck on "the quote PDF is older than the quote")
 - **The current quote PDF always goes, and it isn't optional.** Matt (Nov 12): "I cannot send the quote still even after changing it ... the attached PDF for the signed quote should always be attached it should not be an option." Opening any quote email (Get it signed, Email it again, the quote template) now finds the quote PDF that matches the quote as it is right now; when there isn't one, it makes it on the spot and files it to the project. That PDF is ticked and locked ("always attached (current quote)"); older quote PDFs aren't offered at all.
 - **Why it kept saying "too old":** the signing link remembered the PDF it was first made with, so Email it again (and the picker in Get it signed) kept attaching the old PDF even after a new one was made. The link's page also still showed the customer the old lines. Now a link made before the quote changed is swapped for a fresh one with the current lines and PDF, and the old link points to the new one.
