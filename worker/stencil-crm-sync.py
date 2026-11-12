@@ -31,8 +31,15 @@ for sku, g in gen.items():
         files = {"zip": tmp}
     else:
         files = {"dxf": g["dxf"]}
-    same = all(os.path.exists(os.path.join(cut, f"{sku}.{k}")) and open(os.path.join(cut, f"{sku}.{k}"), "rb").read() == open(v, "rb").read()
-               for k, v in files.items())
+    def same_file(k, v):
+        f = os.path.join(cut, f"{sku}.{k}")
+        if not os.path.exists(f): return False
+        if k != "zip": return open(f, "rb").read() == open(v, "rb").read()
+        try:                                               # compare the DXFs inside, not the zip bytes (zlib differs by machine)
+            a, b = zipfile.ZipFile(f), zipfile.ZipFile(v)
+            return sorted(a.namelist()) == sorted(b.namelist()) and all(a.read(n) == b.read(n) for n in a.namelist())
+        except zipfile.BadZipFile: return False
+    same = all(same_file(k, v) for k, v in files.items())
     if same and sku in idx["items"]:
         if "zip" in files: os.remove(files["zip"])
         continue
