@@ -8,8 +8,9 @@ Spec: Drive stencil-spec-rule.md (Matt 2026-11-08) — NOMINAL = number in the n
 EXTENTS = painted legend W x H; SHEET = the price-list blank (must hold EXTENTS + 2 x 2.00 in);
 ties 1/2 in (NOMINAL <= 24) or 3/4 in (> 24), >= 2 per island. Matt 2026-11-10 (D-20261110-19): whatever
 is closest to the matching 1800stencil product wins every spec question (size, sheet, spacing, tie) within
-1/4 in; the old "tie <= 25 % of the stroke" hold is gone. DXF inches, origin = sheet bottom-left, one layer
-CUT, closed paths only. Glyphs: worker/stencil-glyphs (FHWA public-domain drawings only).
+1/4 in; the old "tie <= 25 % of the stroke" hold is gone. DXF inches, origin = sheet bottom-left, layer
+CUT (legend + ties, cut first) and layer OUTSIDE (the sheet outline, cut last: the stencil is cut out of the
+full sheet, Matt 2026-11-12), closed paths only. Glyphs: worker/stencil-glyphs (FHWA public-domain drawings only).
 """
 import hashlib, json, math, re, sys
 from pathlib import Path
@@ -230,12 +231,18 @@ def to_dxf(path, geom, sheet):
     doc.header["$EXTMIN"] = (0, 0, 0); doc.header["$EXTMAX"] = (sheet[0], sheet[1], 0)
     doc.header["$LIMMIN"] = (0, 0); doc.header["$LIMMAX"] = (sheet[0], sheet[1])
     doc.layers.add("CUT", color=7)
+    doc.layers.add("OUTSIDE", color=1)
     msp = doc.modelspace()
     polys = list(geom.geoms) if isinstance(geom, MultiPolygon) else [geom]
     for p in polys:
         for ring in [p.exterior, *p.interiors]:
             pts = [(round(x, 4), round(y, 4)) for x, y in list(ring.coords)[:-1]]
             msp.add_polyline2d(pts, close=True, dxfattribs={"layer": "CUT"})
+    # Matt 2026-11-12: the stencil is cut OUT of the full LDPE sheet on the Biesse, so the finished stencil
+    # outline is part of the cut file. Layer OUTSIDE = the blank (sheet_in), square corners, cut LAST with
+    # outside tool compensation (the line is the finished edge). Legend and ties (layer CUT) cut first.
+    W, H = round(sheet[0], 4), round(sheet[1], 4)
+    msp.add_polyline2d([(0, 0), (W, 0), (W, H), (0, H)], close=True, dxfattribs={"layer": "OUTSIDE"})
     doc.saveas(path)
 
 
@@ -505,23 +512,34 @@ def set_proof(path, pngs, title):
 
 
 def check(dxf_path, expect):
-    """Second check: read the DXF back, measure EXTENTS, SHEET fit, closed paths, margins."""
+    """Second check: read the DXF back, measure EXTENTS, SHEET fit, closed paths, margins, and the OUTSIDE cut
+    (exactly one closed 4-corner rectangle = the sheet, from 0,0, within 1/32 in)."""
     import ezdxf
     doc = ezdxf.readfile(dxf_path); msp = doc.modelspace()
-    xs, ys, problems = [], [], []
+    xs, ys, problems, outside = [], [], [], []
     for e in msp:
         if e.dxftype() not in ("POLYLINE", "LWPOLYLINE"): problems.append(f"entity {e.dxftype()}"); continue
-        if e.dxf.layer != "CUT": problems.append(f"layer {e.dxf.layer}")
         if not e.is_closed: problems.append("open path")
-        for v in e.points():
-            xs.append(v[0]); ys.append(v[1])
+        pts = [(v[0], v[1]) for v in e.points()]
+        if e.dxf.layer == "OUTSIDE": outside.append(pts); continue
+        if e.dxf.layer != "CUT": problems.append(f"layer {e.dxf.layer}")
+        for x, y in pts:
+            xs.append(x); ys.append(y)
     sw, sh = [float(v) for v in expect["sheet"].split(" x ")]
     ew, eh = [float(v) for v in expect["extents"].split(" x ")]
     mw, mh = max(xs) - min(xs), max(ys) - min(ys)
     if abs(mw - ew) > TOL or abs(mh - eh) > TOL: problems.append(f"extents {mw:.3f} x {mh:.3f} vs row {ew} x {eh}")
     for m in (min(xs), min(ys), sw - max(xs), sh - max(ys)):
         if m < MARGIN - TOL: problems.append(f"margin {m:.3f} < 2.00")
-    return {"extents": f"{mw:.3f} x {mh:.3f}", "margins": [round(v, 3) for v in (min(xs), min(ys), sw - max(xs), sh - max(ys))], "problems": problems}
+    out_ok = False
+    if len(outside) != 1: problems.append(f"OUTSIDE cut: {len(outside)} paths, need exactly 1")
+    else:
+        o = outside[0]; ox = [p[0] for p in o]; oy = [p[1] for p in o]
+        out_ok = (len(o) == 4 and abs(min(ox)) <= 1 / 32 and abs(min(oy)) <= 1 / 32
+                  and abs(max(ox) - sw) <= 1 / 32 and abs(max(oy) - sh) <= 1 / 32)
+        if not out_ok: problems.append(f"OUTSIDE cut {max(ox) - min(ox):.3f} x {max(oy) - min(oy):.3f} is not the {sw} x {sh} sheet")
+    return {"extents": f"{mw:.3f} x {mh:.3f}", "margins": [round(v, 3) for v in (min(xs), min(ys), sw - max(xs), sh - max(ys))],
+            "outside": out_ok, "problems": problems}
 
 
 if __name__ == "__main__":

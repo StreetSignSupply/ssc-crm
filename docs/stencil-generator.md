@@ -22,8 +22,10 @@ cut 2026-11-09 afternoon). QA: CNC Bot. Test cuts: Equipment Manager + a person 
   at the drawing's native size, closed paths, ties already placed, no margin.
 
 ## Output per SKU
-1. `<sku>.dxf` — DXF R12, inches, LWPOLYLINE/POLYLINE closed paths only, layers `CUT` (legend and ties)
-   and `SHEET` (blank outline, for reference only). Legend scaled so letter height = NOMINAL, centered on the
+1. `<sku>.dxf` — DXF R12, inches, LWPOLYLINE/POLYLINE closed paths only, layers `CUT` (legend and ties,
+   cut first) and `OUTSIDE` (the blank outline = sheet_in, square corners, cut LAST with outside tool
+   compensation: the stencil is cut out of the full LDPE sheet on the Biesse, Matt 2026-11-12). The second
+   check fails any file without exactly one closed OUTSIDE rectangle equal to the sheet within 1/32 in. Legend scaled so letter height = NOMINAL, centered on the
    blank with ≥ 2.00 in margin on every side; multi-word legends on one line unless the price-list name says
    stacked. Ties: gaps of `tie_in` width cut through strokes so every island (inside of O, A, B, D, P, Q, R,
    0, 4, 6, 8, 9, arrow heads with holes) is held by at least two ties placed at opposite sides.

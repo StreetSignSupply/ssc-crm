@@ -8,6 +8,7 @@ on:
     inputs:
       limit: { description: "build only the first N ready rows (0 = all, up to the daily cap)", default: "0" }
       dry_run: { description: "1 = build and check only, no push, no sheet writes", default: "0" }
+      rebuild: { description: "1 = also re-build rows already generated / qa pass / test cut (adds the OUTSIDE cut)", default: "0" }
   schedule:
     - cron: "17 20 * * *"
 permissions:
@@ -47,6 +48,7 @@ jobs:
           OUT_DIR: ${{ github.workspace }}/stencil-out
           GEN_LIMIT: ${{ inputs.limit || '0' }}
           DRY_RUN: ${{ inputs.dry_run || '0' }}
+          REBUILD: ${{ inputs.rebuild || '0' }}
         run: node worker/stencil-gen.mjs
       - name: Keep the run report
         if: always()

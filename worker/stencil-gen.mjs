@@ -55,7 +55,11 @@ async function main() {
   say(`rows ${rows.length} (${Object.entries(byKind).map(([k, n]) => `${k} ${n}`).join(", ")}); qa passed ${passed}; cap ${cap}`);
 
   // text rows not built yet, plus text rows that failed QA (re-built after a generator fix; same file = still held)
-  const todo = rows.filter((r) => r.kind === "text" && ["todo", "sourced", "", "qa fail"].includes(r.status) && !/gen skip/i.test(r.notes));
+  // REBUILD=1 (one-time, Matt 2026-11-12): also re-build every text row already generated / QA'd / test-cut, so
+  // every published DXF gets the OUTSIDE cut; those rows go back to 'generated' for a fresh CNC Bot QA.
+  const REBUILD = process.env.REBUILD === "1";
+  const states = REBUILD ? ["todo", "sourced", "", "qa fail", "generated", "qa pass", "test cut"] : ["todo", "sourced", "", "qa fail"];
+  const todo = rows.filter((r) => r.kind === "text" && states.includes(r.status) && !/gen skip/i.test(r.notes));
   const symbolsWaiting = rows.filter((r) => r.kind === "symbol" && r.master && ["todo", "sourced", "master ready"].includes(r.status)).length;
   let jobs = todo.map((r) => ({ sku: r.sku, name: r.name, category: r.category, blank: r.blank, pieces: r.pieces, ref: r.ref,
     nominal: r.L || undefined, tie: r.O || undefined, legend: legendFromNotes(r.notes) }));
@@ -85,7 +89,7 @@ async function main() {
       for (const p of chk.problems) problems.push((f.ch ? f.ch + ": " : "") + p);
     }
     if (problems.length) { held.push([r, `second check failed: ${problems.join("; ")}`]); continue; }
-    if (good.length < cap) good.push([r, x]);
+    if (good.length < cap || REBUILD) good.push([r, x]);   // REBUILD: every old file is replaced in one run
   }
   say(`built ${good.length}, held ${held.length}, already past todo ${rows.filter((r) => r.kind === "text").length - todo.length}, symbol rows with a master waiting ${symbolsWaiting} (symbol path not in this version)`);
 
@@ -114,7 +118,9 @@ async function main() {
   }
   for (const [r, why] of held) {
     // a failed file is taken off the row so nobody cuts it; the qa note stays in T
-    if (r.status === "qa fail" && !why.startsWith("same file")) data.push({ range: `${TAB}!L${r.row}:S${r.row}`, values: [["", "", "", "", "", "", "", "todo"]] });
+    // REBUILD: an old file without the OUTSIDE cut must never stay on a row
+    const rebuiltOld = REBUILD && ["generated", "qa pass", "test cut"].includes(r.status);
+    if ((r.status === "qa fail" && !why.startsWith("same file")) || rebuiltOld) data.push({ range: `${TAB}!L${r.row}:S${r.row}`, values: [["", "", "", "", "", "", "", "todo"]] });
     const merged = mergeNote(r.notes, `gen hold ${TODAY}: ${why}`);
     if (merged !== r.notes) data.push({ range: `${TAB}!T${r.row}`, values: [[merged]] });
   }
