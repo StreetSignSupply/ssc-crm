@@ -1,5 +1,10 @@
 # What changed
 
+## 2026.11.25-177 (Preview before sending a quote or proof)
+- **See it before it goes.** Matt (Nov 12): "before we send the signed proof and quote ... preview what it looks like before we send it." The email window has a new **Preview** button. It opens a full-screen preview with tabs: **Email** (who it goes to, the subject, the message as written, your Gmail signature and what's attached), **Signing page** (the exact page behind the link the customer gets, marked Preview, nothing can be signed from it, and it doesn't count as "opened"), and one tab for **each attachment** (the quote PDF, proof, pictures).
+- **Quotes and proofs always preview first.** When the email carries a signing link, the quote template or a quote PDF, **Send** opens the preview, and it goes from there with **Looks right — send**. Back to edit returns to the email with nothing sent. The preview stops the send (button greyed out) when there's no one to send to, when the quote PDF is older than the quote, or when the signing link was deleted from the text.
+- **Signatures card:** links still waiting have a **Preview** button too.
+
 ## 2026.11.25-176 (Sign pictures open full size)
 - **Every sign picture opens.** Matt (Nov 12): "Why can I not open these to view the proofs we need to verify these before we send." On a project's Sign pictures card only pictures stored on the web had a View button; pictures the agents drew (stored inside the CRM, like the Idaho street name blades) had only Save. Now every picture has **View**, and clicking the picture itself opens it too, full screen on a white background, with ‹ › to step through all the quote-line pictures, "Save a copy", and Close (Escape or the phone's Back also close it).
 

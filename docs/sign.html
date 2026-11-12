@@ -105,7 +105,7 @@ body.zooming .sticky{visibility:hidden}
    link, and the database lets it change only that request — once — to signed or "changes asked for". */
 (function(){
   var P="ssc-crm-a7224",BASE="https://firestore.googleapis.com/v1/projects/"+P+"/databases/(default)/documents/signreq/";
-  var q=new URLSearchParams(location.search),T=(q.get("t")||"").replace(/[^a-f0-9]/gi,""),VIEW=q.get("view")==="1";
+  var q=new URLSearchParams(location.search),T=(q.get("t")||"").replace(/[^a-f0-9]/gi,""),PREVIEW=q.get("preview")==="1",VIEW=q.get("view")==="1"||PREVIEW;
   var app=document.getElementById("app"),R=null,pieces=[];
   function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
   function val(v){if(!v)return null;if("stringValue" in v)return v.stringValue;if("integerValue" in v)return Number(v.integerValue);if("doubleValue" in v)return v.doubleValue;
@@ -168,6 +168,8 @@ body.zooming .sticky{visibility:hidden}
         +'<dl><dt>Signed by</dt><dd>'+esc(R.signedName)+(R.signedTitle?", "+esc(R.signedTitle):"")+'</dd><dt>For</dt><dd>'+esc(R.customer||"")+'</dd><dt>Approved</dt><dd>'+esc(label())+(hasQ()?" — "+money(total())+" plus tax":"")+'</dd>'+(R.po?'<dt>PO</dt><dd>'+esc(R.po)+'</dd>':"")+'<dt>Date</dt><dd>'+esc(when(R.signedAt))+'</dd>'+(R.note?'<dt>Note</dt><dd>'+esc(R.note)+'</dd>':"")+'<dt>Reference</dt><dd>'+esc(T.slice(0,8).toUpperCase())+'</dd></dl>'
         +'<div class="acts noprint" style="margin-top:16px"><button class="btn" type="button" onclick="window.print()">Print or save a copy</button></div></div></div>'+nextSec()+foot();app.innerHTML=h;bindZoom();return}
     if(R.status==="declined"){h+='<div class="card"><div class="chg"><div style="font-weight:800;font-size:17px">Changes asked for</div><p style="margin:6px 0 0;color:#4b5361">'+esc(R.signedName||"")+' · '+esc(when(R.signedAt))+(R.note?'<br>“'+esc(R.note)+'”':"")+'</p><p class="legal">We\'ll send an updated '+esc(what())+' shortly.</p></div></div>'+foot();app.innerHTML=h;bindZoom();return}
+    if(PREVIEW){app.innerHTML='<div class="card" style="background:#fff7e0;border-color:#e8c46a"><b>Preview</b> — this is the page the customer sees. Below the quote they type their name, title and PO number, sign, tick the agree box and press <b>Approve and sign</b> or <b>Request changes</b>. Nothing can be signed from this preview.</div>'+h
+      +'<div class="card" style="opacity:.6"><div style="font-weight:800;font-size:17px;margin-bottom:8px">Approve '+esc(what())+'</div><p class="legal" style="margin:0">Full name · Title · '+(hasQ()?'PO number · ':'')+'Signature pad · "I agree to sign electronically" · Note</p><div class="acts" style="margin-top:12px"><button class="btn p" type="button" disabled>Approve and sign</button><button class="btn" type="button" disabled>Request changes</button></div></div>'+foot();bindZoom();return}
     if(VIEW){app.innerHTML=h+'<div class="card"><p class="legal" style="margin:0">Waiting for approval.</p></div>'+foot();bindZoom();return}
     var org=R.customerOrg!==false&&R.customer;
     h+='<div class="card" id="approve">'+sec("Approve "+what())

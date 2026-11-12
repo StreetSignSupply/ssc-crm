@@ -12060,7 +12060,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-176";
+const APP_VERSION="2026.11.25-177";
 // the release check (which opens the page from a file) can reach these; the hosted site exposes nothing
 if(location.protocol==="file:")window.__sscTest={S,benchDue,benchChip,weekMonday,picRough,webcatStat};
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
@@ -18214,13 +18214,55 @@ function composeModal(o){o=o||{};const p=o.pid?proj(o.pid):null;const aid=o.aid|
       :window.sscHosted?`Sending from the CRM isn't switched on yet — <b>Open in my email</b> opens it in your own email with this text, and it's logged here.`
       :`This copy can't send email — <b>Open in my email</b> opens it in your own email with this text, and it's logged here.`}</div>
     ${can("settings")||myAccess()==="office"?`<div class="fld full"><button type="button" class="lnk" id="cm-savetpl">Save this as a template…</button></div>`:""}</div>`,
-    `<button class="btn" data-close="1">Cancel</button><button class="btn" id="cm-open">Open in my email</button>${sendOn?`<button class="btn p" id="cm-send">Send</button>`:""}`));
+    `<button class="btn" data-close="1">Cancel</button><button class="btn" id="cm-prev" title="See the email, the attachments and the customer's signing page exactly as they'll get them">Preview</button><button class="btn" id="cm-open">Open in my email</button>${sendOn?`<button class="btn p" id="cm-send">Send</button>`:""}`));
   const tp=$("#cm-tpl");if(tp)tp.onchange=()=>{const t=tpls.find(x=>x.id===tp.value);if(!t)return;S._cmp.tplUsed=t.id;$("#cm-subj").value=mailFill(t.subject,S._cmp);$("#cm-body").value=mailFill(t.body,S._cmp);S.modalTouched=true};
   document.querySelectorAll("[data-cmto]").forEach(b=>b.onclick=()=>{const to=$("#cm-to");const cur=to.value.split(",").map(x=>x.trim()).filter(Boolean);
     if(cur.indexOf(b.dataset.cmto)<0)cur.push(b.dataset.cmto);to.value=cur.join(", ");if(cur.length===1){S._cmp.contact=S.contacts.get(b.dataset.cmcid)||S._cmp.contact}});
   const ai=$("#cm-ai");if(ai)ai.onclick=()=>composeAI();
   const st=$("#cm-savetpl");if(st)st.onclick=()=>composeSaveTpl();
-  $("#cm-open").onclick=()=>composeGo(false);const sd=$("#cm-send");if(sd)sd.onclick=()=>composeGo(true)}
+  $("#cm-open").onclick=()=>composeGo(false);const pv=$("#cm-prev");if(pv)pv.onclick=()=>sendPreview(false);
+  // a quote or proof going out for signature is always previewed first: Send opens the preview, and it sends from there
+  const sd=$("#cm-send");if(sd)sd.onclick=()=>previewFirst()?sendPreview(true):composeGo(true)}
+// --- Preview before sending: the email as written, every attachment, and the signing page the customer will open ---
+function cmpAtts(){const C=S._cmp||{};const fs=composeFiles(C.pid);return [...document.querySelectorAll("[data-cmatt]:checked")].map(x=>fs.find(f=>f.id===x.dataset.cmatt)).filter(Boolean)}
+function previewFirst(){const C=S._cmp||{};return !!(C.signId||C.kind==="quote"||C.tplUsed==="quote"||C.tplUsed==="proof"||cmpAtts().some(isQuoteFile))}
+function signPreviewUrl(tok){return signUrl(tok)+"&preview=1"}
+function closeSendPreview(){const o=document.getElementById("sendprev");if(o)o.remove();document.removeEventListener("keydown",sendPrevKey)}
+function sendPrevKey(e){if(e.key==="Escape")closeSendPreview()}
+function sendPreview(withSend){const C=S._cmp||{};const to=($("#cm-to")||{}).value||"",subj=($("#cm-subj")||{}).value||"",body=($("#cm-body")||{}).value||"";
+  const atts=cmpAtts();const canSend=withSend||!!$("#cm-send");
+  const tabs=[{k:"mail",t:"Email"}];if(C.signId)tabs.push({k:"sign",t:"Signing page"});atts.forEach((f,i)=>tabs.push({k:"a"+i,t:f.name,f}));
+  const link=t=>esc(t).replace(/(https:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>');
+  const mail=`<div style="max-width:760px;margin:0 auto;background:#fff;border:1px solid var(--line2);border-radius:10px;padding:18px 20px;color:#1f2430">
+      <div class="sub" style="margin-bottom:2px">To</div><div style="font-weight:600;margin-bottom:10px">${esc(to)||"<span style='color:#b42318'>no one yet — add an email address</span>"}</div>
+      <div class="sub" style="margin-bottom:2px">Subject</div><div style="font-weight:700;font-size:16px;margin-bottom:14px">${esc(subj)||"<span style='color:#b42318'>(no subject)</span>"}</div>
+      <div style="white-space:pre-wrap;font:14px/1.55 Arial,sans-serif">${link(body)}</div>
+      ${mySig()?`<iframe sandbox title="Your Gmail signature" srcdoc="${esc('<base target="_blank"><body style="margin:8px 0;font:13px Arial,sans-serif">'+mySig()+'</body>')}" style="width:100%;height:130px;border:0;margin-top:6px"></iframe>`:""}
+      <div class="sub" style="margin-top:12px;border-top:1px solid var(--line2);padding-top:10px">Attached: ${atts.length?atts.map(f=>esc(f.name)).join(" · "):"nothing"}</div></div>`;
+  const pane=k=>{if(k==="mail")return mail;
+    if(k==="sign")return `<div class="sub" style="margin:0 0 6px">This is the page behind the link in the email, the same way the customer sees it. Nothing can be signed from this preview.</div><iframe src="${esc(signPreviewUrl(C.signId))}" title="Signing page preview" style="width:100%;height:calc(100% - 26px);border:1px solid var(--line2);border-radius:8px;background:#fff"></iframe>`;
+    const f=(tabs.find(t=>t.k===k)||{}).f;if(!f)return "";const img=/^image\//.test(f.type||"")||/\.(png|jpe?g|gif|webp)$/i.test(f.name||"");
+    return img?`<div style="text-align:center"><img src="${esc(f.url)}" alt="${esc(f.name)}" style="max-width:100%;max-height:100%;background:#fff"></div>`
+      :`<iframe src="${esc(f.url)}" title="${esc(f.name)}" style="width:100%;height:100%;border:1px solid var(--line2);border-radius:8px;background:#fff"></iframe>`};
+  // problems worth stopping for, shown on top so they're seen before Send
+  const warn=[];const pq=C.pid?proj(C.pid):null;
+  if(!to.trim())warn.push("No one to send it to yet.");
+  if(pq&&atts.some(isQuoteFile)&&quoteFileStale(pq,atts))warn.push("The quote PDF attached is older than the quote — make a new one (Documents → Quote) before sending.");
+  if(C.signId&&!body.includes(signUrl(C.signId)))warn.push("The signing link isn't in the email text — put it back or the customer can't sign.");
+  closeSendPreview();const o=document.createElement("div");o.id="sendprev";
+  o.style.cssText="position:fixed;inset:0;z-index:10000;background:rgba(15,20,30,.55);display:flex;align-items:stretch;justify-content:center;padding:18px";
+  o.innerHTML=`<div style="background:var(--bg,#f6f7f9);border-radius:12px;width:min(1100px,100%);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.35)">
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line2);background:#fff">
+      <b style="font-size:16px">Preview — what the customer gets</b><span class="sp" style="flex:1"></span>
+      <button class="btn" id="sp-back">Back to edit</button>${canSend?`<button class="btn p" id="sp-send" ${warn.length?"disabled":""}>Looks right — send</button>`:""}</div>
+    ${warn.length?`<div class="warn" style="margin:10px 16px 0">${warn.map(esc).join("<br>")}</div>`:""}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;padding:10px 16px 0">${tabs.map((t,i)=>`<button class="btn sm${i?"":" p"}" data-sptab="${esc(t.k)}" style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.t)}</button>`).join("")}</div>
+    <div id="sp-pane" style="flex:1;min-height:0;overflow:auto;padding:12px 16px 16px">${pane("mail")}</div></div>`;
+  document.body.appendChild(o);document.addEventListener("keydown",sendPrevKey);
+  o.addEventListener("click",e=>{if(e.target===o)closeSendPreview();const b=e.target.closest("[data-sptab]");if(!b)return;
+    o.querySelectorAll("[data-sptab]").forEach(x=>x.classList.toggle("p",x===b));const k=b.dataset.sptab;const pn=o.querySelector("#sp-pane");pn.style.overflow=k==="mail"?"auto":"hidden";pn.innerHTML=pane(k)});
+  o.querySelector("#sp-back").onclick=closeSendPreview;
+  const go=o.querySelector("#sp-send");if(go)go.onclick=()=>{closeSendPreview();composeGo(true)}}
 /* AI drafting on the website: Google's free Gemini, with a key from Google AI Studio (free, no card). The key lives in
    settings/secrets (owners and office only); the mail worker reads it and writes the draft back in a few seconds. */
 function aiKeyCard(){const on=!!(S.brand&&S.brand.aiOn);const has=!!(S.secrets&&S.secrets.geminiKey);
@@ -18461,7 +18503,7 @@ function signCard(p){const rs=signReqsFor(p.id);if(!rs.length)return "";
         ${r.status==="signed"&&r.sigImg?`<img src="${esc(r.sigImg)}" alt="signature" style="max-height:56px;max-width:240px;margin-top:6px;background:#fff;border:1px solid var(--line2);border-radius:4px">`:""}</div>
         <div class="rr-b">${r.status==="signed"?`${r.kind!=="proof"&&["lead","inquiry","quoted"].indexOf(p.stage)>=0?`<button class="btn sm p" data-signwon="${esc(p.id)}">Mark won</button>`:""}
             ${r.filed?`<span class="sub">in Files</span>`:`<button class="btn sm" data-signfile="${esc(r.token)}">Save to Files</button>`}<a class="btn sm" href="${esc(signView(r.token))}" target="_blank" rel="noopener">View</a>`
-          :r.status==="sent"&&!exp?`<button class="btn sm" data-signcopy="${esc(r.token)}">Copy link</button><button class="btn sm" data-signmail="${esc(r.token)}">Email it again</button>${rowMenu(`<button class="danger" data-signcancel="${esc(r.token)}">Cancel this link…</button>`)}`
+          :r.status==="sent"&&!exp?`<a class="btn sm" href="${esc(signPreviewUrl(r.token))}" target="_blank" rel="noopener" title="Open the customer's page without marking it opened — nothing can be signed from the preview">Preview</a><button class="btn sm" data-signcopy="${esc(r.token)}">Copy link</button><button class="btn sm" data-signmail="${esc(r.token)}">Email it again</button>${rowMenu(`<button class="danger" data-signcancel="${esc(r.token)}">Cancel this link…</button>`)}`
           :`<button class="btn sm" data-signreq="${esc(p.id)}">New link</button>`}</div></div>`}).join("")}</section>`}
 function signAutoPass(){if(!window.sscHosted||!db||!S.signreq||!(can("del")||can("settings")||myAccess()==="sales"))return;S._signDone=S._signDone||{};
   S.signreq.forEach(r=>{if(r.status!=="signed"||S._signDone[r.token])return;S._signDone[r.token]=1;const p=proj(r.projectId);if(!p)return;
