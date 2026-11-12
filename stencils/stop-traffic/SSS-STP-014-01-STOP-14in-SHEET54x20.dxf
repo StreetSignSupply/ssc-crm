@@ -349,11 +349,11 @@ $SKPOLY
   9
 $TDCREATE
  40
-2461354.9235300925
+2461357.3163657407
   9
 $TDUPDATE
  40
-2461354.9235300925
+2461357.3163657407
   9
 $TDINDWG
  40
@@ -401,7 +401,7 @@ $SPLINESEGS
   9
 $HANDSEED
   5
-206
+20D
   9
 $SURFTAB1
  70
@@ -735,7 +735,7 @@ TABLE
   2
 LAYER
  70
-3
+4
   0
 LAYER
   5
@@ -770,6 +770,18 @@ CUT
 0
  62
 7
+  6
+Continuous
+  0
+LAYER
+  5
+2E
+  2
+OUTSIDE
+ 70
+0
+ 62
+1
   6
 Continuous
   0
@@ -837,7 +849,7 @@ ACAD
   0
 APPID
   5
-204
+20B
   2
 HATCHBACKGROUNDCOLOR
  70
@@ -845,7 +857,7 @@ HATCHBACKGROUNDCOLOR
   0
 APPID
   5
-205
+20C
   2
 EZDXF
  70
@@ -977,11 +989,11 @@ EZDXF
 1000
 CREATED_BY_EZDXF
 1000
-1.4.5 @ 2026-11-09T22:09:53.589934+00:00
+1.4.5 @ 2026-11-12T07:35:34.101278+00:00
 1000
 WRITTEN_BY_EZDXF
 1000
-1.4.5 @ 2026-11-09T22:09:53.600074+00:00
+1.4.5 @ 2026-11-12T07:35:34.110123+00:00
   0
 ENDBLK
   5
@@ -1023,7 +1035,7 @@ ENTITIES
   0
 POLYLINE
   5
-2E
+2F
   8
 CUT
  66
@@ -1039,7 +1051,7 @@ CUT
   0
 VERTEX
   5
-30
+31
   8
 CUT
  10
@@ -1053,7 +1065,7 @@ CUT
   0
 VERTEX
   5
-31
+32
   8
 CUT
  10
@@ -1067,7 +1079,7 @@ CUT
   0
 VERTEX
   5
-32
+33
   8
 CUT
  10
@@ -1081,7 +1093,7 @@ CUT
   0
 VERTEX
   5
-33
+34
   8
 CUT
  10
@@ -1095,7 +1107,7 @@ CUT
   0
 VERTEX
   5
-34
+35
   8
 CUT
  10
@@ -1109,7 +1121,7 @@ CUT
   0
 VERTEX
   5
-35
+36
   8
 CUT
  10
@@ -1123,7 +1135,7 @@ CUT
   0
 VERTEX
   5
-36
+37
   8
 CUT
  10
@@ -1137,7 +1149,7 @@ CUT
   0
 VERTEX
   5
-37
+38
   8
 CUT
  10
@@ -1151,7 +1163,7 @@ CUT
   0
 VERTEX
   5
-38
+39
   8
 CUT
  10
@@ -1165,7 +1177,7 @@ CUT
   0
 VERTEX
   5
-39
+3A
   8
 CUT
  10
@@ -1179,7 +1191,7 @@ CUT
   0
 VERTEX
   5
-3A
+3B
   8
 CUT
  10
@@ -1193,7 +1205,7 @@ CUT
   0
 VERTEX
   5
-3B
+3C
   8
 CUT
  10
@@ -1207,7 +1219,7 @@ CUT
   0
 VERTEX
   5
-3C
+3D
   8
 CUT
  10
@@ -1221,7 +1233,7 @@ CUT
   0
 VERTEX
   5
-3D
+3E
   8
 CUT
  10
@@ -1235,7 +1247,7 @@ CUT
   0
 VERTEX
   5
-3E
+3F
   8
 CUT
  10
@@ -1249,7 +1261,7 @@ CUT
   0
 VERTEX
   5
-3F
+40
   8
 CUT
  10
@@ -1263,7 +1275,7 @@ CUT
   0
 VERTEX
   5
-40
+41
   8
 CUT
  10
@@ -1277,7 +1289,7 @@ CUT
   0
 VERTEX
   5
-41
+42
   8
 CUT
  10
@@ -1291,7 +1303,7 @@ CUT
   0
 VERTEX
   5
-42
+43
   8
 CUT
  10
@@ -1305,7 +1317,7 @@ CUT
   0
 VERTEX
   5
-43
+44
   8
 CUT
  10
@@ -1319,7 +1331,7 @@ CUT
   0
 VERTEX
   5
-44
+45
   8
 CUT
  10
@@ -1333,7 +1345,7 @@ CUT
   0
 VERTEX
   5
-45
+46
   8
 CUT
  10
@@ -1347,7 +1359,7 @@ CUT
   0
 VERTEX
   5
-46
+47
   8
 CUT
  10
@@ -1361,7 +1373,7 @@ CUT
   0
 VERTEX
   5
-47
+48
   8
 CUT
  10
@@ -1375,7 +1387,7 @@ CUT
   0
 VERTEX
   5
-48
+49
   8
 CUT
  10
@@ -1389,7 +1401,7 @@ CUT
   0
 VERTEX
   5
-49
+4A
   8
 CUT
  10
@@ -1403,7 +1415,7 @@ CUT
   0
 VERTEX
   5
-4A
+4B
   8
 CUT
  10
@@ -1417,7 +1429,7 @@ CUT
   0
 VERTEX
   5
-4B
+4C
   8
 CUT
  10
@@ -1431,7 +1443,7 @@ CUT
   0
 VERTEX
   5
-4C
+4D
   8
 CUT
  10
@@ -1445,7 +1457,7 @@ CUT
   0
 VERTEX
   5
-4D
+4E
   8
 CUT
  10
@@ -1459,7 +1471,7 @@ CUT
   0
 VERTEX
   5
-4E
+4F
   8
 CUT
  10
@@ -1473,7 +1485,7 @@ CUT
   0
 VERTEX
   5
-4F
+50
   8
 CUT
  10
@@ -1487,7 +1499,7 @@ CUT
   0
 VERTEX
   5
-50
+51
   8
 CUT
  10
@@ -1501,7 +1513,7 @@ CUT
   0
 VERTEX
   5
-51
+52
   8
 CUT
  10
@@ -1515,7 +1527,7 @@ CUT
   0
 VERTEX
   5
-52
+53
   8
 CUT
  10
@@ -1529,7 +1541,7 @@ CUT
   0
 VERTEX
   5
-53
+54
   8
 CUT
  10
@@ -1543,7 +1555,7 @@ CUT
   0
 VERTEX
   5
-54
+55
   8
 CUT
  10
@@ -1557,7 +1569,7 @@ CUT
   0
 VERTEX
   5
-55
+56
   8
 CUT
  10
@@ -1571,7 +1583,7 @@ CUT
   0
 VERTEX
   5
-56
+57
   8
 CUT
  10
@@ -1585,7 +1597,7 @@ CUT
   0
 VERTEX
   5
-57
+58
   8
 CUT
  10
@@ -1599,7 +1611,7 @@ CUT
   0
 VERTEX
   5
-58
+59
   8
 CUT
  10
@@ -1613,7 +1625,7 @@ CUT
   0
 VERTEX
   5
-59
+5A
   8
 CUT
  10
@@ -1627,7 +1639,7 @@ CUT
   0
 VERTEX
   5
-5A
+5B
   8
 CUT
  10
@@ -1641,7 +1653,7 @@ CUT
   0
 VERTEX
   5
-5B
+5C
   8
 CUT
  10
@@ -1655,7 +1667,7 @@ CUT
   0
 VERTEX
   5
-5C
+5D
   8
 CUT
  10
@@ -1669,7 +1681,7 @@ CUT
   0
 VERTEX
   5
-5D
+5E
   8
 CUT
  10
@@ -1683,7 +1695,7 @@ CUT
   0
 VERTEX
   5
-5E
+5F
   8
 CUT
  10
@@ -1697,7 +1709,7 @@ CUT
   0
 VERTEX
   5
-5F
+60
   8
 CUT
  10
@@ -1711,7 +1723,7 @@ CUT
   0
 VERTEX
   5
-60
+61
   8
 CUT
  10
@@ -1725,7 +1737,7 @@ CUT
   0
 VERTEX
   5
-61
+62
   8
 CUT
  10
@@ -1739,7 +1751,7 @@ CUT
   0
 VERTEX
   5
-62
+63
   8
 CUT
  10
@@ -1753,7 +1765,7 @@ CUT
   0
 VERTEX
   5
-63
+64
   8
 CUT
  10
@@ -1767,7 +1779,7 @@ CUT
   0
 VERTEX
   5
-64
+65
   8
 CUT
  10
@@ -1781,7 +1793,7 @@ CUT
   0
 VERTEX
   5
-65
+66
   8
 CUT
  10
@@ -1795,7 +1807,7 @@ CUT
   0
 VERTEX
   5
-66
+67
   8
 CUT
  10
@@ -1809,7 +1821,7 @@ CUT
   0
 VERTEX
   5
-67
+68
   8
 CUT
  10
@@ -1823,7 +1835,7 @@ CUT
   0
 VERTEX
   5
-68
+69
   8
 CUT
  10
@@ -1837,7 +1849,7 @@ CUT
   0
 VERTEX
   5
-69
+6A
   8
 CUT
  10
@@ -1851,7 +1863,7 @@ CUT
   0
 VERTEX
   5
-6A
+6B
   8
 CUT
  10
@@ -1865,7 +1877,7 @@ CUT
   0
 VERTEX
   5
-6B
+6C
   8
 CUT
  10
@@ -1879,7 +1891,7 @@ CUT
   0
 VERTEX
   5
-6C
+6D
   8
 CUT
  10
@@ -1893,7 +1905,7 @@ CUT
   0
 VERTEX
   5
-6D
+6E
   8
 CUT
  10
@@ -1907,7 +1919,7 @@ CUT
   0
 VERTEX
   5
-6E
+6F
   8
 CUT
  10
@@ -1921,7 +1933,7 @@ CUT
   0
 VERTEX
   5
-6F
+70
   8
 CUT
  10
@@ -1935,7 +1947,7 @@ CUT
   0
 VERTEX
   5
-70
+71
   8
 CUT
  10
@@ -1949,7 +1961,7 @@ CUT
   0
 VERTEX
   5
-71
+72
   8
 CUT
  10
@@ -1963,7 +1975,7 @@ CUT
   0
 VERTEX
   5
-72
+73
   8
 CUT
  10
@@ -1977,7 +1989,7 @@ CUT
   0
 VERTEX
   5
-73
+74
   8
 CUT
  10
@@ -1991,7 +2003,7 @@ CUT
   0
 VERTEX
   5
-74
+75
   8
 CUT
  10
@@ -2005,7 +2017,7 @@ CUT
   0
 VERTEX
   5
-75
+76
   8
 CUT
  10
@@ -2019,7 +2031,7 @@ CUT
   0
 VERTEX
   5
-76
+77
   8
 CUT
  10
@@ -2033,7 +2045,7 @@ CUT
   0
 VERTEX
   5
-77
+78
   8
 CUT
  10
@@ -2047,7 +2059,7 @@ CUT
   0
 VERTEX
   5
-78
+79
   8
 CUT
  10
@@ -2061,7 +2073,7 @@ CUT
   0
 VERTEX
   5
-79
+7A
   8
 CUT
  10
@@ -2075,7 +2087,7 @@ CUT
   0
 VERTEX
   5
-7A
+7B
   8
 CUT
  10
@@ -2089,7 +2101,7 @@ CUT
   0
 VERTEX
   5
-7B
+7C
   8
 CUT
  10
@@ -2103,7 +2115,7 @@ CUT
   0
 VERTEX
   5
-7C
+7D
   8
 CUT
  10
@@ -2117,7 +2129,7 @@ CUT
   0
 VERTEX
   5
-7D
+7E
   8
 CUT
  10
@@ -2131,7 +2143,7 @@ CUT
   0
 VERTEX
   5
-7E
+7F
   8
 CUT
  10
@@ -2145,7 +2157,7 @@ CUT
   0
 VERTEX
   5
-7F
+80
   8
 CUT
  10
@@ -2159,7 +2171,7 @@ CUT
   0
 VERTEX
   5
-80
+81
   8
 CUT
  10
@@ -2173,7 +2185,7 @@ CUT
   0
 VERTEX
   5
-81
+82
   8
 CUT
  10
@@ -2187,7 +2199,7 @@ CUT
   0
 VERTEX
   5
-82
+83
   8
 CUT
  10
@@ -2201,7 +2213,7 @@ CUT
   0
 VERTEX
   5
-83
+84
   8
 CUT
  10
@@ -2215,7 +2227,7 @@ CUT
   0
 VERTEX
   5
-84
+85
   8
 CUT
  10
@@ -2229,7 +2241,7 @@ CUT
   0
 VERTEX
   5
-85
+86
   8
 CUT
  10
@@ -2243,7 +2255,7 @@ CUT
   0
 VERTEX
   5
-86
+87
   8
 CUT
  10
@@ -2257,7 +2269,7 @@ CUT
   0
 VERTEX
   5
-87
+88
   8
 CUT
  10
@@ -2271,7 +2283,7 @@ CUT
   0
 VERTEX
   5
-88
+89
   8
 CUT
  10
@@ -2285,7 +2297,7 @@ CUT
   0
 VERTEX
   5
-89
+8A
   8
 CUT
  10
@@ -2299,7 +2311,7 @@ CUT
   0
 VERTEX
   5
-8A
+8B
   8
 CUT
  10
@@ -2313,7 +2325,7 @@ CUT
   0
 VERTEX
   5
-8B
+8C
   8
 CUT
  10
@@ -2327,7 +2339,7 @@ CUT
   0
 VERTEX
   5
-8C
+8D
   8
 CUT
  10
@@ -2341,7 +2353,7 @@ CUT
   0
 VERTEX
   5
-8D
+8E
   8
 CUT
  10
@@ -2355,7 +2367,7 @@ CUT
   0
 VERTEX
   5
-8E
+8F
   8
 CUT
  10
@@ -2369,7 +2381,7 @@ CUT
   0
 VERTEX
   5
-8F
+90
   8
 CUT
  10
@@ -2383,7 +2395,7 @@ CUT
   0
 VERTEX
   5
-90
+91
   8
 CUT
  10
@@ -2397,7 +2409,7 @@ CUT
   0
 VERTEX
   5
-91
+92
   8
 CUT
  10
@@ -2411,13 +2423,13 @@ CUT
   0
 SEQEND
   5
-2F
+30
   8
 CUT
   0
 POLYLINE
   5
-92
+93
   8
 CUT
  66
@@ -2433,7 +2445,7 @@ CUT
   0
 VERTEX
   5
-94
+95
   8
 CUT
  10
@@ -2447,7 +2459,7 @@ CUT
   0
 VERTEX
   5
-95
+96
   8
 CUT
  10
@@ -2461,7 +2473,7 @@ CUT
   0
 VERTEX
   5
-96
+97
   8
 CUT
  10
@@ -2475,7 +2487,7 @@ CUT
   0
 VERTEX
   5
-97
+98
   8
 CUT
  10
@@ -2489,7 +2501,7 @@ CUT
   0
 VERTEX
   5
-98
+99
   8
 CUT
  10
@@ -2503,7 +2515,7 @@ CUT
   0
 VERTEX
   5
-99
+9A
   8
 CUT
  10
@@ -2517,7 +2529,7 @@ CUT
   0
 VERTEX
   5
-9A
+9B
   8
 CUT
  10
@@ -2531,7 +2543,7 @@ CUT
   0
 VERTEX
   5
-9B
+9C
   8
 CUT
  10
@@ -2545,7 +2557,7 @@ CUT
   0
 VERTEX
   5
-9C
+9D
   8
 CUT
  10
@@ -2559,7 +2571,7 @@ CUT
   0
 VERTEX
   5
-9D
+9E
   8
 CUT
  10
@@ -2573,7 +2585,7 @@ CUT
   0
 VERTEX
   5
-9E
+9F
   8
 CUT
  10
@@ -2587,7 +2599,7 @@ CUT
   0
 VERTEX
   5
-9F
+A0
   8
 CUT
  10
@@ -2601,7 +2613,7 @@ CUT
   0
 VERTEX
   5
-A0
+A1
   8
 CUT
  10
@@ -2615,7 +2627,7 @@ CUT
   0
 VERTEX
   5
-A1
+A2
   8
 CUT
  10
@@ -2629,7 +2641,7 @@ CUT
   0
 VERTEX
   5
-A2
+A3
   8
 CUT
  10
@@ -2643,7 +2655,7 @@ CUT
   0
 VERTEX
   5
-A3
+A4
   8
 CUT
  10
@@ -2657,7 +2669,7 @@ CUT
   0
 VERTEX
   5
-A4
+A5
   8
 CUT
  10
@@ -2671,25 +2683,11 @@ CUT
   0
 VERTEX
   5
-A5
-  8
-CUT
- 10
-44.1021
- 20
-9.0914
- 30
-0.0
- 70
-0
-  0
-VERTEX
-  5
 A6
   8
 CUT
  10
-41.4981
+44.1021
  20
 9.0914
  30
@@ -2705,7 +2703,7 @@ CUT
  10
 41.4981
  20
-3.0
+9.0914
  30
 0.0
  70
@@ -2717,7 +2715,7 @@ A8
   8
 CUT
  10
-39.2875
+41.4981
  20
 3.0
  30
@@ -2733,7 +2731,7 @@ CUT
  10
 39.2875
  20
-12.8192
+3.0
  30
 0.0
  70
@@ -2745,7 +2743,7 @@ AA
   8
 CUT
  10
-41.4981
+39.2875
  20
 12.8192
  30
@@ -2761,7 +2759,7 @@ CUT
  10
 41.4981
  20
-11.351
+12.8192
  30
 0.0
  70
@@ -2773,7 +2771,7 @@ AC
   8
 CUT
  10
-44.3961
+41.4981
  20
 11.351
  30
@@ -2787,6 +2785,20 @@ AD
   8
 CUT
  10
+44.3961
+ 20
+11.351
+ 30
+0.0
+ 70
+0
+  0
+VERTEX
+  5
+AE
+  8
+CUT
+ 10
 44.5599
  20
 11.3524
@@ -2797,7 +2809,7 @@ CUT
   0
 VERTEX
   5
-AE
+AF
   8
 CUT
  10
@@ -2811,7 +2823,7 @@ CUT
   0
 VERTEX
   5
-AF
+B0
   8
 CUT
  10
@@ -2825,7 +2837,7 @@ CUT
   0
 VERTEX
   5
-B0
+B1
   8
 CUT
  10
@@ -2839,7 +2851,7 @@ CUT
   0
 VERTEX
   5
-B1
+B2
   8
 CUT
  10
@@ -2853,7 +2865,7 @@ CUT
   0
 VERTEX
   5
-B2
+B3
   8
 CUT
  10
@@ -2867,7 +2879,7 @@ CUT
   0
 VERTEX
   5
-B3
+B4
   8
 CUT
  10
@@ -2881,7 +2893,7 @@ CUT
   0
 VERTEX
   5
-B4
+B5
   8
 CUT
  10
@@ -2895,7 +2907,7 @@ CUT
   0
 VERTEX
   5
-B5
+B6
   8
 CUT
  10
@@ -2909,7 +2921,7 @@ CUT
   0
 VERTEX
   5
-B6
+B7
   8
 CUT
  10
@@ -2923,7 +2935,7 @@ CUT
   0
 VERTEX
   5
-B7
+B8
   8
 CUT
  10
@@ -2937,7 +2949,7 @@ CUT
   0
 VERTEX
   5
-B8
+B9
   8
 CUT
  10
@@ -2951,7 +2963,7 @@ CUT
   0
 VERTEX
   5
-B9
+BA
   8
 CUT
  10
@@ -2965,7 +2977,7 @@ CUT
   0
 VERTEX
   5
-BA
+BB
   8
 CUT
  10
@@ -2979,7 +2991,7 @@ CUT
   0
 VERTEX
   5
-BB
+BC
   8
 CUT
  10
@@ -2993,7 +3005,7 @@ CUT
   0
 VERTEX
   5
-BC
+BD
   8
 CUT
  10
@@ -3007,7 +3019,7 @@ CUT
   0
 VERTEX
   5
-BD
+BE
   8
 CUT
  10
@@ -3021,7 +3033,7 @@ CUT
   0
 VERTEX
   5
-BE
+BF
   8
 CUT
  10
@@ -3035,7 +3047,7 @@ CUT
   0
 VERTEX
   5
-BF
+C0
   8
 CUT
  10
@@ -3049,7 +3061,7 @@ CUT
   0
 VERTEX
   5
-C0
+C1
   8
 CUT
  10
@@ -3063,7 +3075,7 @@ CUT
   0
 VERTEX
   5
-C1
+C2
   8
 CUT
  10
@@ -3077,7 +3089,7 @@ CUT
   0
 VERTEX
   5
-C2
+C3
   8
 CUT
  10
@@ -3091,7 +3103,7 @@ CUT
   0
 VERTEX
   5
-C3
+C4
   8
 CUT
  10
@@ -3105,7 +3117,7 @@ CUT
   0
 VERTEX
   5
-C4
+C5
   8
 CUT
  10
@@ -3119,7 +3131,7 @@ CUT
   0
 VERTEX
   5
-C5
+C6
   8
 CUT
  10
@@ -3133,7 +3145,7 @@ CUT
   0
 VERTEX
   5
-C6
+C7
   8
 CUT
  10
@@ -3147,7 +3159,7 @@ CUT
   0
 VERTEX
   5
-C7
+C8
   8
 CUT
  10
@@ -3161,7 +3173,7 @@ CUT
   0
 VERTEX
   5
-C8
+C9
   8
 CUT
  10
@@ -3175,7 +3187,7 @@ CUT
   0
 VERTEX
   5
-C9
+CA
   8
 CUT
  10
@@ -3189,7 +3201,7 @@ CUT
   0
 VERTEX
   5
-CA
+CB
   8
 CUT
  10
@@ -3203,13 +3215,13 @@ CUT
   0
 SEQEND
   5
-93
+94
   8
 CUT
   0
 POLYLINE
   5
-CB
+CC
   8
 CUT
  66
@@ -3225,25 +3237,11 @@ CUT
   0
 VERTEX
   5
-CD
-  8
-CUT
- 10
-19.0477
- 20
-15.0344
- 30
-0.0
- 70
-0
-  0
-VERTEX
-  5
 CE
   8
 CUT
  10
-15.8557
+19.0477
  20
 15.0344
  30
@@ -3259,7 +3257,7 @@ CUT
  10
 15.8557
  20
-17.0
+15.0344
  30
 0.0
  70
@@ -3271,7 +3269,7 @@ D0
   8
 CUT
  10
-24.5007
+15.8557
  20
 17.0
  30
@@ -3287,7 +3285,7 @@ CUT
  10
 24.5007
  20
-15.0344
+17.0
  30
 0.0
  70
@@ -3299,7 +3297,7 @@ D2
   8
 CUT
  10
-21.2583
+24.5007
  20
 15.0344
  30
@@ -3315,7 +3313,7 @@ CUT
  10
 21.2583
  20
-3.0
+15.0344
  30
 0.0
  70
@@ -3324,6 +3322,20 @@ CUT
 VERTEX
   5
 D4
+  8
+CUT
+ 10
+21.2583
+ 20
+3.0
+ 30
+0.0
+ 70
+0
+  0
+VERTEX
+  5
+D5
   8
 CUT
  10
@@ -3337,13 +3349,13 @@ CUT
   0
 SEQEND
   5
-CC
+CD
   8
 CUT
   0
 POLYLINE
   5
-D5
+D6
   8
 CUT
  66
@@ -3359,7 +3371,7 @@ CUT
   0
 VERTEX
   5
-D7
+D8
   8
 CUT
  10
@@ -3373,7 +3385,7 @@ CUT
   0
 VERTEX
   5
-D8
+D9
   8
 CUT
  10
@@ -3387,7 +3399,7 @@ CUT
   0
 VERTEX
   5
-D9
+DA
   8
 CUT
  10
@@ -3401,7 +3413,7 @@ CUT
   0
 VERTEX
   5
-DA
+DB
   8
 CUT
  10
@@ -3415,7 +3427,7 @@ CUT
   0
 VERTEX
   5
-DB
+DC
   8
 CUT
  10
@@ -3429,7 +3441,7 @@ CUT
   0
 VERTEX
   5
-DC
+DD
   8
 CUT
  10
@@ -3443,7 +3455,7 @@ CUT
   0
 VERTEX
   5
-DD
+DE
   8
 CUT
  10
@@ -3457,7 +3469,7 @@ CUT
   0
 VERTEX
   5
-DE
+DF
   8
 CUT
  10
@@ -3471,7 +3483,7 @@ CUT
   0
 VERTEX
   5
-DF
+E0
   8
 CUT
  10
@@ -3485,7 +3497,7 @@ CUT
   0
 VERTEX
   5
-E0
+E1
   8
 CUT
  10
@@ -3499,7 +3511,7 @@ CUT
   0
 VERTEX
   5
-E1
+E2
   8
 CUT
  10
@@ -3513,7 +3525,7 @@ CUT
   0
 VERTEX
   5
-E2
+E3
   8
 CUT
  10
@@ -3527,7 +3539,7 @@ CUT
   0
 VERTEX
   5
-E3
+E4
   8
 CUT
  10
@@ -3541,7 +3553,7 @@ CUT
   0
 VERTEX
   5
-E4
+E5
   8
 CUT
  10
@@ -3555,7 +3567,7 @@ CUT
   0
 VERTEX
   5
-E5
+E6
   8
 CUT
  10
@@ -3569,7 +3581,7 @@ CUT
   0
 VERTEX
   5
-E6
+E7
   8
 CUT
  10
@@ -3583,7 +3595,7 @@ CUT
   0
 VERTEX
   5
-E7
+E8
   8
 CUT
  10
@@ -3597,7 +3609,7 @@ CUT
   0
 VERTEX
   5
-E8
+E9
   8
 CUT
  10
@@ -3611,7 +3623,7 @@ CUT
   0
 VERTEX
   5
-E9
+EA
   8
 CUT
  10
@@ -3625,7 +3637,7 @@ CUT
   0
 VERTEX
   5
-EA
+EB
   8
 CUT
  10
@@ -3639,7 +3651,7 @@ CUT
   0
 VERTEX
   5
-EB
+EC
   8
 CUT
  10
@@ -3653,7 +3665,7 @@ CUT
   0
 VERTEX
   5
-EC
+ED
   8
 CUT
  10
@@ -3667,7 +3679,7 @@ CUT
   0
 VERTEX
   5
-ED
+EE
   8
 CUT
  10
@@ -3681,7 +3693,7 @@ CUT
   0
 VERTEX
   5
-EE
+EF
   8
 CUT
  10
@@ -3695,7 +3707,7 @@ CUT
   0
 VERTEX
   5
-EF
+F0
   8
 CUT
  10
@@ -3709,7 +3721,7 @@ CUT
   0
 VERTEX
   5
-F0
+F1
   8
 CUT
  10
@@ -3723,7 +3735,7 @@ CUT
   0
 VERTEX
   5
-F1
+F2
   8
 CUT
  10
@@ -3737,7 +3749,7 @@ CUT
   0
 VERTEX
   5
-F2
+F3
   8
 CUT
  10
@@ -3751,7 +3763,7 @@ CUT
   0
 VERTEX
   5
-F3
+F4
   8
 CUT
  10
@@ -3765,7 +3777,7 @@ CUT
   0
 VERTEX
   5
-F4
+F5
   8
 CUT
  10
@@ -3779,7 +3791,7 @@ CUT
   0
 VERTEX
   5
-F5
+F6
   8
 CUT
  10
@@ -3793,7 +3805,7 @@ CUT
   0
 VERTEX
   5
-F6
+F7
   8
 CUT
  10
@@ -3807,7 +3819,7 @@ CUT
   0
 VERTEX
   5
-F7
+F8
   8
 CUT
  10
@@ -3821,7 +3833,7 @@ CUT
   0
 VERTEX
   5
-F8
+F9
   8
 CUT
  10
@@ -3835,7 +3847,7 @@ CUT
   0
 VERTEX
   5
-F9
+FA
   8
 CUT
  10
@@ -3849,7 +3861,7 @@ CUT
   0
 VERTEX
   5
-FA
+FB
   8
 CUT
  10
@@ -3863,7 +3875,7 @@ CUT
   0
 VERTEX
   5
-FB
+FC
   8
 CUT
  10
@@ -3877,7 +3889,7 @@ CUT
   0
 VERTEX
   5
-FC
+FD
   8
 CUT
  10
@@ -3891,7 +3903,7 @@ CUT
   0
 VERTEX
   5
-FD
+FE
   8
 CUT
  10
@@ -3905,7 +3917,7 @@ CUT
   0
 VERTEX
   5
-FE
+FF
   8
 CUT
  10
@@ -3919,7 +3931,7 @@ CUT
   0
 VERTEX
   5
-FF
+100
   8
 CUT
  10
@@ -3933,7 +3945,7 @@ CUT
   0
 VERTEX
   5
-100
+101
   8
 CUT
  10
@@ -3947,7 +3959,7 @@ CUT
   0
 VERTEX
   5
-101
+102
   8
 CUT
  10
@@ -3961,7 +3973,7 @@ CUT
   0
 VERTEX
   5
-102
+103
   8
 CUT
  10
@@ -3975,7 +3987,7 @@ CUT
   0
 VERTEX
   5
-103
+104
   8
 CUT
  10
@@ -3989,7 +4001,7 @@ CUT
   0
 VERTEX
   5
-104
+105
   8
 CUT
  10
@@ -4003,7 +4015,7 @@ CUT
   0
 VERTEX
   5
-105
+106
   8
 CUT
  10
@@ -4017,7 +4029,7 @@ CUT
   0
 VERTEX
   5
-106
+107
   8
 CUT
  10
@@ -4031,7 +4043,7 @@ CUT
   0
 VERTEX
   5
-107
+108
   8
 CUT
  10
@@ -4045,7 +4057,7 @@ CUT
   0
 VERTEX
   5
-108
+109
   8
 CUT
  10
@@ -4059,7 +4071,7 @@ CUT
   0
 VERTEX
   5
-109
+10A
   8
 CUT
  10
@@ -4073,7 +4085,7 @@ CUT
   0
 VERTEX
   5
-10A
+10B
   8
 CUT
  10
@@ -4087,7 +4099,7 @@ CUT
   0
 VERTEX
   5
-10B
+10C
   8
 CUT
  10
@@ -4101,7 +4113,7 @@ CUT
   0
 VERTEX
   5
-10C
+10D
   8
 CUT
  10
@@ -4115,7 +4127,7 @@ CUT
   0
 VERTEX
   5
-10D
+10E
   8
 CUT
  10
@@ -4129,7 +4141,7 @@ CUT
   0
 VERTEX
   5
-10E
+10F
   8
 CUT
  10
@@ -4143,7 +4155,7 @@ CUT
   0
 VERTEX
   5
-10F
+110
   8
 CUT
  10
@@ -4157,7 +4169,7 @@ CUT
   0
 VERTEX
   5
-110
+111
   8
 CUT
  10
@@ -4171,7 +4183,7 @@ CUT
   0
 VERTEX
   5
-111
+112
   8
 CUT
  10
@@ -4185,7 +4197,7 @@ CUT
   0
 VERTEX
   5
-112
+113
   8
 CUT
  10
@@ -4199,7 +4211,7 @@ CUT
   0
 VERTEX
   5
-113
+114
   8
 CUT
  10
@@ -4213,7 +4225,7 @@ CUT
   0
 VERTEX
   5
-114
+115
   8
 CUT
  10
@@ -4227,7 +4239,7 @@ CUT
   0
 VERTEX
   5
-115
+116
   8
 CUT
  10
@@ -4241,7 +4253,7 @@ CUT
   0
 VERTEX
   5
-116
+117
   8
 CUT
  10
@@ -4255,7 +4267,7 @@ CUT
   0
 VERTEX
   5
-117
+118
   8
 CUT
  10
@@ -4269,7 +4281,7 @@ CUT
   0
 VERTEX
   5
-118
+119
   8
 CUT
  10
@@ -4283,7 +4295,7 @@ CUT
   0
 VERTEX
   5
-119
+11A
   8
 CUT
  10
@@ -4297,7 +4309,7 @@ CUT
   0
 VERTEX
   5
-11A
+11B
   8
 CUT
  10
@@ -4311,7 +4323,7 @@ CUT
   0
 VERTEX
   5
-11B
+11C
   8
 CUT
  10
@@ -4325,7 +4337,7 @@ CUT
   0
 VERTEX
   5
-11C
+11D
   8
 CUT
  10
@@ -4339,7 +4351,7 @@ CUT
   0
 VERTEX
   5
-11D
+11E
   8
 CUT
  10
@@ -4353,7 +4365,7 @@ CUT
   0
 VERTEX
   5
-11E
+11F
   8
 CUT
  10
@@ -4367,7 +4379,7 @@ CUT
   0
 VERTEX
   5
-11F
+120
   8
 CUT
  10
@@ -4381,7 +4393,7 @@ CUT
   0
 VERTEX
   5
-120
+121
   8
 CUT
  10
@@ -4395,7 +4407,7 @@ CUT
   0
 VERTEX
   5
-121
+122
   8
 CUT
  10
@@ -4409,7 +4421,7 @@ CUT
   0
 VERTEX
   5
-122
+123
   8
 CUT
  10
@@ -4423,7 +4435,7 @@ CUT
   0
 VERTEX
   5
-123
+124
   8
 CUT
  10
@@ -4437,7 +4449,7 @@ CUT
   0
 VERTEX
   5
-124
+125
   8
 CUT
  10
@@ -4451,7 +4463,7 @@ CUT
   0
 VERTEX
   5
-125
+126
   8
 CUT
  10
@@ -4465,7 +4477,7 @@ CUT
   0
 VERTEX
   5
-126
+127
   8
 CUT
  10
@@ -4479,7 +4491,7 @@ CUT
   0
 VERTEX
   5
-127
+128
   8
 CUT
  10
@@ -4493,7 +4505,7 @@ CUT
   0
 VERTEX
   5
-128
+129
   8
 CUT
  10
@@ -4507,7 +4519,7 @@ CUT
   0
 VERTEX
   5
-129
+12A
   8
 CUT
  10
@@ -4521,7 +4533,7 @@ CUT
   0
 VERTEX
   5
-12A
+12B
   8
 CUT
  10
@@ -4535,7 +4547,7 @@ CUT
   0
 VERTEX
   5
-12B
+12C
   8
 CUT
  10
@@ -4549,7 +4561,7 @@ CUT
   0
 VERTEX
   5
-12C
+12D
   8
 CUT
  10
@@ -4563,7 +4575,7 @@ CUT
   0
 VERTEX
   5
-12D
+12E
   8
 CUT
  10
@@ -4577,7 +4589,7 @@ CUT
   0
 VERTEX
   5
-12E
+12F
   8
 CUT
  10
@@ -4591,7 +4603,7 @@ CUT
   0
 VERTEX
   5
-12F
+130
   8
 CUT
  10
@@ -4605,7 +4617,7 @@ CUT
   0
 VERTEX
   5
-130
+131
   8
 CUT
  10
@@ -4619,7 +4631,7 @@ CUT
   0
 VERTEX
   5
-131
+132
   8
 CUT
  10
@@ -4633,7 +4645,7 @@ CUT
   0
 VERTEX
   5
-132
+133
   8
 CUT
  10
@@ -4647,7 +4659,7 @@ CUT
   0
 VERTEX
   5
-133
+134
   8
 CUT
  10
@@ -4661,7 +4673,7 @@ CUT
   0
 VERTEX
   5
-134
+135
   8
 CUT
  10
@@ -4675,7 +4687,7 @@ CUT
   0
 VERTEX
   5
-135
+136
   8
 CUT
  10
@@ -4689,7 +4701,7 @@ CUT
   0
 VERTEX
   5
-136
+137
   8
 CUT
  10
@@ -4703,7 +4715,7 @@ CUT
   0
 VERTEX
   5
-137
+138
   8
 CUT
  10
@@ -4717,7 +4729,7 @@ CUT
   0
 VERTEX
   5
-138
+139
   8
 CUT
  10
@@ -4731,7 +4743,7 @@ CUT
   0
 VERTEX
   5
-139
+13A
   8
 CUT
  10
@@ -4745,7 +4757,7 @@ CUT
   0
 VERTEX
   5
-13A
+13B
   8
 CUT
  10
@@ -4759,7 +4771,7 @@ CUT
   0
 VERTEX
   5
-13B
+13C
   8
 CUT
  10
@@ -4773,7 +4785,7 @@ CUT
   0
 VERTEX
   5
-13C
+13D
   8
 CUT
  10
@@ -4787,7 +4799,7 @@ CUT
   0
 VERTEX
   5
-13D
+13E
   8
 CUT
  10
@@ -4801,7 +4813,7 @@ CUT
   0
 VERTEX
   5
-13E
+13F
   8
 CUT
  10
@@ -4815,7 +4827,7 @@ CUT
   0
 VERTEX
   5
-13F
+140
   8
 CUT
  10
@@ -4829,7 +4841,7 @@ CUT
   0
 VERTEX
   5
-140
+141
   8
 CUT
  10
@@ -4843,7 +4855,7 @@ CUT
   0
 VERTEX
   5
-141
+142
   8
 CUT
  10
@@ -4857,7 +4869,7 @@ CUT
   0
 VERTEX
   5
-142
+143
   8
 CUT
  10
@@ -4871,7 +4883,7 @@ CUT
   0
 VERTEX
   5
-143
+144
   8
 CUT
  10
@@ -4885,7 +4897,7 @@ CUT
   0
 VERTEX
   5
-144
+145
   8
 CUT
  10
@@ -4899,7 +4911,7 @@ CUT
   0
 VERTEX
   5
-145
+146
   8
 CUT
  10
@@ -4913,7 +4925,7 @@ CUT
   0
 VERTEX
   5
-146
+147
   8
 CUT
  10
@@ -4927,7 +4939,7 @@ CUT
   0
 VERTEX
   5
-147
+148
   8
 CUT
  10
@@ -4941,7 +4953,7 @@ CUT
   0
 VERTEX
   5
-148
+149
   8
 CUT
  10
@@ -4955,7 +4967,7 @@ CUT
   0
 VERTEX
   5
-149
+14A
   8
 CUT
  10
@@ -4969,7 +4981,7 @@ CUT
   0
 VERTEX
   5
-14A
+14B
   8
 CUT
  10
@@ -4983,7 +4995,7 @@ CUT
   0
 VERTEX
   5
-14B
+14C
   8
 CUT
  10
@@ -4997,7 +5009,7 @@ CUT
   0
 VERTEX
   5
-14C
+14D
   8
 CUT
  10
@@ -5011,7 +5023,7 @@ CUT
   0
 VERTEX
   5
-14D
+14E
   8
 CUT
  10
@@ -5025,7 +5037,7 @@ CUT
   0
 VERTEX
   5
-14E
+14F
   8
 CUT
  10
@@ -5039,7 +5051,7 @@ CUT
   0
 VERTEX
   5
-14F
+150
   8
 CUT
  10
@@ -5053,7 +5065,7 @@ CUT
   0
 VERTEX
   5
-150
+151
   8
 CUT
  10
@@ -5067,7 +5079,7 @@ CUT
   0
 VERTEX
   5
-151
+152
   8
 CUT
  10
@@ -5081,7 +5093,7 @@ CUT
   0
 VERTEX
   5
-152
+153
   8
 CUT
  10
@@ -5095,7 +5107,7 @@ CUT
   0
 VERTEX
   5
-153
+154
   8
 CUT
  10
@@ -5109,7 +5121,7 @@ CUT
   0
 VERTEX
   5
-154
+155
   8
 CUT
  10
@@ -5123,7 +5135,7 @@ CUT
   0
 VERTEX
   5
-155
+156
   8
 CUT
  10
@@ -5137,7 +5149,7 @@ CUT
   0
 VERTEX
   5
-156
+157
   8
 CUT
  10
@@ -5151,7 +5163,7 @@ CUT
   0
 VERTEX
   5
-157
+158
   8
 CUT
  10
@@ -5165,7 +5177,7 @@ CUT
   0
 VERTEX
   5
-158
+159
   8
 CUT
  10
@@ -5179,7 +5191,7 @@ CUT
   0
 VERTEX
   5
-159
+15A
   8
 CUT
  10
@@ -5193,7 +5205,7 @@ CUT
   0
 VERTEX
   5
-15A
+15B
   8
 CUT
  10
@@ -5207,7 +5219,7 @@ CUT
   0
 VERTEX
   5
-15B
+15C
   8
 CUT
  10
@@ -5221,7 +5233,7 @@ CUT
   0
 VERTEX
   5
-15C
+15D
   8
 CUT
  10
@@ -5235,7 +5247,7 @@ CUT
   0
 VERTEX
   5
-15D
+15E
   8
 CUT
  10
@@ -5249,7 +5261,7 @@ CUT
   0
 VERTEX
   5
-15E
+15F
   8
 CUT
  10
@@ -5263,7 +5275,7 @@ CUT
   0
 VERTEX
   5
-15F
+160
   8
 CUT
  10
@@ -5277,7 +5289,7 @@ CUT
   0
 VERTEX
   5
-160
+161
   8
 CUT
  10
@@ -5291,7 +5303,7 @@ CUT
   0
 VERTEX
   5
-161
+162
   8
 CUT
  10
@@ -5305,7 +5317,7 @@ CUT
   0
 VERTEX
   5
-162
+163
   8
 CUT
  10
@@ -5319,7 +5331,7 @@ CUT
   0
 VERTEX
   5
-163
+164
   8
 CUT
  10
@@ -5333,7 +5345,7 @@ CUT
   0
 VERTEX
   5
-164
+165
   8
 CUT
  10
@@ -5347,7 +5359,7 @@ CUT
   0
 VERTEX
   5
-165
+166
   8
 CUT
  10
@@ -5361,7 +5373,7 @@ CUT
   0
 VERTEX
   5
-166
+167
   8
 CUT
  10
@@ -5375,7 +5387,7 @@ CUT
   0
 VERTEX
   5
-167
+168
   8
 CUT
  10
@@ -5389,7 +5401,7 @@ CUT
   0
 VERTEX
   5
-168
+169
   8
 CUT
  10
@@ -5403,13 +5415,13 @@ CUT
   0
 SEQEND
   5
-D6
+D7
   8
 CUT
   0
 POLYLINE
   5
-169
+16A
   8
 CUT
  66
@@ -5425,7 +5437,7 @@ CUT
   0
 VERTEX
   5
-16B
+16C
   8
 CUT
  10
@@ -5439,7 +5451,7 @@ CUT
   0
 VERTEX
   5
-16C
+16D
   8
 CUT
  10
@@ -5453,7 +5465,7 @@ CUT
   0
 VERTEX
   5
-16D
+16E
   8
 CUT
  10
@@ -5467,7 +5479,7 @@ CUT
   0
 VERTEX
   5
-16E
+16F
   8
 CUT
  10
@@ -5481,7 +5493,7 @@ CUT
   0
 VERTEX
   5
-16F
+170
   8
 CUT
  10
@@ -5495,7 +5507,7 @@ CUT
   0
 VERTEX
   5
-170
+171
   8
 CUT
  10
@@ -5509,7 +5521,7 @@ CUT
   0
 VERTEX
   5
-171
+172
   8
 CUT
  10
@@ -5523,7 +5535,7 @@ CUT
   0
 VERTEX
   5
-172
+173
   8
 CUT
  10
@@ -5537,7 +5549,7 @@ CUT
   0
 VERTEX
   5
-173
+174
   8
 CUT
  10
@@ -5551,7 +5563,7 @@ CUT
   0
 VERTEX
   5
-174
+175
   8
 CUT
  10
@@ -5565,7 +5577,7 @@ CUT
   0
 VERTEX
   5
-175
+176
   8
 CUT
  10
@@ -5579,7 +5591,7 @@ CUT
   0
 VERTEX
   5
-176
+177
   8
 CUT
  10
@@ -5593,7 +5605,7 @@ CUT
   0
 VERTEX
   5
-177
+178
   8
 CUT
  10
@@ -5607,7 +5619,7 @@ CUT
   0
 VERTEX
   5
-178
+179
   8
 CUT
  10
@@ -5621,7 +5633,7 @@ CUT
   0
 VERTEX
   5
-179
+17A
   8
 CUT
  10
@@ -5635,7 +5647,7 @@ CUT
   0
 VERTEX
   5
-17A
+17B
   8
 CUT
  10
@@ -5649,7 +5661,7 @@ CUT
   0
 VERTEX
   5
-17B
+17C
   8
 CUT
  10
@@ -5663,7 +5675,7 @@ CUT
   0
 VERTEX
   5
-17C
+17D
   8
 CUT
  10
@@ -5677,7 +5689,7 @@ CUT
   0
 VERTEX
   5
-17D
+17E
   8
 CUT
  10
@@ -5691,7 +5703,7 @@ CUT
   0
 VERTEX
   5
-17E
+17F
   8
 CUT
  10
@@ -5705,7 +5717,7 @@ CUT
   0
 VERTEX
   5
-17F
+180
   8
 CUT
  10
@@ -5719,7 +5731,7 @@ CUT
   0
 VERTEX
   5
-180
+181
   8
 CUT
  10
@@ -5733,7 +5745,7 @@ CUT
   0
 VERTEX
   5
-181
+182
   8
 CUT
  10
@@ -5747,7 +5759,7 @@ CUT
   0
 VERTEX
   5
-182
+183
   8
 CUT
  10
@@ -5761,7 +5773,7 @@ CUT
   0
 VERTEX
   5
-183
+184
   8
 CUT
  10
@@ -5775,7 +5787,7 @@ CUT
   0
 VERTEX
   5
-184
+185
   8
 CUT
  10
@@ -5789,7 +5801,7 @@ CUT
   0
 VERTEX
   5
-185
+186
   8
 CUT
  10
@@ -5803,7 +5815,7 @@ CUT
   0
 VERTEX
   5
-186
+187
   8
 CUT
  10
@@ -5817,7 +5829,7 @@ CUT
   0
 VERTEX
   5
-187
+188
   8
 CUT
  10
@@ -5831,7 +5843,7 @@ CUT
   0
 VERTEX
   5
-188
+189
   8
 CUT
  10
@@ -5845,7 +5857,7 @@ CUT
   0
 VERTEX
   5
-189
+18A
   8
 CUT
  10
@@ -5859,7 +5871,7 @@ CUT
   0
 VERTEX
   5
-18A
+18B
   8
 CUT
  10
@@ -5873,7 +5885,7 @@ CUT
   0
 VERTEX
   5
-18B
+18C
   8
 CUT
  10
@@ -5887,7 +5899,7 @@ CUT
   0
 VERTEX
   5
-18C
+18D
   8
 CUT
  10
@@ -5901,7 +5913,7 @@ CUT
   0
 VERTEX
   5
-18D
+18E
   8
 CUT
  10
@@ -5915,7 +5927,7 @@ CUT
   0
 VERTEX
   5
-18E
+18F
   8
 CUT
  10
@@ -5929,7 +5941,7 @@ CUT
   0
 VERTEX
   5
-18F
+190
   8
 CUT
  10
@@ -5943,7 +5955,7 @@ CUT
   0
 VERTEX
   5
-190
+191
   8
 CUT
  10
@@ -5957,7 +5969,7 @@ CUT
   0
 VERTEX
   5
-191
+192
   8
 CUT
  10
@@ -5971,7 +5983,7 @@ CUT
   0
 VERTEX
   5
-192
+193
   8
 CUT
  10
@@ -5985,7 +5997,7 @@ CUT
   0
 VERTEX
   5
-193
+194
   8
 CUT
  10
@@ -5999,7 +6011,7 @@ CUT
   0
 VERTEX
   5
-194
+195
   8
 CUT
  10
@@ -6013,7 +6025,7 @@ CUT
   0
 VERTEX
   5
-195
+196
   8
 CUT
  10
@@ -6027,7 +6039,7 @@ CUT
   0
 VERTEX
   5
-196
+197
   8
 CUT
  10
@@ -6041,7 +6053,7 @@ CUT
   0
 VERTEX
   5
-197
+198
   8
 CUT
  10
@@ -6055,7 +6067,7 @@ CUT
   0
 VERTEX
   5
-198
+199
   8
 CUT
  10
@@ -6069,7 +6081,7 @@ CUT
   0
 VERTEX
   5
-199
+19A
   8
 CUT
  10
@@ -6083,7 +6095,7 @@ CUT
   0
 VERTEX
   5
-19A
+19B
   8
 CUT
  10
@@ -6097,7 +6109,7 @@ CUT
   0
 VERTEX
   5
-19B
+19C
   8
 CUT
  10
@@ -6111,7 +6123,7 @@ CUT
   0
 VERTEX
   5
-19C
+19D
   8
 CUT
  10
@@ -6125,7 +6137,7 @@ CUT
   0
 VERTEX
   5
-19D
+19E
   8
 CUT
  10
@@ -6139,7 +6151,7 @@ CUT
   0
 VERTEX
   5
-19E
+19F
   8
 CUT
  10
@@ -6153,7 +6165,7 @@ CUT
   0
 VERTEX
   5
-19F
+1A0
   8
 CUT
  10
@@ -6167,7 +6179,7 @@ CUT
   0
 VERTEX
   5
-1A0
+1A1
   8
 CUT
  10
@@ -6181,7 +6193,7 @@ CUT
   0
 VERTEX
   5
-1A1
+1A2
   8
 CUT
  10
@@ -6195,7 +6207,7 @@ CUT
   0
 VERTEX
   5
-1A2
+1A3
   8
 CUT
  10
@@ -6209,7 +6221,7 @@ CUT
   0
 VERTEX
   5
-1A3
+1A4
   8
 CUT
  10
@@ -6223,7 +6235,7 @@ CUT
   0
 VERTEX
   5
-1A4
+1A5
   8
 CUT
  10
@@ -6237,7 +6249,7 @@ CUT
   0
 VERTEX
   5
-1A5
+1A6
   8
 CUT
  10
@@ -6251,7 +6263,7 @@ CUT
   0
 VERTEX
   5
-1A6
+1A7
   8
 CUT
  10
@@ -6265,7 +6277,7 @@ CUT
   0
 VERTEX
   5
-1A7
+1A8
   8
 CUT
  10
@@ -6279,7 +6291,7 @@ CUT
   0
 VERTEX
   5
-1A8
+1A9
   8
 CUT
  10
@@ -6293,7 +6305,7 @@ CUT
   0
 VERTEX
   5
-1A9
+1AA
   8
 CUT
  10
@@ -6307,7 +6319,7 @@ CUT
   0
 VERTEX
   5
-1AA
+1AB
   8
 CUT
  10
@@ -6321,7 +6333,7 @@ CUT
   0
 VERTEX
   5
-1AB
+1AC
   8
 CUT
  10
@@ -6335,7 +6347,7 @@ CUT
   0
 VERTEX
   5
-1AC
+1AD
   8
 CUT
  10
@@ -6349,7 +6361,7 @@ CUT
   0
 VERTEX
   5
-1AD
+1AE
   8
 CUT
  10
@@ -6363,7 +6375,7 @@ CUT
   0
 VERTEX
   5
-1AE
+1AF
   8
 CUT
  10
@@ -6377,7 +6389,7 @@ CUT
   0
 VERTEX
   5
-1AF
+1B0
   8
 CUT
  10
@@ -6391,7 +6403,7 @@ CUT
   0
 VERTEX
   5
-1B0
+1B1
   8
 CUT
  10
@@ -6405,7 +6417,7 @@ CUT
   0
 VERTEX
   5
-1B1
+1B2
   8
 CUT
  10
@@ -6419,7 +6431,7 @@ CUT
   0
 VERTEX
   5
-1B2
+1B3
   8
 CUT
  10
@@ -6433,7 +6445,7 @@ CUT
   0
 VERTEX
   5
-1B3
+1B4
   8
 CUT
  10
@@ -6447,7 +6459,7 @@ CUT
   0
 VERTEX
   5
-1B4
+1B5
   8
 CUT
  10
@@ -6461,7 +6473,7 @@ CUT
   0
 VERTEX
   5
-1B5
+1B6
   8
 CUT
  10
@@ -6475,7 +6487,7 @@ CUT
   0
 VERTEX
   5
-1B6
+1B7
   8
 CUT
  10
@@ -6489,7 +6501,7 @@ CUT
   0
 VERTEX
   5
-1B7
+1B8
   8
 CUT
  10
@@ -6503,7 +6515,7 @@ CUT
   0
 VERTEX
   5
-1B8
+1B9
   8
 CUT
  10
@@ -6517,7 +6529,7 @@ CUT
   0
 VERTEX
   5
-1B9
+1BA
   8
 CUT
  10
@@ -6531,7 +6543,7 @@ CUT
   0
 VERTEX
   5
-1BA
+1BB
   8
 CUT
  10
@@ -6545,7 +6557,7 @@ CUT
   0
 VERTEX
   5
-1BB
+1BC
   8
 CUT
  10
@@ -6559,7 +6571,7 @@ CUT
   0
 VERTEX
   5
-1BC
+1BD
   8
 CUT
  10
@@ -6573,7 +6585,7 @@ CUT
   0
 VERTEX
   5
-1BD
+1BE
   8
 CUT
  10
@@ -6587,7 +6599,7 @@ CUT
   0
 VERTEX
   5
-1BE
+1BF
   8
 CUT
  10
@@ -6601,7 +6613,7 @@ CUT
   0
 VERTEX
   5
-1BF
+1C0
   8
 CUT
  10
@@ -6615,7 +6627,7 @@ CUT
   0
 VERTEX
   5
-1C0
+1C1
   8
 CUT
  10
@@ -6629,7 +6641,7 @@ CUT
   0
 VERTEX
   5
-1C1
+1C2
   8
 CUT
  10
@@ -6643,7 +6655,7 @@ CUT
   0
 VERTEX
   5
-1C2
+1C3
   8
 CUT
  10
@@ -6657,7 +6669,7 @@ CUT
   0
 VERTEX
   5
-1C3
+1C4
   8
 CUT
  10
@@ -6671,7 +6683,7 @@ CUT
   0
 VERTEX
   5
-1C4
+1C5
   8
 CUT
  10
@@ -6685,7 +6697,7 @@ CUT
   0
 VERTEX
   5
-1C5
+1C6
   8
 CUT
  10
@@ -6699,7 +6711,7 @@ CUT
   0
 VERTEX
   5
-1C6
+1C7
   8
 CUT
  10
@@ -6713,7 +6725,7 @@ CUT
   0
 VERTEX
   5
-1C7
+1C8
   8
 CUT
  10
@@ -6727,7 +6739,7 @@ CUT
   0
 VERTEX
   5
-1C8
+1C9
   8
 CUT
  10
@@ -6741,7 +6753,7 @@ CUT
   0
 VERTEX
   5
-1C9
+1CA
   8
 CUT
  10
@@ -6755,7 +6767,7 @@ CUT
   0
 VERTEX
   5
-1CA
+1CB
   8
 CUT
  10
@@ -6769,7 +6781,7 @@ CUT
   0
 VERTEX
   5
-1CB
+1CC
   8
 CUT
  10
@@ -6783,7 +6795,7 @@ CUT
   0
 VERTEX
   5
-1CC
+1CD
   8
 CUT
  10
@@ -6797,13 +6809,13 @@ CUT
   0
 SEQEND
   5
-16A
+16B
   8
 CUT
   0
 POLYLINE
   5
-1CD
+1CE
   8
 CUT
  66
@@ -6819,7 +6831,7 @@ CUT
   0
 VERTEX
   5
-1CF
+1D0
   8
 CUT
  10
@@ -6833,7 +6845,7 @@ CUT
   0
 VERTEX
   5
-1D0
+1D1
   8
 CUT
  10
@@ -6847,7 +6859,7 @@ CUT
   0
 VERTEX
   5
-1D1
+1D2
   8
 CUT
  10
@@ -6861,7 +6873,7 @@ CUT
   0
 VERTEX
   5
-1D2
+1D3
   8
 CUT
  10
@@ -6875,7 +6887,7 @@ CUT
   0
 VERTEX
   5
-1D3
+1D4
   8
 CUT
  10
@@ -6889,7 +6901,7 @@ CUT
   0
 VERTEX
   5
-1D4
+1D5
   8
 CUT
  10
@@ -6903,7 +6915,7 @@ CUT
   0
 VERTEX
   5
-1D5
+1D6
   8
 CUT
  10
@@ -6917,7 +6929,7 @@ CUT
   0
 VERTEX
   5
-1D6
+1D7
   8
 CUT
  10
@@ -6931,7 +6943,7 @@ CUT
   0
 VERTEX
   5
-1D7
+1D8
   8
 CUT
  10
@@ -6945,7 +6957,7 @@ CUT
   0
 VERTEX
   5
-1D8
+1D9
   8
 CUT
  10
@@ -6959,7 +6971,7 @@ CUT
   0
 VERTEX
   5
-1D9
+1DA
   8
 CUT
  10
@@ -6973,7 +6985,7 @@ CUT
   0
 VERTEX
   5
-1DA
+1DB
   8
 CUT
  10
@@ -6987,7 +6999,7 @@ CUT
   0
 VERTEX
   5
-1DB
+1DC
   8
 CUT
  10
@@ -7001,7 +7013,7 @@ CUT
   0
 VERTEX
   5
-1DC
+1DD
   8
 CUT
  10
@@ -7015,7 +7027,7 @@ CUT
   0
 VERTEX
   5
-1DD
+1DE
   8
 CUT
  10
@@ -7029,7 +7041,7 @@ CUT
   0
 VERTEX
   5
-1DE
+1DF
   8
 CUT
  10
@@ -7043,7 +7055,7 @@ CUT
   0
 VERTEX
   5
-1DF
+1E0
   8
 CUT
  10
@@ -7057,7 +7069,7 @@ CUT
   0
 VERTEX
   5
-1E0
+1E1
   8
 CUT
  10
@@ -7071,7 +7083,7 @@ CUT
   0
 VERTEX
   5
-1E1
+1E2
   8
 CUT
  10
@@ -7085,25 +7097,11 @@ CUT
   0
 VERTEX
   5
-1E2
-  8
-CUT
- 10
-44.3961
- 20
-14.7894
- 30
-0.0
- 70
-0
-  0
-VERTEX
-  5
 1E3
   8
 CUT
  10
-41.4981
+44.3961
  20
 14.7894
  30
@@ -7119,7 +7117,7 @@ CUT
  10
 41.4981
  20
-13.3212
+14.7894
  30
 0.0
  70
@@ -7131,7 +7129,7 @@ VERTEX
   8
 CUT
  10
-39.2875
+41.4981
  20
 13.3212
  30
@@ -7147,7 +7145,7 @@ CUT
  10
 39.2875
  20
-17.0
+13.3212
  30
 0.0
  70
@@ -7159,7 +7157,7 @@ VERTEX
   8
 CUT
  10
-44.1021
+39.2875
  20
 17.0
  30
@@ -7173,6 +7171,20 @@ VERTEX
   8
 CUT
  10
+44.1021
+ 20
+17.0
+ 30
+0.0
+ 70
+0
+  0
+VERTEX
+  5
+1E9
+  8
+CUT
+ 10
 44.3765
  20
 16.9972
@@ -7183,7 +7195,7 @@ CUT
   0
 VERTEX
   5
-1E9
+1EA
   8
 CUT
  10
@@ -7197,7 +7209,7 @@ CUT
   0
 VERTEX
   5
-1EA
+1EB
   8
 CUT
  10
@@ -7211,7 +7223,7 @@ CUT
   0
 VERTEX
   5
-1EB
+1EC
   8
 CUT
  10
@@ -7225,7 +7237,7 @@ CUT
   0
 VERTEX
   5
-1EC
+1ED
   8
 CUT
  10
@@ -7239,7 +7251,7 @@ CUT
   0
 VERTEX
   5
-1ED
+1EE
   8
 CUT
  10
@@ -7253,7 +7265,7 @@ CUT
   0
 VERTEX
   5
-1EE
+1EF
   8
 CUT
  10
@@ -7267,7 +7279,7 @@ CUT
   0
 VERTEX
   5
-1EF
+1F0
   8
 CUT
  10
@@ -7281,7 +7293,7 @@ CUT
   0
 VERTEX
   5
-1F0
+1F1
   8
 CUT
  10
@@ -7295,7 +7307,7 @@ CUT
   0
 VERTEX
   5
-1F1
+1F2
   8
 CUT
  10
@@ -7309,7 +7321,7 @@ CUT
   0
 VERTEX
   5
-1F2
+1F3
   8
 CUT
  10
@@ -7323,7 +7335,7 @@ CUT
   0
 VERTEX
   5
-1F3
+1F4
   8
 CUT
  10
@@ -7337,7 +7349,7 @@ CUT
   0
 VERTEX
   5
-1F4
+1F5
   8
 CUT
  10
@@ -7351,7 +7363,7 @@ CUT
   0
 VERTEX
   5
-1F5
+1F6
   8
 CUT
  10
@@ -7365,7 +7377,7 @@ CUT
   0
 VERTEX
   5
-1F6
+1F7
   8
 CUT
  10
@@ -7379,7 +7391,7 @@ CUT
   0
 VERTEX
   5
-1F7
+1F8
   8
 CUT
  10
@@ -7393,7 +7405,7 @@ CUT
   0
 VERTEX
   5
-1F8
+1F9
   8
 CUT
  10
@@ -7407,7 +7419,7 @@ CUT
   0
 VERTEX
   5
-1F9
+1FA
   8
 CUT
  10
@@ -7421,7 +7433,7 @@ CUT
   0
 VERTEX
   5
-1FA
+1FB
   8
 CUT
  10
@@ -7435,7 +7447,7 @@ CUT
   0
 VERTEX
   5
-1FB
+1FC
   8
 CUT
  10
@@ -7449,7 +7461,7 @@ CUT
   0
 VERTEX
   5
-1FC
+1FD
   8
 CUT
  10
@@ -7463,7 +7475,7 @@ CUT
   0
 VERTEX
   5
-1FD
+1FE
   8
 CUT
  10
@@ -7477,7 +7489,7 @@ CUT
   0
 VERTEX
   5
-1FE
+1FF
   8
 CUT
  10
@@ -7491,7 +7503,7 @@ CUT
   0
 VERTEX
   5
-1FF
+200
   8
 CUT
  10
@@ -7505,7 +7517,7 @@ CUT
   0
 VERTEX
   5
-200
+201
   8
 CUT
  10
@@ -7519,7 +7531,7 @@ CUT
   0
 VERTEX
   5
-201
+202
   8
 CUT
  10
@@ -7533,7 +7545,7 @@ CUT
   0
 VERTEX
   5
-202
+203
   8
 CUT
  10
@@ -7547,7 +7559,7 @@ CUT
   0
 VERTEX
   5
-203
+204
   8
 CUT
  10
@@ -7561,9 +7573,87 @@ CUT
   0
 SEQEND
   5
-1CE
+1CF
   8
 CUT
+  0
+POLYLINE
+  5
+205
+  8
+OUTSIDE
+ 66
+1
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+1
+  0
+VERTEX
+  5
+207
+  8
+OUTSIDE
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+0
+  0
+VERTEX
+  5
+208
+  8
+OUTSIDE
+ 10
+54.0
+ 20
+0.0
+ 30
+0.0
+ 70
+0
+  0
+VERTEX
+  5
+209
+  8
+OUTSIDE
+ 10
+54.0
+ 20
+20.0
+ 30
+0.0
+ 70
+0
+  0
+VERTEX
+  5
+20A
+  8
+OUTSIDE
+ 10
+0.0
+ 20
+20.0
+ 30
+0.0
+ 70
+0
+  0
+SEQEND
+  5
+206
+  8
+OUTSIDE
   0
 ENDSEC
   0
