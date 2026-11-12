@@ -1,5 +1,8 @@
 # What changed
 
+## 2026.11.25-176 (Sign pictures open full size)
+- **Every sign picture opens.** Matt (Nov 12): "Why can I not open these to view the proofs we need to verify these before we send." On a project's Sign pictures card only pictures stored on the web had a View button; pictures the agents drew (stored inside the CRM, like the Idaho street name blades) had only Save. Now every picture has **View**, and clicking the picture itself opens it too, full screen on a white background, with ‹ › to step through all the quote-line pictures, "Save a copy", and Close (Escape or the phone's Back also close it).
+
 ## 2026.11.25-175 (Activity: one row of actions, Salesforce-style icons)
 - **One row of actions, not two of the same.** Matt (Nov 12): "I do not like the fact we have two rows of the same icons and buttons." The top row is now the only place with buttons and icons: **Log a call, Email, Note, New task**, each a plain white button with its icon tile, like Salesforce's activity composer. The filters under it are plain text links — "Show: All · Tasks · Calls · Emails · Notes" with counts, the chosen one underlined — so filtering and adding no longer look alike. Tasks is always in the list.
 - **Professional record icons.** Every activity has a solid coloured tile with a white filled symbol: a phone (green) for calls, an envelope (blue) for emails, a notepad (gold) for notes, a checked box (orange) for tasks, a calendar (purple) for meetings. The type tag beside it no longer repeats the icon.
