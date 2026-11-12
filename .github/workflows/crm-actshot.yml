@@ -1,0 +1,25 @@
+name: Screenshots — Activity card, two CRM versions
+# Run by hand: pictures of the Activity card from an older release and from next/index.html, to compare designs.
+on:
+  workflow_dispatch:
+    inputs:
+      old: { description: "commit of the older release", default: "89cc106" }
+permissions: { contents: read }
+jobs:
+  shot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - working-directory: tests
+        run: |
+          npm install --no-audit --no-fund --loglevel=error 2>&1 | tail -1
+          npx playwright install --with-deps chromium > /tmp/pw.log 2>&1 || { tail -3 /tmp/pw.log; exit 1; }
+          git show ${{ inputs.old }}:public/index.html > /tmp/old.html
+          node actshot.mjs /tmp/old.html old || true
+          node actshot.mjs ../next/index.html now || true
+      - uses: actions/upload-artifact@v4
+        with: { name: actshots, path: "tests/*.png" }
