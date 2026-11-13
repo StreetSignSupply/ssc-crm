@@ -68,8 +68,17 @@ async function main() {
   const REBUILD = process.env.REBUILD === "1";
   const states = REBUILD ? ["todo", "sourced", "", "qa fail", "generated", "qa pass", "test cut"] : ["todo", "sourced", "", "qa fail"];
   const todo = rows.filter((r) => (r.kind === "text" || r.kind === "kit") && r.category !== "Stencil Material" && states.includes(r.status) && !/gen skip/i.test(r.notes));
-  const symbolsWaiting = rows.filter((r) => r.kind === "symbol" && r.master && ["todo", "sourced", "master ready"].includes(r.status)).length;
-  let jobs = todo.map((r) => ({ kind: r.kind, sku: r.sku, name: r.name, category: r.category, blank: r.blank, pieces: r.pieces, ref: r.ref,
+  // symbol rows (arrows, bikes, ISA ...): built from Carla's traced master named in K. The master is read from
+  // worker/stencil-masters/<id>.dxf, else from the "Stencil Masters" tab (A id, B units, C.. rings JSON in pieces)
+  const masters = await readMasters();
+  const symStates = REBUILD ? [...states, "master ready"] : ["todo", "sourced", "", "qa fail", "master ready"];
+  const symRows = rows.filter((r) => r.kind === "symbol" && r.master && symStates.includes(r.status) && !/gen skip/i.test(r.notes));
+  const symbolsWaiting = symRows.filter((r) => !masters.has(r.master.toUpperCase())).length;
+  todo.push(...symRows);
+  let jobs = todo.map((r) => r.kind === "symbol"
+    ? Object.assign({ kind: "symbol", sku: r.sku, name: r.name, category: r.category, blank: r.blank, ref: r.ref, tie: r.O || undefined, master_id: r.master },
+        masters.get(r.master.toUpperCase()) || {})
+    : ({ kind: r.kind, sku: r.sku, name: r.name, category: r.category, blank: r.blank, pieces: r.pieces, ref: r.ref,
     nominal: r.L || undefined, tie: r.O || undefined, legend: legendFromNotes(r.notes) }));
   if (LIMIT) jobs = jobs.slice(0, LIMIT);
 
@@ -99,7 +108,7 @@ async function main() {
     if (problems.length) { held.push([r, `second check failed: ${problems.join("; ")}`]); continue; }
     if (good.length < cap || REBUILD) good.push([r, x]);   // REBUILD: every old file is replaced in one run
   }
-  say(`built ${good.length}, held ${held.length}, already past todo ${rows.filter((r) => r.kind === "text").length - todo.length}, symbol rows with a master waiting ${symbolsWaiting} (symbol path not in this version)`);
+  say(`built ${good.length}, held ${held.length}, already past todo ${rows.filter((r) => r.kind === "text").length - todo.filter((r) => r.kind === "text").length}, symbol rows ${symRows.length} (master not received yet ${symbolsWaiting})`);
 
   // ---- publish the files (stencil-files branch; fetch + rebase, never force)
   const url = (p, kind = "blob") => `https://github.com/${REPO}/${kind}/${BRANCH}/stencils/${p.split("/").map(encodeURIComponent).join("/")}`;
@@ -149,6 +158,23 @@ async function main() {
     held: held.map(([r, why]) => ({ row: r.row, sku: r.sku, why })) }, null, 1));
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, "## Stencil generator\n\n" + summary.map((s) => "- " + s).join("\n") + "\n");
   console.log(`STENCIL_GEN_RESULT ${JSON.stringify({ generated: good.length, held: held.length, cap, passed })}`);
+}
+
+// Carla's masters: DXFs committed to worker/stencil-masters/, then the "Stencil Masters" tab (Grok bots can write the sheet
+// but not GitHub). Tab: A master_id, B units (in|mm), C onward = JSON array of closed rings [[x,y],...], split across cells
+// when long (each cell under 45,000 characters; the generator joins C, D, E ... in order).
+async function readMasters() {
+  const m = new Map(); const dir = join(HERE, "stencil-masters");
+  try { for (const f of execFileSync("ls", [dir]).toString().split("\n")) if (/\.dxf$/i.test(f)) m.set(f.replace(/\.dxf$/i, "").toUpperCase(), { master_dxf: join(dir, f) }); } catch { /* folder not there yet */ }
+  if (process.env.ROWS_JSON || !TOK) return m;
+  let v = [];
+  try { v = (await api(`/values/${encodeURIComponent("Stencil Masters!A2:Z2000")}`)).values || []; } catch { say("no Stencil Masters tab yet"); return m; }
+  for (const r of v) {
+    const id = String(r[0] || "").trim().toUpperCase(); if (!id || m.has(id)) continue;
+    try { const rings = JSON.parse(r.slice(2).join("")); if (Array.isArray(rings) && rings.length) m.set(id, { master_polys: rings, units: String(r[1] || "in").trim() }); }
+    catch { say(`Stencil Masters: ${id} has rings that aren't valid JSON`); }
+  }
+  return m;
 }
 
 // the Catalog Bot writes "legend: CAMPUS SHUTTLES (from ...)" in T when the name has no capital-letter legend

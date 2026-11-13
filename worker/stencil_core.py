@@ -18,7 +18,7 @@ from shapely.geometry import Polygon, MultiPolygon, box, LineString
 from shapely.ops import unary_union
 from shapely import affinity
 
-GEN_VERSION = "stencil-gen 1.3 (2026-11-12)"
+GEN_VERSION = "stencil-gen 1.4 (2026-11-12, symbols from masters)"
 SNAP = 0.25              # 1800 tiebreak: our number is brought to theirs when it is within reach (see ref_fit)
 MARGIN = 2.0
 BED = (56.0, 116.0)          # 5 x 10 ft Biesse bed less the 2 in machine margin each side
@@ -290,6 +290,8 @@ def to_png(path, geom, sheet, nominal, ext, sku, legend, font, tie):
 
 def build(job, out):
     sku = job["sku"]; res = {"sku": sku, "ok": False}
+    if (job.get("kind") or "") == "symbol":
+        return build_symbol(job, out)
     if (job.get("kind") or "") == "kit":
         if not kit_eligible(job):
             res["reason"] = "kit: novelty shape, digit-pair set or sheet not taller than the letter: not a plain letter-per-sheet kit"; return res
@@ -665,6 +667,91 @@ def set_proof(path, pngs, title):
         out.paste(r, (int(x), 30)); x += (im.width + 10) * scale
     ImageDraw.Draw(out).text((10, 8), title, fill="black")
     out.save(path)
+
+
+# ---------------- symbols (arrows, bikes, ISA ...) from Carla's traced masters ----------------
+# A master is the full-size symbol in inches: closed outlines, nested ones are islands (even-odd). It comes either as a
+# DXF in worker/stencil-masters/ (layer CUT, or every closed polyline when there is no CUT layer) or as rings in the
+# "Stencil Masters" tab (Carla's JSON). The symbol is cut out of the blank in column E, centred, 2 in margin, with ties
+# holding every island, the OUTSIDE sheet cut, and the same read-back check as the lettering.
+def master_rings(job):
+    rings = job.get("master_polys") or []
+    if not rings and job.get("master_dxf"):
+        import ezdxf
+        msp = ezdxf.readfile(job["master_dxf"]).modelspace()
+        ents = [e for e in msp if e.dxftype() in ("POLYLINE", "LWPOLYLINE") and e.is_closed]
+        cut = [e for e in ents if e.dxf.layer.upper() == "CUT"] or ents
+        for e in cut:
+            pts = [(float(v[0]), float(v[1])) for v in (e.get_points("xy") if e.dxftype() == "LWPOLYLINE" else e.points())]
+            if len(pts) >= 3: rings.append(pts)
+    return rings
+
+
+def build_symbol(job, out):
+    from functools import reduce
+    sku = job["sku"]; res = {"sku": sku, "ok": False}
+    rings = master_rings(job)
+    if not rings:
+        res["reason"] = f"symbol: master {job.get('master_id')} not found (not in worker/stencil-masters/ and not in the Stencil Masters tab)"; return res
+    polys = [Polygon(r).buffer(0) for r in rings]
+    polys = [q for q in polys if q.area > 1e-4]
+    geom = polys_only(reduce(lambda a, b: a.symmetric_difference(b), polys).buffer(0))   # even-odd: nested outline = island
+    if str(job.get("units") or "").lower() in ("mm", "millimeter", "millimeters"):
+        geom = affinity.scale(geom, 1 / 25.4, 1 / 25.4, origin=(0, 0))
+    b = geom.bounds; ew, eh = b[2] - b[0], b[3] - b[1]
+    ref = parse_blank(job.get("ref") or "")
+    if ref:
+        rw, rh = ref_pair(ew, eh, ref)
+        # a master drawn in mm, or traced at the wrong scale, is caught here rather than cut
+        if abs(ew - rw) > 1.0 or abs(eh - rh) > 1.0:
+            res["reason"] = f"symbol: master {fmt(ew)} x {fmt(eh)} in vs 1800 {fmt(ref[0])} x {fmt(ref[1])} (column H) off by more than 1 in"; return res
+    blank = parse_blank(job.get("blank") or "")
+    if not blank:
+        res["reason"] = "symbol: no blank size in column E"; return res
+    sheet = None
+    for W, H in (blank, (blank[1], blank[0])):
+        if ew + 2 * MARGIN <= W + TOL and eh + 2 * MARGIN <= H + TOL: sheet = (W, H); break
+        if eh + 2 * MARGIN <= W + TOL and ew + 2 * MARGIN <= H + TOL:
+            geom = affinity.rotate(geom, 90, origin=(0, 0)); b = geom.bounds; ew, eh = b[2] - b[0], b[3] - b[1]; sheet = (W, H); break
+    if not sheet:
+        res["reason"] = f"symbol: {fmt(ew)} x {fmt(eh)} in plus 2 in margins does not fit the {job.get('blank')} blank"; return res
+    tie = float(job.get("tie") or (0.75 if max(ew, eh) > 24 else 0.5))
+    holes = sum(len(q.interiors) for q in (geom.geoms if isinstance(geom, MultiPolygon) else [geom]))
+    strokes = []
+    if holes:
+        tied, strokes, problem = add_ties([geom], tie)
+        if problem:
+            res["reason"] = f"symbol: {problem}"; return res
+        geom = polys_only(unary_union(tied))
+    web = narrowest_web(geom)
+    if web is not None and web < tie - 1 / 64:
+        res["reason"] = f"symbol: narrowest web between cut-outs {web:.3f} in is under the {tie} in tie width"; return res
+    b = geom.bounds; ew, eh = b[2] - b[0], b[3] - b[1]
+    geom = affinity.translate(geom, (sheet[0] - ew) / 2 - b[0], (sheet[1] - eh) / 2 - b[1])
+    ext = geom.bounds
+    folder = out_folder(out, job)
+    base = f"{sku}-{re.sub(r'[^A-Z0-9]+', '-', str(job.get('master_id') or 'SYMBOL').upper()).strip('-')}-SHEET{fmt(sheet[0])}x{fmt(sheet[1])}"
+    dxf = folder / f"{base}.dxf"; png = folder / f"{base}.png"
+    to_dxf(dxf, geom, sheet)
+    from PIL import Image, ImageDraw
+    W, H = sheet; scale = min(1500 / W, 900 / H); pad = 70
+    im = Image.new("RGB", (int(W * scale) + 2 * pad, int(H * scale) + 2 * pad + 30), "white"); d = ImageDraw.Draw(im)
+    X = lambda x: pad + x * scale; Y = lambda y: pad + (H - y) * scale
+    d.rectangle([X(0), Y(H), X(W), Y(0)], outline="black", width=2)
+    for q in (geom.geoms if isinstance(geom, MultiPolygon) else [geom]):
+        d.polygon([(X(x), Y(y)) for x, y in q.exterior.coords], fill="black")
+        for r in q.interiors: d.polygon([(X(x), Y(y)) for x, y in r.coords], fill="white")
+    d.text((pad, 20), f"{sku}  {job.get('name','')}  |  EXTENTS {fmt(ew)} x {fmt(eh)} in  |  SHEET {fmt(W)} x {fmt(H)} in  |  ties {fmt(tie)} in  |  master {job.get('master_id')}  |  margin 2.00 in", fill="black")
+    d.text((pad, im.height - 22), GEN_VERSION + "  -  proof, not to scale", fill="black")
+    im.save(png)
+    lay = f"from master {job.get('master_id')}"
+    if ref: lay += f"; 1800 {fmt(ref[0])} x {fmt(ref[1])} vs ours {fmt(ew)} x {fmt(eh)}"
+    lay += f"; tie {fmt(tie)} in" + (" (column O)" if job.get("tie") else " (standing spec, D-20261110-19)")
+    res.update(ok=True, nominal=fmt(max(ew, eh)), extents=f"{fmt(ew)} x {fmt(eh)}", sheet=f"{fmt(sheet[0])} x {fmt(sheet[1])}",
+               tie=str(tie), font="master " + str(job.get("master_id")), layout=lay, islands=len(strokes) // 2,
+               narrowest_web=round(web, 3) if web is not None else None,
+               dxf=str(dxf.relative_to(out)), png=str(png.relative_to(out)), sha256=hashlib.sha256(dxf.read_bytes()).hexdigest())
+    return res
 
 
 def check(dxf_path, expect):

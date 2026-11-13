@@ -134,3 +134,13 @@ where their listing shows no number the standing spec stays. Our file is still d
 - **Sanity hold (not the 25 % rule).** A layout whose stroke is thinner than the tie itself (6 in elongated pavement
   letters squeezed onto a blank) is not built; the row waits for the 1800 size in column H.
 - Notes always state the tie and, with H filled, whether the legend matches 1800 within 1/4 in.
+
+## Symbols from masters (stencil-gen 1.4, 2026-11-12)
+Symbol rows (column I = `symbol`) are built from the master named in column K. The generator looks for the master in
+`worker/stencil-masters/<MASTER-ID>.dxf` first, then in the **Stencil Masters** tab of the Pipeline sheet
+(A master_id, B units `in`/`mm`, C onward = JSON array of closed rings `[[x,y],...]` in full-size inches, split across
+cells under 45,000 characters each). Carla (Grok) writes the tab; she never touches GitHub. Nested outlines are islands
+(even-odd). The symbol is centred on the column E blank (turned 90° if that is the only way it fits) with 2 in margins,
+ties hold every island (column O, else 1/2 in, 3/4 in over 24 in), the OUTSIDE sheet cut is added, and the same read-back
+check runs. Holds: master missing, master more than 1 in off the 1800 size in column H, does not fit the blank, or a web
+between cut-outs thinner than the tie.
