@@ -606,6 +606,8 @@ def build_kit(job, out):
     for ch in chars:
         letters, missing = layout(font, [ch], nominal, tie)
         if letters is None: res["reason"] = f"{font}: no glyph for {ch}"; return res
+        if lw and best[2] > 1.02:   # 1800's widest letter is wider than this series: widen every letter evenly so the widest = 1800's width (D-20261110-19)
+            b0 = bounds(letters); letters = [affinity.scale(g, min(best[2], 1.6), 1.0, origin=(b0[0], 0)) for g in letters]
         b = bounds(letters); ew, eh = b[2] - b[0], b[3] - b[1]
         if ew > allowed + 1e-6:
             sx = allowed / ew; letters = [affinity.scale(g, sx, 1.0, origin=(b[0], 0)) for g in letters]; condensed.append(f"{ch} {sx:.2f}x")
@@ -646,7 +648,7 @@ def build_kit(job, out):
     lay = (f"kit {chars}: {len(chars)} piece(s), one {fmt(W)} x {fmt(H)} in sheet each (1800 material size), {FONT_LABEL[font]}, "
            f"widest piece {fmt(widest)} x {fmt(tallest)} in vs 1800 letter {fmt(lw) if lw else 'n/a'} wide; {fmt(SIDE)} in each side so the pieces butt for even spacing "
            f"(1800 tiebreak beats the 2.00 in side margin for kit letters, Matt 11/12); top/bottom margin >= 2.00" +
-           (f"; condensed to fit the width: {', '.join(condensed)} (marked on the proof)" if condensed else "") + f"; tie {fmt(tie)} in" +
+           (f"; letters widened {min(best[2], 1.6):.2f}x so the widest = 1800's {fmt(lw)} in" if lw and best[2] > 1.02 else "") + (f"; condensed to fit the width: {', '.join(condensed)} (marked on the proof)" if condensed else "") + f"; tie {fmt(tie)} in" +
            ("" if job.get("tie") else " (standing spec)") + f"; the {int(job.get('pieces') or 0) - len(chars)} spacer / end pieces are plain blank sheets (no legend)")
     return {"sku": job["sku"], "ok": True, "set": True, "kit": True, "nominal": fmt(nominal), "extents": f"{fmt(widest)} x {fmt(tallest)}",
             "sheet": f"{fmt(W)} x {fmt(H)}", "tie": str(tie), "font": FONT_LABEL[font], "layout": lay,
