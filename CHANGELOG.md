@@ -1,5 +1,9 @@
 # What changed
 
+## 2026.11.25-181 (Wall vinyl and murals aren't costed as signs; "will call" from the feed)
+- Matt (Nov 14), on the Ashley Salon wall vinyl: the quote line showed "Costs us: missing Blank 120" × 96" .080" — the CRM was costing a printed wall graphic as a sign on an aluminum blank. Lines whose material or name says vinyl, wallpaper, wall film, mural, canvas or print media (3M IJ…, Avery MPI…) are now graphics: costed per square foot as printed vinyl, never on a blank, and their quotes use the job wording from release 180.
+- "This is will call": a Feed quote row whose text says will call / for pickup / the customer picks it up now sets the project's shipping to **Will call**, so the quote shows "Will call — pick up in Washington, UT" and "ready for pickup", with no shipping line.
+
 ## 2026.11.25-180 (Quotes that aren't for signs only talk about the job — and one quote can carry Option A and Option B)
 - Matt (Nov 14), on the Ashley Salon wall vinyl quote: "it's referring sign when there is no sign. The quote should only refer to scope of work." A quote with no signs on it (wall graphics, murals, decals, banners) no longer says "pricing for 1 sign", "Signs" in the totals, "Built to MUTCD standards", "3M reflective sheeting on .080 aluminum" or "Your signs are built, inspected and shipped". It says "Here is our pricing for the work described below", totals the **Items**, and its promises are *Made to fit*, *Proof before production* and *Fast confirmation*. Sentences in the quote terms about signs, MUTCD, sheeting or aluminum are left off those quotes.
 - **Design and setup aren't shipping any more.** The totals showed design $350 and the $200 credit as "Shipping and charges". Now shipping is only freight lines; design, setup and credits total on their own row ("Design and setup" or "Other charges"), on every quote. "With shipping" in the greeting only appears when there is a freight line.
