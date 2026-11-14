@@ -11,7 +11,10 @@ const PAGE = path.resolve(here, "__smoke.html");
 fs.writeFileSync(PAGE, fs.readFileSync(SRC, "utf8"));
 const now = Date.now(), day = 86400000;
 // the Bot team page: a small made-up team built the same way the export job builds it
-const BDT = (() => { const t = (h, m) => { const d = new Date(Date.now() - 7 * 3600000 - (h * 60 + (m || 0)) * 60000); return d.toISOString().slice(0, 16).replace("T", " "); };
+// the bot team's "late" check only counts weekdays (Mountain time), so on a Saturday or Sunday the test uses last Friday at this
+// hour as "now" — otherwise the weekend release check fails on nothing (it did on 11/14)
+const NOW = (() => { let d = Date.now(); while ([0, 6].includes(new Date(d - 7 * 3600000).getUTCDay())) d -= 86400000; return d; })();
+const BDT = (() => { const t = (h, m) => { const d = new Date(NOW - 7 * 3600000 - (h * 60 + (m || 0)) * 60000); return d.toISOString().slice(0, 16).replace("T", " "); };
   return buildBotDash({
     roster: [["bot", "platform", "team", "responsibilities", "schedule", "log_names", "owner_keys", "stale_after_hours", "notes", "hands_to"],
       ["Matt Jackson", "Person", "Owner", "Owner and president", "", "", "", "", "", ""],
@@ -35,7 +38,7 @@ const BDT = (() => { const t = (h, m) => { const d = new Date(Date.now() - 7 * 3
       ["R-2", "", "", "", "Run 1: level the spoilboard", "biesse", "", "", "", "", "", "", "", "", "hold", "", "record board thickness"]],
     prs: [["req_id", "requested_by", "item", "vendor_link", "cost_usd", "why", "ret", "needed_by", "status"], ["PR-1", "Josh", "582U12 application tape, 1 roll", "", "$66.42", "", "", "", "Needs Matt"]],
     prospects: [["pid", "source_list", "buyer_class", "last_verified"], ["P1", "Buyer Miner", "A", new Date().toISOString().slice(0, 10)], ["P2", "Buyer Miner", "B", ""], ["P3", "", "C", ""]],
-    posts: [["post_id", "status"], ["1", "posted"], ["2", "planned"], ["3", "held"]], decisions: [["decision_id", "decided_at"], ["D-1", new Date().toISOString().slice(0, 10)]] }, Date.now()); })();
+    posts: [["post_id", "status"], ["1", "posted"], ["2", "planned"], ["3", "held"]], decisions: [["decision_id", "decided_at"], ["D-1", new Date().toISOString().slice(0, 10)]] }, NOW); })();
 const D = {
   // settings: aluminum price breaks by the pound, and a commission plan (t1 is on it)
   __docs: { "settings/botdash": BDT, "settings/brand": { alumBreaks: [{ vendor: "Vendor A", minLb: 0, perLb: 4.5, freight: "extra", freightLb: 0.25 }, { vendor: "Vendor B", minLb: 1500, perLb: 3.9, freight: "extra", freightLb: 0.25 }],
