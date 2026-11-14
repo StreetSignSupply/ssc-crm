@@ -4476,6 +4476,8 @@ function lineProd(l){
   if(/film|vinyl/i.test(cat))return "decal";
   if(/post|hardware|blank/i.test(cat)||/POST|ANCHOR|BRACKET|CLAMP/.test(c+d))return "posts";
   if(gradeTok(l.grade)||/^[A-Z]{1,2}\d/.test(c))return "sign";
+  // printed wall vinyl, wallpaper, murals and other print media are graphics, not signs — never costed on an aluminum blank
+  if(/\b(vinyl|wall\s*paper|wallcovering|wall\s*film|mural|canvas|print\s*media|MPI\s*\d{3,4}|IJ\s*\d{2,3})\b/i.test(hay))return "decal";
   return "sign";
 }
 function lineGroups(p){
@@ -12134,7 +12136,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-180";
+const APP_VERSION="2026.11.25-181";
 // the release check (which opens the page from a file) can reach these; the hosted site exposes nothing
 if(location.protocol==="file:")window.__sscTest={S,benchDue,benchChip,weekMonday,picRough,webcatStat};
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
@@ -17005,6 +17007,8 @@ function pipeMatch(r){
 // one import at a time — in this tab (busy) and across tabs (a two-minute lock on settings/pipefeed)
 const PIPE={busy:false,id:Math.random().toString(36).slice(2,10),seen:new Set()};
 // rows the done map must remember; everything else is found again by the feedId on the record it made
+// a quote row whose text says the customer picks it up ("will call", "for pickup") sets the project to Will call — no shipping
+function pipeWillCall(r){return /\bwill[\s-]?call\b|\bfor\s+pick[\s-]?up\b|\bpick[\s-]?up\s+(at|from)\s+(our|the)\s+shop\b|\bcustomer\s+picks?\s+(it\s+)?up\b/i.test(String((r&&r.text)||""))}
 function pipeKeep(id,r){const t=String((r&&r.type)||"").toLowerCase();return /^INV-/i.test(String(id))||!!(r&&r.updates)||["invoice","setting","inventory","draft","stage","workorder","work_order","file","job","archive","picture"].indexOf(t)>=0}
 function pipeJSON(t){const x=String(t||"").trim();if(!x)return null;try{const o=JSON.parse(x);return o&&typeof o==="object"?o:null}catch(e){return null}}
 // a project by the quote row's row_id, its P-number ("P-2015" or 2015) or its quote number
@@ -17417,6 +17421,7 @@ async function pipeImportRows(rows){
           if(PATH.indexOf(st)>cur){up.stage=st;up.stageLog=(tgt.stageLog||[]).concat([{stage:st,at:now,who:"AI"}]).slice(-60)}   // forward only
           if(!tgt.quote){try{up.quote=await nextQuote();up.quoteDate=today()}catch(e){}}}
         if(r.project)up.name=r.project;if(r.text)up.scope=r.text;if(r.notes)up.notes=r.notes;
+        if(pipeWillCall(r)&&((tgt.ship||{}).method||"")!=="Will call")up.ship=Object.assign({},tgt.ship||{},{method:"Will call"});
         await push("projects/"+tgt.id,up);
         if(up.orderLines)logEvent("project",tgt.id,"Updated by Claude's sales agents — "+ol.length+" quote line"+(ol.length===1?"":"s")+", "+money2(pipeTotal(ol)));
         else if(!ol.length)logEvent("project",tgt.id,"Updated by Claude's sales agents");
@@ -17476,7 +17481,7 @@ async function pipeImportRows(rows){
         source:SRC.indexOf(r.source)>=0?r.source:"Email",invNum:"",shipTo:"",drive:"",notes:r.notes||"",
         stageLog:[{stage,at:now,who:"AI"}],reorderOf:"",contacts:cid?[cid]:[],repId:"",amountAuto:true,billWhen:"after",billStatus:"none",billDate:"",paidDate:"",depositAmt:"",
         orderLines:ol,billingContactId:cid||"",feedId:id,deleted:false,createdAt:now,updatedAt:now,
-        followups:[],followAuto:false});
+        followups:[],followAuto:false,...(pipeWillCall(r)?{ship:{method:"Will call"}}:{})});
       logEvent("project",pid,"Opened by Claude's sales agents"+(ol.length?" — "+ol.length+" quote line"+(ol.length===1?"":"s")+", "+money2(pipeTotal(ol)):(r.amount?" — "+money2(r.amount):"")));out.quotes++;
       if(r.text){const xid=uid("ac");await setDoc("activity/"+xid,{id:xid,recType:"project",recId:pid,kind:"note",type:"note",text:r.text,whoId:"",subject:r.subject||"",contactId:cid||"",direction:"",when:(r.when||today()).slice(0,10),due:"",backOn:r.back_on||"",noBack:!r.back_on,who:"AI",at:now,done:false,deleted:false,feedId:id+":note"})}
     }else if(type!=="account"){
