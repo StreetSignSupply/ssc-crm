@@ -141,7 +141,7 @@ async function accOf(k) { k = String(k || "").toLowerCase(); if (!k) return null
   const d = (await fs.doc("access/" + k).get()).data() || null; ACC.set(k, { d, at: Date.now() }); return d; }
 // the quote's fingerprint — the same as quoteHash() in the CRM (next/index.html); keep the two in step
 function quoteHash(p, a, b) { a = a || {}; b = b || {}; if (!p) return ""; const nv = (x) => { const t = String(x == null ? "" : x).replace(/[$,\s]/g, ""); return t !== "" && isFinite(Number(t)) ? String(Number(t)) : String(x == null ? "" : x).trim(); };
-  const L = (p.orderLines || []).filter((l) => l).map((l) => [l.code, l.desc, l.size, l.grade, l.build, nv(l.qty), nv(l.price), l.lam === true, l.charge || ""].map((x) => String(x == null ? "" : x)));
+  const L = (p.orderLines || []).filter((l) => l).map((l) => [l.code, l.desc, l.size, l.grade, l.build, nv(l.qty), nv(l.price), l.lam === true, l.charge || ""].concat(l.opt ? [String(l.opt)] : []).map((x) => String(x == null ? "" : x)));
   const s = JSON.stringify([String(p.quote || ""), String(p.accountId || ""), L, String(p.custScope || "").trim(), String(a.terms || ""), String(b.quoteNote || "").trim(), String(b.quoteDays || "")]); let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return "q" + (h >>> 0).toString(36); }
 const isOwnerT = (t) => !!t && !t.deleted && (t.access === "owner");
 const MAX_RECIP = 6;

@@ -3382,7 +3382,7 @@ function projValue(p){
   // the order lines are what the customer is quoted and invoiced — charges included — so the
   // value is theirs. Only a project with no priced order lines falls back to its work orders.
   if(p.amountAuto){
-    const ol=orderedLines(p);
+    const ol=valueLines(p);
     if(ol.some(l=>Number(l.price)>0))return ol.reduce((t,l)=>t+(Number(l.qty)||0)*(Number(l.price)||0),0);
     return jobsOf(p.id).reduce((t,j)=>t+jobRevenue(j),0);
   }
@@ -3945,7 +3945,11 @@ const DOC_ICONS={
   oct:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D50101" stroke-width="2.2" stroke-linejoin="round"><polygon points="8,2 16,2 22,8 22,16 16,22 8,22 2,16 2,8"/><path d="M8 12l3 3 5-6" stroke-linecap="round"/></svg>',
   shine:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D50101" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/><circle cx="12" cy="12" r="3"/></svg>',
   clock:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D50101" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>'};
-function docPromises(b,lines){
+function docPromises(b,lines,signJob){
+  // a job with no signs in it (wall graphics, murals, decals, banners) gets promises about the work itself — no MUTCD, no sheeting
+  if(signJob===false)return [["pin","Made to fit","Produced to the sizes and materials on this quote."],
+    ["shine","Proof before production","You approve the layout before anything is made."],
+    ["clock","Fast confirmation","Your ready date confirmed the same day you order."]];
   let ga="";try{const gs=[...new Set((lines||[]).filter(l=>l.src&&!isCharge(l.src)&&lineProd(l.src)==="sign"&&!bareBlank(l.src)).map(l=>"."+lineGauge(l.src)).filter(x=>x!=="."))].sort();
     ga=gs.length?"On "+(gs.length>1?gs.slice(0,-1).join(", ")+" and "+gs[gs.length-1]:gs[0])+" aluminum"+(gs.length>1?", as listed on each line.":"."):"On aluminum blanks, as listed on each line."}catch(e){ga="On aluminum blanks, as listed on each line."}
   const def=[["oct","Built to MUTCD standards","Correct shapes, colors, sizes and legends."],
@@ -3992,6 +3996,18 @@ function docHTML(p,kind){
   const nPlq=lines.filter(l=>!(l.src&&isCharge(l.src))&&!isHw(l)&&isPlq(l)).reduce((t,l)=>t+(Number(l.qty)||0),0);
   const nSigns=lines.filter(l=>!(l.src&&isCharge(l.src))&&!isHw(l)&&!isPlq(l)).reduce((t,l)=>t+(Number(l.qty)||0),0);
   const nHw=lines.filter(l=>!(l.src&&isCharge(l.src))&&isHw(l)).reduce((t,l)=>t+(Number(l.qty)||0),0);
+  // is this a sign job at all? A wall mural, a decal run or a banner isn't, and the quote must only talk about its own scope
+  const isSignish=l=>{try{const s2=l.src;if(!s2)return true;if(isCharge(s2))return false;if(isHw(l)||isPlq(l))return true;if(lineProd(s2)!=="sign")return false;
+    return !!(gradeTok(s2.grade)||/^[A-Z]{1,3}\d/i.test(String(s2.code||""))||/\b(sign|blade|plaque)s?\b/i.test(String(s2.desc||"")+" "+String(l.code||"")))}catch(e){return true}};
+  const signJob=lines.some(isSignish);
+  const freightL=l=>!!(l.src&&isCharge(l.src)&&(l.src.charge==="freight"||/ship|freight|deliver/i.test(l.src.desc||"")));
+  const hasFreight=lines.some(freightL);
+  // options: Option A, Option B… each priced in full; lines with no option go with every one
+  const opts=kind==="quote"?optList(lines.map(l=>l.src).filter(Boolean)):[];const multi=opts.length>1;
+  const optRows=multi?opts.map(o=>{const ls=lines.filter(l=>!optKey(l.src)||optKey(l.src)===o.k);const s2=ls.reduce((t,l)=>t+l.qty*l.unit,0);
+    const tx=(!exempt&&rate>0)?s2*rate/100:0;return {o,sub:s2,tax:tx,total:s2+tx}}):[];
+  const qNoteShow=(kind==="quote"&&!signJob)?(String(qNote).split(/(?<=[.!?])\s+/).filter(x=>!/\bsigns?\b|MUTCD|sheeting|reflective|aluminum/i.test(x)).join(" ")
+    ||("This quote is good for "+qDays+" days from the date above.")):qNote;
   const save=(function(){if(!a.showSavings)return 0;return lines.reduce((t,l)=>{if(!l.unit||!l.src||isCharge(l.src))return t;
         const lp=listPrice(l.src);return t+(lp&&lp.price>l.unit?(lp.price-l.unit)*l.qty:0)},0)})();
   const row=(l,ix)=>{const it=docItem(l,fnote);const chg=l.src&&isCharge(l.src);
@@ -4011,7 +4027,7 @@ function docHTML(p,kind){
     const said=docNorm(name+" "+spec+" "+code+" "+(src?String(src.code||"")+" "+String(src.grade||""):""));
     const sub2=String(it.sub||"").split(" · ").filter(x=>x&&said.indexOf(docNorm(x))<0&&!(src&&(docNorm(x)===docNorm(src.grade)||docNorm(x)===docNorm(src.code)))&&!/^\d+\s*["”]?\s*[x×]\s*\d+/.test(x)).join(", ");
     return `<tr${chg?' class="chg"':""}>
-      <td class="item"><div class="it">${chg?"":`<div class="pic">${pic?`<img src="${esc(pic)}" data-fb="${esc(picFb(l.src))}" alt="${esc(name)}">`:""}</div>`}<div>
+      <td class="item"><div class="it">${chg||(!pic&&!(l.src&&isSignish(l)))?"":`<div class="pic">${pic?`<img src="${esc(pic)}" data-fb="${esc(picFb(l.src))}" alt="${esc(name)}">`:""}</div>`}<div>
         <span class="nm">${esc(name)}${it.fn?"<sup>†</sup>":""}${showCode?`<span class="cd">${esc(code.replace(/^[a-z]+/,m=>m.toUpperCase()))}</span>`:""}</span>
         ${spec?`<span class="spec">${esc(spec)}</span>`:""}${sub2?`<span class="sub">${esc(sub2)}</span>`:""}
         ${l.src&&l.src.lam===true&&linePrinted(l.src)?`<span class="sub">With clear overlaminate</span>`:""}</div></div></td>
@@ -4021,7 +4037,9 @@ function docHTML(p,kind){
         return (lp&&lp.price>l.unit+0.004?`<span style="text-decoration:line-through;color:#9AA1A9;font-size:10px">${money2(lp.price)}</span><br>`:"")+money2(l.unit)+(unitMode?`<span style="color:#9AA1A9;font-weight:400"> ${chg?"per order":"each"}</span>`:"")})()}</td>
       ${unitMode?"":`<td class="r amt">${l.unit?money2(l.qty*l.unit):"—"}</td>`}</tr>`};
   const hello=kind==="quote"&&lines.length?`<div class="hello">${first?`<b>${esc(first)}</b>, thank`:"Thank"} you for the chance to quote ${esc(p.name||"this project")}.
-    Here is our ${unitMode?"contract pricing for "+lines.filter(l=>!(l.src&&isCharge(l.src))).length+" sign types":"pricing for "+(nSigns||nPlq?(nSigns?nSigns+" sign"+(nSigns===1?"":"s"):"")+(nPlq?(nSigns?" and ":"")+nPlq+" plaque"+(nPlq===1?"":"s"):"")+(nHw?" with "+nHw+" post"+(nHw===1?"":"s")+" and hardware piece"+(nHw===1?"":"s"):""):nHw?nHw+" post"+(nHw===1?"":"s")+" and hardware piece"+(nHw===1?"":"s"):"your order")}${lines.some(l=>l.src&&isCharge(l.src))?" with shipping":""}, each one built to order in our shop.</div>`:"";
+    ${multi?`Here ${opts.length===2?"are two options":"are "+opts.length+" options"} for ${signJob?"this order":"the work described below"}, each priced in full — pick the one that suits you. ${signJob?"Every sign is built to order in our shop.":"Everything is made to order in our shop."}`
+      :signJob?`Here is our ${unitMode?"contract pricing for "+lines.filter(l=>!(l.src&&isCharge(l.src))).length+" sign types":"pricing for "+(nSigns||nPlq?(nSigns?nSigns+" sign"+(nSigns===1?"":"s"):"")+(nPlq?(nSigns?" and ":"")+nPlq+" plaque"+(nPlq===1?"":"s"):"")+(nHw?" with "+nHw+" post"+(nHw===1?"":"s")+" and hardware piece"+(nHw===1?"":"s"):""):nHw?nHw+" post"+(nHw===1?"":"s")+" and hardware piece"+(nHw===1?"":"s"):"your order")}${hasFreight?" with shipping":""}, each one built to order in our shop.`
+      :`Here is our pricing for the work described below${hasFreight?", with shipping":""}, made to order in our shop.`}</div>`:"";
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(word)} ${esc(no)}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -4049,19 +4067,30 @@ function docHTML(p,kind){
   ${unitMode?`<div class="ups">Contract unit prices: no set quantities, so each price is per sign for every order under this contract${p.scope&&/minimum/i.test(p.scope)?"; order minimums are in the terms below":""}.</div>`:""}
   <table class="lines"><thead><tr><th>Item</th>${unitMode?"":`<th style="width:46px" class="r">Qty</th>`}
     <th class="r" style="width:${unitMode?120:84}px">${unitMode?"Price":"Unit price"}</th>${unitMode?"":`<th class="r" style="width:92px">Amount</th>`}</tr></thead><tbody>
-    ${lines.length?lines.map(row).join(""):`<tr><td colspan="5" style="text-align:center;color:#888;padding:22px">No priced lines on this project yet.</td></tr>`}
+    ${!lines.length?`<tr><td colspan="5" style="text-align:center;color:#888;padding:22px">No priced lines on this project yet.</td></tr>`
+      :multi?(function(){const hd=t=>`<tr class="opth"><td colspan="${unitMode?2:4}" style="padding:16px 0 6px;font-weight:800;font-size:13px;color:#111;border-bottom:2px solid #C8102E">${esc(t)}</td></tr>`;
+        const com=lines.filter(l=>!optKey(l.src));
+        return (com.length?hd("Included with every option")+com.map(row).join(""):"")+opts.map(o=>hd(optLabel(o))+lines.filter(l=>optKey(l.src)===o.k).map(row).join("")).join("")})()
+      :lines.map(row).join("")}
   </tbody></table>
   ${fnote?`<div class="fn"><span style="color:#C8102E">†</span> ${esc(fnote)}</div>`:""}
   <div class="sum">
     <div class="tot">
-    ${`${save>0.009?`<div class="row save"><span>You save</span><span>${money2(save)}</span></div>`:""}
+    ${multi?`${optRows.map(x=>`<div class="row" style="margin-top:8px"><span><b>${esc(optLabel(x.o))}</b></span><span></span></div>
+        <div class="row"><span>Subtotal</span><span>${money2(x.sub)}</span></div>
+        <div class="row"><span>${exempt?"Sales tax — exempt"+(a.exemptExp?" (cert. to "+f(new Date(a.exemptExp+"T00:00:00"))+")":""):rate?"Sales tax "+rate+"% (estimate)":"Sales tax (estimate)"}</span><span>${exempt?"$0.00":rate?money2(x.tax):"on the invoice"}</span></div>
+        <div class="grand"><span>Option ${esc(x.o.k)} total</span><span>${money2(x.total)}</span></div>`).join("")}
+      ${!exempt?`<div class="est">Sales tax is an estimate; the final tax is calculated on the invoice.</div>`:""}`
+    :`${save>0.009?`<div class="row save"><span>You save</span><span>${money2(save)}</span></div>`:""}
       ${(function(){
-        // always: what the signs come to, what shipping comes to, then tax and the total
-        const signs=lines.filter(l=>!(l.src&&isCharge(l.src))).reduce((t,l)=>t+l.qty*l.unit,0);
-        const chg=lines.filter(l=>l.src&&isCharge(l.src));const ship=chg.reduce((t,l)=>t+l.qty*l.unit,0);
-        const shipLbl=chg.every(l=>l.src.charge==="freight"||/ship|freight|deliver/i.test(l.src.desc||""))?"Shipping":"Shipping and charges";
-        return `<div class="row"><span>${unitMode?"Signs (one of each)":"Signs"}</span><span>${money2(signs)}</span></div>
-        <div class="row"><span>${chg.length?shipLbl:"Shipping"}</span><span>${chg.length?money2(ship):kind==="quote"?"Quoted at order":"—"}</span></div>`})()}
+        // what the items come to, shipping (freight lines only), design and other charges, then tax and the total
+        const items=lines.filter(l=>!(l.src&&isCharge(l.src))).reduce((t,l)=>t+l.qty*l.unit,0);
+        const fr=lines.filter(freightL),frT=fr.reduce((t,l)=>t+l.qty*l.unit,0);
+        const oc=lines.filter(l=>l.src&&isCharge(l.src)&&!freightL(l)),ocT=oc.reduce((t,l)=>t+l.qty*l.unit,0);
+        const ocLbl=oc.every(l=>l.src.charge==="design"||l.src.charge==="setup"||/design|set\s*-?up/i.test(l.src.desc||""))?"Design and setup":"Other charges";
+        return `<div class="row"><span>${unitMode?"Signs (one of each)":signJob?"Signs":"Items"}</span><span>${money2(items)}</span></div>
+        ${fr.length?`<div class="row"><span>Shipping</span><span>${money2(frT)}</span></div>`:signJob?`<div class="row"><span>Shipping</span><span>${kind==="quote"?"Quoted at order":"—"}</span></div>`:""}
+        ${oc.length?`<div class="row"><span>${ocLbl}</span><span>${money2(ocT)}</span></div>`:""}`})()}
       <div class="row"><span>Subtotal</span><span>${money2(sub)}</span></div>
       <div class="row"><span>${exempt?"Sales tax — exempt"+(a.exemptExp?" (cert. to "+f(new Date(a.exemptExp+"T00:00:00"))+")":""):rate?"Sales tax "+rate+"% (estimate)":"Sales tax (estimate)"}</span>
         <span>${exempt?"$0.00":rate?money2(tax):kind==="quote"?"on the invoice":"—"}</span></div>
@@ -4071,25 +4100,25 @@ function docHTML(p,kind){
       ${unitMode?`<div class="est">Total shown for one of each sign. Each order is billed at the quantity ordered × the price above${lines.some(l=>l.src&&isCharge(l.src))?", plus shipping":""}.</div>`:""}`}
     </div>
   </div>
-  ${kind==="quote"?`<div class="why">${docPromises(b,lines).map(x=>`<div class="p">${(DOC_ICONS[x[0]]||"").replace(/#D50101/g,"#C8102E")}<div><b>${esc(x[1])}</b>${esc(x[2])}</div></div>`).join("")}</div>`:""}
+  ${kind==="quote"?`<div class="why">${docPromises(b,lines,signJob).map(x=>`<div class="p">${(DOC_ICONS[x[0]]||"").replace(/#D50101/g,"#C8102E")}<div><b>${esc(x[1])}</b>${esc(x[2])}</div></div>`).join("")}</div>`:""}
   <div class="blocks">
     <div>
       <div class="lbl">${kind==="quote"?"Terms":"Payment"}</div>
-      <div class="terms">${kind==="quote"?esc(qNote):esc(b.payNote||"Please reference the invoice number with your payment.")}
+      <div class="terms">${kind==="quote"?esc(qNoteShow):esc(b.payNote||"Please reference the invoice number with your payment.")}
         ${String(p.custScope||"").trim()?`<span class="k">Scope</span>${esc(String(p.custScope).trim()).replace(/\n/g,"<br>")}`:""}
         ${rep2?`<span class="k">Your contact</span>${esc(rep2.name)}${b.phone?" · "+esc(fmtPhone(b.phone)):""}${b.email?" · "+esc(b.email):""}`:""}
-        ${lamLine?`<span class="k">Overlaminate</span>The marked printed signs are supplied with a clear protective overlaminate.`:""}</div>
+        ${lamLine?`<span class="k">Overlaminate</span>The marked printed ${signJob?"signs are":"items are"} supplied with a clear protective overlaminate.`:""}</div>
     </div>
     ${kind==="quote"?`<div>
       <div class="lbl">Ready to order</div>
-      <div class="steps"><div><i>1</i>Reply "approved", send a PO, or sign below.</div>
-        <div><i>2</i>We confirm your ship date the same day.</div>
-        <div><i>3</i>Your signs are built, inspected and shipped${((p.ship||{}).method)==="Will call"?" or ready for pickup":""}.</div></div>
+      <div class="steps"><div><i>1</i>${multi?"Pick your option, then reply \"approved\", send a PO, or sign below.":"Reply \"approved\", send a PO, or sign below."}</div>
+        <div><i>2</i>We confirm your ${signJob?"ship":"ready"} date the same day.</div>
+        <div><i>3</i>${signJob?`Your signs are built, inspected and shipped${((p.ship||{}).method)==="Will call"?" or ready for pickup":""}.`:`Your order is made, checked and ${((p.ship||{}).method)==="Will call"?"ready for pickup":"shipped or ready for pickup"}.`}</div></div>
       <div class="sign">
         <div class="line"></div><div class="cap">Signature</div>
         <div class="two"><div style="flex:2"><div class="line"></div><div class="cap">Printed name and title</div></div>
           <div style="flex:1"><div class="line"></div><div class="cap">Date</div></div></div>
-        <div class="two"><div style="flex:1"><div class="line"></div><div class="cap">Purchase order number</div></div></div>
+        <div class="two">${multi?`<div style="flex:1"><div class="line"></div><div class="cap">Option chosen (${esc(opts.map(o=>o.k).join(" or "))})</div></div>`:""}<div style="flex:1"><div class="line"></div><div class="cap">Purchase order number</div></div></div>
       </div>
     </div>`:""}
   </div>
@@ -4106,6 +4135,7 @@ async function makeDoc(pid,kind){
   {const p1=proj(pid);if(kind==="quote"&&p1&&!p1.quoteDate){await push("projects/"+pid,{quoteDate:today(),updatedAt:Date.now()});p1.quoteDate=today()}}
   const p=proj(pid);if(!p)return;
   const lines=docLines(p);
+  if(kind==="invoice"&&optPending(p)){optAsk(pid,"make the invoice");return}
   if(kind==="invoice"&&!(p.invNum||"").trim()){
     toast("Put an invoice number on it first — Billing → Change.");billModal(pid);return}
   if(!lines.length){toast("Add a line to the "+(kind==="quote"?"quote":"order")+" first — Quote lines → Add a line.");return}
@@ -4397,6 +4427,37 @@ const CHARGES=[
   {id:"rush",label:"Rush fee"},
   {id:"other",label:"Other charge"}];
 function isCharge(l){return !!(l&&l.charge)}
+/* quote options: a line tagged opt "A", "B"… belongs to that option; an untagged line goes with every option.
+   The customer picks one (on the signing page, or the team clicks "Customer chose…"); the other option's lines
+   then come off the quote (kept on the project as optDropped), so work orders, invoices and totals only ever see one. */
+function optKey(l){return String((l&&l.opt)||"").trim().toUpperCase().slice(0,3)}
+function optList(lines){const out=[];(lines||[]).forEach(l=>{const k=optKey(l);if(!k)return;let o=out.find(x=>x.k===k);
+  if(!o){o={k,name:""};out.push(o)}if(!o.name&&String(l.optName||"").trim())o.name=String(l.optName).trim()});return out}
+function optLines(lines,k){return (lines||[]).filter(l=>!optKey(l)||optKey(l)===k)}
+function optPending(p){return optList(orderedLines(p)).length>1}
+function optLabel(o){return "Option "+o.k+(o.name?" — "+o.name:"")}
+function optTotals(p){const ol=orderedLines(p);return optList(ol).map(o=>Object.assign({},o,{total:optLines(ol,o.k).reduce((t,l)=>t+(Number(l.qty)||0)*(Number(l.price)||0),0)}))}
+// what the project is worth while the customer hasn't picked: the first option (never both added together)
+function valueLines(p){const ol=orderedLines(p);const os=optList(ol);return os.length>1?optLines(ol,os[0].k):ol}
+function optMoneyText(p){return optTotals(p).map(o=>money2(o.total)+" (Option "+o.k+")").join(" or ")}
+// "A — Textured wall vinyl", "A: Textured wall vinyl" or just "A"
+function optParse(v,name){const s=String(v==null?"":v).trim();if(!s)return {opt:"",optName:""};
+  const m=s.match(/^(?:option\s+)?([A-Za-z0-9]{1,3})\s*(?:[-–—:.)]\s*(.*))?$/i);
+  if(m)return {opt:m[1].toUpperCase(),optName:String(name||m[2]||"").trim().slice(0,80)};
+  return {opt:"",optName:""}}
+async function optPick(pid,k,by){const p=proj(pid);if(!p)return false;const ol=orderedLines(p);const os=optList(ol);const o=os.find(x=>x.k===String(k||"").toUpperCase());
+  if(!o||os.length<2)return false;
+  const keep=ol.filter(l=>!optKey(l)||optKey(l)===o.k),drop=ol.filter(l=>optKey(l)&&optKey(l)!==o.k);const now=Date.now();
+  await push("projects/"+pid,{orderLines:keep,optDropped:(p.optDropped||[]).concat(drop.map(l=>Object.assign({},l,{droppedAt:now}))),
+    optChosen:{k:o.k,name:o.name||"",at:now,by:by||meName()},updatedAt:now});
+  recordHistory("project",pid,[{f:"Quote option",o:optList(ol).map(optLabel).join(" / "),n:"Customer chose "+optLabel(o)+(by?" ("+by+")":"")+" — the other option's lines are off the quote",ev:1}]);
+  return true}
+// "which option did they pick?" — shown when something needs one option (a work order) and the quote still has several
+function optAsk(pid,doing){const p=proj(pid);if(!p)return;const ts=optTotals(p);
+  openModal(mshell("Which option did the customer pick?","proj",`<div style="padding:14px 16px">
+    <p style="margin:0 0 8px">This quote has ${ts.length} options${doing?", so you can't "+esc(doing)+" until one is picked":""}. Pick the one the customer chose — the other option's lines come off the quote (they're kept in the project history).</p>
+    ${ts.map(o=>`<div style="margin:6px 0"><button class="btn p" data-optpick="${esc(pid)}:${esc(o.k)}">${esc(optLabel(o))} — ${money2(o.total)}</button></div>`).join("")}</div>`,
+    `<button class="btn" data-close="1">Not yet</button>`))}
 function lineProd(l){
   if(isCharge(l))return "charge";
   if(stcBySku(l.code))return "stencil";
@@ -4450,6 +4511,7 @@ function quoteBlock(pid,doing){
 }
 function quickWO(pid,state){
   const p=proj(pid);if(!p)return;
+  if(optPending(p)){optAsk(pid,"create a work order");return}
   const last=jobsOf(p.id).slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))[0];
   // what the quote lines say we're making, and which lines aren't on a work order yet
   const groups=lineGroups(p);
@@ -5701,7 +5763,7 @@ function reconcile(p){
     rows.push({k,id:o.id||"",code:o.code,size:o.size,grade:o.grade||"",note:o.note||"",desc:o.desc||"",price:o.price||"",
       legend:o.legend||"",legends:o.legends||[],build:o.build||"",sheetKey:o.sheetKey||"",lam:o.lam===true,noLam:!!o.noLam,
       ordered:Number(o.qty)||0,sched:sc?sc.qty:0,wos:sc?sc.wos:[],charge:o.charge||"",cost:o.cost||"",
-      webImg:o.webImg||"",artId:o.artId||"",lineId:o.id||"",
+      webImg:o.webImg||"",artId:o.artId||"",lineId:o.id||"",opt:o.opt||"",optName:o.optName||"",
       sub:o.sub||"",costLock:o.costLock,costKey:o.costKey,costAt:o.costAt,costWhy:o.costWhy});   // the line's own picture and locked cost travel with it
   });
   Object.keys(sched).forEach(k=>{
@@ -5732,7 +5794,7 @@ function priceOddities(p){const ls=orderedLines(p).filter(l=>!isCharge(l)&&Numbe
 function reconMoney(p){const rows=(reconStatus(p).rows)||[];let onWO=0,unsched=0,charges=0;const un=[];
   orderedLines(p).forEach(l=>{if(isCharge(l))charges+=(Number(l.qty)||0)*(Number(l.price)||0)});
   rows.forEach(r=>{if(r.charge||r.extra)return;const pr=Number(r.price)||0;onWO+=Math.min(r.sched,r.ordered)*pr;if(r.sched<r.ordered){unsched+=(r.ordered-r.sched)*pr;un.push(r)}});
-  const quote=orderedLines(p).reduce((t,l)=>t+(Number(l.qty)||0)*(Number(l.price)||0),0);
+  const quote=valueLines(p).reduce((t,l)=>t+(Number(l.qty)||0)*(Number(l.price)||0),0);
   return {quote,onWO,unsched,un,charges}}
 function reconMoneyStrip(p,j){if(!p||!orderedLines(p).length||!can("price"))return "";const m=reconMoney(p);
   const own=j?(j.items||[]).filter(it=>!isCharge(it)&&!(Number((projLineFor(j,it)||{}).price)>0)):[];
@@ -5779,6 +5841,10 @@ function reconCard(p){
     ${(function(){if(!can("cost"))return "";const neg=rows.filter(r=>{if(r.charge)return false;const pr=Number(r.price)||0,c=quoteLineCost(r).cost;return pr>0&&c>0&&pr<c});
       return neg.length?`<div class="warn" style="margin:10px 14px">⚠ ${neg.length} line${neg.length===1?" sells":"s sell"} for less than ${neg.length===1?"it costs":"they cost"} us: ${neg.map(r=>esc(r.desc||r.code||"line")+" ("+money2(r.price)+" vs "+money2(quoteLineCost(r).cost)+" cost)").join(", ")}. Check the price or the cost before this goes out.</div>`:""})()}
     ${(function(){const fl=priceOddities(p);return fl.length?`<div class="warn" style="margin:10px 14px">⚠ Check these prices: ${fl.map(esc).join("; ")}.</div>`:""})()}
+    ${optPending(p)?`<div class="alert" style="margin:10px 14px"><b>${optTotals(p).length} options on this quote</b> — the customer picks one. ${optTotals(p).map(o=>esc(optLabel(o))+" <b>"+money2(o.total)+"</b>").join(" · ")}.
+      Lines with no option go with every option. The project is valued at Option ${esc(optList(orderedLines(p))[0].k)} until one is picked; signing online picks it for you.
+      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">${optTotals(p).map(o=>`<button class="btn sm" data-optpick="${esc(p.id)}:${esc(o.k)}">Customer chose ${esc(o.k)}</button>`).join("")}</div></div>`
+      :p.optChosen&&p.optChosen.k?`<div class="note" style="margin:10px 14px">Customer chose Option ${esc(p.optChosen.k)}${p.optChosen.name?" — "+esc(p.optChosen.name):""}${p.optChosen.by?" ("+esc(p.optChosen.by)+")":""}; the other option's lines are off the quote.</div>`:""}
     ${(function(){const cur=quoteHash(p),ap=p.quoteApproval,rj=p.quoteRejected;
       if(rj&&rj.review&&rj.hash===cur)return `<div class="warn" style="margin:10px 14px;border-color:var(--red)"><b>${esc(rj.by||"Matt")} sent this quote back</b>${rj.why?": "+esc(rj.why):""}. Change it and make a new quote PDF — it goes back on the review list.</div>`;
       if(ap&&ap.v===2&&ap.hash===cur&&ap.review)return `<div class="alert" style="margin:10px 14px"><b>Approved by ${esc(ap.by||"Matt")}</b> to go to ${esc((ap.to||[]).join(", "))} — send it from Email on this project with the approved PDF.</div>`;
@@ -5796,7 +5862,7 @@ function reconCard(p){
         <td><div style="display:flex;gap:10px;align-items:center">
           ${linePic(p,r)?`<img src="${esc(linePic(p,r))}" alt="" class="quotepic" data-signpic="${esc(picKey(r))}" data-picfall="1" style="width:40px;height:40px" title="Change this item's picture">`
             :r.charge?"":`<button type="button" class="btn sm q addpic" data-signpic="${esc(picKey(r))}" title="Add a photo of this item — it's used on every quote with this item">+ Photo</button>`}
-          <div><b>${esc(r.desc||signName(r)||r.code||"—")}</b>${(r.desc||signName(r))&&r.code?`<div class="sub">${esc(r.code)}</div>`:""}${r.note?`<div class="linenote" title="${esc(r.note)}">${ic("note",11)} ${esc(r.note)}</div>`:""}</div></div></td>
+          <div>${optKey(r)?`<span class="pill" title="${esc(r.optName||"")}" style="margin-right:6px">Option ${esc(optKey(r))}</span>`:""}<b>${esc(r.desc||signName(r)||r.code||"—")}</b>${(r.desc||signName(r))&&r.code?`<div class="sub">${esc(r.code)}</div>`:""}${r.note?`<div class="linenote" title="${esc(r.note)}">${ic("note",11)} ${esc(r.note)}</div>`:""}</div></div></td>
         <td>${esc(r.size?sizeLabel(r.size):"—")}</td><td title="${esc(r.grade||"")}">${(function(){const same=String(r.grade||"").trim().toLowerCase()&&(String(r.desc||"").toLowerCase().indexOf(String(r.grade).trim().toLowerCase())===0||lineProd(r)==="posts"||lineProd(r)==="hardware");
             return same?`<span class="sub">—</span>`:`<span class="gfull">${esc(r.grade||"—")}</span><span class="gshort">${esc(gradeShort(r.grade)||"—")}</span>`})()}${legendsOf(r).length&&r.build!=="print"
           ?`<div class="sub" title="Legend film">legend ${esc(legendText(r,true))}</div>`:""}${r.lam===true&&linePrinted(r)?`<div class="sub">+ clear overlaminate</div>`:""}</td>
@@ -5825,7 +5891,7 @@ function reconCard(p){
         const cmT=costedMargin(p);const mg=(!uncosted&&cmT.rev&&cmT.cost>0)?cmT.m:null;
         return `<tr style="background:var(--card2)"><td colspan="3"><b>Total</b>${uncosted?` <span class="sub">— margin waits on ${uncosted} line${uncosted===1?"":"s"} that can't be costed yet</span>`:cmT.uncostedLines&&mg!=null?` <span class="sub">— margin leaves out ${cmT.uncostedLines} line${cmT.uncostedLines===1?"":"s"} with no cost</span>`:""}</td><td class="mono" style="text-align:right"><b>${pcs}</b></td>
           <td class="mono" style="text-align:right">${cost?money(cost):""}</td><td></td>
-          <td class="mono" style="text-align:right;font-weight:800;font-size:15px">${tot?money(tot):`<span class="sub">no prices yet</span>`}</td>
+          <td class="mono" style="text-align:right;font-weight:800;font-size:15px">${optPending(p)?optTotals(p).map(o=>`<div style="white-space:nowrap">${esc(o.k)}: ${money(o.total)}</div>`).join(""):tot?money(tot):`<span class="sub">no prices yet</span>`}</td>
           <td style="text-align:right">${mg==null?"":`<span class="pill ${mg>=35?"g":mg>=20?"o":"r"}">${Math.round(mg)}%</span>`}</td><td colspan="2"></td></tr>
         ${(function(){const mat=jobsOf(p.id).reduce((t,j2)=>t+jobMatCost(j2),0);const other=jobsOf(p.id).reduce((t,j2)=>t+jobOther(j2),0);
           if(!mat&&!other)return "";const real=mat+other;const rm=tot?((tot-real)/tot*100):null;
@@ -7513,6 +7579,7 @@ function chargeModal(pid,ix){
        ${inp("ch-price","Price each — what they pay",o.price||"","number")}
        ${inp("ch-cost","What it costs you — leave blank if nothing",o.cost||"","number")}
        ${inp("ch-note","Note",o.note||"","text",1)}
+       ${inp("ch-opt","Option — A, B… with a name (A — Textured wall vinyl). Blank = goes with every option",optKey(o)?optKey(o)+(o.optName?" — "+o.optName:""):"","text",1)}
      </div>`,
     `${isNew?"":`<button class="btn d" data-orddel="${esc(pid)}:${ix}" style="margin-right:auto">Remove</button>`}
      <button class="btn" data-close="1">Cancel</button>
@@ -7531,6 +7598,7 @@ async function chargeSave(pid,ixRaw){
     desc:g("ch-desc")||((CHARGES.find(x=>x.id===kind)||{}).label||"Charge"),
     price:g("ch-price"),cost:g("ch-cost"),note:g("ch-note"),code:"",size:"",grade:"",legend:"",build:""};
   Object.assign(rec,tidyLine(rec));
+  {const op=optParse(g("ch-opt"));if(op.opt){rec.opt=op.opt;rec.optName=op.optName}}
   if(!rec.price)return toast("Put a price on it — that's the point of the line.");
   const lines=orderedLines(p).slice();
   if(ixRaw==="new")lines.push(rec);else lines[Number(ixRaw)]=rec;
@@ -7634,7 +7702,7 @@ function ordModal(pid,ix,pre){
         <div class="fld full"><div class="k">Material</div><input id="o-grade" list="dl-o-grade2" autocomplete="off" value="${esc(o.grade||"")}" placeholder="Sheeting, vinyl or film — type to search">
           <datalist id="dl-o-grade2">${quoteMaterials().map(x=>`<option value="${esc(x.v)}">${esc(x.l)}</option>`).join("")}</datalist></div>
       </div></div>
-      <details class="fld full omore"${(o.build||o.note||(legendsOf(o).length&&!isNew)||o.lam===true)?" open":""}><summary>More options</summary><div class="fgrid" style="padding:0">
+      <details class="fld full omore"${(o.build||o.note||optKey(o)||(legendsOf(o).length&&!isNew)||o.lam===true)?" open":""}><summary>More options</summary><div class="fgrid" style="padding:0">
       ${sel("o-build","Legend",o.build||"",lineProd(o)==="sign"?[{v:"",l:"Printed on the HP (default)"},{v:"film",l:"Legend: cut EC film (small order)"},{v:"print",l:"Printed on the HP"}]:[{v:"",l:"Work it out from the material"},{v:"film",l:"Cut film / cut vinyl"},{v:"print",l:"Printed"}])}
       <div id="o-nolam-wrap" class="fld full" style="display:none;border-bottom:0;padding:0">${noLamBox("o-nolam",!!o.noLam)}</div>
       ${legendEditor("o",o,legendPctDefault())}
@@ -7642,6 +7710,7 @@ function ordModal(pid,ix,pre){
         <input type="checkbox" id="o-contract" style="width:17px;height:17px">Save this price for ${esc(acct(p.accountId).name)}</label>
         <div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap"><span class="sub">Good until</span><input type="date" id="o-contract-until" style="width:170px"><span class="sub">blank = no end date</span></div></div>`:""}
       ${inp("o-note","Note",o.note,"text",1)}
+      ${inp("o-opt","Option — A, B… with a name (A — Textured wall vinyl). Blank = goes with every option",optKey(o)?optKey(o)+(o.optName?" — "+o.optName:""):"","text",1)}
       ${(function(){const files=projArtFiles(p);if(!files.length)return "";
         const cur=isNew?null:lineArt(p,o);
         return `<div class="fld full"><div class="k">Picture — from the artwork on this project</div>
@@ -7783,6 +7852,7 @@ async function ordSave(pid,ixRaw){
   const keep=old0||S.ordPre||null;
   if(keep){["sheetKey","title","webImg","webId","webVar"].forEach(k=>{if(keep[k]&&rec[k]==null)rec[k]=keep[k]})}
   Object.assign(rec,tidyLine(rec));
+  {const op=optParse($("#o-opt")?$("#o-opt").value:"");if(op.opt){rec.opt=op.opt;rec.optName=op.optName}}
   rec.lam=!!($("#o-nolam")&&$("#o-nolam").checked&&linePrinted(rec));rec.noLam=!rec.lam;
   if(!(Number(rec.qty)>0)){toast("Put in a quantity — 1 or more.");const qe=$("#o-qty");if(qe)qe.focus();return}
   if(!rec.code&&!rec.desc)return toast("Give it a name or a code.");
@@ -12064,7 +12134,7 @@ function projFiles(pid){
 }
 
 /* ================= TASK ASSIGNMENT AND NOTIFICATIONS ================= */
-const APP_VERSION="2026.11.25-179";
+const APP_VERSION="2026.11.25-180";
 // the release check (which opens the page from a file) can reach these; the hosted site exposes nothing
 if(location.protocol==="file:")window.__sscTest={S,benchDue,benchChip,weekMonday,picRough,webcatStat};
 function teamById(id){const t=id?S.team.get(id):null;return t&&!t.deleted?t:null}
@@ -16893,6 +16963,8 @@ function pipeLines(r){
     const isCh=!!o.charge||(!code&&!o.size&&/ship|freight|deliver|setup|design|\bfee\b/i.test(desc));
     const line={id:uid("ol"),qty:String(o.qty==null||String(o.qty).trim()===""?1:(Number(csvNum(o.qty))||0)),desc:desc||code,code,size:String(o.size||"").trim(),grade:String(o.grade||o.material||"").trim(),
       build:"",legend:String(o.legend||""),legends:[],price:String(price),cost:"",note:String(o.note||"")};
+    // "option": "A" (with "option_name"), or "A — Textured wall vinyl" — this line belongs to that option only
+    {const op=optParse(o.option!=null?o.option:o.opt,o.option_name||o.optName||o.option_label);if(op.opt){line.opt=op.opt;line.optName=op.optName}}
     // "overlaminate": false (or "no_overlaminate": true) — the customer declined the clear overlaminate on a printed line
     const noYes=v=>v===true||/^(true|yes|y|1)$/i.test(String(v==null?"":v).trim()),noNo=v=>v===false||/^(false|no|n|0|none)$/i.test(String(v==null?"":v).trim());
     if(noYes(o.overlaminate)&&!noYes(o.no_overlaminate)){line.lam=true;line.noLam=false}else{line.lam=false;line.noLam=true}
@@ -17270,7 +17342,7 @@ async function pipeImportRows(rows){
       if(type==="workorder"||type==="work_order"){const p=pipeFind(r.project||r.updates);if(!p){(out.bad++,isBad(id,"project not found (wrong number, or already deleted)"));continue}
         const due=/^\d{4}-\d{2}-\d{2}/.test(String(r.when||""))?String(r.when).slice(0,10):"";
         if(!on){await sugg("project",p.id,"create the work orders"+(due?" due "+due:"")+(r.text?" — "+r.text:""));done[id]=1;mark(id);continue}
-        const res=await agentWO(p,due,r.text);
+        const res=optPending(p)?{why:"the customer hasn't picked an option yet ("+optList(orderedLines(p)).map(optLabel).join(" or ")+")"}:await agentWO(p,due,r.text);
         if(res.covered)await note("project",p.id,"Agents asked for work orders — every quote line is already on one, so nothing was made."+more);
         else if(res.why){await note("project",p.id,"Agents tried to create the work orders: blocked because "+res.why+"."+more,"Agents — blocked");out.blocked++}
         else{await note("project",p.id,"Agents created work order"+(res.made.length===1?" ":"s ")+res.made.join(", ")+(due?" — due "+due:"")+"."+(r.text?"\nShop note: "+r.text:""));out.workorders+=res.made.length}
@@ -18185,7 +18257,7 @@ function mySig(){const t=S.viewerTeam;return mailSendOn()&&t&&String(t.mailSig||
 function mailFill(txt,ctx){const p=ctx.pid?proj(ctx.pid):null,c=ctx.contact||null,a=acct(ctx.aid||(p&&p.accountId))||{};const rep2=(p&&repFor(p))||S.viewerTeam||{};
   const js=p?jobsOf(p.id):[];const tr=js.map(j=>(j.ship||{}).tracking).filter(Boolean).join(", "),car=js.map(j=>(j.ship||{}).carrier).filter(Boolean)[0]||"";
   const v={first:c?String(c.name||"").split(" ")[0]:"there",name:c?c.name:"",company:(S.brand||{}).name||"Street Sign Supply",customer:a.name||"",
-    project:p?p.name:"",pnum:p?"P-"+p.num:"",quote:p?(p.quote||"P-"+p.num):"",invoice:p?(p.invNum||""):"",total:p?money2(projValue(p)):"",
+    project:p?p.name:"",pnum:p?"P-"+p.num:"",quote:p?(p.quote||"P-"+p.num):"",invoice:p?(p.invNum||""):"",total:p?(optPending(p)?optMoneyText(p):money2(projValue(p))):"",
     total_tax:p?money2(projValue(p)+(invTaxOf(p)||0)):"",rep:rep2.name||meName(),rep_phone_line:(S.brand||{}).phone?"\n"+fmtPhone((S.brand||{}).phone):"",
     sig_name:mySig()?"":((rep2.name||meName())+"\n"+((S.brand||{}).name||"Street Sign Supply")+((S.brand||{}).phone?"\n"+fmtPhone((S.brand||{}).phone):"")),
     tracking_part:tr?"\n\nTracking: "+tr:"",carrier_part:car?" by "+car:"",sign_line:ctx.signUrl?"You can review and approve it online here — it takes a minute:\n"+ctx.signUrl+"\n\n":""};
@@ -18346,7 +18418,7 @@ async function composeSaveTpl(){const name=prompt("Name for this template (e.g. 
 // the quote after the owner approved it changes this, and the approval no longer counts. The mail worker works it out
 // the same way (worker/mail.mjs quoteHash) — keep the two in step.
 function quoteHash(p){if(!p)return "";const nv=x=>{const t=String(x==null?"":x).replace(/[$,\s]/g,"");return t!==""&&isFinite(Number(t))?String(Number(t)):String(x==null?"":x).trim()};
-  const L=(p.orderLines||[]).filter(l=>l).map(l=>[l.code,l.desc,l.size,l.grade,l.build,nv(l.qty),nv(l.price),l.lam===true,l.charge||""].map(x=>String(x==null?"":x)));
+  const L=(p.orderLines||[]).filter(l=>l).map(l=>[l.code,l.desc,l.size,l.grade,l.build,nv(l.qty),nv(l.price),l.lam===true,l.charge||""].concat(l.opt?[String(l.opt)]:[]).map(x=>String(x==null?"":x)));
   // what prints on the quote besides the lines: the scope, the customer's terms, and the quote terms and days
   const a=acct(p.accountId)||(S.accounts&&S.accounts.get(p.accountId))||{},b=S.brand||{};
   const s=JSON.stringify([String(p.quote||""),String(p.accountId||""),L,String(p.custScope||"").trim(),String(a.terms||""),String(b.quoteNote||"").trim(),String(b.quoteDays||"")]);let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return "q"+(h>>>0).toString(36)}
@@ -18503,7 +18575,9 @@ function signRec(p,kind,f,ct,arts,tok){const b=S.brand||{};const now=Date.now();
   const withQ=kind!=="proof",withP=kind!=="quote";
   const lines=withQ?ol.slice(0,60).map(l=>{const ch=isCharge(l);
     return {d:String(ch?(l.desc||"Charge"):docTidyName(l.desc||signName(l)||l.code||"Item",l)).slice(0,110),
-      s:ch?"":[l.size?sizeLabel(l.size):"",docSheeting(l.grade)].filter(Boolean).join(" · ").slice(0,140),q:Number(l.qty)||0,p:Number(l.price)||0,c:ch}}):[];
+      s:ch?"":[l.size?sizeLabel(l.size):"",docSheeting(l.grade)].filter(Boolean).join(" · ").slice(0,140),q:Number(l.qty)||0,p:Number(l.price)||0,c:ch,o:optKey(l)}}):[];
+  // a quote with options: the page shows each option and the customer must pick one to sign (it rides in the note)
+  const opts=withQ&&optPending(p)?optTotals(p).map(o=>({k:o.k,name:String(o.name||"").slice(0,80),total:Math.round(o.total*100)/100})):[];
   // one artwork tile for each line that's made with artwork (signs, decals, banners, stencils); the rest are listed as no artwork needed
   let artList=[],noArt=[];
   if(withP){ol.filter(l=>!isCharge(l)).forEach(l=>{const name=docTidyName(l.desc||signName(l)||l.code||"Item",l);
@@ -18525,7 +18599,7 @@ function signRec(p,kind,f,ct,arts,tok){const b=S.brand||{};const now=Date.now();
     logo:String(b.logo||"").length<200000?(b.logo||""):"",color:/^#[0-9a-f]{6}$/i.test(b.brand||"")?b.brand:"#D50101",
     repName:rep2.name||"",repPhone:rep2.phone?fmtPhone(rep2.phone):"",repEmail:rep2.email||"",
     customer:a.name||accName(p.accountId),customerOrg:org,contactName:ct?ct.name:"",contactEmail:ct?ct.email:"",
-    total:withQ?money2(sub):"",subtotal:withQ?Math.round(sub*100)/100:0,lines,arts:artList,noArt,
+    total:withQ?(opts.length?opts.map(o=>money2(o.total)+" (Option "+o.k+")").join(" or "):money2(sub)):"",subtotal:withQ?Math.round((opts.length?opts[0].total:sub)*100)/100:0,lines,opts,arts:artList,noArt,
     shipBy:p.due||"",qhash:kind==="proof"?"":quoteHash(p),pdfUrl:f?f.url:"",pdfName:f?f.name:"",pdfKind:f?(/proof|artwork/i.test(f.cat||"")?"proof":"quote"):"",fileId:f?f.id:"",
     status:"sent",createdAt:now,expiresAt:now+30*864e5,createdBy:meName(),createdById:meId(),signedName:"",signedAt:0,deleted:false}}
 function signCard(p){const rs=signReqsFor(p.id);if(!rs.length)return "";
@@ -18542,6 +18616,10 @@ function signCard(p){const rs=signReqsFor(p.id);if(!rs.length)return "";
           :`<button class="btn sm" data-signreq="${esc(p.id)}">New link</button>`}</div></div>`}).join("")}</section>`}
 function signAutoPass(){if(!window.sscHosted||!db||!S.signreq||!(can("del")||can("settings")||myAccess()==="sales"))return;S._signDone=S._signDone||{};
   S.signreq.forEach(r=>{if(r.status!=="signed"||S._signDone[r.token])return;S._signDone[r.token]=1;const p=proj(r.projectId);if(!p)return;
+    // a quote with options: the customer picked one on the page ("Option chosen: B — …" at the start of the note)
+    if(!r.optSet&&(r.opts||[]).length>1){const m=String(r.note||"").match(/Option chosen:\s*(?:Option\s+)?([A-Za-z0-9]{1,3})\b/i);
+      if(m&&optPending(p))optPick(p.id,m[1],(r.signedName||"the customer")+", signed online").catch(()=>{});
+      if(m)setDoc("signreq/"+r.token,Object.assign({},r,{optSet:true})).catch(()=>{})}
     if(r.kind!=="proof"&&!r.wonSet&&["lead","inquiry","quoted"].indexOf(p.stage)>=0){setStage(p.id,"won","quote signed online by "+(r.signedName||"the customer")).then(()=>setDoc("signreq/"+r.token,Object.assign({},r,{wonSet:true}))).catch(()=>{})}
     else if(r.kind!=="proof"&&!r.wonSet){setDoc("signreq/"+r.token,Object.assign({},r,{wonSet:true})).catch(()=>{})}
     // the PO they gave when signing goes on the project if it has none
@@ -19104,6 +19182,10 @@ function bind(){
       if(j8<0||j8>=L.length)return;
       const t8=L[i8];L[i8]=L[j8];L[j8]=t8;
       push("projects/"+pid8,{orderLines:L,updatedAt:Date.now()}).then(()=>toast("Moved"));return}
+    const opk=t.closest("[data-optpick]");
+    if(opk){const[pid,k]=opk.dataset.optpick.split(":");const p8=proj(pid);const o8=p8?optTotals(p8).find(x=>x.k===k):null;if(!o8)return;
+      askConfirm("Customer chose "+optLabel(o8)+"?",`<p style="margin:0">The quote becomes ${esc(optLabel(o8))} at ${money2(o8.total)}. The other option's lines come off the quote — they stay in the project history.</p>`,
+        "Yes, they chose "+o8.k,false,()=>optPick(pid,k).then(ok=>{if(ok)toast("Quote set to "+optLabel(o8))}));return}
     const oe2=t.closest("[data-ordedit]");
     if(oe2){const[pid,ix]=oe2.dataset.ordedit.split(":");
       const p9=proj(pid),l9=p9?orderedLines(p9)[Number(ix)]:null;

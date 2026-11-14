@@ -131,18 +131,34 @@ body.zooming .sticky{visibility:hidden}
   function hasP(){return R.kind!=="quote"&&((R.arts||[]).length>0||(R.noArt||[]).length>0)}
   function label(){return R.kind==="both"?"Quote "+(R.quoteNo||"")+" + proof rev "+(R.proofRev||1):R.kind==="proof"?"Proof rev "+(R.proofRev||1):"Quote "+(R.quoteNo||"")}
   function what(){return R.kind==="both"?"quote and artwork":R.kind==="proof"?"artwork proof":"quote"}
-  function total(){return (R.lines||[]).reduce(function(t,l){return t+l.q*l.p},0)}
+  // a quote with options (A, B…): lines with no option go with every one; the customer picks one to sign
+  var CH="";
+  function opts(){return (R.opts||[]).length>1?R.opts:[]}
+  function optOf(k){return opts().filter(function(o){return o.k===k})[0]||null}
+  function optName(o){return "Option "+o.k+(o.name?" — "+o.name:"")}
+  function chosen(){if(CH)return CH;var m=String(R.note||"").match(/Option chosen:\s*(?:Option\s+)?([A-Za-z0-9]{1,3})\b/i);return m?m[1].toUpperCase():""}
+  function linesFor(k){return (R.lines||[]).filter(function(l){return !l.o||l.o===k})}
+  function total(){var L=R.lines||[];if(opts().length){var k=chosen()||opts()[0].k;L=linesFor(k)}return L.reduce(function(t,l){return t+l.q*l.p},0)}
+  function optTot(k){return linesFor(k).reduce(function(t,l){return t+l.q*l.p},0)}
   function head(){return '<div class="card"><div class="head"><div class="co">'+(R.logo?'<img src="'+esc(R.logo)+'" alt="">':'')+'<div><div class="n">'+esc(R.company)+'</div><div class="a">'+esc(R.companyAddr||"")+(R.companyPhone?'<br>'+esc(R.companyPhone):"")+(R.companyEmail?' · '+esc(R.companyEmail):"")+'</div></div></div>'
       +'<div class="dtype"><div class="k">'+(R.kind==="both"?"Quote + proof":R.kind==="proof"?"Artwork proof":"Quote")+'</div><div class="no">'+esc(R.kind==="both"?(R.quoteNo||"")+" · Proof rev "+(R.proofRev||1):R.kind==="proof"?(R.pnum||"")+" · Proof rev "+(R.proofRev||1):(R.quoteNo||""))+'</div><div class="d">'+esc(day(R.createdAt))+'</div></div></div>'
       +'<div class="meta"><div><div class="k2">Project</div><div class="v">'+esc(R.project||"")+'</div></div><div><div class="k2">Prepared for</div><div class="v">'+esc(R.customer||"")+'</div>'+(R.contactName&&R.contactName!==R.customer?'<div class="s">'+esc(R.contactName)+'</div>':"")+'</div>'
       +'<div><div class="k2">Prepared by</div><div class="v">'+esc(R.repName||R.company)+'</div>'+(R.repPhone?'<div class="s">'+esc(R.repPhone)+'</div>':"")+'</div>'
       +'<div><div class="k2">'+(R.status==="sent"?"Respond by":"Status")+'</div><div class="v">'+(R.status==="sent"?esc(day(R.expiresAt)):R.status==="signed"?"Approved":R.status==="declined"?"Changes asked for":"Replaced")+'</div></div></div></div>'}
   var n=0;function sec(t,lead){n++;return '<h2><span class="num">'+n+'</span>'+esc(t)+'</h2>'+(lead?'<p class="lead">'+esc(lead)+'</p>':"")}
-  function quoteSec(){var L=R.lines||[],items=L.filter(function(l){return !l.c}),chg=L.filter(function(l){return l.c});
+  function quoteSec(){if(opts().length)return optSec();var L=R.lines||[],items=L.filter(function(l){return !l.c}),chg=L.filter(function(l){return l.c});
     return '<div class="card">'+sec("Quote items")+'<table class="items"><thead><tr><th>Item</th><th class="r">Qty</th><th class="r">Unit</th><th class="r">Amount</th></tr></thead><tbody>'
       +items.map(function(l){return '<tr><td><div class="t">'+esc(l.d)+'</div>'+(l.s?'<div class="s">'+esc(l.s)+'</div>':"")+'</td><td class="r">'+esc(l.q)+'</td><td class="r">'+money(l.p)+'</td><td class="r">'+money(l.q*l.p)+'</td></tr>'}).join("")+'</tbody></table>'
       +'<div class="tot"><table><tbody>'+(chg.length?'<tr><td>Items</td><td>'+money(items.reduce(function(t,l){return t+l.q*l.p},0))+'</td></tr>'+chg.map(function(l){return '<tr><td>'+esc(l.d)+'</td><td>'+money(l.q*l.p)+'</td></tr>'}).join(""):"")
       +'<tr class="g"><td>Total</td><td>'+money(total())+'</td></tr></tbody></table></div><div class="taxn">Plus sales tax where it applies</div>'
+      +(R.pdfUrl&&R.pdfKind!=="proof"?'<a class="dl noprint" href="'+esc(R.pdfUrl)+'" target="_blank" rel="noopener">↓ Download quote PDF ('+esc(R.pdfName||"")+')</a>':"")+'</div>'}
+  function optSec(){var L=R.lines||[],com=L.filter(function(l){return !l.o}),ck=chosen();
+    function rows(ls){return ls.map(function(l){return '<tr><td><div class="t">'+esc(l.d)+'</div>'+(l.s?'<div class="s">'+esc(l.s)+'</div>':"")+'</td><td class="r">'+esc(l.q)+'</td><td class="r">'+money(l.p)+'</td><td class="r">'+money(l.q*l.p)+'</td></tr>'}).join("")}
+    function hd(t){return '<tr><td colspan="4" style="padding-top:14px;font-weight:800;border-bottom:2px solid var(--brand)">'+esc(t)+'</td></tr>'}
+    return '<div class="card">'+sec("Quote options","Each option is priced in full. "+(R.status==="sent"&&!VIEW?"Pick one below when you approve.":""))+'<table class="items"><thead><tr><th>Item</th><th class="r">Qty</th><th class="r">Unit</th><th class="r">Amount</th></tr></thead><tbody>'
+      +(com.length?hd("Included with every option")+rows(com):"")
+      +opts().map(function(o){return hd(optName(o)+(ck===o.k?" ✓ chosen":""))+rows(L.filter(function(l){return l.o===o.k}))}).join("")+'</tbody></table>'
+      +'<div class="tot"><table><tbody>'+opts().map(function(o){return '<tr class="g"><td>'+esc("Option "+o.k)+' total</td><td>'+money(optTot(o.k))+'</td></tr>'}).join("")+'</tbody></table></div><div class="taxn">Plus sales tax where it applies</div>'
       +(R.pdfUrl&&R.pdfKind!=="proof"?'<a class="dl noprint" href="'+esc(R.pdfUrl)+'" target="_blank" rel="noopener">↓ Download quote PDF ('+esc(R.pdfName||"")+')</a>':"")+'</div>'}
   function artSec(locked){var A=R.arts||[];
     return '<div class="card">'+sec(locked?"Artwork":"Artwork — check each one","Proof rev "+(R.proofRev||1)+". Colors on screen are approximate.")+(A.length?'<div class="grid">'+A.map(function(a,i){var pc=pieces[i]||{};
@@ -165,7 +181,7 @@ body.zooming .sticky{visibility:hidden}
     var h=head()+(hasQ()?quoteSec():"")+(hasP()?artSec(locked):"");
     if(R.status==="signed"){h+='<div class="card" id="approve"><div class="done"><div class="t"><i>✓</i>Approved'+(VIEW?"":" — thank you")+'</div>'
         +'<div class="sig">'+(R.sigImg?'<img src="'+esc(R.sigImg)+'" alt="Signature" data-z="'+esc(R.sigImg)+'" style="cursor:zoom-in">':"")+'</div>'
-        +'<dl><dt>Signed by</dt><dd>'+esc(R.signedName)+(R.signedTitle?", "+esc(R.signedTitle):"")+'</dd><dt>For</dt><dd>'+esc(R.customer||"")+'</dd><dt>Approved</dt><dd>'+esc(label())+(hasQ()?" — "+money(total())+" plus tax":"")+'</dd>'+(R.po?'<dt>PO</dt><dd>'+esc(R.po)+'</dd>':"")+'<dt>Date</dt><dd>'+esc(when(R.signedAt))+'</dd>'+(R.note?'<dt>Note</dt><dd>'+esc(R.note)+'</dd>':"")+'<dt>Reference</dt><dd>'+esc(T.slice(0,8).toUpperCase())+'</dd></dl>'
+        +'<dl><dt>Signed by</dt><dd>'+esc(R.signedName)+(R.signedTitle?", "+esc(R.signedTitle):"")+'</dd><dt>For</dt><dd>'+esc(R.customer||"")+'</dd><dt>Approved</dt><dd>'+esc(label())+(opts().length&&chosen()&&optOf(chosen())?", "+esc(optName(optOf(chosen()))):"")+(hasQ()?" — "+money(total())+" plus tax":"")+'</dd>'+(R.po?'<dt>PO</dt><dd>'+esc(R.po)+'</dd>':"")+'<dt>Date</dt><dd>'+esc(when(R.signedAt))+'</dd>'+(R.note?'<dt>Note</dt><dd>'+esc(R.note)+'</dd>':"")+'<dt>Reference</dt><dd>'+esc(T.slice(0,8).toUpperCase())+'</dd></dl>'
         +'<div class="acts noprint" style="margin-top:16px"><button class="btn" type="button" onclick="window.print()">Print or save a copy</button></div></div></div>'+nextSec()+foot();app.innerHTML=h;bindZoom();return}
     if(R.status==="declined"){h+='<div class="card"><div class="chg"><div style="font-weight:800;font-size:17px">Changes asked for</div><p style="margin:6px 0 0;color:#4b5361">'+esc(R.signedName||"")+' · '+esc(when(R.signedAt))+(R.note?'<br>“'+esc(R.note)+'”':"")+'</p><p class="legal">We\'ll send an updated '+esc(what())+' shortly.</p></div></div>'+foot();app.innerHTML=h;bindZoom();return}
     if(PREVIEW){app.innerHTML='<div class="card" style="background:#fff7e0;border-color:#e8c46a"><b>Preview</b> — this is the page the customer sees. Below the quote they type their name, title and PO number, sign, tick the agree box and press <b>Approve and sign</b> or <b>Request changes</b>. Nothing can be signed from this preview.</div>'+h
@@ -175,6 +191,7 @@ body.zooming .sticky{visibility:hidden}
     h+='<div class="card" id="approve">'+sec("Approve "+what())
       +'<div class="row3"><div><label class="f" for="nm">Full name</label><input type="text" id="nm" autocomplete="name" placeholder="Your full name"></div><div><label class="f" for="tt">Title <span style="font-weight:400;color:#7a828e">(optional)</span></label><input type="text" id="tt" autocomplete="organization-title" placeholder="e.g. Public Works Manager"></div>'
       +(hasQ()?'<div><label class="f" for="po">PO number <span style="font-weight:400;color:#7a828e">(optional)</span></label><input type="text" id="po" autocomplete="off"></div>':"<div></div>")+'</div>'
+      +(hasQ()&&opts().length?'<label class="f">Which option?</label><div class="optpick" style="display:grid;gap:8px;margin-bottom:12px">'+opts().map(function(o){return '<label class="chk" style="margin:0;border:1px solid #d9dde3;border-radius:8px;padding:10px 12px"><input type="radio" name="opt" value="'+esc(o.k)+'"><span><b>'+esc(optName(o))+'</b> — '+money(optTot(o.k))+' plus tax</span></label>'}).join("")+'</div>':"")
       +'<label class="f">Signature</label><div class="pad"><canvas id="cv" aria-label="Signature pad — draw your signature"></canvas><span class="x">×</span><div class="base"></div><div class="ph">Sign with your finger or mouse</div><button class="clr" type="button" id="clr">Clear</button></div>'
       +'<label class="chk"><input type="checkbox" id="ag"><span>I agree to sign electronically'+(org?' and I am authorized to approve this order for <b>'+esc(R.customer)+'</b>':' and approve this order')+'.</span></label>'
       +'<label class="f" for="nt">Note <span style="font-weight:400;color:#7a828e">(optional)</span></label><textarea id="nt" placeholder="Anything we should know"></textarea>'
@@ -182,7 +199,8 @@ body.zooming .sticky{visibility:hidden}
       +'<div class="acts"><button class="btn p" type="button" id="go">Approve and sign</button><button class="btn" type="button" id="no">Request changes</button></div><div class="msg" id="msg"></div>'
       +'<p class="legal">Signing records your name, signature, the date and time, and your device. You can print a copy afterwards.</p></div>'+nextSec()+foot();
     app.innerHTML=h;bindZoom();bindPieces();summary();
-    document.getElementById("ssum").innerHTML=hasQ()?'Total<b>'+money(total())+'</b>':'Proof<b>'+(R.arts||[]).length+' piece'+((R.arts||[]).length===1?"":"s")+'</b>';
+    [].forEach.call(document.querySelectorAll('input[name="opt"]'),function(r){r.onchange=function(){CH=r.value;summary()}});
+    document.getElementById("ssum").innerHTML=hasQ()&&opts().length?'Options from<b>'+money(Math.min.apply(null,opts().map(function(o){return optTot(o.k)})))+'</b>':hasQ()?'Total<b>'+money(total())+'</b>':'Proof<b>'+(R.arts||[]).length+' piece'+((R.arts||[]).length===1?"":"s")+'</b>';
     var ap=document.getElementById("approve");function vis(){var r=ap.getBoundingClientRect();st.classList.toggle("on",r.top>window.innerHeight*0.85)}window.addEventListener("scroll",vis,{passive:true});vis();
     var cv=document.getElementById("cv"),cx=cv.getContext("2d"),drawn=false,down=false,last=null;
     function size(){var r=cv.getBoundingClientRect(),d=window.devicePixelRatio||1;cv.width=Math.round(r.width*d);cv.height=Math.round(r.height*d);cx.setTransform(d,0,0,d,0,0);cx.lineWidth=2.6;cx.lineCap="round";cx.lineJoin="round";cx.strokeStyle="#0b1220"}
@@ -199,7 +217,9 @@ body.zooming .sticky{visibility:hidden}
       if(bad.length)status="declined";
       if(nm.length<2){msg.textContent="Please type your full name.";document.getElementById("nm").focus();return}
       if(status==="signed"&&unset.length){msg.textContent="Approve or flag each piece of artwork first ("+unset.length+" left).";var t0=document.getElementById("tile"+unset[0].i);if(t0)t0.scrollIntoView({behavior:"smooth",block:"center"});return}
+      if(status==="signed"&&opts().length&&!CH){msg.textContent="Pick the option you want first.";var op0=document.querySelector('input[name="opt"]');if(op0)op0.scrollIntoView({behavior:"smooth",block:"center"});return}
       if(status==="signed"&&!drawn){msg.textContent="Please sign in the box.";return}
+      if(status==="signed"&&CH&&optOf(CH))nt=("Option chosen: "+optName(optOf(CH))+(nt?" | "+nt:"")).slice(0,800);
       if(status==="signed"&&!document.getElementById("ag").checked){msg.textContent="Please tick the box to approve.";return}
       if(status==="declined"&&!nt&&!bad.some(function(p){return p.note})){msg.textContent="Tell us what to change — in the note on the piece, or the note below.";return}
       var now=Date.now(),f={status:{stringValue:status},signedName:{stringValue:nm.slice(0,110)},signedTitle:{stringValue:tt.slice(0,80)},signedAt:{integerValue:String(now)},note:{stringValue:nt.slice(0,800)},ua:{stringValue:navigator.userAgent.slice(0,200)}};
@@ -217,7 +237,7 @@ body.zooming .sticky{visibility:hidden}
     var nob=document.getElementById("no");if(nob)nob.style.display=bad?"none":"";
     if(bad){box.className="sum bad";box.innerHTML=bad+" piece"+(bad===1?" needs":"s need")+" a change — we'll send those notes to "+esc((R.repName||"us").split(" ")[0])+" and update the "+esc(what())+".";go.textContent="Send change requests";go.className="btn p bad";return}
     box.className="sum";go.className="btn p";go.textContent="Approve and sign";
-    box.innerHTML="Signing approves "+(R.kind==="both"?"<b>both</b> quote "+esc(R.quoteNo||"")+" ("+money(total())+" plus applicable tax) <b>and</b> artwork proof rev "+esc(R.proofRev||1):R.kind==="proof"?"artwork proof rev "+esc(R.proofRev||1):"quote "+esc(R.quoteNo||"")+" ("+money(total())+" plus applicable tax)")+"."+(unset?' <span style="color:#7a828e">'+unset+' piece'+(unset===1?"":"s")+' still to check above.</span>':"")}
+    box.innerHTML="Signing approves "+(R.kind==="both"?"<b>both</b> quote "+esc(R.quoteNo||"")+" ("+money(total())+" plus applicable tax) <b>and</b> artwork proof rev "+esc(R.proofRev||1):R.kind==="proof"?"artwork proof rev "+esc(R.proofRev||1):"quote "+esc(R.quoteNo||"")+(opts().length?(CH&&optOf(CH)?", "+esc(optName(optOf(CH)))+" ("+money(total())+" plus applicable tax)":" — pick an option above"):" ("+money(total())+" plus applicable tax)"))+"."+(unset?' <span style="color:#7a828e">'+unset+' piece'+(unset===1?"":"s")+' still to check above.</span>':"")}
   function bindPieces(){[].forEach.call(document.querySelectorAll("[data-ok],[data-bad]"),function(b){b.onclick=function(){var i=Number(b.getAttribute("data-ok")!=null?b.getAttribute("data-ok"):b.getAttribute("data-bad"));
       pieces[i].ok=b.hasAttribute("data-ok");var t=document.getElementById("tile"+i);t.className="tile "+(pieces[i].ok?"ok":"bad");
       t.querySelector(".okb").classList.toggle("on",pieces[i].ok);t.querySelector(".badb").classList.toggle("on",!pieces[i].ok);
